@@ -1,0 +1,103 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Distribution files
+dist/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# IDE/Editor
+.vscode/
+.history/
+.idea/
+.vs/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Virtual Environments
+.venv
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# Database
+*.sqlite3
+*.db
+dumps/*.sql
+dumps/
+backups/
+
+# Coverage & test artifacts
+htmlcov/
+.coverage
+coverage.xml
+*.cover
+.tox/
+
+# Caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+
+# Builds / distribution
+build/
+*.egg-info/
+eggs/
+.eggs/
+*.egg
+develop-eggs/
+downloads/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+
+# Secrets (private keys/certs)
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
+
+# Django static build output (root only)
+# Adjust if your STATIC_ROOT differs
+/staticfiles/
+
+# Misc
+*.bak
+*.swp
+*.tmp
+
+# Other (Backup/Temporary files)
+*.py_*
+*.html_*
+*.js_*
+*.ts_*
+*.css_*
+*.txt_*

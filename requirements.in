@@ -1,0 +1,51 @@
+# === Web Framework ===
+Django~=5.2
+djangorestframework
+gunicorn
+whitenoise
+
+# === Database ===
+psycopg2-binary
+
+# === Telegram Bot ===
+python-telegram-bot
+
+# === Async Tasks ===
+celery
+redis
+
+# === AI / ML ===
+google-genai
+google-cloud-vision
+
+# === File Storage ===
+django-storages
+boto3
+pillow
+
+# === Django Plugins ===
+django-unfold
+django-crispy-forms
+django-import-export
+django-simple-history
+django-select2
+
+# === Reports & Documents ===
+reportlab
+openpyxl
+xlsxwriter
+pandas
+tablib
+
+# === Utils ===
+python-decouple
+python-dateutil
+python-slugify
+pytz
+tzdata
+requests
+PyYAML
+
+# === Dev ===
+django-debug-toolbar
+django-browser-reload
