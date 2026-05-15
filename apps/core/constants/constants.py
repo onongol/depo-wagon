@@ -40,11 +40,11 @@ class DefectSeverity(models.TextChoices):
     LOW = "low", "Бага"
     MEDIUM = "medium", "Дунд"
     HIGH = "high", "Өндөр"
-    CRITICAL = "critical", "Шүүмжлэлт"
+    CRITICAL = "critical", "Онц Ноцтой"
 
 
 class DefectStatus(models.TextChoices):
-    OPEN = "open", "Нээлттэй"
+    OPEN = "open", "Илэрсэн"
     IN_PROGRESS = "in_progress", "Хийгдэж байна"
     RESOLVED = "resolved", "Шийдвэрлэсэн"
     CLOSED = "closed", "Хаасан"
