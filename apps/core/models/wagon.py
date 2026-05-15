@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 
 from django.conf import settings
+from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from simple_history.models import HistoricalRecords
@@ -16,7 +17,8 @@ class Wagon(models.Model):
         max_length=20, choices=WagonType.choices, verbose_name=_("Wagon Type")
     )
     manufacture_year = models.PositiveSmallIntegerField(
-        verbose_name=_("Manufacture Year")
+        validators=[MinValueValidator(1900)],
+        verbose_name=_("Manufacture Year"),
     )
     last_repair_date = models.DateField(
         null=True, blank=True, verbose_name=_("Last Repair Date")
@@ -47,18 +49,18 @@ class Wagon(models.Model):
 
     @property
     def needs_repair_soon(self):
+        """Check if the wagon's next repair date is within the warning period."""
         if not self.next_repair_date:
             return False
         days = getattr(settings, "REPAIR_WARNING_DAYS", 30)
         return self.next_repair_date <= date.today() + timedelta(days=days)
 
     def __str__(self):
-        return f"{_('Wagon')} {self.number} ({self.get_wagon_type_display()})"
+        return f"{_('Wagon')}: {self.number}"
 
     class Meta:
         verbose_name = _("Wagon")
         verbose_name_plural = _("Wagons")
-        ordering = ["number"]
         indexes = [
             models.Index(fields=["status"]),
             models.Index(fields=["wagon_type"]),
