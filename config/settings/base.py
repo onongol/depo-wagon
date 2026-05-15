@@ -23,10 +23,13 @@ INSTALLED_APPS = [
     "simple_history",
     "storages",
     # Project apps
+    "apps.users",
     "apps.core",
     "apps.bot",
     "apps.ai_service",
 ]
+
+AUTH_USER_MODEL = "users.CustomUser"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
