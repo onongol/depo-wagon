@@ -16,6 +16,7 @@ class WagonAdmin(ModelAdmin):
         "owner",
         "status",
         "repair_type",
+        "needs_repair_soon",
     ]
     list_filter = ["status", "wagon_type", "repair_type"]
     search_fields = ["number", "owner"]
