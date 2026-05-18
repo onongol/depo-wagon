@@ -1,12 +1,18 @@
 from datetime import date, timedelta
 
 from django.conf import settings
-from django.core.validators import MinValueValidator
+from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from simple_history.models import HistoricalRecords
 
 from apps.core.constants import RepairType, WagonStatus, WagonType
+
+
+def current_year():
+    return timezone.now().year
 
 
 class Wagon(models.Model):
@@ -17,7 +23,7 @@ class Wagon(models.Model):
         max_length=20, choices=WagonType.choices, verbose_name=_("Wagon Type")
     )
     manufacture_year = models.PositiveSmallIntegerField(
-        validators=[MinValueValidator(1900)],
+        validators=[MinValueValidator(1900), MaxValueValidator(current_year)],
         verbose_name=_("Manufacture Year"),
     )
     last_repair_date = models.DateField(
@@ -47,6 +53,27 @@ class Wagon(models.Model):
 
     history = HistoricalRecords()
 
+    def clean(self):
+        super().clean()
+        if self.last_repair_date and self.last_repair_date.year < self.manufacture_year:
+            raise ValidationError(
+                {
+                    "last_repair_date": _(
+                        "Last repair date cannot be earlier than the manufacture year."
+                    )
+                }
+            )
+
+        if self.last_repair_date and self.next_repair_date:
+            if self.next_repair_date <= self.last_repair_date:
+                raise ValidationError(
+                    {
+                        "next_repair_date": _(
+                            "Next repair date must be later than the last repair date."
+                        )
+                    }
+                )
+
     @property
     def needs_repair_soon(self):
         """Check if the wagon's next repair date is within the warning period."""
@@ -61,9 +88,9 @@ class Wagon(models.Model):
     class Meta:
         verbose_name = _("Wagon")
         verbose_name_plural = _("Wagons")
+        ordering = ["number"]
         indexes = [
-            models.Index(fields=["status"]),
-            models.Index(fields=["wagon_type"]),
-            models.Index(fields=["last_repair_date"]),
-            models.Index(fields=["next_repair_date"]),
+            models.Index(fields=["status", "wagon_type"]),
+            models.Index(fields=["status", "last_repair_date"]),
+            models.Index(fields=["status", "next_repair_date"]),
         ]
