@@ -101,3 +101,6 @@ id_ed25519
 *.ts_*
 *.css_*
 *.txt_*
+
+# Media files
+media/
