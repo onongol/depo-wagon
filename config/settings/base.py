@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     # Project apps
     "apps.users",
     "apps.core",
+    "apps.defects",
     "apps.bot",
     "apps.ai_service",
 ]
