@@ -42,13 +42,34 @@ class Employee(models.Model):
 
     history = HistoricalRecords()
 
+    def save(self, *args, **kwargs):
+        self.phone = self.phone or None
+        self.email = self.email or None
+        super().save(*args, **kwargs)
+        if self.user_id and self.user.is_active != self.is_active:
+            self.user.__class__.objects.filter(pk=self.user_id).update(
+                is_active=self.is_active
+            )
+
+    @property
+    def full_name(self) -> str:
+        return f"{self.last_name} {self.first_name}"
+
+    @property
+    def short_name(self):
+        if self.first_name and self.last_name:
+            return f"{self.last_name[0]}.{self.first_name}"
+        return self.first_name or self.last_name or self.employee_id
+
     def __str__(self):
-        return f"{self.last_name} {self.first_name} ({self.employee_id})"
+        return f"{self.full_name} ({self.employee_id})"
 
     class Meta:
         verbose_name = _("Employee")
         verbose_name_plural = _("Employees")
+        ordering = ["employee_id"]
         indexes = [
             models.Index(fields=["role"]),
-            models.Index(fields=["first_name", "last_name"]),
+            models.Index(fields=["first_name"]),
+            models.Index(fields=["last_name"]),
         ]
