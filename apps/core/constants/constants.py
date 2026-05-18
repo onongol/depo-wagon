@@ -48,3 +48,46 @@ class DefectStatus(models.TextChoices):
     IN_PROGRESS = "in_progress", "Хийгдэж байна"
     RESOLVED = "resolved", "Шийдвэрлэсэн"
     CLOSED = "closed", "Хаасан"
+
+
+class DefectNode(models.TextChoices):
+    BODY = "body", "Их бие"
+    FRAME = "frame", "Арал"
+    BOGIE = "bogie", "Тэрэгцэр"
+    WHEELSET = "wheelset", "Хос дугуйн"
+    BEARING = "bearing", "Гүүшин"
+    BRAKE = "brake", "Тоормосны систем"
+    COUPLER = "coupler", "Ниших татах төхөөрөмж"
+    OTHER = "other", "Бусад"
+
+
+class DefectType(models.TextChoices):
+    CRACK = "crack", "Ан цав"
+    WEAR = "wear", "Элэгдэл"
+    DEFORMATION = "deformation", "Хэв гажилт"
+    FRACTURE = "fracture", "Хугарал"
+    DESTRUCTION = "destruction", "Эвдрэл"
+    CORROSION = "corrosion", "Зэврэлт"
+    THREAD_STRIP = "thread_strip", "Эрээс гарах"
+    LEAK = "leak", "Шүүрэлт"
+    LOOSE = "loose", "Бэхэлгээ сулрах"
+    MISSING = "missing", "Дутуу"
+    OTHER = "other", "Бусад"
+
+
+class DefectVerdict(models.TextChoices):
+    OK = "ok", "Тэнцсэн"
+    REPAIR_SOON = "repair_soon", "Төлөвлөгөөт"
+    REPAIR_NOW = "repair_now", "Яаралтай"
+    DECOMMISSION = "decommission", "Хассан"
+
+
+class MeasurementDimension(models.TextChoices):
+    LENGTH = "length", "Урт"
+    WIDTH = "width", "Өргөн"
+    DEPTH = "depth", "Гүн"
+    DIAMETER = "diameter", "Диаметр"
+    THICKNESS = "thickness", "Зузаан"
+    GAP = "gap", "Зай"
+    ANGLE = "angle", "Өнцөг"
+    OTHER = "other", "Бусад"
