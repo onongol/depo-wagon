@@ -16,7 +16,7 @@ class DefectPhoto(models.Model):
         return f"Photo {self.defect} ({self.uploaded_at:%Y-%m-%d})"
 
     class Meta:
-        verbose_name = _("Photo")
-        verbose_name_plural = _("Photos")
+        verbose_name = _("Defect Photo")
+        verbose_name_plural = _("Defect Photos")
         ordering = ["-uploaded_at"]
         indexes = [models.Index(fields=["defect"])]
