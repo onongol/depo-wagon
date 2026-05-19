@@ -1,7 +1,7 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from apps.core.constants import MeasurementDimension
+from apps.defects.constants import MeasurementDimension
 
 
 class DefectMeasurement(models.Model):
