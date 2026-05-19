@@ -5,7 +5,7 @@ gunicorn
 whitenoise
 
 # === Database ===
-psycopg2-binary
+psycopg
 
 # === Telegram Bot ===
 python-telegram-bot
@@ -53,3 +53,4 @@ django-browser-reload
 # === Testing ===
 pytest
 pytest-django
+model-bakery
