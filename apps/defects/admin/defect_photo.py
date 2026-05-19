@@ -10,5 +10,5 @@ class DefectPhotoAdmin(ModelAdmin):
         "defect",
         "uploaded_at",
     ]
-    list_filter = ["defect"]
+    search_fields = ["defect__wagon__number",]
     readonly_fields = ["uploaded_at"]
