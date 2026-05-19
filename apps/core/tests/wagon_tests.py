@@ -77,6 +77,11 @@ class TestWagonClean:
         )
         wagon.full_clean()  # Should not raise
 
+    def test_manufacture_year_in_future_raises(self):
+        wagon = make_wagon(manufacture_year=date.today().year + 1)
+        with pytest.raises(ValidationError):
+            wagon.full_clean()
+
 
 @pytest.mark.django_db
 class TestWagonNeedsRepairSoon:
