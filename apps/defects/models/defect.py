@@ -4,7 +4,7 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from simple_history.models import HistoricalRecords
 
-from apps.core.constants import (
+from apps.defects.constants import (
     DefectNode,
     DefectSeverity,
     DefectStatus,
