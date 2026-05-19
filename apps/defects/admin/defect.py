@@ -7,7 +7,7 @@ from apps.defects.models import Defect
 @admin.register(Defect)
 class DefectAdmin(ModelAdmin):
     list_display = [
-        "wagon",
+        "wagon__number",
         "node",
         "defect",
         "severity",
@@ -18,7 +18,7 @@ class DefectAdmin(ModelAdmin):
         "inspected_at",
     ]
     list_filter = ["node", "defect", "severity", "status"]
-    search_fields = ["wagon"]
+    search_fields = ["wagon__number"]
     readonly_fields = [
         "ai_recommendation",
         "ai_defect_class",
