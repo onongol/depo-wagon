@@ -53,6 +53,10 @@ class Wagon(models.Model):
 
     history = HistoricalRecords()
 
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
     def clean(self):
         super().clean()
         if self.last_repair_date and self.last_repair_date.year < self.manufacture_year:
