@@ -16,3 +16,6 @@ MIDDLEWARE += [
 INTERNAL_IPS = ["127.0.0.1"]
 
 DATABASES["default"]["CONN_MAX_AGE"] = 0
+
+# Show all SQL queries in the console during development
+LOGGING["loggers"]["django.db.backends"]["level"] = "DEBUG"
