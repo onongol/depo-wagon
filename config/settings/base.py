@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     # Third-party
     "django_filters",
     "rest_framework",
+    "knox",
     "import_export",
     "simple_history",
     "storages",
@@ -139,7 +140,7 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.IsAuthenticated",
     ],
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework.authentication.TokenAuthentication",
+        "knox.auth.TokenAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_FILTER_BACKENDS": [
