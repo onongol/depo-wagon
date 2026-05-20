@@ -19,3 +19,11 @@ DATABASES["default"]["CONN_MAX_AGE"] = 0
 
 # Show all SQL queries in the console during development
 LOGGING["loggers"]["django.db.backends"]["level"] = "DEBUG"
+
+# DRF — no auth required during local development
+REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] = [
+    "rest_framework.permissions.AllowAny",
+]
+REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"] = [
+    "rest_framework.authentication.SessionAuthentication",
+]
