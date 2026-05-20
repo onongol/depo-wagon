@@ -1,0 +1,26 @@
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import viewsets
+from rest_framework.filters import OrderingFilter, SearchFilter
+
+from apps.defects.models import Defect
+from apps.defects.serializers import DefectListSerializer, DefectSerializer
+
+
+class DefectViewSet(viewsets.ModelViewSet):
+    queryset = Defect.objects.select_related("wagon", "inspector").all()
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ["status", "severity", "node", "defect", "wagon"]
+    search_fields = ["wagon__number"]
+    ordering_fields = ["inspected_at", "severity", "status"]
+    ordering = ["-inspected_at"]
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return DefectListSerializer
+        return DefectSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        if self.action == "retrieve":
+            qs = qs.prefetch_related("measurements", "photos")
+        return qs
