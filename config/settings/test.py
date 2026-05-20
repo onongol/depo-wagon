@@ -16,3 +16,6 @@ PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 
 # Disable logging in tests
 LOGGING = {}
+
+STATICFILES_DIRS = []
+STATIC_ROOT = None
