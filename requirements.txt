@@ -81,6 +81,8 @@ django-filter==25.2
     # via -r requirements.in
 django-import-export==4.4.1
     # via -r requirements.in
+django-rest-knox==5.0.4
+    # via -r requirements.in
 django-select2==8.4.8
     # via -r requirements.in
 django-simple-history==3.11.0

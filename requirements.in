@@ -24,6 +24,7 @@ boto3
 pillow
 
 # === Django Plugins ===
+django-rest-knox
 django-unfold
 django-crispy-forms
 django-import-export
