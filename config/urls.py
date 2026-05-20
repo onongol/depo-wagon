@@ -13,5 +13,5 @@ if settings.DEBUG:
     urlpatterns += [
         path("__debug__/", include(debug_toolbar.urls)),
         path("__reload__/", include("django_browser_reload.urls")),
-        path("api-auth/", include("rest_framework.urls"))
+        path("api-auth/", include("rest_framework.urls")),
     ]
