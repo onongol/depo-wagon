@@ -1,3 +1,9 @@
-from .wagon_serializer import WagonSerializer, WagonListSerializer
+from .employee_serializer import EmployeeListSerializer, EmployeeSerializer
+from .wagon_serializer import WagonListSerializer, WagonSerializer
 
-__all__ = ["WagonSerializer", "WagonListSerializer"]
+__all__ = [
+    "EmployeeSerializer",
+    "EmployeeListSerializer",
+    "WagonSerializer",
+    "WagonListSerializer",
+]
