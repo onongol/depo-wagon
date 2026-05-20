@@ -77,6 +77,8 @@ django-crispy-forms==2.6
     # via -r requirements.in
 django-debug-toolbar==6.3.0
     # via -r requirements.in
+django-filter==25.2
+    # via -r requirements.in
 django-import-export==4.4.1
     # via -r requirements.in
 django-select2==8.4.8
@@ -138,6 +140,8 @@ jmespath==1.1.0
     #   botocore
 kombu==5.6.2
     # via celery
+markdown==3.10.2
+    # via -r requirements.in
 model-bakery==1.23.4
     # via -r requirements.in
 numpy==2.4.4
