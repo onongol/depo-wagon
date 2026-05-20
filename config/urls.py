@@ -4,6 +4,7 @@ from django.urls import include, path
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("api/v1/", include("apps.core.urls")),
 ]
 
 if settings.DEBUG:
@@ -12,4 +13,5 @@ if settings.DEBUG:
     urlpatterns += [
         path("__debug__/", include(debug_toolbar.urls)),
         path("__reload__/", include("django_browser_reload.urls")),
+        path("api-auth/", include("rest_framework.urls"))
     ]
