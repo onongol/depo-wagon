@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     "django_filters",
     "rest_framework",
     "knox",
+    "drf_spectacular",
     "import_export",
     "simple_history",
     "storages",
@@ -150,6 +151,26 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 50,
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Depo Wagon API",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
+    "SCHEMA_PATH_PREFIX": "/api/v1/",
+    "AUTHENTICATION_WHITELIST": [
+        "knox.auth.TokenAuthentication",
+    ],
+    "SWAGGER_UI_SETTINGS": {
+        "persistAuthorization": True,
+    },
+    "ENUM_NAME_OVERRIDES": {
+        "WagonStatusEnum": "apps.core.constants.WagonStatus",
+        "DefectStatusEnum": "apps.defects.constants.DefectStatus",
+        "DefectVerdictEnum": "apps.defects.constants.DefectVerdict",
+    },
 }
 
 AUTH_PASSWORD_VALIDATORS = [
