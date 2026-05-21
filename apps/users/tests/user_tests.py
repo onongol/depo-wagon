@@ -1,5 +1,6 @@
 import pytest
 from django.contrib.auth import get_user_model
+from django.db import IntegrityError
 
 User = get_user_model()
 
@@ -45,7 +46,7 @@ class TestCustomUserManager:
 class TestCustomUser:
     def test_email_is_unique(self):
         User.objects.create_user(email="unique@example.com", password="pass123")
-        with pytest.raises(Exception):
+        with pytest.raises(IntegrityError):
             User.objects.create_user(email="unique@example.com", password="pass456")
 
     def test_username_field_is_email(self):
@@ -57,3 +58,7 @@ class TestCustomUser:
     def test_user_is_active_by_default(self):
         user = User.objects.create_user(email="active@example.com", password="pass123")
         assert user.is_active
+
+    def test_str_returns_email(self):
+        user = User.objects.create_user(email="str@example.com", password="pass123")
+        assert str(user) == "str@example.com"
