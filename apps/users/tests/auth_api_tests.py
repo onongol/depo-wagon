@@ -1,8 +1,11 @@
 import pytest
 from django.contrib.auth import get_user_model
 from django.urls import reverse
+from model_bakery import baker
 from rest_framework import status
 from rest_framework.test import APIClient
+
+from apps.core.constants import EmployeeRole
 
 User = get_user_model()
 
@@ -12,7 +15,9 @@ TEST_PASSWORD = "pass123"
 
 @pytest.fixture
 def user(db):
-    return User.objects.create_superuser(email=TEST_EMAIL, password=TEST_PASSWORD)
+    user = User.objects.create_user(email=TEST_EMAIL, password=TEST_PASSWORD)
+    baker.make("core.Employee", user=user, role=EmployeeRole.INSPECTOR)
+    return user
 
 
 @pytest.fixture
