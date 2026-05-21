@@ -104,3 +104,6 @@ id_ed25519
 
 # Media files
 media/
+
+# API documentation schema
+schema.yml
