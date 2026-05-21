@@ -1,5 +1,7 @@
 from django.contrib.auth import authenticate
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 from knox.views import LoginView as KnoxLoginView
+from knox.views import LogoutAllView as KnoxLogoutAllView
 from rest_framework import permissions, serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -10,6 +12,18 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField()
 
 
+class LoginResponseSerializer(serializers.Serializer):
+    token = serializers.CharField()
+    expiry = serializers.DateTimeField()
+
+
+@extend_schema(
+    request=LoginSerializer,
+    responses={
+        200: LoginResponseSerializer,
+        400: OpenApiResponse(description="Invalid credentials"),
+    },
+)
 class LoginView(KnoxLoginView):
     permission_classes = [permissions.AllowAny]
 
@@ -30,7 +44,19 @@ class LoginView(KnoxLoginView):
         return super().post(request, fmt)
 
 
+@extend_schema(
+    request=None,
+    responses={204: OpenApiResponse(description="Logged out successfully")},
+)
 class LogoutView(APIView):
     def post(self, request):
         request.auth.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@extend_schema(
+    request=None,
+    responses={204: OpenApiResponse(description="Logged out from all devices")},
+)
+class LogoutAllView(KnoxLogoutAllView):
+    pass
