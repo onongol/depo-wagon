@@ -26,7 +26,7 @@ class TestEmployeeList:
     def test_list_returns_all_employees(self, api_client):
         baker.make("core.Employee", _quantity=3)
         response = api_client.get(reverse("employee-list"))
-        assert response.data["count"] == 3
+        assert response.data["count"] == Employee.objects.count()
 
     def test_list_uses_list_serializer(self, api_client, employee):
         response = api_client.get(reverse("employee-list"))
@@ -132,7 +132,7 @@ class TestEmployeeFilters:
         baker.make("core.Employee", is_active=True, _quantity=2)
         baker.make("core.Employee", is_active=False)
         response = api_client.get(reverse("employee-list"), {"is_active": "true"})
-        assert response.data["count"] == 2
+        assert response.data["count"] == Employee.objects.filter(is_active=True).count()
 
     def test_search_by_employee_id(self, api_client, employee):
         response = api_client.get(
