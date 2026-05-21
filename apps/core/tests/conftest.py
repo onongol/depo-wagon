@@ -3,12 +3,18 @@ from django.contrib.auth import get_user_model
 from model_bakery import baker
 from rest_framework.test import APIClient
 
+from apps.core.constants import EmployeeRole
+
 User = get_user_model()
 
 
 @pytest.fixture
 def user(db):
-    return User.objects.create_superuser(email="test@depot.mn", password="pass123")
+    user = User.objects.create_user(
+        email="test@depot.mn", password="pass123", is_staff=True
+    )
+    baker.make("core.Employee", user=user, role=EmployeeRole.ENGINEER)
+    return user
 
 
 @pytest.fixture
