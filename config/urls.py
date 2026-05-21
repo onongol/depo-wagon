@@ -11,8 +11,22 @@ urlpatterns = [
 
 if settings.DEBUG:
     import debug_toolbar
+    from drf_spectacular.views import (
+        SpectacularAPIView,
+        SpectacularRedocView,
+        SpectacularSwaggerView,
+    )
 
     urlpatterns += [
+        path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+        path(
+            "api/docs/",
+            SpectacularSwaggerView.as_view(url_name="schema"),
+            name="swagger-ui",
+        ),
+        path(
+            "api/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"
+        ),
         path("__debug__/", include(debug_toolbar.urls)),
         path("__reload__/", include("django_browser_reload.urls")),
         path("api-auth/", include("rest_framework.urls")),
