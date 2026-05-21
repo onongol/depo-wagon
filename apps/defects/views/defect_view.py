@@ -4,6 +4,7 @@ from rest_framework.filters import OrderingFilter, SearchFilter
 
 from apps.defects.models import Defect
 from apps.defects.serializers import DefectListSerializer, DefectSerializer
+from apps.users.permissions import IsAnyEmployee, IsEngineer, IsInspectorOrEngineer
 
 
 class DefectViewSet(viewsets.ModelViewSet):
@@ -18,6 +19,13 @@ class DefectViewSet(viewsets.ModelViewSet):
         if self.action == "list":
             return DefectListSerializer
         return DefectSerializer
+
+    def get_permissions(self):
+        if self.action == "create":
+            return [IsInspectorOrEngineer()]
+        if self.action in ["update", "partial_update", "destroy"]:
+            return [IsEngineer()]
+        return [IsAnyEmployee()]
 
     def get_queryset(self):
         qs = super().get_queryset()
