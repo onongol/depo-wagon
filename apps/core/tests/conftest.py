@@ -8,7 +8,7 @@ User = get_user_model()
 
 @pytest.fixture
 def user(db):
-    return User.objects.create_user(email="test@depot.mn", password="pass123")
+    return User.objects.create_superuser(email="test@depot.mn", password="pass123")
 
 
 @pytest.fixture
