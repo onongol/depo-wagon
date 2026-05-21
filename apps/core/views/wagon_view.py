@@ -4,6 +4,7 @@ from rest_framework.filters import OrderingFilter, SearchFilter
 
 from apps.core.models import Wagon
 from apps.core.serializers import WagonListSerializer, WagonSerializer
+from apps.users.permissions import IsAnyEmployee, IsEngineerOrManager
 
 
 class WagonViewSet(viewsets.ModelViewSet):
@@ -18,3 +19,8 @@ class WagonViewSet(viewsets.ModelViewSet):
         if self.action == "list":
             return WagonListSerializer
         return WagonSerializer
+
+    def get_permissions(self):
+        if self.action in ["create", "update", "partial_update", "destroy"]:
+            return [IsEngineerOrManager()]
+        return [IsAnyEmployee()]
