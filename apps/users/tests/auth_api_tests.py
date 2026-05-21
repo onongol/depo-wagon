@@ -12,7 +12,7 @@ TEST_PASSWORD = "pass123"
 
 @pytest.fixture
 def user(db):
-    return User.objects.create_user(email=TEST_EMAIL, password=TEST_PASSWORD)
+    return User.objects.create_superuser(email=TEST_EMAIL, password=TEST_PASSWORD)
 
 
 @pytest.fixture
