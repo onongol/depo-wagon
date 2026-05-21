@@ -93,6 +93,8 @@ django-unfold==0.93.0
     # via -r requirements.in
 djangorestframework==3.17.1
     # via -r requirements.in
+drf-spectacular==0.29.0
+    # via -r requirements.in
 et-xmlfile==2.0.0
     # via openpyxl
 google-api-core[grpc]==2.25.2

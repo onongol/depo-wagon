@@ -57,3 +57,6 @@ markdown
 pytest
 pytest-django
 model-bakery
+
+# === API Documentation ===
+drf-spectacular
