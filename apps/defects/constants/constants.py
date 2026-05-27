@@ -12,7 +12,6 @@ class DefectSeverity(models.TextChoices):
 class DefectStatus(models.TextChoices):
     OPEN = "open", _("Open")  # Илэрсэн
     IN_PROGRESS = "in_progress", _("In Progress")  # Хийгдэж байна
-    RESOLVED = "resolved", _("Resolved")  # Шийдвэрлэсэн
     CLOSED = "closed", _("Closed")  # Хаасан
 
 
