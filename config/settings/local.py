@@ -1,3 +1,5 @@
+from decouple import config
+
 from config.settings.base import *
 
 DEBUG = True
@@ -14,6 +16,14 @@ MIDDLEWARE += [
 ]
 
 INTERNAL_IPS = ["127.0.0.1"]
+
+# Email — Mailtrap sandbox via SMTP (catches all emails, nothing sent to real users)
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "sandbox.smtp.mailtrap.io"
+EMAIL_PORT = 2525
+EMAIL_USE_TLS = False
+EMAIL_HOST_USER = config("MAILTRAP_USER", default="")
+EMAIL_HOST_PASSWORD = config("MAILTRAP_PASSWORD", default="")
 
 DATABASES["default"]["CONN_MAX_AGE"] = 0
 
