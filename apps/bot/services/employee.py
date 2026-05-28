@@ -4,6 +4,8 @@ import string
 
 from asgiref.sync import sync_to_async
 
+from apps.bot.constants import RegStatus
+
 logger = logging.getLogger(__name__)
 
 
@@ -64,7 +66,7 @@ def register_employee(employee: object, telegram_id: int):
     if employee.user_id:
         employee.telegram_id = telegram_id
         employee.save(update_fields=["telegram_id"])
-        return None, "linked"
+        return None, RegStatus.LINKED
 
     alphabet = string.ascii_letters + string.digits
     password = "".join(secrets.choice(alphabet) for _ in range(10))
@@ -81,7 +83,7 @@ def register_employee(employee: object, telegram_id: int):
     employee.telegram_id = telegram_id
     employee.save(update_fields=["user", "telegram_id"])
 
-    return password, "created"
+    return password, RegStatus.CREATED
 
 
 @sync_to_async
