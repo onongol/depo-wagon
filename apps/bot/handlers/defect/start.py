@@ -3,6 +3,8 @@ import logging
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
+from apps.bot.constants import UD_DEFECT
+from apps.bot.user_data import DefectData
 from apps.bot.handlers.employee import get_employee
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import WAGON_NUM
@@ -18,7 +20,7 @@ async def new_defect_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await update.message.reply_text(str(M.NOT_REGISTERED))
         return ConversationHandler.END
 
-    context.user_data["defect"] = {}
+    context.user_data[UD_DEFECT] = DefectData()
 
     await update.message.reply_text(
         str(M.NEW_DEFECT_START),
