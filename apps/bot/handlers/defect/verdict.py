@@ -4,9 +4,11 @@ from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 from apps.bot import services
-from apps.bot.constants import VERDICT_LABELS
-from apps.bot.keyboards import main_menu_keyboard
+from apps.bot.constants import UD_DEFECT, UD_EMPLOYEE, VERDICT_LABELS
+from apps.bot.user_data import DefectData
+from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.messages import BotMessages as M
+from apps.defects.constants import DefectVerdict
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +16,7 @@ logger = logging.getLogger(__name__)
 async def _notify_decommission(
     context: ContextTypes.DEFAULT_TYPE,
     employee,
-    defect_data: dict,
+    defect: DefectData | None,
 ) -> None:
     """Send decommission alert to all managers and engineers."""
     managers = await services.get_managers_and_engineers()
@@ -22,9 +24,9 @@ async def _notify_decommission(
         return
 
     text = str(M.DECOMMISSION_ALERT).format(
-        wagon_number=defect_data.get("wagon_number", "?"),
-        node_label=defect_data.get("node_label", "?"),
-        defect_type_label=defect_data.get("defect_type_label", "?"),
+        wagon_number=defect.wagon_number if defect else "?",
+        node_label=defect.node_label if defect else "?",
+        defect_type_label=defect.defect_type_label if defect else "?",
         inspector_name=employee.full_name if employee else "—",
     )
 
@@ -50,16 +52,16 @@ async def receive_employee_verdict(
     query = update.callback_query
     await query.answer()
 
-    verdict_value = query.data.split(":", 1)[1]
-    defect_data = context.user_data.get("defect", {})
-    defect_id = defect_data.get("defect_id")
-    employee = context.user_data.get("employee")
+    verdict_value = query.data.value
+    
+    defect: DefectData = context.user_data.get(UD_DEFECT)
+    employee = context.user_data.get(UD_EMPLOYEE)
 
-    if defect_id:
-        await services.save_employee_verdict(defect_id, verdict_value)
+    if defect and defect.defect_id:
+        await services.save_employee_verdict(defect.defect_id, verdict_value)
 
-    if verdict_value == "decommission":
-        await _notify_decommission(context, employee, defect_data)
+    if verdict_value == DefectVerdict.DECOMMISSION:
+        await _notify_decommission(context, employee, defect)
 
     verdict_label = str(VERDICT_LABELS.get(verdict_value, verdict_value))
 
@@ -73,5 +75,5 @@ async def receive_employee_verdict(
         reply_markup=main_menu_keyboard(employee.role) if employee else None,
     )
 
-    context.user_data.pop("defect", None)
+    context.user_data.pop(UD_DEFECT, None)
     return ConversationHandler.END
