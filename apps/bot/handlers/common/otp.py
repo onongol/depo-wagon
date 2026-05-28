@@ -5,7 +5,9 @@ from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 from apps.bot import services
-from apps.bot.keyboards import main_menu_keyboard
+from apps.bot.constants import OtpStatus, RegStatus, UD_EMPLOYEE, UD_REG
+from apps.bot.user_data import RegData
+from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import AUTH_EMAIL, AUTH_OTP
 
@@ -15,8 +17,9 @@ logger = logging.getLogger(__name__)
 async def receive_otp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handle OTP code entry, verify, and complete registration if valid."""
     entered = update.message.text.strip()
-    reg = context.user_data.get("reg", {})
-    email = reg.get("email")
+
+    reg: RegData | None = context.user_data.get(UD_REG)
+    email = reg.email if reg else None
 
     if not email:
         await update.message.reply_text(str(M.SESSION_ERROR))
@@ -24,17 +27,17 @@ async def receive_otp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
     employee_id, status = services.verify_otp(email, entered)
 
-    if status == "expired":
-        context.user_data.pop("reg", None)
+    if status == OtpStatus.EXPIRED:
+        context.user_data.pop(UD_REG, None)
         await update.message.reply_text(str(M.OTP_EXPIRED))
         return AUTH_EMAIL
 
-    if status == "max_attempts":
-        context.user_data.pop("reg", None)
+    if status == OtpStatus.MAX_ATTEMPTS:
+        context.user_data.pop(UD_REG, None)
         await update.message.reply_text(str(M.OTP_MAX_ATTEMPTS))
         return AUTH_EMAIL
 
-    if status == "wrong":
+    if status == OtpStatus.WRONG:
         await update.message.reply_text(str(M.OTP_WRONG))
         return AUTH_OTP
 
@@ -43,7 +46,7 @@ async def receive_otp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     telegram_id = update.effective_user.id
     password, reg_status = await services.register_employee(employee, telegram_id)
 
-    if reg_status == "created":
+    if reg_status == RegStatus.CREATED:
         await services.send_credentials_email(email, password, employee.first_name)
         await update.message.reply_text(
             str(M.REGISTERED_NEW).format(email=html.escape(email)),
@@ -57,7 +60,7 @@ async def receive_otp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
     # Refresh employee from DB to get updated fields
     employee = await services.get_employee_by_telegram_id(telegram_id)
-    context.user_data["employee"] = employee
+    context.user_data[UD_EMPLOYEE] = employee
 
     await update.message.reply_text(
         str(M.WELCOME_MENU).format(
@@ -68,5 +71,5 @@ async def receive_otp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         reply_markup=main_menu_keyboard(employee.role),
     )
 
-    context.user_data.pop("reg", None)
+    context.user_data.pop(UD_REG, None)
     return ConversationHandler.END
