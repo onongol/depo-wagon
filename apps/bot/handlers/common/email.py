@@ -6,6 +6,8 @@ from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 from apps.bot import services
+from apps.bot.constants import UD_REG
+from apps.bot.user_data import RegData
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import AUTH_EMAIL, AUTH_OTP
 
@@ -44,7 +46,7 @@ async def receive_email(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     otp_code = services.generate_and_store_otp(email, employee.id)
     sent = await services.send_otp_email(email, otp_code, employee.first_name)
 
-    context.user_data["reg"] = {"email": email}
+    context.user_data[UD_REG] = RegData(email=email)
 
     if sent:
         await update.message.reply_text(
