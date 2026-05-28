@@ -6,6 +6,8 @@ from asgiref.sync import sync_to_async
 from django.core.cache import cache
 from django.core.mail import send_mail
 
+from apps.bot.constants import OtpStatus
+
 logger = logging.getLogger(__name__)
 
 OTP_TTL = 600  # 10 minutes
@@ -21,7 +23,7 @@ def _otp_key(email: str) -> str:
 def generate_and_store_otp(email: str, employee_id: int) -> str:
     """Generate a 6-digit OTP, store in Redis (10 min TTL). Returns the code."""
     code = "".join(random.choices(string.digits, k=6))
-    
+
     cache.set(
         _otp_key(email),
         {"code": code, "employee_id": employee_id, "attempts": 0},
@@ -44,18 +46,18 @@ def verify_otp(email: str, entered_code: str):
     data = cache.get(key)
 
     if not data:
-        return None, "expired"
+        return None, OtpStatus.EXPIRED
 
     if data["code"] != entered_code.strip():
         data["attempts"] += 1
         if data["attempts"] >= OTP_MAX_ATTEMPTS:
             cache.delete(key)
-            return None, "max_attempts"
+            return None, OtpStatus.MAX_ATTEMPTS
         cache.set(key, data, timeout=OTP_TTL)
-        return None, "wrong"
+        return None, OtpStatus.WRONG
 
     cache.delete(key)
-    return data["employee_id"], "ok"
+    return data["employee_id"], OtpStatus.OK
 
 
 def _send_otp_email(email: str, code: str, first_name: str) -> bool:
