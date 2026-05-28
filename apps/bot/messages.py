@@ -128,6 +128,10 @@ class BotMessages:
 
     ASK_DESCRIPTION = _("📝 Enter a description of the defect (or skip):")
 
+    DESCRIPTION_TOO_LONG = _(
+        "❌ Description is too long ({length}/{max} characters).\n\nPlease shorten it:"
+    )
+
     # ── Confirm ───────────────────────────────────────────────────────────────
 
     SAVING = _("⏳ Saving...")
