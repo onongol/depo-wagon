@@ -5,8 +5,9 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from apps.bot import services
-from apps.bot.constants import BTN_HELP, BTN_NEW_DEFECT, BTN_OPEN_DEFECTS
-from apps.bot.keyboards import node_keyboard
+from apps.bot.constants import BTN_HELP, BTN_NEW_DEFECT, BTN_OPEN_DEFECTS, UD_DEFECT
+from apps.bot.user_data import DefectData
+from apps.bot.keyboards.defect import node_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import NODE, WAGON_NUM
 
@@ -18,6 +19,7 @@ MENU_BUTTONS = {str(BTN_NEW_DEFECT), str(BTN_OPEN_DEFECTS), str(BTN_HELP)}
 async def receive_wagon_number(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> int:
+    """Handle incoming wagon number text or menu buttons."""
     number = update.message.text.strip()
 
     if number in MENU_BUTTONS:
@@ -36,8 +38,9 @@ async def receive_wagon_number(
         )
         return WAGON_NUM
 
-    context.user_data["defect"]["wagon_id"] = wagon.id
-    context.user_data["defect"]["wagon_number"] = wagon.number
+    defect: DefectData = context.user_data[UD_DEFECT]
+    defect.wagon_id = wagon.id
+    defect.wagon_number = wagon.number
 
     await update.message.reply_text(
         str(M.WAGON_CONFIRMED).format(number=wagon.number),
