@@ -6,8 +6,22 @@ from telegram.ext import (
     filters,
 )
 
+from apps.bot.callbacks import (
+    ConfirmCB,
+    DefectTypeCB,
+    DescSkipCB,
+    DimensionCB,
+    MeasurementAddCB,
+    MeasurementDoneCB,
+    MeasurementSkipCB,
+    NodeCB,
+    NormSkipCB,
+    PhotoSkipCB,
+    SeverityCB,
+    UnitSkipCB,
+    VerdictCB,
+)
 from apps.bot.constants import BTN_NEW_DEFECT
-
 from apps.bot.states import (
     CONFIRM,
     DEFECT_TYPE,
@@ -57,20 +71,39 @@ def get_defect_handler() -> ConversationHandler:
             WAGON_NUM: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, receive_wagon_number)
             ],
-            NODE: [CallbackQueryHandler(receive_node, pattern=r"^node:")],
-            DEFECT_TYPE: [
-                CallbackQueryHandler(receive_defect_type, pattern=r"^dtype:")
+            NODE: [
+                CallbackQueryHandler(
+                    receive_node, pattern=lambda d: isinstance(d, NodeCB)
+                )
             ],
-            SEVERITY: [CallbackQueryHandler(receive_severity, pattern=r"^sev:")],
+            DEFECT_TYPE: [
+                CallbackQueryHandler(
+                    receive_defect_type, pattern=lambda d: isinstance(d, DefectTypeCB)
+                )
+            ],
+            SEVERITY: [
+                CallbackQueryHandler(
+                    receive_severity, pattern=lambda d: isinstance(d, SeverityCB)
+                )
+            ],
             PHOTO: [
                 MessageHandler(filters.PHOTO, receive_photo),
-                CallbackQueryHandler(receive_photo, pattern=r"^photo:skip$"),
+                CallbackQueryHandler(
+                    receive_photo, pattern=lambda d: isinstance(d, PhotoSkipCB)
+                ),
             ],
             MEASUREMENT_CHOICE: [
-                CallbackQueryHandler(handle_measurement_choice, pattern=r"^meas:"),
+                CallbackQueryHandler(
+                    handle_measurement_choice,
+                    pattern=lambda d: isinstance(
+                        d, (MeasurementAddCB, MeasurementSkipCB, MeasurementDoneCB)
+                    ),
+                ),
             ],
             MEASUREMENT_DIMENSION: [
-                CallbackQueryHandler(receive_dimension, pattern=r"^dim:"),
+                CallbackQueryHandler(
+                    receive_dimension, pattern=lambda d: isinstance(d, DimensionCB)
+                ),
             ],
             MEASUREMENT_VALUE: [
                 MessageHandler(
@@ -79,19 +112,31 @@ def get_defect_handler() -> ConversationHandler:
             ],
             MEASUREMENT_NORM: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, receive_norm_value),
-                CallbackQueryHandler(receive_norm_value, pattern=r"^norm:skip$"),
+                CallbackQueryHandler(
+                    receive_norm_value, pattern=lambda d: isinstance(d, NormSkipCB)
+                ),
             ],
             MEASUREMENT_UNIT: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, receive_unit),
-                CallbackQueryHandler(receive_unit, pattern=r"^unit:skip$"),
+                CallbackQueryHandler(
+                    receive_unit, pattern=lambda d: isinstance(d, UnitSkipCB)
+                ),
             ],
             DESC: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, receive_description),
-                CallbackQueryHandler(receive_description, pattern=r"^desc:skip$"),
+                CallbackQueryHandler(
+                    receive_description, pattern=lambda d: isinstance(d, DescSkipCB)
+                ),
             ],
-            CONFIRM: [CallbackQueryHandler(confirm_defect, pattern=r"^confirm:")],
+            CONFIRM: [
+                CallbackQueryHandler(
+                    confirm_defect, pattern=lambda d: isinstance(d, ConfirmCB)
+                )
+            ],
             EMPLOYEE_VERDICT: [
-                CallbackQueryHandler(receive_employee_verdict, pattern=r"^verdict:")
+                CallbackQueryHandler(
+                    receive_employee_verdict, pattern=lambda d: isinstance(d, VerdictCB)
+                )
             ],
         },
         fallbacks=[CommandHandler("cancel", cancel_defect)],
