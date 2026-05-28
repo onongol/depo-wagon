@@ -3,12 +3,15 @@ import logging
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from apps.bot.keyboards import (
+from apps.bot.callbacks import DescSkipCB, MeasurementAddCB, NormSkipCB, UnitSkipCB
+from apps.bot.constants import UD_DEFECT
+from apps.bot.user_data import DefectData, MeasurementEntry
+from apps.bot.keyboards.defect import (
     dimension_keyboard,
     measurement_choice_keyboard,
     measurement_next_keyboard,
-    skip_keyboard,
 )
+from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import (
     DESC,
@@ -27,8 +30,6 @@ async def ask_measurement(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     query = update.callback_query
     await query.answer()
 
-    context.user_data["defect"].setdefault("measurements", [])
-
     await query.edit_message_text(
         str(M.ASK_MEASUREMENT),
         reply_markup=measurement_choice_keyboard(),
@@ -43,17 +44,17 @@ async def handle_measurement_choice(
     query = update.callback_query
     await query.answer()
 
-    action = query.data.split(":", 1)[1]  # "add" | "skip" | "done"
-
-    if action in ("skip", "done"):
+    if not isinstance(query.data, MeasurementAddCB):
         await query.edit_message_text(
             str(M.ASK_DESCRIPTION),
-            reply_markup=skip_keyboard("desc:skip"),
+            reply_markup=skip_keyboard(DescSkipCB()),
         )
         return DESC
 
-    # action == "add" → ask for dimension
-    context.user_data["defect"]["current_measurement"] = {}
+    # MeasurementAddCB → ask for dimension
+    defect: DefectData = context.user_data[UD_DEFECT]
+    defect.current_measurement = MeasurementEntry()
+
     await query.edit_message_text(
         str(M.ASK_DIMENSION),
         reply_markup=dimension_keyboard(),
@@ -66,14 +67,15 @@ async def receive_dimension(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     query = update.callback_query
     await query.answer()
 
-    dim_value = query.data.split(":", 1)[1]
+    dim_value = query.data.value
 
     from apps.defects.constants import MeasurementDimension
 
     dim_label = dict(MeasurementDimension.choices).get(dim_value, dim_value)
 
-    context.user_data["defect"]["current_measurement"]["dimension"] = dim_value
-    context.user_data["defect"]["current_measurement"]["dimension_label"] = dim_label
+    defect: DefectData = context.user_data[UD_DEFECT]
+    defect.current_measurement.dimension = dim_value
+    defect.current_measurement.dimension_label = dim_label
 
     await query.edit_message_text(
         str(M.DIMENSION_CONFIRMED).format(label=dim_label),
@@ -97,24 +99,27 @@ async def receive_measurement_value(
         )
         return MEASUREMENT_VALUE
 
-    context.user_data["defect"]["current_measurement"]["value"] = value
+    defect: DefectData = context.user_data[UD_DEFECT]
+    defect.current_measurement.value = value
 
     await update.message.reply_text(
         str(M.ASK_NORM),
-        reply_markup=skip_keyboard("norm:skip"),
+        reply_markup=skip_keyboard(NormSkipCB()),
     )
     return MEASUREMENT_NORM
 
 
 async def receive_norm_value(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Norm value is optional, so user can skip by button or enter text."""
+    defect: DefectData = context.user_data[UD_DEFECT]
+
     if update.callback_query:
         await update.callback_query.answer()
-        context.user_data["defect"]["current_measurement"]["norm_value"] = None
+        defect.current_measurement.norm_value = None
         await update.callback_query.edit_message_text(
             str(M.ASK_UNIT),
             parse_mode=M.PARSE_MODE,
-            reply_markup=skip_keyboard("unit:skip"),
+            reply_markup=skip_keyboard(UnitSkipCB()),
         )
     else:
         text = update.message.text.strip()
@@ -124,46 +129,39 @@ async def receive_norm_value(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await update.message.reply_text(
                 str(M.NORM_INVALID),
                 parse_mode=M.PARSE_MODE,
-                reply_markup=skip_keyboard("norm:skip"),
+                reply_markup=skip_keyboard(NormSkipCB()),
             )
             return MEASUREMENT_NORM
-        context.user_data["defect"]["current_measurement"]["norm_value"] = norm
+
+        defect.current_measurement.norm_value = norm
         await update.message.reply_text(
             str(M.ASK_UNIT),
             parse_mode=M.PARSE_MODE,
-            reply_markup=skip_keyboard("unit:skip"),
+            reply_markup=skip_keyboard(UnitSkipCB()),
         )
     return MEASUREMENT_UNIT
 
 
 async def receive_unit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Unit is optional, so user can skip by button or enter text."""
-    current = context.user_data["defect"]["current_measurement"]
+    defect: DefectData = context.user_data[UD_DEFECT]
+    current = defect.current_measurement
 
     if update.callback_query:
         await update.callback_query.answer()
-        current["unit"] = ""
+        current.unit = ""
         send = update.callback_query.edit_message_text
     else:
-        current["unit"] = update.message.text.strip()
+        current.unit = update.message.text.strip()
         send = update.message.reply_text
 
-    # Save completed measurement to list
-    context.user_data["defect"]["measurements"].append(
-        {
-            "dimension": current.get("dimension", ""),
-            "dimension_label": current.get("dimension_label", ""),
-            "value": current.get("value"),
-            "norm_value": current.get("norm_value"),
-            "unit": current.get("unit", ""),
-        }
-    )
-    context.user_data["defect"].pop("current_measurement", None)
+    defect.measurements.append(current)
+    defect.current_measurement = None
 
-    count = len(context.user_data["defect"]["measurements"])
-    dim_label = current.get("dimension_label", "")
-    value = current.get("value")
-    unit = f" {current['unit']}" if current.get("unit") else ""
+    count = len(defect.measurements)
+    dim_label = current.dimension_label
+    value = current.value
+    unit = f" {current.unit}" if current.unit else ""
 
     await send(
         str(M.MEASUREMENT_SAVED).format(
