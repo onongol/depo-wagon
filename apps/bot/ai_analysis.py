@@ -2,14 +2,17 @@
 AI defect analysis using Google Gemini (google-genai SDK).
 
 analyze_defect() is called after the defect is saved.
-It returns a dict with: defect_class, confidence, recommendation, verdict.
+It returns an AIResult dataclass with: defect_class, confidence, recommendation, verdict.
 """
 
 import logging
 
+from apps.bot.user_data import AIResult
+from apps.defects.constants import DefectVerdict
+
 logger = logging.getLogger(__name__)
 
-VERDICT_CHOICES = ("ok", "repair_soon", "repair_now", "decommission")
+VERDICT_CHOICES = tuple(DefectVerdict.values)
 
 PROMPT_TEMPLATE = """
 Та төмөр замын вагоны гэмтэл шинжилдэг мэргэжилтэн.
@@ -41,24 +44,9 @@ async def analyze_defect(
     severity: str,
     description: str = "",
     photos_bytes: list[bytes] | None = None,
-) -> dict:
-    """
-    Send defect info (+ optional photo) to Gemini and return structured result.
-
-    Returns:
-        {
-            "defect_class": str,
-            "confidence": float | None,
-            "recommendation": str,
-            "verdict": str,          # one of VERDICT_CHOICES or ""
-        }
-    """
-    empty = {
-        "defect_class": "",
-        "confidence": None,
-        "recommendation": "",
-        "verdict": "",
-    }
+) -> AIResult:
+    """Send defect info (+ optional photos) to Gemini and return structured result."""
+    empty = AIResult()
 
     try:
         from django.conf import settings
@@ -95,9 +83,9 @@ async def analyze_defect(
         return empty
 
 
-def _parse_response(text: str) -> dict:
+def _parse_response(text: str) -> AIResult:
     """
-    Parse the structured Gemini response into a dict.
+    Parse the structured Gemini response.
 
     Expected format (each field on its own line):
         АНГИЛАЛ: ...
@@ -105,34 +93,28 @@ def _parse_response(text: str) -> dict:
         ЗӨВЛӨМЖ: ...
         ДҮГНЭЛТ: repair_now
     """
-    result = {
-        "defect_class": "",
-        "confidence": None,
-        "recommendation": "",
-        "verdict": "",
-    }
+    result = AIResult()
 
     for line in text.splitlines():
         line = line.strip()
         if line.startswith("АНГИЛАЛ:"):
-            result["defect_class"] = line.split(":", 1)[1].strip()
+            result.defect_class = line.split(":", 1)[1].strip()
 
         elif line.startswith("ИТГЭЛЦЛЭЛ:"):
             raw = line.split(":", 1)[1].strip()
             try:
-                result["confidence"] = float(raw)
+                result.confidence = float(raw)
             except ValueError:
                 pass
 
         elif line.startswith("ЗӨВЛӨМЖ:"):
-            result["recommendation"] = line.split(":", 1)[1].strip()
+            result.recommendation = line.split(":", 1)[1].strip()
 
         elif line.startswith("ДҮГНЭЛТ:"):
             raw = line.split(":", 1)[1].strip().lower()
-            # Accept even if the model adds extra words
             for v in VERDICT_CHOICES:
                 if v in raw:
-                    result["verdict"] = v
+                    result.verdict = v
                     break
 
     return result
