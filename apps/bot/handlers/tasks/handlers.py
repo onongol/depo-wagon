@@ -1,5 +1,6 @@
 from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler, filters
 
+from apps.bot.callbacks import StatusPickCB, StatusSetCB, TasksPageCB
 from apps.bot.constants import BTN_OPEN_DEFECTS
 
 from .list import my_tasks
@@ -13,7 +14,7 @@ def get_tasks_handlers() -> list:
             filters.TEXT & filters.Regex(f"^{str(BTN_OPEN_DEFECTS)}$"),
             my_tasks,
         ),
-        CallbackQueryHandler(my_tasks, pattern=r"^tasks:\d+$"),
-        CallbackQueryHandler(show_status_picker, pattern=r"^status_pick:"),
-        CallbackQueryHandler(set_defect_status, pattern=r"^status_set:"),
+        CallbackQueryHandler(my_tasks, pattern=lambda d: isinstance(d, TasksPageCB)),
+        CallbackQueryHandler(show_status_picker, pattern=lambda d: isinstance(d, StatusPickCB)),
+        CallbackQueryHandler(set_defect_status, pattern=lambda d: isinstance(d, StatusSetCB)),
     ]
