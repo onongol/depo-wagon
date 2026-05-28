@@ -63,7 +63,7 @@ def get_defect_handler() -> ConversationHandler:
         entry_points=[
             CommandHandler("new_defect", new_defect_start),
             MessageHandler(
-                filters.TEXT & filters.Regex(f"^{str(BTN_NEW_DEFECT)}$"),
+                filters.Text(str(BTN_NEW_DEFECT)),
                 new_defect_start,
             ),
         ],
