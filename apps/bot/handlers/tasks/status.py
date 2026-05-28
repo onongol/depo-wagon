@@ -4,11 +4,11 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from apps.bot import services
+from apps.bot.constants import PAGE_SIZE
 from apps.bot.handlers.employee import get_employee
+from apps.bot.keyboards.tasks import status_picker_keyboard, tasks_keyboard
 from apps.bot.messages import BotMessages as M
 
-from .constants import PAGE_SIZE
-from .keyboards import status_picker_keyboard, tasks_keyboard
 from .text import build_text
 
 logger = logging.getLogger(__name__)
@@ -21,11 +21,8 @@ async def show_status_picker(
     query = update.callback_query
     await query.answer()
 
-    # callback_data: "status_pick:<defect_id>:<page>"
-    _, defect_id, page = query.data.split(":")
-
     await query.edit_message_reply_markup(
-        reply_markup=status_picker_keyboard(defect_id, page)
+        reply_markup=status_picker_keyboard(query.data.defect_id, query.data.page)
     )
 
 
@@ -34,9 +31,9 @@ async def set_defect_status(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     query = update.callback_query
     await query.answer()
 
-    # callback_data: "status_set:<defect_id>:<status>:<page>"
-    _, defect_id, status, page = query.data.split(":")
-    page = int(page)
+    defect_id = query.data.defect_id
+    status = query.data.status
+    page = query.data.page
 
     await services.update_defect_status(defect_id, status)
 
