@@ -1,20 +1,3 @@
-"""
-Management command: python manage.py set_webhook
-
-Registers the webhook URL with Telegram so it sends updates
-to your server instead of using long-polling.
-
-Requirements:
-  - TELEGRAM_BOT_TOKEN in .env
-  - TELEGRAM_WEBHOOK_URL in .env  (public HTTPS URL, e.g. https://yourdomain.com)
-  - TELEGRAM_WEBHOOK_SECRET in .env  (random string for request verification)
-
-Usage:
-  python manage.py set_webhook          # register webhook
-  python manage.py set_webhook --delete # remove webhook (switch back to polling)
-  python manage.py set_webhook --info   # show current webhook info
-"""
-
 import asyncio
 
 from django.conf import settings
