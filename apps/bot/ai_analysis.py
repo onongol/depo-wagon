@@ -1,41 +1,45 @@
-"""
-AI defect analysis using Google Gemini (google-genai SDK).
-
-analyze_defect() is called after the defect is saved.
-It returns an AIResult dataclass with: defect_class, confidence, recommendation, verdict.
-"""
-
+import json
 import logging
+
+from pydantic import BaseModel, Field
 
 from apps.bot.user_data import AIResult
 from apps.defects.constants import DefectVerdict
 
 logger = logging.getLogger(__name__)
 
-VERDICT_CHOICES = tuple(DefectVerdict.values)
+VERDICT_CHOICES = list(DefectVerdict.values)
 
 PROMPT_TEMPLATE = """
-Та төмөр замын вагоны гэмтэл шинжилдэг мэргэжилтэн.
+Ты — опытный инспектор по осмотру и техническому обслуживанию железнодорожных грузовых вагонов.
+Твоя задача — проанализировать данные о выявленном дефекте и прикреплённые фотографии (если есть),
+после чего выдать строгое техническое заключение.
 
-Бүртгэгдсэн гэмтлийн мэдээлэл:
-- Зангилаа: {node}
-- Гэмтлийн төрөл: {defect_type}
-- Ноцтой байдал: {severity}
+Зафиксированный дефект:
+- Узел/Элемент: {node}
+- Тип дефекта: {defect_type}
+- Степень критичности: {severity}
 {description_line}
 
-Дараах бүтэцтэйгээр, МОНГОЛ ХЭЛЭЭР хариулна уу:
-
-АНГИЛАЛ: <гэмтлийн нарийн техник ангилал — нэг мөр>
-ИТГЭЛЦЛЭЛ: <0.00–1.00 хооронд тоо>
-ЗӨВЛӨМЖ: <засварын зөвлөмж — 1–2 өгүүлэл>
-ДҮГНЭЛТ: <ok | repair_soon | repair_now | decommission>
-
-Тайлбар:
-- ok          = норм дотор, засвар шаардахгүй
-- repair_soon = төлөвлөгөөт засвар хийх
-- repair_now  = яаралтай засвар шаардлагатай
-- decommission = вагоныг ашиглалтаас хасах
+Пояснение к статусам вердикта:
+- ok           = в пределах нормы (допуска), ремонт не требуется.
+- repair_soon  = устранить при ближайшем плановом ремонте (деповском/капитальном).
+- repair_now   = требуется текущий отцепочный ремонт (немедленное устранение).
+- decommission = исключение вагона из инвентарного парка (списание/утилизация).
 """
+
+
+class _DefectAnalysisSchema(BaseModel):
+    defect_class: str = Field(
+        description="Точная техническая классификация дефекта по НТД — одна строка."
+    )
+    confidence: float = Field(description="Коэффициент уверенности от 0.00 до 1.00.")
+    recommendation: str = Field(
+        description="Конкретные действия по устранению дефекта (3–4 предложения)."
+    )
+    verdict: str = Field(
+        description="Один из: ok, repair_soon, repair_now, decommission."
+    )
 
 
 async def analyze_defect(
@@ -55,7 +59,7 @@ async def analyze_defect(
 
         client = genai.Client(api_key=settings.GOOGLE_AI_KEY)
 
-        description_line = f"- Тайлбар: {description}" if description else ""
+        description_line = f"- Описание: {description}" if description else ""
         prompt = PROMPT_TEMPLATE.format(
             node=node,
             defect_type=defect_type,
@@ -63,9 +67,8 @@ async def analyze_defect(
             description_line=description_line,
         )
 
-        # Build contents: [all photos..., prompt text]
         contents: list = []
-        for photo_bytes in (photos_bytes or []):
+        for photo_bytes in photos_bytes or []:
             contents.append(
                 types.Part.from_bytes(data=photo_bytes, mime_type="image/jpeg")
             )
@@ -74,7 +77,16 @@ async def analyze_defect(
         response = await client.aio.models.generate_content(
             model="gemini-3.5-flash",
             contents=contents,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=_DefectAnalysisSchema,
+                temperature=0.1,
+            ),
         )
+
+        if not response.text:
+            logger.warning("Gemini returned empty response")
+            return empty
 
         return _parse_response(response.text)
 
@@ -84,37 +96,18 @@ async def analyze_defect(
 
 
 def _parse_response(text: str) -> AIResult:
-    """
-    Parse the structured Gemini response.
-
-    Expected format (each field on its own line):
-        АНГИЛАЛ: ...
-        ИТГЭЛЦЛЭЛ: 0.87
-        ЗӨВЛӨМЖ: ...
-        ДҮГНЭЛТ: repair_now
-    """
+    data = json.loads(text)
     result = AIResult()
+    result.defect_class = data.get("defect_class", "")
+    result.recommendation = data.get("recommendation", "")
 
-    for line in text.splitlines():
-        line = line.strip()
-        if line.startswith("АНГИЛАЛ:"):
-            result.defect_class = line.split(":", 1)[1].strip()
+    try:
+        result.confidence = float(data.get("confidence", 0.0))
+    except (ValueError, TypeError):
+        pass
 
-        elif line.startswith("ИТГЭЛЦЛЭЛ:"):
-            raw = line.split(":", 1)[1].strip()
-            try:
-                result.confidence = float(raw)
-            except ValueError:
-                pass
-
-        elif line.startswith("ЗӨВЛӨМЖ:"):
-            result.recommendation = line.split(":", 1)[1].strip()
-
-        elif line.startswith("ДҮГНЭЛТ:"):
-            raw = line.split(":", 1)[1].strip().lower()
-            for v in VERDICT_CHOICES:
-                if v in raw:
-                    result.verdict = v
-                    break
+    verdict = str(data.get("verdict", "")).lower()
+    if verdict in VERDICT_CHOICES:
+        result.verdict = verdict
 
     return result
