@@ -4,11 +4,11 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from apps.bot import services
+from apps.bot.constants import PAGE_SIZE
 from apps.bot.handlers.employee import get_employee
+from apps.bot.keyboards.tasks import tasks_keyboard
 from apps.bot.messages import BotMessages as M
 
-from .constants import PAGE_SIZE
-from .keyboards import tasks_keyboard
 from .text import build_text
 
 logger = logging.getLogger(__name__)
@@ -21,7 +21,7 @@ async def my_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.callback_query:
         query = update.callback_query
         await query.answer()
-        page = int(query.data.split(":", 1)[1])
+        page = query.data.page
         send = query.edit_message_text
     else:
         if not employee:
