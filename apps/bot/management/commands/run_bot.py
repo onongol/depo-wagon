@@ -1,10 +1,3 @@
-"""
-Management command: python manage.py run_bot
-
-Starts the Telegram bot in long-polling mode.
-Use this for local development. In production use a webhook instead.
-"""
-
 import logging
 
 from django.core.management.base import BaseCommand
@@ -26,7 +19,9 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         from apps.bot.application import create_application
 
-        self.stdout.write(self.style.SUCCESS("🤖 Telegram bot starting (polling mode)..."))
+        self.stdout.write(
+            self.style.SUCCESS("🤖 Telegram bot starting (polling mode)...")
+        )
         self.stdout.write("Press Ctrl+C to stop.\n")
 
         app = create_application()
