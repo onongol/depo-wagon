@@ -28,7 +28,12 @@ def create_application() -> Application:
     from apps.bot.handlers.defect import get_defect_handler
     from apps.bot.handlers.tasks import get_tasks_handlers
 
-    app = Application.builder().token(settings.TELEGRAM_BOT_TOKEN).build()
+    app = (
+        Application.builder()
+        .token(settings.TELEGRAM_BOT_TOKEN)
+        .arbitrary_callback_data(True)
+        .build()
+    )
 
     # 1. /start + employee linking
     app.add_handler(get_auth_handler())
