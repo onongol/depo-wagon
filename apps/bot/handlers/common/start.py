@@ -4,7 +4,8 @@ from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 from apps.bot import services
-from apps.bot.keyboards import main_menu_keyboard
+from apps.bot.constants import UD_EMPLOYEE, UD_REG
+from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import AUTH_EMAIL
 
@@ -20,7 +21,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     employee = await services.get_employee_by_telegram_id(telegram_id)
 
     if employee:
-        context.user_data["employee"] = employee
+        context.user_data[UD_EMPLOYEE] = employee
         await update.message.reply_text(
             str(M.WELCOME_MENU).format(
                 full_name=employee.full_name,
@@ -31,7 +32,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         )
         return ConversationHandler.END
 
-    context.user_data.pop("reg", None)
+    context.user_data.pop(UD_REG, None)
     await update.message.reply_text(
         str(M.WELCOME_NEW),
         parse_mode=M.PARSE_MODE,
