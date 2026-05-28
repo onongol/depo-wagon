@@ -8,7 +8,7 @@ whitenoise
 psycopg
 
 # === Telegram Bot ===
-python-telegram-bot
+python-telegram-bot[all]
 
 # === Async Tasks ===
 celery

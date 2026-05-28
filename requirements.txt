@@ -208,7 +208,7 @@ python-decouple==3.8
     # via -r requirements.in
 python-slugify==8.0.4
     # via -r requirements.in
-python-telegram-bot==22.7
+python-telegram-bot[all]==22.7
     # via -r requirements.in
 pytz==2026.2
     # via -r requirements.in
