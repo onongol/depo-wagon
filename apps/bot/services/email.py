@@ -7,6 +7,7 @@ from django.core.cache import cache
 from django.core.mail import send_mail
 
 from apps.bot.constants import OtpStatus
+from apps.bot.messages import EmailMessages as M
 
 logger = logging.getLogger(__name__)
 
@@ -64,15 +65,8 @@ def _send_otp_email(email: str, code: str, first_name: str) -> bool:
     """Send the OTP verification code to the employee's email."""
     try:
         send_mail(
-            subject="Вагон Депо — Нэвтрэх код / Verification Code",
-            message=(
-                f"Сайн байна уу, {first_name}!\n\n"
-                f"Таны Telegram бот нэвтрэх код:\n\n"
-                f"    {code}\n\n"
-                f"Код 10 минут хүчинтэй.\n"
-                f"Хэрэв та энэ хүсэлт гаргаагүй бол энэ и-мэйлийг үл тоомсорлоно уу.\n\n"
-                f"— Вагон Депо систем"
-            ),
+            subject=str(M.OTP_SUBJECT),
+            message=str(M.OTP_BODY).format(first_name=first_name, code=code),
             from_email=None,
             recipient_list=[email],
             fail_silently=False,
@@ -88,14 +82,9 @@ def _send_credentials_email(email: str, password: str, first_name: str) -> bool:
     """Send the generated password to the employee's email."""
     try:
         send_mail(
-            subject="Вагон Депо — Таны нууц үг / Your Password",
-            message=(
-                f"Сайн байна уу, {first_name}!\n\n"
-                f"Таны бүртгэл амжилттай үүслээ.\n\n"
-                f"И-мэйл   : {email}\n"
-                f"Нууц үг  : {password}\n\n"
-                f"Анхны нэвтрэлтийн дараа нууц үгээ заавал солино уу.\n\n"
-                f"— Вагон Депо систем"
+            subject=str(M.CREDENTIALS_SUBJECT),
+            message=str(M.CREDENTIALS_BODY).format(
+                first_name=first_name, email=email, password=password
             ),
             from_email=None,
             recipient_list=[email],
