@@ -55,6 +55,7 @@ markdown
 
 # === Testing ===
 pytest
+pytest-asyncio
 pytest-django
 model-bakery
 
