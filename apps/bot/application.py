@@ -1,6 +1,8 @@
 import logging
 
 from django.conf import settings
+from django.db import close_old_connections
+from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
 
 from apps.bot.constants import BTN_HELP
@@ -8,7 +10,13 @@ from apps.bot.constants import BTN_HELP
 logger = logging.getLogger(__name__)
 
 
-def create_application() -> Application:
+class _BotApplication(Application):
+    async def process_update(self, update: Update) -> None:
+        close_old_connections()
+        await super().process_update(update)
+
+
+def create_application() -> _BotApplication:
     """Build the Telegram Application and register all handlers."""
     from apps.bot.handlers.common import (
         cancel,
@@ -20,7 +28,7 @@ def create_application() -> Application:
     from apps.bot.handlers.tasks import get_tasks_handlers
 
     app = (
-        Application.builder()
+        _BotApplication.builder()
         .token(settings.TELEGRAM_BOT_TOKEN)
         .arbitrary_callback_data(True)
         .build()
@@ -38,9 +46,7 @@ def create_application() -> Application:
 
     # 4. Utility commands
     app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(
-        MessageHandler(filters.Text(str(BTN_HELP)), help_command)
-    )
+    app.add_handler(MessageHandler(filters.Text(str(BTN_HELP)), help_command))
     app.add_handler(CommandHandler("cancel", cancel))
 
     app.add_error_handler(error_handler)
