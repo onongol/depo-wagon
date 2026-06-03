@@ -1,14 +1,13 @@
-import json
 import logging
 
+from google import genai
+from google.genai import types
 from pydantic import BaseModel, Field
 
 from apps.bot.user_data import AIResult
 from apps.defects.constants import DefectVerdict
 
 logger = logging.getLogger(__name__)
-
-VERDICT_CHOICES = list(DefectVerdict.values)
 
 PROMPT_TEMPLATE = """
 Ты — опытный инспектор по осмотру и техническому обслуживанию железнодорожных грузовых вагонов.
@@ -37,7 +36,7 @@ class _DefectAnalysisSchema(BaseModel):
     recommendation: str = Field(
         description="Конкретные действия по устранению дефекта (3–4 предложения)."
     )
-    verdict: str = Field(
+    verdict: DefectVerdict = Field(
         description="Один из: ok, repair_soon, repair_now, decommission."
     )
 
@@ -54,8 +53,6 @@ async def analyze_defect(
 
     try:
         from django.conf import settings
-        from google import genai
-        from google.genai import types
 
         client = genai.Client(api_key=settings.GOOGLE_AI_KEY)
 
@@ -96,18 +93,10 @@ async def analyze_defect(
 
 
 def _parse_response(text: str) -> AIResult:
-    data = json.loads(text)
-    result = AIResult()
-    result.defect_class = data.get("defect_class", "")
-    result.recommendation = data.get("recommendation", "")
-
-    try:
-        result.confidence = float(data.get("confidence", 0.0))
-    except (ValueError, TypeError):
-        pass
-
-    verdict = str(data.get("verdict", "")).lower()
-    if verdict in VERDICT_CHOICES:
-        result.verdict = verdict
-
-    return result
+    schema = _DefectAnalysisSchema.model_validate_json(text)
+    return AIResult(
+        defect_class=schema.defect_class,
+        confidence=schema.confidence,
+        recommendation=schema.recommendation,
+        verdict=schema.verdict,
+    )
