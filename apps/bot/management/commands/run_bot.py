@@ -26,9 +26,12 @@ class Command(BaseCommand):
 
         app = create_application()
 
-        app.run_polling(
-            drop_pending_updates=options["drop_pending"],
-            allowed_updates=["message", "callback_query"],
-        )
+        try:
+            app.run_polling(
+                drop_pending_updates=options["drop_pending"],
+                allowed_updates=["message", "callback_query"],
+            )
+        except KeyboardInterrupt:
+            pass
 
         self.stdout.write(self.style.WARNING("Bot stopped."))
