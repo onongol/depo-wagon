@@ -146,8 +146,11 @@ class BotMessages:
         "\n🤖 <b>AI Analysis:</b>\n"
         "📌 {defect_class}\n"
         "📊 Confidence: {confidence}%\n"
-        "{verdict_emoji} AI verdict: <code>{verdict}</code>\n"
-        "💡 {recommendation}"
+        "{verdict_emoji} AI verdict: <code>{verdict}</code>"
+    )
+
+    AI_RAG_RECOMMENDATION = _(
+        "\n\n💡 <b>Recommendation</b>:\n{rag_recommendation}"
     )
 
     AI_UNAVAILABLE = _("\nℹ️ AI analysis is not available.")
