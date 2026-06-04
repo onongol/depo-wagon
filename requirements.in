@@ -6,6 +6,8 @@ whitenoise
 
 # === Database ===
 psycopg
+pgvector
+pypdf
 
 # === Telegram Bot ===
 python-telegram-bot[all]

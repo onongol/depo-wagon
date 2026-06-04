@@ -159,6 +159,7 @@ packaging==26.2
     #   pytest
 pandas==3.0.2
     # via -r requirements.in
+pgvector==0.4.2
 pillow==12.2.0
     # via
     #   -r requirements.in
@@ -192,6 +193,8 @@ pydantic-core==2.46.4
     # via pydantic
 pygments==2.20.0
     # via pytest
+pypdf==6.12.2
+    # via -r requirements.in
 pytest==9.0.3
     # via
     #   -r requirements.in
