@@ -10,7 +10,7 @@ class RegData:
 class AIResult:
     defect_class: str = ""
     confidence: float | None = None
-    recommendation: str = ""
+    rag_recommendation: str = ""
     verdict: str = ""
 
 
