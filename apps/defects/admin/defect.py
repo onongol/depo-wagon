@@ -20,7 +20,7 @@ class DefectAdmin(ModelAdmin):
     list_filter = ["node", "defect", "severity", "status"]
     search_fields = ["wagon__number"]
     readonly_fields = [
-        "ai_recommendation",
+        "ai_rag_recommendation",
         "ai_defect_class",
         "ai_confidence",
         "ai_verdict",
