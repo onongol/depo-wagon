@@ -46,8 +46,8 @@ class Defect(models.Model):
     ai_confidence = models.FloatField(
         null=True, blank=True, verbose_name=_("AI Confidence")
     )
-    ai_recommendation = models.TextField(
-        blank=True, verbose_name=_("AI Recommendation")
+    ai_rag_recommendation = models.TextField(
+        blank=True, default="", verbose_name=_("AI RAG Recommendation")
     )
     ai_verdict = models.CharField(
         max_length=20,
