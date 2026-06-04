@@ -6,10 +6,10 @@ from telegram.ext import ContextTypes, ConversationHandler
 
 from apps.bot import services
 from apps.bot.constants import UD_DEFECT, UD_EMPLOYEE, VERDICT_TEXT
-from apps.bot.user_data import DefectData
 from apps.bot.keyboards.defect import employee_verdict_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import EMPLOYEE_VERDICT
+from apps.bot.user_data import DefectData
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +74,7 @@ async def confirm_defect(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         # 4. AI analysis — all photos + description
         await query.edit_message_text(str(M.AI_ANALYZING))
 
-        from apps.bot.ai_analysis import analyze_defect
+        from apps.ai_service.analysis import analyze_defect
 
         ai_result = await analyze_defect(
             node=defect_data.node_label or "",
@@ -89,7 +89,7 @@ async def confirm_defect(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 defect_id=saved_defect.id,
                 ai_class=ai_result.defect_class,
                 ai_confidence=ai_result.confidence,
-                ai_recommendation=ai_result.recommendation,
+                ai_rag_recommendation=ai_result.rag_recommendation,
                 ai_verdict=ai_result.verdict,
             )
 
@@ -106,17 +106,25 @@ async def confirm_defect(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 confidence=confidence_pct,
                 verdict_emoji=verdict_emoji,
                 verdict=verdict_label,
-                recommendation=html.escape(ai_result.recommendation),
             )
         else:
             result_text += str(M.AI_UNAVAILABLE)
 
         defect_data.defect_id = str(saved_defect.id)
 
-        # Message 1: save result + AI analysis (no keyboard)
+        # Message 1: save result + structured AI analysis
         await query.edit_message_text(result_text, parse_mode=M.PARSE_MODE)
 
-        # Message 2: verdict keyboard as a separate message
+        # Message 2: RAG recommendation as a separate message
+        if ai_result.rag_recommendation:
+            await query.message.reply_text(
+                str(M.AI_RAG_RECOMMENDATION).format(
+                    rag_recommendation=html.escape(ai_result.rag_recommendation),
+                ),
+                parse_mode=M.PARSE_MODE,
+            )
+
+        # Message 3: verdict keyboard
         await query.message.reply_text(
             str(M.ASK_EMPLOYEE_VERDICT),
             parse_mode=M.PARSE_MODE,
