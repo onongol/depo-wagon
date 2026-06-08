@@ -8,17 +8,19 @@ from apps.defects.models import Defect
 class DefectAdmin(ModelAdmin):
     list_display = [
         "wagon__number",
+        "department",
         "node",
         "defect_type",
         "severity",
         "status",
         "inspector",
+        "responsible_employee",
         "verdict",
         "repaired_at",
         "inspected_at",
     ]
-    list_select_related = ("wagon", "inspector")
-    list_filter = ["node", "defect_type", "severity", "status"]
+    list_select_related = ("wagon", "inspector", "responsible_employee")
+    list_filter = ["department", "node", "defect_type", "severity", "status"]
     search_fields = ["wagon__number"]
     readonly_fields = [
         "ai_recommendation",
