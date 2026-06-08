@@ -101,6 +101,8 @@ class BotMessages:
     # ── Photo ─────────────────────────────────────────────────────────────────
 
     PHOTO_RECEIVED = _("✅ Photo {count} received.\n\n📸 Send another photo (or skip):")
+    
+    PHOTO_TOO_LARGE = _("⚠️ Photo is too large (max 10 MB). Please send a smaller photo:")
 
     # ── Measurement sub-flow ──────────────────────────────────────────────────
 
@@ -149,7 +151,7 @@ class BotMessages:
         "{verdict_emoji} AI verdict: <code>{verdict}</code>"
     )
 
-    AI_RAG_RECOMMENDATION = _(
+    AI_RECOMMENDATION = _(
         "\n\n💡 <b>Recommendation</b>:\n{rag_recommendation}"
     )
 
