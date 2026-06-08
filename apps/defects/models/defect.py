@@ -1,5 +1,7 @@
 import uuid
 
+from decimal import Decimal
+
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -24,6 +26,12 @@ class Defect(models.Model):
         on_delete=models.CASCADE,
         related_name="defects",
         verbose_name=_("Wagon"),
+    )
+    department = models.CharField(
+        max_length=20,
+        choices=Department.choices,
+        blank=True,
+        verbose_name=_("Department"),
     )
     node = models.CharField(
         max_length=20, choices=DefectNode.choices, verbose_name=_("Node")
@@ -52,7 +60,10 @@ class Defect(models.Model):
         decimal_places=3,
         null=True,
         blank=True,
-        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
+        validators=[
+            MinValueValidator(Decimal("0.0")),
+            MaxValueValidator(Decimal("1.0")),
+        ],
         verbose_name=_("AI Confidence"),
     )
     ai_recommendation = models.TextField(
@@ -71,12 +82,6 @@ class Defect(models.Model):
         blank=True,
         verbose_name=_("Verdict"),
     )
-    department = models.CharField(
-        max_length=20,
-        choices=Department.choices,
-        blank=True,
-        verbose_name=_("Department"),
-    )
     inspector = models.ForeignKey(
         "core.Employee",
         on_delete=models.SET_NULL,
@@ -84,6 +89,14 @@ class Defect(models.Model):
         blank=True,
         related_name="inspected_defects",
         verbose_name=_("Inspector"),
+    )
+    responsible_employee = models.ForeignKey(
+        "core.Employee",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="responsible_defects",
+        verbose_name=_("Responsible Employee"),
     )
 
     repaired_at = models.DateTimeField(
@@ -102,6 +115,7 @@ class Defect(models.Model):
         indexes = [
             models.Index(fields=["status", "severity"]),
             models.Index(fields=["status", "node"]),
+            models.Index(fields=["department", "status"]),
             models.Index(fields=["inspected_at"]),
         ]
 
