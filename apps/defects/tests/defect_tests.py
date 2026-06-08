@@ -3,6 +3,7 @@ import uuid
 import pytest
 from model_bakery import baker
 
+from apps.core.constants import Department
 from apps.defects.constants import DefectStatus, DefectVerdict
 from apps.defects.models import Defect
 
@@ -72,3 +73,29 @@ class TestDefectNullableFields:
     def test_multiple_defects_per_wagon(self, wagon):
         baker.make(Defect, wagon=wagon, _quantity=3)
         assert wagon.defects.count() == 3
+
+
+@pytest.mark.django_db
+class TestDefectDepartment:
+    def test_department_blank_by_default(self, defect):
+        assert defect.department == ""
+
+    def test_department_can_be_set(self, wagon):
+        defect = baker.make(Defect, wagon=wagon, department=Department.REPAIR_1)
+        assert defect.department == Department.REPAIR_1
+
+    def test_responsible_employee_null_by_default(self, defect):
+        assert defect.responsible_employee is None
+
+    def test_responsible_employee_can_be_set(self, wagon):
+        responsible = baker.make("core.Employee", department=Department.REPAIR_1)
+        defect = baker.make(Defect, wagon=wagon, responsible_employee=responsible)
+        defect.refresh_from_db()
+        assert defect.responsible_employee_id == responsible.pk
+
+    def test_responsible_employee_deleted_sets_null(self, wagon):
+        responsible = baker.make("core.Employee")
+        defect = baker.make(Defect, wagon=wagon, responsible_employee=responsible)
+        responsible.delete()
+        defect.refresh_from_db()
+        assert defect.responsible_employee is None
