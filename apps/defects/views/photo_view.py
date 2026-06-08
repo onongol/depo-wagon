@@ -13,10 +13,11 @@ class DefectPhotoViewSet(viewsets.ModelViewSet):
     parser_classes = [MultiPartParser, FormParser]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["defect"]
+    http_method_names = ["get", "post", "delete", "head", "options"]
 
     def get_permissions(self):
         if self.action == "create":
             return [IsInspectorOrEngineer()]
-        if self.action in ["update", "partial_update", "destroy"]:
+        if self.action == "destroy":
             return [IsEngineer()]
         return [IsAnyEmployee()]
