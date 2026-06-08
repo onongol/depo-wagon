@@ -35,3 +35,15 @@ class EmployeeRole(models.TextChoices):
     MASTER = "master", _("Master")  # Мастер
     ENGINEER = "engineer", _("Engineer")  # Инженер
     MANAGER = "manager", _("Manager")  # Менежер
+
+
+class Department(models.TextChoices):
+    COUPLER_BRAKE = "coupler_brake", _("Coupler and Brake")  # Автомат холбоос, тоормос
+    REPAIR_1 = "repair_1", _("Repair-1")  # Засвар-1
+    REPAIR_2 = "repair_2", _("Repair-2")  # Засвар-2
+    PREPARATION = "preparation", _("Preparation for Repair")  # Засварын бэлтгэл
+    MECHANIC = "mechanic", _("Mechanic")  # Механик
+    BOGIE = "bogie", _("Bogie")  # Тэрэгцэр
+    WHEELSET = "wheelset", _("Wheelset")  # Хос дугуй
+    WHEEL_SHOP = "wheel_shop", _("Wheel Shop")  # Дугуйн цех (ВКМ)
+    OTHER = "other", _("Other")
