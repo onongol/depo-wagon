@@ -5,6 +5,7 @@ from django.urls import reverse
 from model_bakery import baker
 from rest_framework import status
 
+from apps.core.constants import Department
 from apps.defects.constants import DefectNode, DefectSeverity, DefectStatus, DefectType
 from apps.defects.models import Defect
 
@@ -13,7 +14,7 @@ from apps.defects.models import Defect
 def defect_data(wagon):
     return {
         "wagon": wagon.pk,
-        "node": DefectNode.BOGIE,
+        "node": DefectNode.BODY,
         "defect_type": DefectType.CRACK,
         "severity": DefectSeverity.MEDIUM,
         "inspected_at": datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc).isoformat(),
@@ -81,7 +82,7 @@ class TestDefectCreate:
     def test_create_saves_to_db(self, api_client, defect_data, wagon):
         response = api_client.post(reverse("defect-list"), defect_data, format="json")
         assert response.status_code == status.HTTP_201_CREATED
-        assert Defect.objects.filter(wagon=wagon, node=DefectNode.BOGIE).exists()
+        assert Defect.objects.filter(wagon=wagon, node=DefectNode.BODY).exists()
 
     def test_create_default_status_is_open(self, api_client, defect_data):
         response = api_client.post(reverse("defect-list"), defect_data, format="json")
@@ -183,7 +184,7 @@ class TestDefectValidation:
     def test_create_missing_inspected_at_returns_400(self, api_client, wagon):
         data = {
             "wagon": wagon.pk,
-            "node": DefectNode.BOGIE,
+            "node": DefectNode.BODY,
             "defect_type": DefectType.CRACK,
             "severity": DefectSeverity.MEDIUM,
         }
@@ -211,3 +212,82 @@ class TestDefectValidation:
         )
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert "status" in response.data
+
+
+@pytest.mark.django_db
+class TestDefectDepartmentValidation:
+    def test_valid_node_for_department_returns_201(self, api_client, defect_data):
+        defect_data["department"] = Department.REPAIR_1
+        defect_data["node"] = DefectNode.BODY
+        response = api_client.post(reverse("defect-list"), defect_data, format="json")
+        assert response.status_code == status.HTTP_201_CREATED
+
+    def test_invalid_node_for_department_returns_400(self, api_client, defect_data):
+        defect_data["department"] = Department.WHEELSET
+        defect_data["node"] = DefectNode.BODY
+        response = api_client.post(reverse("defect-list"), defect_data, format="json")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "node" in response.data
+
+    def test_patch_invalid_node_for_department_returns_400(self, api_client, defect):
+        defect.department = Department.WHEELSET
+        defect.save()
+        response = api_client.patch(
+            reverse("defect-detail", args=[defect.pk]),
+            {"node": DefectNode.BODY},
+            format="json",
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "node" in response.data
+
+    def test_no_department_skips_node_validation(self, api_client, defect_data):
+        defect_data["node"] = DefectNode.BODY
+        response = api_client.post(reverse("defect-list"), defect_data, format="json")
+        assert response.status_code == status.HTTP_201_CREATED
+
+
+@pytest.mark.django_db
+class TestDefectResponsibleEmployee:
+    def test_human_factor_without_responsible_returns_400(
+        self, api_client, defect_data
+    ):
+        defect_data["defect_type"] = DefectType.HUMAN_FACTOR
+        response = api_client.post(reverse("defect-list"), defect_data, format="json")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "responsible_employee" in response.data
+
+    def test_human_factor_with_responsible_returns_201(
+        self, api_client, defect_data, wagon
+    ):
+        responsible = baker.make("core.Employee", department=Department.REPAIR_1)
+        defect_data["defect_type"] = DefectType.HUMAN_FACTOR
+        defect_data["department"] = Department.REPAIR_1
+        defect_data["node"] = DefectNode.BODY
+        defect_data["responsible_employee"] = responsible.pk
+        response = api_client.post(reverse("defect-list"), defect_data, format="json")
+        assert response.status_code == status.HTTP_201_CREATED
+
+    def test_responsible_from_wrong_department_returns_400(
+        self, api_client, defect_data
+    ):
+        responsible = baker.make("core.Employee", department=Department.WHEELSET)
+        defect_data["department"] = Department.REPAIR_1
+        defect_data["node"] = DefectNode.BODY
+        defect_data["responsible_employee"] = responsible.pk
+        response = api_client.post(reverse("defect-list"), defect_data, format="json")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "responsible_employee" in response.data
+
+    def test_patch_add_responsible_employee(self, api_client, defect):
+        defect.department = Department.REPAIR_1
+        defect.node = DefectNode.BODY
+        defect.save()
+        responsible = baker.make("core.Employee", department=Department.REPAIR_1)
+        response = api_client.patch(
+            reverse("defect-detail", args=[defect.pk]),
+            {"responsible_employee": responsible.pk},
+            format="json",
+        )
+        assert response.status_code == status.HTTP_200_OK
+        defect.refresh_from_db()
+        assert defect.responsible_employee_id == responsible.pk
