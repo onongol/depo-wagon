@@ -5,6 +5,9 @@ from apps.core.models import Employee
 
 class EmployeeListSerializer(serializers.ModelSerializer):
     role_display = serializers.CharField(source="get_role_display", read_only=True)
+    department_display = serializers.CharField(
+        source="get_department_display", read_only=True
+    )
     full_name = serializers.CharField(read_only=True)
 
     class Meta:
@@ -15,12 +18,17 @@ class EmployeeListSerializer(serializers.ModelSerializer):
             "full_name",
             "role",
             "role_display",
+            "department",
+            "department_display",
             "is_active",
         ]
 
 
 class EmployeeSerializer(serializers.ModelSerializer):
     role_display = serializers.CharField(source="get_role_display", read_only=True)
+    department_display = serializers.CharField(
+        source="get_department_display", read_only=True
+    )
     full_name = serializers.CharField(read_only=True)
     short_name = serializers.CharField(read_only=True)
 
@@ -35,6 +43,8 @@ class EmployeeSerializer(serializers.ModelSerializer):
             "short_name",
             "role",
             "role_display",
+            "department",
+            "department_display",
             "telegram_id",
             "user",
             "phone",
