@@ -1,6 +1,6 @@
 services:
   db_test:
-    image: postgres:18-alpine
+    image: pgvector/pgvector:pg18-trixie
     environment:
       POSTGRES_USER: test_user
       POSTGRES_PASSWORD: test_pass
