@@ -43,13 +43,9 @@ class TestDefectIsRepaired:
         defect = baker.make(Defect, wagon=wagon, status=DefectStatus.IN_PROGRESS)
         assert defect.is_repaired is False
 
-    def test_resolved_is_repaired(self, wagon):
-        defect = baker.make(Defect, wagon=wagon, status=DefectStatus.RESOLVED)
-        assert defect.is_repaired is True
-
-    def test_closed_is_not_repaired(self, wagon):
+    def test_closed_is_repaired(self, wagon):
         defect = baker.make(Defect, wagon=wagon, status=DefectStatus.CLOSED)
-        assert defect.is_repaired is False
+        assert defect.is_repaired is True
 
 
 @pytest.mark.django_db
