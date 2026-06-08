@@ -18,7 +18,7 @@ def build_text(defects: list, page: int, total: int) -> str:
         inspector = html.escape(d.inspector.short_name) if d.inspector else "—"
         lines.append(
             f"{sev_emoji} <b>{html.escape(d.wagon.number)}</b> — {d.get_node_display()}\n"
-            f"   {d.get_defect_display()} | {status_str}\n"
+            f"   {d.get_defect_type_display()} | {status_str}\n"
             f"   👤 {inspector} | 🕐 {d.inspected_at.strftime('%Y-%m-%d')}"
         )
 
