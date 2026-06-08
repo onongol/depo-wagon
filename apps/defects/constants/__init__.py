@@ -4,6 +4,7 @@ from .constants import (
     DefectStatus,
     DefectType,
     DefectVerdict,
+    DEPARTMENT_NODES,
     MeasurementDimension,
 )
 
@@ -13,5 +14,6 @@ __all__ = [
     "DefectStatus",
     "DefectType",
     "DefectVerdict",
+    "DEPARTMENT_NODES",
     "MeasurementDimension",
 ]
