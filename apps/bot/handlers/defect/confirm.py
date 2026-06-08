@@ -10,6 +10,7 @@ from apps.bot.keyboards.defect import employee_verdict_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import EMPLOYEE_VERDICT
 from apps.bot.user_data import DefectData
+from apps.defects.validators import MAX_PHOTO_BYTES
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +59,14 @@ async def confirm_defect(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         for idx, file_id in enumerate(defect_data.photo_file_ids):
             try:
                 file = await context.bot.get_file(file_id)
+
+                # Skip photos that exceed size limit
+                if file.file_size and file.file_size > MAX_PHOTO_BYTES:
+                    logger.warning(
+                        "Photo too large (%d bytes), skipping", file.file_size
+                    )
+                    continue
+
                 file_bytes = bytes(await file.download_as_bytearray())
                 filename = f"bot_{saved_defect.id}_{idx + 1}_{file_id[-8:]}.jpg"
 
@@ -89,7 +98,7 @@ async def confirm_defect(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 defect_id=saved_defect.id,
                 ai_class=ai_result.defect_class,
                 ai_confidence=ai_result.confidence,
-                ai_rag_recommendation=ai_result.rag_recommendation,
+                ai_recommendation=ai_result.rag_recommendation,
                 ai_verdict=ai_result.verdict,
             )
 
@@ -118,7 +127,7 @@ async def confirm_defect(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         # Message 2: RAG recommendation as a separate message
         if ai_result.rag_recommendation:
             await query.message.reply_text(
-                str(M.AI_RAG_RECOMMENDATION).format(
+                str(M.AI_RECOMMENDATION).format(
                     rag_recommendation=html.escape(ai_result.rag_recommendation),
                 ),
                 parse_mode=M.PARSE_MODE,
