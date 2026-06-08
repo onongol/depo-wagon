@@ -1,7 +1,7 @@
 import pytest
 from django.contrib.auth import get_user_model
 
-from apps.core.constants import EmployeeRole
+from apps.core.constants import Department, EmployeeRole
 from apps.core.models import Employee
 
 User = get_user_model()
@@ -111,3 +111,22 @@ class TestEmployeeSave:
 
         user.refresh_from_db()
         assert user.is_active is True
+
+
+@pytest.mark.django_db
+class TestEmployeeDepartment:
+    def test_department_blank_by_default(self):
+        emp = make_employee()
+        assert emp.department == ""
+
+    def test_department_can_be_set(self):
+        emp = make_employee(department=Department.BOGIE)
+        emp.save()
+        emp.refresh_from_db()
+        assert emp.department == Department.BOGIE
+
+    def test_department_is_optional(self):
+        emp = make_employee()
+        emp.save()
+        emp.refresh_from_db()
+        assert emp.department == ""
