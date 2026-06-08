@@ -14,7 +14,7 @@ def defect_data(wagon):
     return {
         "wagon": wagon.pk,
         "node": DefectNode.BOGIE,
-        "defect": DefectType.CRACK,
+        "defect_type": DefectType.CRACK,
         "severity": DefectSeverity.MEDIUM,
         "inspected_at": datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc).isoformat(),
     }
@@ -103,12 +103,12 @@ class TestDefectUpdate:
     def test_patch_updates_field(self, api_client, defect):
         response = api_client.patch(
             reverse("defect-detail", args=[defect.pk]),
-            {"status": DefectStatus.RESOLVED},
+            {"status": DefectStatus.CLOSED},
             format="json",
         )
         assert response.status_code == status.HTTP_200_OK
         defect.refresh_from_db()
-        assert defect.status == DefectStatus.RESOLVED
+        assert defect.status == DefectStatus.CLOSED
 
 
 @pytest.mark.django_db
@@ -138,7 +138,7 @@ class TestDefectFilters:
             "defects.Defect",
             wagon=wagon,
             inspector=employee,
-            status=DefectStatus.RESOLVED,
+            status=DefectStatus.CLOSED,
         )
         response = api_client.get(reverse("defect-list"), {"status": DefectStatus.OPEN})
         assert response.data["count"] == 2
@@ -184,7 +184,7 @@ class TestDefectValidation:
         data = {
             "wagon": wagon.pk,
             "node": DefectNode.BOGIE,
-            "defect": DefectType.CRACK,
+            "defect_type": DefectType.CRACK,
             "severity": DefectSeverity.MEDIUM,
         }
         response = api_client.post(reverse("defect-list"), data, format="json")
