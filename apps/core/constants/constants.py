@@ -31,6 +31,7 @@ class RepairType(models.TextChoices):
 
 
 class EmployeeRole(models.TextChoices):
+    WORKER = "worker", _("Worker")  # Рабочий
     INSPECTOR = "inspector", _("Inspector")  # Дефектоскопист
     MASTER = "master", _("Master")  # Мастер
     ENGINEER = "engineer", _("Engineer")  # Инженер
