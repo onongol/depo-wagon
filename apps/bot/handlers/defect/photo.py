@@ -5,11 +5,12 @@ from telegram.ext import ContextTypes
 
 from apps.bot.callbacks import PhotoSkipCB
 from apps.bot.constants import UD_DEFECT
-from apps.bot.user_data import DefectData
-from apps.bot.keyboards.defect import measurement_choice_keyboard
 from apps.bot.keyboards.common import skip_keyboard
+from apps.bot.keyboards.defect import measurement_choice_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import MEASUREMENT_CHOICE, PHOTO
+from apps.bot.user_data import DefectData
+from apps.defects.validators import MAX_PHOTO_BYTES
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,11 @@ async def receive_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
     # Collect photo (highest resolution)
     photo = update.message.photo[-1]
+
+    # Validate photo size before downloading
+    if photo.file_size and photo.file_size > MAX_PHOTO_BYTES:
+        await update.message.reply_text(str(M.PHOTO_TOO_LARGE))
+        return PHOTO
 
     defect: DefectData = context.user_data[UD_DEFECT]
     defect.photo_file_ids.append(photo.file_id)
