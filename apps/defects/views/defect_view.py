@@ -10,7 +10,7 @@ from apps.users.permissions import IsAnyEmployee, IsEngineer, IsInspectorOrEngin
 class DefectViewSet(viewsets.ModelViewSet):
     queryset = Defect.objects.select_related("wagon", "inspector").all()
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ["status", "severity", "node", "defect", "wagon"]
+    filterset_fields = ["status", "severity", "node", "defect_type", "wagon"]
     search_fields = ["wagon__number"]
     ordering_fields = ["inspected_at", "severity", "status"]
     ordering = ["-inspected_at"]
