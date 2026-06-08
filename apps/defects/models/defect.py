@@ -5,6 +5,7 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from simple_history.models import HistoricalRecords
 
+from apps.core.constants import Department
 from apps.defects.constants import (
     DefectNode,
     DefectSeverity,
@@ -69,6 +70,12 @@ class Defect(models.Model):
         choices=DefectVerdict.choices,
         blank=True,
         verbose_name=_("Verdict"),
+    )
+    department = models.CharField(
+        max_length=20,
+        choices=Department.choices,
+        blank=True,
+        verbose_name=_("Department"),
     )
     inspector = models.ForeignKey(
         "core.Employee",
