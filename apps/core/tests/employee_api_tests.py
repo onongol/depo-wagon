@@ -3,7 +3,7 @@ from django.urls import reverse
 from model_bakery import baker
 from rest_framework import status
 
-from apps.core.constants import EmployeeRole
+from apps.core.constants import Department, EmployeeRole
 from apps.core.models import Employee
 
 
@@ -40,6 +40,8 @@ class TestEmployeeList:
         assert "telegram_id" not in result
         assert "full_name" in result
         assert "role_display" in result
+        assert "department" in result
+        assert "department_display" in result
 
 
 @pytest.mark.django_db
@@ -58,6 +60,8 @@ class TestEmployeeRetrieve:
         assert "email" in response.data
         assert "telegram_id" in response.data
         assert "short_name" in response.data
+        assert "department" in response.data
+        assert "department_display" in response.data
 
 
 @pytest.mark.django_db
@@ -145,6 +149,14 @@ class TestEmployeeFilters:
             if r["employee_id"] == employee.employee_id
         )
         assert result["employee_id"] == employee.employee_id
+
+    def test_filter_by_department(self, api_client):
+        baker.make("core.Employee", department=Department.BOGIE, _quantity=2)
+        baker.make("core.Employee", department=Department.WHEELSET)
+        response = api_client.get(
+            reverse("employee-list"), {"department": Department.BOGIE}
+        )
+        assert response.data["count"] == 2
 
     def test_ordering_by_employee_id(self, api_client):
         baker.make("core.Employee", employee_id="Z999")
