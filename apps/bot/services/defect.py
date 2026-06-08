@@ -14,7 +14,7 @@ def create_defect(wagon_id, node, defect_type, severity, description, employee_i
     return Defect.objects.create(
         wagon_id=wagon_id,
         node=node,
-        defect=defect_type,
+        defect_type=defect_type,
         severity=severity,
         description=description,
         inspector_id=employee_id,
@@ -27,7 +27,7 @@ def update_defect_ai_result(
     defect_id,
     ai_class: str,
     ai_confidence,
-    ai_rag_recommendation: str,
+    ai_recommendation: str,
     ai_verdict: str,
 ):
     """Write AI analysis results back to the Defect record."""
@@ -36,7 +36,7 @@ def update_defect_ai_result(
     Defect.objects.filter(id=defect_id).update(
         ai_defect_class=ai_class,
         ai_confidence=ai_confidence,
-        ai_rag_recommendation=ai_rag_recommendation,
+        ai_recommendation=ai_recommendation,
         ai_verdict=ai_verdict,
     )
 
