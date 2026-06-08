@@ -7,7 +7,9 @@ from apps.defects.serializers.photo_serializer import DefectPhotoSerializer
 
 class DefectListSerializer(serializers.ModelSerializer):
     node_display = serializers.CharField(source="get_node_display", read_only=True)
-    defect_display = serializers.CharField(source="get_defect_display", read_only=True)
+    defect_type_display = serializers.CharField(
+        source="get_defect_type_display", read_only=True
+    )
     severity_display = serializers.CharField(
         source="get_severity_display", read_only=True
     )
@@ -22,8 +24,8 @@ class DefectListSerializer(serializers.ModelSerializer):
             "wagon_number",
             "node",
             "node_display",
-            "defect",
-            "defect_display",
+            "defect_type",
+            "defect_type_display",
             "severity",
             "severity_display",
             "status",
@@ -34,7 +36,10 @@ class DefectListSerializer(serializers.ModelSerializer):
 
 class DefectSerializer(serializers.ModelSerializer):
     node_display = serializers.CharField(source="get_node_display", read_only=True)
-    defect_display = serializers.CharField(source="get_defect_display", read_only=True)
+    wagon_number = serializers.CharField(source="wagon.number", read_only=True)
+    defect_type_display = serializers.CharField(
+        source="get_defect_type_display", read_only=True
+    )
     severity_display = serializers.CharField(
         source="get_severity_display", read_only=True
     )
@@ -54,10 +59,11 @@ class DefectSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "wagon",
+            "wagon_number",
             "node",
             "node_display",
-            "defect",
-            "defect_display",
+            "defect_type",
+            "defect_type_display",
             "severity",
             "severity_display",
             "status",
