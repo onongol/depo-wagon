@@ -1,5 +1,6 @@
 import uuid
 
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from simple_history.models import HistoricalRecords
@@ -14,6 +15,8 @@ from apps.defects.constants import (
 
 
 class Defect(models.Model):
+    """Model representing a defect detected on a wagon."""
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     wagon = models.ForeignKey(
         "core.Wagon",
@@ -24,7 +27,7 @@ class Defect(models.Model):
     node = models.CharField(
         max_length=20, choices=DefectNode.choices, verbose_name=_("Node")
     )
-    defect = models.CharField(
+    defect_type = models.CharField(
         max_length=20, choices=DefectType.choices, verbose_name=_("Defect Type")
     )
     severity = models.CharField(
@@ -43,11 +46,16 @@ class Defect(models.Model):
     ai_defect_class = models.CharField(
         max_length=200, blank=True, verbose_name=_("AI Defect Class")
     )
-    ai_confidence = models.FloatField(
-        null=True, blank=True, verbose_name=_("AI Confidence")
+    ai_confidence = models.DecimalField(
+        max_digits=4,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
+        verbose_name=_("AI Confidence"),
     )
-    ai_rag_recommendation = models.TextField(
-        blank=True, default="", verbose_name=_("AI RAG Recommendation")
+    ai_recommendation = models.TextField(
+        blank=True, default="", verbose_name=_("AI Recommendation")
     )
     ai_verdict = models.CharField(
         max_length=20,
@@ -80,19 +88,19 @@ class Defect(models.Model):
 
     history = HistoricalRecords()
 
-    @property
-    def is_repaired(self) -> bool:
-        return self.status == DefectStatus.RESOLVED
-
-    def __str__(self):
-        return f"{self.get_node_display()} — {self.get_defect_display()} ({self.wagon})"
-
     class Meta:
         verbose_name = _("Defect")
         verbose_name_plural = _("Defects")
         ordering = ["-inspected_at"]
         indexes = [
             models.Index(fields=["status", "severity"]),
-            models.Index(fields=["node"]),
+            models.Index(fields=["status", "node"]),
             models.Index(fields=["inspected_at"]),
         ]
+
+    @property
+    def is_repaired(self) -> bool:
+        return self.status == DefectStatus.CLOSED
+
+    def __str__(self) -> str:
+        return f"{self.get_node_display()} — {self.get_defect_type_display()} (Wagon: {self.wagon.number})"
