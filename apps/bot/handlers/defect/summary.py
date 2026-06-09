@@ -10,14 +10,37 @@ def build_summary(defect: DefectData) -> str:
     lines = [
         str(_("📋 <b>Defect Summary — please review:</b>\n")),
         str(_("🚃 Wagon: <b>{wagon}</b>")).format(wagon=defect.wagon_number or "?"),
+        str(_("🏭 Department: <b>{dept}</b>")).format(
+            dept=defect.department_label or "?"
+        ),
         str(_("🔧 Node: <b>{node}</b>")).format(node=defect.node_label or "?"),
+    ]
+
+    if defect.part_number:
+        lines.append(
+            str(_("🔢 Part number: <b>{part}</b>")).format(
+                part=html.escape(defect.part_number)
+            )
+        )
+
+    lines.append(
         str(_("⚠️ Defect type: <b>{dtype}</b>")).format(
             dtype=defect.defect_type_label or "?"
-        ),
+        )
+    )
+
+    lines.append(
         str(_("🔴 Severity: <b>{severity}</b>")).format(
             severity=defect.severity_label or "?"
-        ),
-    ]
+        )
+    )
+
+    if defect.responsible_employee_label:
+        lines.append(
+            str(_("👤 Responsible: <b>{emp}</b>")).format(
+                emp=html.escape(defect.responsible_employee_label)
+            )
+        )
 
     if defect.measurements:
         lines.append(
