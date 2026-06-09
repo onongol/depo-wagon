@@ -4,6 +4,7 @@ from model_bakery import baker
 from rest_framework.test import APIClient
 
 from apps.core.constants import EmployeeRole
+from apps.defects.constants import DefectNode, DefectType
 
 User = get_user_model()
 
@@ -34,4 +35,10 @@ def employee(db):
 
 @pytest.fixture
 def defect(db, wagon, employee):
-    return baker.make("defects.Defect", wagon=wagon, inspector=employee)
+    return baker.make(
+        "defects.Defect",
+        wagon=wagon,
+        inspector=employee,
+        node=DefectNode.BODY,
+        defect_type=DefectType.CRACK,
+    )
