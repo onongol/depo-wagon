@@ -38,6 +38,9 @@ async def confirm_defect(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             severity=defect_data.severity,
             description=defect_data.description,
             employee_id=employee.id if employee else None,
+            department=defect_data.department or "",
+            part_number=defect_data.part_number or "",
+            responsible_employee_id=defect_data.responsible_employee_id,
         )
 
         # 2. Save measurements
