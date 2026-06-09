@@ -7,7 +7,17 @@ logger = logging.getLogger(__name__)
 
 
 @sync_to_async
-def create_defect(wagon_id, node, defect_type, severity, description, employee_id):
+def create_defect(
+    wagon_id,
+    node,
+    defect_type,
+    severity,
+    description,
+    employee_id,
+    department: str = "",
+    part_number: str = "",
+    responsible_employee_id=None,
+):
     """Create and return a new Defect record."""
     from apps.defects.models import Defect
 
@@ -18,6 +28,9 @@ def create_defect(wagon_id, node, defect_type, severity, description, employee_i
         severity=severity,
         description=description,
         inspector_id=employee_id,
+        department=department,
+        part_number=part_number,
+        responsible_employee_id=responsible_employee_id,
         inspected_at=timezone.now(),
     )
 
