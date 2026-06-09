@@ -58,7 +58,7 @@ def _make_msg_update(text="ABC-123"):
     return update
 
 
-def _make_employee(pk=1, first="Иван", last="Иванов"):
+def _make_employee(pk=1, first="Бат", last="Эрдэнэ"):
     e = MagicMock()
     e.id = pk
     e.first_name = first
