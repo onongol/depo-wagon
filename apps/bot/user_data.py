@@ -27,8 +27,11 @@ class MeasurementEntry:
 class DefectData:
     wagon_id: int | None = None
     wagon_number: str | None = None
+    department: str | None = None
+    department_label: str | None = None
     node: str | None = None
     node_label: str | None = None
+    part_number: str = ""
     defect_type: str | None = None
     defect_type_label: str | None = None
     severity: str | None = None
@@ -38,3 +41,5 @@ class DefectData:
     photo_file_ids: list[str] = field(default_factory=list)
     defect_id: str | None = None
     current_measurement: MeasurementEntry | None = None
+    responsible_employee_id: int | None = None
+    responsible_employee_label: str | None = None
