@@ -88,11 +88,41 @@ class BotMessages:
         "❌ Wagon <code>{number}</code> not found.\n\nPlease check and try again:"
     )
 
-    WAGON_CONFIRMED = _("✅ Wagon: <b>{number}</b>\n\nSelect the defect node:")
+    WAGON_CONFIRMED = _("✅ Wagon: <b>{number}</b>\n\nSelect the department:")
 
-    NODE_CONFIRMED = _("✅ Node: <b>{label}</b>\n\nSelect the defect type:")
+    DEPARTMENT_CONFIRMED = _("✅ Department: <b>{label}</b>\n\nSelect the defect node:")
+
+    NODE_CONFIRMED = _("✅ Node: <b>{label}</b>\n\nEnter the part number (or skip):")
+
+    PART_NUMBER_PROMPT = _("🔢 Enter the part number <i>(e.g. ABC-1234)</i> or skip:")
+
+    PART_NUMBER_CONFIRMED = _(
+        "✅ Part number: <b>{part_number}</b>\n\nSelect the defect type:"
+    )
+
+    PART_NUMBER_SKIPPED = _("⏭ Part number skipped.\n\nSelect the defect type:")
 
     DEFECT_TYPE_CONFIRMED = _("✅ Defect type: <b>{label}</b>\n\nSelect severity:")
+
+    DEFECT_TYPE_HUMAN_FACTOR = _(
+        "✅ Defect type: <b>{label}</b>\n\n📸 Send a photo (or skip):"
+    )
+
+    ASK_RESPONSIBLE_EMPLOYEE = _(
+        "👤 Select the responsible employee:\n"
+        "📄 Page {page}/{total} • {count} employees\n"
+        "<i>Type a name to search:</i>"
+    )
+
+    ASK_RESPONSIBLE_EMPLOYEE_SEARCH = _(
+        "🔍 Search: <b>{query}</b>\n"
+        "Found {count} employee(s)\n"
+        "<i>Type a new name to search again:</i>"
+    )
+
+    RESPONSIBLE_EMPLOYEE_CONFIRMED = _(
+        "✅ Responsible employee: <b>{label}</b>\n\n📝 Enter a description (or skip):"
+    )
 
     SEVERITY_CONFIRMED = _(
         "✅ Severity: <b>{label}</b>\n\n📸 Send a photo of the defect (or skip):"
@@ -101,8 +131,10 @@ class BotMessages:
     # ── Photo ─────────────────────────────────────────────────────────────────
 
     PHOTO_RECEIVED = _("✅ Photo {count} received.\n\n📸 Send another photo (or skip):")
-    
-    PHOTO_TOO_LARGE = _("⚠️ Photo is too large (max 10 MB). Please send a smaller photo:")
+
+    PHOTO_TOO_LARGE = _(
+        "⚠️ Photo is too large (max 10 MB). Please send a smaller photo:"
+    )
 
     # ── Measurement sub-flow ──────────────────────────────────────────────────
 
@@ -151,9 +183,7 @@ class BotMessages:
         "{verdict_emoji} AI verdict: <code>{verdict}</code>"
     )
 
-    AI_RECOMMENDATION = _(
-        "\n\n💡 <b>Recommendation</b>:\n{rag_recommendation}"
-    )
+    AI_RECOMMENDATION = _("\n\n💡 <b>Recommendation</b>:\n{rag_recommendation}")
 
     AI_UNAVAILABLE = _("\nℹ️ AI analysis is not available.")
 
