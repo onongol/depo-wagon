@@ -3,11 +3,12 @@ import logging
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from apps.bot.callbacks import PartNumberSkipCB
 from apps.bot.constants import UD_DEFECT
-from apps.bot.user_data import DefectData
-from apps.bot.keyboards.defect import defect_type_keyboard
+from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.messages import BotMessages as M
-from apps.bot.states import DEFECT_TYPE
+from apps.bot.states import PART_NUMBER
+from apps.bot.user_data import DefectData
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,6 @@ async def receive_node(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     await query.edit_message_text(
         str(M.NODE_CONFIRMED).format(label=node_label),
         parse_mode=M.PARSE_MODE,
-        reply_markup=defect_type_keyboard(),
+        reply_markup=skip_keyboard(PartNumberSkipCB()),
     )
-    return DEFECT_TYPE
+    return PART_NUMBER
