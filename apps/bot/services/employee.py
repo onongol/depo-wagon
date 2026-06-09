@@ -87,6 +87,18 @@ def register_employee(employee: object, telegram_id: int):
 
 
 @sync_to_async
+def get_employees_by_department(department: str) -> list:
+    """Return all active employees belonging to the given department."""
+    from apps.core.models import Employee
+
+    return list(
+        Employee.objects.filter(department=department, is_active=True).order_by(
+            "last_name", "first_name"
+        )
+    )
+
+
+@sync_to_async
 def get_managers_and_engineers() -> list:
     """Return all active managers and engineers who have a linked Telegram account."""
     from apps.core.constants import EmployeeRole
