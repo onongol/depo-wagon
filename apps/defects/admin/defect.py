@@ -10,6 +10,7 @@ class DefectAdmin(ModelAdmin):
         "wagon__number",
         "department",
         "node",
+        "part_number",
         "defect_type",
         "severity",
         "status",
@@ -21,7 +22,7 @@ class DefectAdmin(ModelAdmin):
     ]
     list_select_related = ("wagon", "inspector", "responsible_employee")
     list_filter = ["department", "node", "defect_type", "severity", "status"]
-    search_fields = ["wagon__number"]
+    search_fields = ["wagon__number", "part_number"]
     readonly_fields = [
         "ai_recommendation",
         "ai_defect_class",
