@@ -9,6 +9,7 @@ from telegram.ext import (
 from apps.bot.callbacks import (
     ConfirmCB,
     DefectTypeCB,
+    DepartmentCB,
     DescSkipCB,
     DimensionCB,
     MeasurementAddCB,
@@ -16,7 +17,11 @@ from apps.bot.callbacks import (
     MeasurementSkipCB,
     NodeCB,
     NormSkipCB,
+    PartNumberSkipCB,
     PhotoSkipCB,
+    ResponsibleEmployeeCB,
+    ResponsibleEmployeePageCB,
+    ResponsibleEmployeeSkipCB,
     SeverityCB,
     UnitSkipCB,
     VerdictCB,
@@ -25,6 +30,7 @@ from apps.bot.constants import BTN_NEW_DEFECT
 from apps.bot.states import (
     CONFIRM,
     DEFECT_TYPE,
+    DEPARTMENT,
     DESC,
     EMPLOYEE_VERDICT,
     MEASUREMENT_CHOICE,
@@ -33,14 +39,17 @@ from apps.bot.states import (
     MEASUREMENT_UNIT,
     MEASUREMENT_VALUE,
     NODE,
+    PART_NUMBER,
     PHOTO,
+    RESPONSIBLE_EMPLOYEE,
     SEVERITY,
     WAGON_NUM,
 )
 
-from .cancel import cancel_defect
+from .cancel import cancel_defect, stale_callback
 from .confirm import confirm_defect
 from .defect_type import receive_defect_type
+from .department import receive_department
 from .description import receive_description
 from .measurement import (
     handle_measurement_choice,
@@ -50,7 +59,12 @@ from .measurement import (
     receive_unit,
 )
 from .node import receive_node
+from .part_number import receive_part_number
 from .photo import receive_photo
+from .responsible_employee import (
+    receive_responsible_employee,
+    search_responsible_employee,
+)
 from .severity import receive_severity
 from .start import new_defect_start
 from .verdict import receive_employee_verdict
@@ -71,10 +85,22 @@ def get_defect_handler() -> ConversationHandler:
             WAGON_NUM: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, receive_wagon_number)
             ],
+            DEPARTMENT: [
+                CallbackQueryHandler(
+                    receive_department, pattern=lambda d: isinstance(d, DepartmentCB)
+                )
+            ],
             NODE: [
                 CallbackQueryHandler(
                     receive_node, pattern=lambda d: isinstance(d, NodeCB)
                 )
+            ],
+            PART_NUMBER: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, receive_part_number),
+                CallbackQueryHandler(
+                    receive_part_number,
+                    pattern=lambda d: isinstance(d, PartNumberSkipCB),
+                ),
             ],
             DEFECT_TYPE: [
                 CallbackQueryHandler(
@@ -90,6 +116,22 @@ def get_defect_handler() -> ConversationHandler:
                 MessageHandler(filters.PHOTO, receive_photo),
                 CallbackQueryHandler(
                     receive_photo, pattern=lambda d: isinstance(d, PhotoSkipCB)
+                ),
+            ],
+            RESPONSIBLE_EMPLOYEE: [
+                CallbackQueryHandler(
+                    receive_responsible_employee,
+                    pattern=lambda d: isinstance(
+                        d,
+                        (
+                            ResponsibleEmployeeCB,
+                            ResponsibleEmployeeSkipCB,
+                            ResponsibleEmployeePageCB,
+                        ),
+                    ),
+                ),
+                MessageHandler(
+                    filters.TEXT & ~filters.COMMAND, search_responsible_employee
                 ),
             ],
             MEASUREMENT_CHOICE: [
@@ -139,7 +181,10 @@ def get_defect_handler() -> ConversationHandler:
                 )
             ],
         },
-        fallbacks=[CommandHandler("cancel", cancel_defect)],
+        fallbacks=[
+            CommandHandler("cancel", cancel_defect),
+            CallbackQueryHandler(stale_callback),
+        ],
         name="defect",
         persistent=False,
     )
