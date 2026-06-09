@@ -36,6 +36,9 @@ class Defect(models.Model):
     node = models.CharField(
         max_length=20, choices=DefectNode.choices, verbose_name=_("Node")
     )
+    part_number = models.CharField(
+        max_length=100, blank=True, verbose_name=_("Part Number")
+    )
     defect_type = models.CharField(
         max_length=20, choices=DefectType.choices, verbose_name=_("Defect Type")
     )
