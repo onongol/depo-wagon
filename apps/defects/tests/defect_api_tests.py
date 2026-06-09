@@ -40,6 +40,7 @@ class TestDefectList:
         assert "description" not in result
         assert "wagon_number" in result
         assert "node_display" in result
+        assert "part_number" in result
         assert "severity_display" in result
         assert "status_display" in result
 
@@ -60,6 +61,7 @@ class TestDefectRetrieve:
         assert "measurements" in response.data
         assert "photos" in response.data
         assert "description" in response.data
+        assert "part_number" in response.data
         assert "ai_confidence" in response.data
 
     def test_retrieve_includes_nested_measurements(self, api_client, defect):
