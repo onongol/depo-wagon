@@ -76,6 +76,22 @@ class TestDefectNullableFields:
 
 
 @pytest.mark.django_db
+class TestDefectPartNumber:
+    def test_part_number_blank_by_default(self, defect):
+        assert defect.part_number == ""
+
+    def test_part_number_can_be_set(self, wagon):
+        defect = baker.make(Defect, wagon=wagon, part_number="PN-12345")
+        defect.refresh_from_db()
+        assert defect.part_number == "PN-12345"
+
+    def test_part_number_is_optional(self, wagon):
+        defect = baker.make(Defect, wagon=wagon)
+        defect.refresh_from_db()
+        assert defect.part_number == ""
+
+
+@pytest.mark.django_db
 class TestDefectDepartment:
     def test_department_blank_by_default(self, defect):
         assert defect.department == ""
