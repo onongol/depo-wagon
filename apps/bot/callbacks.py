@@ -2,6 +2,31 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
+class DepartmentCB:
+    value: str
+
+
+@dataclass(frozen=True)
+class PartNumberSkipCB:
+    pass
+
+
+@dataclass(frozen=True)
+class ResponsibleEmployeeCB:
+    employee_id: int
+
+
+@dataclass(frozen=True)
+class ResponsibleEmployeeSkipCB:
+    pass
+
+
+@dataclass(frozen=True)
+class ResponsibleEmployeePageCB:
+    page: int
+
+
+@dataclass(frozen=True)
 class NodeCB:
     value: str
 
