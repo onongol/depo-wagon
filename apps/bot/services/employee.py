@@ -36,6 +36,31 @@ def get_employee_by_email(email: str):
 
 
 @sync_to_async
+def get_employee_for_auth(email: str, telegram_id: int):
+    """
+    Find employee by email and validate Telegram linkage.
+
+    Returns:
+        (employee, "ok")            — found, not linked to another account
+        (None, "not_found")         — no active employee with this email
+        (None, "already_linked")    — linked to a different Telegram account
+    """
+    from apps.core.models import Employee
+
+    try:
+        employee = Employee.objects.select_related("user").get(
+            email__iexact=email.strip(), is_active=True
+        )
+    except Employee.DoesNotExist:
+        return None, "not_found"
+
+    if employee.telegram_id and employee.telegram_id != telegram_id:
+        return None, "already_linked"
+
+    return employee, "ok"
+
+
+@sync_to_async
 def get_employee_by_telegram_id(telegram_id: int):
     """Return active Employee linked to this Telegram account, or None."""
     from apps.core.models import Employee
