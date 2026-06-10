@@ -28,12 +28,13 @@ from .employee import (
     get_employee_by_email,
     get_employee_by_id,
     get_employee_by_telegram_id,
+    get_employee_for_auth,
     get_employees_by_department,
     get_managers_and_engineers,
     link_employee_telegram,
     register_employee,
 )
-from .measurement import create_measurement
+from .measurement import create_measurement, create_measurements_bulk
 from .photo import create_photo_from_bytes
 from .wagon import get_wagon_by_number
 
@@ -42,6 +43,7 @@ __all__ = [
     "get_employee_by_id",
     "get_employee_by_email",
     "get_employee_by_telegram_id",
+    "get_employee_for_auth",
     "get_employees_by_department",
     "get_managers_and_engineers",
     "register_employee",
@@ -59,6 +61,7 @@ __all__ = [
     "create_photo_from_bytes",
     # measurement
     "create_measurement",
+    "create_measurements_bulk",
     # email
     "generate_and_store_otp",
     "verify_otp",
