@@ -4,10 +4,11 @@ from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 from apps.bot import services
-from apps.bot.constants import UD_EMPLOYEE, UD_REG
-from apps.bot.keyboards.menu import main_menu_keyboard
+from apps.bot.constants import UD_EMPLOYEE
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import AUTH_EMAIL
+
+from .utils import show_welcome_menu
 
 logger = logging.getLogger(__name__)
 
@@ -18,21 +19,21 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     Otherwise → ask for email to begin registration.
     """
     telegram_id = update.effective_user.id
-    employee = await services.get_employee_by_telegram_id(telegram_id)
+
+    try:
+        employee = await services.get_employee_by_telegram_id(telegram_id)
+    except Exception:
+        logger.exception("DB lookup failed for telegram_id=%s", telegram_id)
+        await update.message.reply_text(str(M.SESSION_ERROR))
+        return ConversationHandler.END
 
     if employee:
         context.user_data[UD_EMPLOYEE] = employee
-        await update.message.reply_text(
-            str(M.WELCOME_MENU).format(
-                full_name=employee.full_name,
-                role=employee.get_role_display(),
-            ),
-            parse_mode=M.PARSE_MODE,
-            reply_markup=main_menu_keyboard(employee.role),
-        )
+        await show_welcome_menu(update.message, employee)
         return ConversationHandler.END
 
-    context.user_data.pop(UD_REG, None)
+    context.user_data.clear()
+
     await update.message.reply_text(
         str(M.WELCOME_NEW),
         parse_mode=M.PARSE_MODE,
