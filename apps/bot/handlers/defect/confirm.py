@@ -1,11 +1,14 @@
+import asyncio
 import html
 import logging
 
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
+from apps.ai_service.analysis import analyze_defect
 from apps.bot import services
 from apps.bot.constants import UD_DEFECT, UD_EMPLOYEE, VERDICT_TEXT
+from apps.bot.handlers.defect.cancel import _DEFECT_KEYS
 from apps.bot.keyboards.defect import employee_verdict_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import EMPLOYEE_VERDICT
@@ -16,11 +19,13 @@ logger = logging.getLogger(__name__)
 
 
 async def confirm_defect(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle defect confirmation, save to DB, run AI analysis, and show results."""
     query = update.callback_query
     await query.answer()
 
     if not query.data.confirmed:
-        context.user_data.pop(UD_DEFECT, None)
+        for key in _DEFECT_KEYS:
+            context.user_data.pop(key, None)
         await query.edit_message_text(str(M.DEFECT_CANCELLED))
         return ConversationHandler.END
 
@@ -43,50 +48,46 @@ async def confirm_defect(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             responsible_employee_id=defect_data.responsible_employee_id,
         )
 
-        # 2. Save measurements
-        for measurement in defect_data.measurements:
-            try:
-                await services.create_measurement(
-                    defect_id=saved_defect.id,
-                    dimension=measurement.dimension,
-                    value=measurement.value,
-                    norm_value=measurement.norm_value,
-                    unit=measurement.unit,
-                )
-            except Exception as exc:
-                logger.warning("Measurement save failed: %s", exc)
-
-        # 3. Download and save all photos
-        all_photo_bytes: list[bytes] = []
-
-        for idx, file_id in enumerate(defect_data.photo_file_ids):
+        # 2. Download and save all photos in parallel
+        async def _fetch_and_save_photo(idx: int, file_id: str) -> bytes | None:
             try:
                 file = await context.bot.get_file(file_id)
-
-                # Skip photos that exceed size limit
                 if file.file_size and file.file_size > MAX_PHOTO_BYTES:
                     logger.warning(
                         "Photo too large (%d bytes), skipping", file.file_size
                     )
-                    continue
-
+                    return None
                 file_bytes = bytes(await file.download_as_bytearray())
                 filename = f"bot_{saved_defect.id}_{idx + 1}_{file_id[-8:]}.jpg"
-
                 await services.create_photo_from_bytes(
                     defect_id=saved_defect.id,
                     file_bytes=file_bytes,
                     filename=filename,
                 )
-
-                all_photo_bytes.append(file_bytes)
+                return file_bytes
             except Exception as exc:
                 logger.warning("Photo save failed (idx=%d): %s", idx, exc)
+                return None
+
+        results = await asyncio.gather(
+            *[
+                _fetch_and_save_photo(i, fid)
+                for i, fid in enumerate(defect_data.photo_file_ids)
+            ]
+        )
+        all_photo_bytes: list[bytes] = [b for b in results if b is not None]
+
+        # 3. Save measurements
+        if defect_data.measurements:
+            try:
+                await services.create_measurements_bulk(
+                    saved_defect.id, defect_data.measurements
+                )
+            except Exception as exc:
+                logger.warning("Measurements save failed: %s", exc)
 
         # 4. AI analysis — all photos + description
         await query.edit_message_text(str(M.AI_ANALYZING))
-
-        from apps.ai_service.analysis import analyze_defect
 
         ai_result = await analyze_defect(
             node=defect_data.node_label or "",
@@ -144,10 +145,7 @@ async def confirm_defect(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
         return EMPLOYEE_VERDICT
 
-    except Exception as exc:
-        logger.error("Failed to save defect: %s", exc, exc_info=True)
-        await query.edit_message_text(
-            str(M.SAVE_FAILED).format(error=html.escape(str(exc))),
-            parse_mode=M.PARSE_MODE,
-        )
+    except Exception:
+        logger.exception("Failed to save defect")
+        await query.edit_message_text(str(M.SAVE_FAILED), parse_mode=M.PARSE_MODE)
         return ConversationHandler.END
