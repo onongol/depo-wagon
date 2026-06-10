@@ -1,15 +1,14 @@
-import logging
-
 from telegram import Update
 from telegram.ext import ContextTypes
 
 from apps.bot.constants import UD_DEFECT
-from apps.bot.user_data import DefectData
 from apps.bot.keyboards.defect import severity_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import SEVERITY
+from apps.bot.user_data import DefectData
+from apps.defects.constants import DefectType
 
-logger = logging.getLogger(__name__)
+_DEFECT_TYPE_LABELS = dict(DefectType.choices)
 
 
 async def receive_defect_type(
@@ -20,10 +19,7 @@ async def receive_defect_type(
     await query.answer()
 
     dtype_value = query.data.value
-
-    from apps.defects.constants import DefectType
-
-    dtype_label = dict(DefectType.choices).get(dtype_value, dtype_value)
+    dtype_label = _DEFECT_TYPE_LABELS.get(dtype_value, dtype_value)
 
     defect: DefectData = context.user_data[UD_DEFECT]
     defect.defect_type = dtype_value
