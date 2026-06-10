@@ -7,9 +7,10 @@ from telegram.ext import ContextTypes, ConversationHandler
 from apps.bot import services
 from apps.bot.constants import OtpStatus, RegStatus, UD_EMPLOYEE, UD_REG
 from apps.bot.user_data import RegData
-from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import AUTH_EMAIL, AUTH_OTP
+
+from .utils import show_welcome_menu
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,7 @@ async def receive_otp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         await update.message.reply_text(str(M.SESSION_ERROR))
         return ConversationHandler.END
 
-    employee_id, status = services.verify_otp(email, entered)
+    employee_id, status = await services.verify_otp(email, entered)
 
     if status == OtpStatus.EXPIRED:
         context.user_data.pop(UD_REG, None)
@@ -41,10 +42,15 @@ async def receive_otp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         await update.message.reply_text(str(M.OTP_WRONG))
         return AUTH_OTP
 
-    # OTP verified — fetch employee and register
-    employee = await services.get_employee_by_id(employee_id)
     telegram_id = update.effective_user.id
-    password, reg_status = await services.register_employee(employee, telegram_id)
+
+    try:
+        employee = await services.get_employee_by_id(employee_id)
+        password, reg_status = await services.register_employee(employee, telegram_id)
+    except Exception:
+        logger.exception("Registration failed for employee_id=%s", employee_id)
+        await update.message.reply_text(str(M.SESSION_ERROR))
+        return ConversationHandler.END
 
     if reg_status == RegStatus.CREATED:
         await services.send_credentials_email(email, password, employee.first_name)
@@ -58,18 +64,9 @@ async def receive_otp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
             parse_mode=M.PARSE_MODE,
         )
 
-    # Refresh employee from DB to get updated fields
-    employee = await services.get_employee_by_telegram_id(telegram_id)
+    employee.telegram_id = telegram_id
     context.user_data[UD_EMPLOYEE] = employee
-
-    await update.message.reply_text(
-        str(M.WELCOME_MENU).format(
-            full_name=employee.full_name,
-            role=employee.get_role_display(),
-        ),
-        parse_mode=M.PARSE_MODE,
-        reply_markup=main_menu_keyboard(employee.role),
-    )
+    await show_welcome_menu(update.message, employee)
 
     context.user_data.pop(UD_REG, None)
     return ConversationHandler.END
