@@ -1,5 +1,3 @@
-import logging
-
 from telegram import Update
 from telegram.ext import ContextTypes
 
@@ -8,8 +6,9 @@ from apps.bot.keyboards.defect import node_keyboard_for_department
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import NODE
 from apps.bot.user_data import DefectData
+from apps.core.constants import Department
 
-logger = logging.getLogger(__name__)
+_DEPT_LABELS = dict(Department.choices)
 
 
 async def receive_department(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -18,10 +17,7 @@ async def receive_department(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await query.answer()
 
     dept_value = query.data.value
-
-    from apps.core.constants import Department
-
-    dept_label = dict(Department.choices).get(dept_value, dept_value)
+    dept_label = _DEPT_LABELS.get(dept_value, dept_value)
 
     defect: DefectData = context.user_data[UD_DEFECT]
     defect.department = dept_value
