@@ -18,7 +18,10 @@ def get_auth_handler() -> ConversationHandler:
             ],
             AUTH_OTP: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_otp)],
         },
-        fallbacks=[CommandHandler("cancel", cancel)],
+        fallbacks=[
+            CommandHandler("cancel", cancel),
+            MessageHandler(filters.ALL, cancel),
+        ],
         name="auth",
         persistent=False,
     )
