@@ -29,7 +29,12 @@ async def receive_wagon_number(
         )
         return WAGON_NUM
 
-    wagon = await services.get_wagon_by_number(number)
+    try:
+        wagon = await services.get_wagon_by_number(number)
+    except Exception:
+        logger.exception("Failed to fetch wagon by number %r", number)
+        await update.message.reply_text(str(M.SESSION_ERROR))
+        return WAGON_NUM
 
     if not wagon:
         await update.message.reply_text(
