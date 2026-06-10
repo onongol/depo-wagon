@@ -21,6 +21,7 @@ def _otp_key(email: str) -> str:
     return f"{_OTP_PREFIX}{email.lower().strip()}"
 
 
+@sync_to_async
 def generate_and_store_otp(email: str, employee_id: int) -> str:
     """Generate a 6-digit OTP, store in Redis (10 min TTL). Returns the code."""
     code = "".join(random.choices(string.digits, k=6))
@@ -33,6 +34,7 @@ def generate_and_store_otp(email: str, employee_id: int) -> str:
     return code
 
 
+@sync_to_async
 def verify_otp(email: str, entered_code: str):
     """
     Check the entered code against the stored OTP.
