@@ -27,24 +27,28 @@ async def receive_email(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         )
         return AUTH_EMAIL
 
-    employee = await services.get_employee_by_email(email)
+    employee, status = await services.get_employee_for_auth(
+        email, update.effective_user.id
+    )
 
-    if not employee:
+    if status == "not_found":
         await update.message.reply_text(
             str(M.EMAIL_NOT_FOUND).format(email=html.escape(email)),
             parse_mode=M.PARSE_MODE,
         )
         return AUTH_EMAIL
 
-    # Check if already linked to another Telegram account
-    telegram_id = update.effective_user.id
-    if employee.telegram_id and employee.telegram_id != telegram_id:
+    if status == "already_linked":
         await update.message.reply_text(str(M.EMAIL_ALREADY_LINKED))
         return ConversationHandler.END
 
-    # Generate OTP and send to email
-    otp_code = services.generate_and_store_otp(email, employee.id)
-    sent = await services.send_otp_email(email, otp_code, employee.first_name)
+    try:
+        otp_code = await services.generate_and_store_otp(email, employee.id)
+        sent = await services.send_otp_email(email, otp_code, employee.first_name)
+    except Exception:
+        logger.exception("OTP generation/send failed for %s", email)
+        await update.message.reply_text(str(M.OTP_SEND_FAILED))
+        return AUTH_EMAIL
 
     context.user_data[UD_REG] = RegData(email=email)
 
