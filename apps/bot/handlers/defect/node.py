@@ -1,5 +1,3 @@
-import logging
-
 from telegram import Update
 from telegram.ext import ContextTypes
 
@@ -9,8 +7,9 @@ from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import PART_NUMBER
 from apps.bot.user_data import DefectData
+from apps.defects.constants import DefectNode
 
-logger = logging.getLogger(__name__)
+_NODE_LABELS = dict(DefectNode.choices)
 
 
 async def receive_node(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -19,10 +18,7 @@ async def receive_node(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     await query.answer()
 
     node_value = query.data.value
-
-    from apps.defects.constants import DefectNode
-
-    node_label = dict(DefectNode.choices).get(node_value, node_value)
+    node_label = _NODE_LABELS.get(node_value, node_value)
 
     defect: DefectData = context.user_data[UD_DEFECT]
     defect.node = node_value
