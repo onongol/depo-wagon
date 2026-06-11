@@ -7,13 +7,13 @@ from apps.bot.callbacks import (
     ResponsibleEmployeePageCB,
     ResponsibleEmployeeSkipCB,
 )
-from apps.bot.constants import UD_DEFECT
+from apps.bot.constants import UD_DEFECT, UD_RESP_EMPLOYEES, UD_RESP_SEARCH
 from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DESC, RESPONSIBLE_EMPLOYEE
 from apps.bot.user_data import DefectData
 
-from .list import UD_RESP_EMPLOYEES, UD_RESP_SEARCH, show_responsible_employee_list
+from .list import show_responsible_employee_list
 
 
 async def _handle_skip(query: CallbackQuery, context: ContextTypes.DEFAULT_TYPE) -> int:
