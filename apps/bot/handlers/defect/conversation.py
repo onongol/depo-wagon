@@ -94,7 +94,9 @@ def get_defect_handler() -> ConversationHandler:
             NODE: [CallbackQueryHandler(receive_node, pattern=_match(NodeCB))],
             PART_NUMBER: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, receive_part_number),
-                CallbackQueryHandler(skip_part_number, pattern=_match(PartNumberSkipCB)),
+                CallbackQueryHandler(
+                    skip_part_number, pattern=_match(PartNumberSkipCB)
+                ),
             ],
             DEFECT_TYPE: [
                 CallbackQueryHandler(receive_defect_type, pattern=_match(DefectTypeCB))
