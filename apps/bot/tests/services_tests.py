@@ -17,45 +17,45 @@ def clear_cache():
 
 
 class TestVerifyOtp:
-    def test_correct_code_returns_ok(self):
-        code = generate_and_store_otp("user@depot.mn", employee_id=42)
-        employee_id, status = verify_otp("user@depot.mn", code)
+    async def test_correct_code_returns_ok(self):
+        code = await generate_and_store_otp("user@depot.mn", employee_id=42)
+        employee_id, status = await verify_otp("user@depot.mn", code)
         assert status == OtpStatus.OK
         assert employee_id == 42
 
-    def test_wrong_code_returns_wrong(self):
-        generate_and_store_otp("user@depot.mn", employee_id=42)
-        employee_id, status = verify_otp("user@depot.mn", "000000")
+    async def test_wrong_code_returns_wrong(self):
+        await generate_and_store_otp("user@depot.mn", employee_id=42)
+        employee_id, status = await verify_otp("user@depot.mn", "000000")
         assert status == OtpStatus.WRONG
         assert employee_id is None
 
-    def test_wrong_code_increments_attempts(self):
-        generate_and_store_otp("user@depot.mn", employee_id=42)
-        verify_otp("user@depot.mn", "000000")  # attempt 1
-        verify_otp("user@depot.mn", "000000")  # attempt 2
-        _, status = verify_otp("user@depot.mn", "000000")  # attempt 3 → max
+    async def test_wrong_code_increments_attempts(self):
+        await generate_and_store_otp("user@depot.mn", employee_id=42)
+        await verify_otp("user@depot.mn", "000000")  # attempt 1
+        await verify_otp("user@depot.mn", "000000")  # attempt 2
+        _, status = await verify_otp("user@depot.mn", "000000")  # attempt 3 → max
         assert status == OtpStatus.MAX_ATTEMPTS
 
-    def test_max_attempts_invalidates_otp(self):
-        generate_and_store_otp("user@depot.mn", employee_id=42)
+    async def test_max_attempts_invalidates_otp(self):
+        await generate_and_store_otp("user@depot.mn", employee_id=42)
         for _ in range(3):
-            verify_otp("user@depot.mn", "000000")
-        _, status = verify_otp("user@depot.mn", "000000")  # 4th → expired
+            await verify_otp("user@depot.mn", "000000")
+        _, status = await verify_otp("user@depot.mn", "000000")  # 4th → expired
         assert status == OtpStatus.EXPIRED
 
-    def test_expired_otp_returns_expired(self):
-        _, status = verify_otp("nokey@depot.mn", "123456")
+    async def test_expired_otp_returns_expired(self):
+        _, status = await verify_otp("nokey@depot.mn", "123456")
         assert status == OtpStatus.EXPIRED
 
-    def test_correct_code_consumed_on_use(self):
-        code = generate_and_store_otp("user@depot.mn", employee_id=42)
-        verify_otp("user@depot.mn", code)
-        _, status = verify_otp("user@depot.mn", code)
+    async def test_correct_code_consumed_on_use(self):
+        code = await generate_and_store_otp("user@depot.mn", employee_id=42)
+        await verify_otp("user@depot.mn", code)
+        _, status = await verify_otp("user@depot.mn", code)
         assert status == OtpStatus.EXPIRED
 
-    def test_email_lookup_is_case_insensitive(self):
-        code = generate_and_store_otp("USER@DEPOT.MN", employee_id=42)
-        _, status = verify_otp("user@depot.mn", code)
+    async def test_email_lookup_is_case_insensitive(self):
+        code = await generate_and_store_otp("USER@DEPOT.MN", employee_id=42)
+        _, status = await verify_otp("user@depot.mn", code)
         assert status == OtpStatus.OK
 
 
