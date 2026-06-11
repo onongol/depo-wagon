@@ -3,15 +3,12 @@ import logging
 from telegram.ext import ContextTypes
 
 from apps.bot.callbacks import PhotoSkipCB
-from apps.bot.constants import UD_DEFECT
+from apps.bot.constants import UD_DEFECT, UD_LAST_PHOTO_MSG
 from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.user_data import DefectData
 
 logger = logging.getLogger(__name__)
-
-PHOTO_MG = "photo_mg_"
-UD_LAST_PHOTO_MSG = "_last_photo_msg"
 
 
 async def clear_last_photo_keyboard(context: ContextTypes.DEFAULT_TYPE) -> None:
