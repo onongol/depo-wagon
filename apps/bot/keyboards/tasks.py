@@ -54,7 +54,9 @@ def status_picker_keyboard(defect_id: str, page: int) -> InlineKeyboardMarkup:
         ]
         for label, value in STATUS_OPTIONS
     ]
+
     buttons.append(
         [InlineKeyboardButton(str(BTN_BACK), callback_data=TasksPageCB(page=page))]
     )
+
     return InlineKeyboardMarkup(buttons)
