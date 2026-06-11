@@ -13,7 +13,10 @@ _ROLES_WITH_TASKS = {
 
 def main_menu_keyboard(role: str) -> ReplyKeyboardMarkup:
     buttons = [[str(BTN_NEW_DEFECT)]]
+
     if role in _ROLES_WITH_TASKS:
         buttons.append([str(BTN_OPEN_DEFECTS)])
+
     buttons.append([str(BTN_HELP)])
+
     return ReplyKeyboardMarkup(buttons, resize_keyboard=True)
