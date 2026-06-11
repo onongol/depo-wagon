@@ -47,7 +47,7 @@ async def confirm_defect(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     )
 
     await query.edit_message_text(
-        build_result_text(registered.defect, ai_result), parse_mode=M.PARSE_MODE
+        build_result_text(registered.defect.id, ai_result), parse_mode=M.PARSE_MODE
     )
 
     recommendation = build_recommendation_text(ai_result)
