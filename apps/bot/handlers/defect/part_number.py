@@ -1,11 +1,13 @@
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
-from apps.bot.constants import UD_DEFECT
+from apps.bot.constants import UD_DEFECT, UD_EDITING
 from apps.bot.keyboards.defect import defect_type_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DEFECT_TYPE
 from apps.bot.user_data import DefectData
+
+from .summary import show_summary
 
 
 def _get_defect(context: ContextTypes.DEFAULT_TYPE) -> DefectData | None:
@@ -22,6 +24,10 @@ async def receive_part_number(
         return ConversationHandler.END
 
     defect.part_number = update.message.text.strip()
+
+    if context.user_data.get(UD_EDITING):
+        return await show_summary(update, context, defect)
+
     await update.message.reply_text(
         str(M.PART_NUMBER_CONFIRMED).format(part_number=defect.part_number),
         parse_mode=M.PARSE_MODE,
@@ -41,6 +47,10 @@ async def skip_part_number(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return ConversationHandler.END
 
     defect.part_number = ""
+
+    if context.user_data.get(UD_EDITING):
+        return await show_summary(update, context, defect)
+
     await query.edit_message_text(
         str(M.PART_NUMBER_SKIPPED),
         parse_mode=M.PARSE_MODE,
