@@ -31,7 +31,6 @@ from apps.bot.handlers.defect.responsible_employee import (
     search_responsible_employee,
 )
 from apps.bot.handlers.defect.responsible_employee.list import _filter_and_page
-from apps.bot.keyboards.defect import RESP_EMP_PAGE_SIZE
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import (
     AUTH_EMAIL,
@@ -44,6 +43,8 @@ from apps.bot.states import (
 )
 from apps.bot.user_data import DefectData
 from apps.defects.constants import DefectType
+
+RESP_EMP_PAGE_SIZE = 5
 
 
 def _make_cb_update(cb_data):
@@ -444,3 +445,46 @@ class TestSearchResponsibleEmployee:
         result = await search_responsible_employee(update, mock_context)
 
         assert result == RESPONSIBLE_EMPLOYEE
+
+
+class TestEditFromSummary:
+    async def test_start_edit_sets_flag_and_routes_to_field(self, mock_context):
+        from apps.bot.callbacks import EditCB
+        from apps.bot.constants import UD_EDITING
+        from apps.bot.handlers.defect.edit import start_edit
+
+        mock_context.user_data[UD_DEFECT] = DefectData()
+        update = _make_cb_update(EditCB(field="severity"))
+
+        result = await start_edit(update, mock_context)
+
+        assert result == SEVERITY
+        assert mock_context.user_data[UD_EDITING] is True
+
+    async def test_start_edit_unknown_field_returns_confirm(self, mock_context):
+        from apps.bot.callbacks import EditCB
+        from apps.bot.constants import UD_EDITING
+        from apps.bot.handlers.defect.edit import start_edit
+        from apps.bot.states import CONFIRM
+
+        mock_context.user_data[UD_DEFECT] = DefectData()
+        update = _make_cb_update(EditCB(field="nope"))
+
+        result = await start_edit(update, mock_context)
+
+        assert result == CONFIRM
+        assert UD_EDITING not in mock_context.user_data
+
+    async def test_field_handler_in_edit_mode_returns_to_summary(self, mock_context):
+        from apps.bot.callbacks import DefectTypeCB
+        from apps.bot.constants import UD_EDITING
+        from apps.bot.states import CONFIRM
+
+        mock_context.user_data[UD_DEFECT] = DefectData()
+        mock_context.user_data[UD_EDITING] = True
+        update = _make_cb_update(DefectTypeCB(value=DefectType.HUMAN_FACTOR))
+
+        result = await receive_defect_type(update, mock_context)
+
+        assert result == CONFIRM
+        assert UD_EDITING not in mock_context.user_data
