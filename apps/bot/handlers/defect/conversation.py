@@ -7,11 +7,13 @@ from telegram.ext import (
 )
 
 from apps.bot.callbacks import (
+    CancelCB,
     ConfirmCB,
     DefectTypeCB,
     DepartmentCB,
     DescSkipCB,
     DimensionCB,
+    EditCB,
     MeasurementAddCB,
     MeasurementDoneCB,
     MeasurementSkipCB,
@@ -51,6 +53,7 @@ from .confirm import confirm_defect
 from .defect_type import receive_defect_type
 from .department import receive_department
 from .description import receive_description, skip_description
+from .edit import start_edit
 from .measurement import (
     handle_measurement_choice,
     receive_dimension,
@@ -149,7 +152,10 @@ def get_defect_handler() -> ConversationHandler:
                 MessageHandler(filters.TEXT & ~filters.COMMAND, receive_description),
                 CallbackQueryHandler(skip_description, pattern=_match(DescSkipCB)),
             ],
-            CONFIRM: [CallbackQueryHandler(confirm_defect, pattern=_match(ConfirmCB))],
+            CONFIRM: [
+                CallbackQueryHandler(start_edit, pattern=_match(EditCB)),
+                CallbackQueryHandler(confirm_defect, pattern=_match(ConfirmCB)),
+            ],
             EMPLOYEE_VERDICT: [
                 CallbackQueryHandler(
                     receive_employee_verdict, pattern=_match(VerdictCB)
@@ -158,6 +164,7 @@ def get_defect_handler() -> ConversationHandler:
         },
         fallbacks=[
             CommandHandler("cancel", cancel_defect),
+            CallbackQueryHandler(cancel_defect, pattern=_match(CancelCB)),
             CallbackQueryHandler(stale_callback),
         ],
         name="defect",
