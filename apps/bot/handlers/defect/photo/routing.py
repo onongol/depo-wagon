@@ -3,13 +3,12 @@ import logging
 from telegram.ext import ConversationHandler
 
 from apps.bot import services
+from apps.bot.constants import UD_LAST_PHOTO_MSG, UD_RESP_EMPLOYEES, UD_RESP_SEARCH
 from apps.bot.keyboards.defect import measurement_choice_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import MEASUREMENT_CHOICE, RESPONSIBLE_EMPLOYEE
 from apps.bot.user_data import DefectData
 from apps.defects.constants import DefectType
-
-from .jobs import UD_LAST_PHOTO_MSG
 
 logger = logging.getLogger(__name__)
 
@@ -20,8 +19,6 @@ async def after_photos(query_or_msg, defect: DefectData, context, edit: bool) ->
 
     if defect.defect_type == DefectType.HUMAN_FACTOR:
         from apps.bot.handlers.defect.responsible_employee import (
-            UD_RESP_EMPLOYEES,
-            UD_RESP_SEARCH,
             show_responsible_employee_list,
         )
 
