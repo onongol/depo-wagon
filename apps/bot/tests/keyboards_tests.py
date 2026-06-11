@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 import pytest
 from telegram import InlineKeyboardMarkup, ReplyKeyboardMarkup
 
-from apps.bot.callbacks import ResponsibleEmployeeCB
+from apps.bot.callbacks import DepartmentCB, ResponsibleEmployeeCB
 from apps.bot.constants import (
     BTN_HELP,
     BTN_NEW_DEFECT,
@@ -70,7 +70,12 @@ class TestMainMenuKeyboard:
 
     @pytest.mark.parametrize(
         "role",
-        [EmployeeRole.INSPECTOR, EmployeeRole.MASTER, EmployeeRole.ENGINEER, EmployeeRole.MANAGER],
+        [
+            EmployeeRole.INSPECTOR,
+            EmployeeRole.MASTER,
+            EmployeeRole.ENGINEER,
+            EmployeeRole.MANAGER,
+        ],
     )
     def test_roles_with_tasks_have_open_defects_button(self, role):
         kb = main_menu_keyboard(role)
@@ -127,7 +132,11 @@ class TestDepartmentKeyboard:
 
     def test_all_departments_present(self):
         kb = department_keyboard()
-        cb_values = {btn.callback_data.value for btn in _kb_buttons(kb)}
+        cb_values = {
+            btn.callback_data.value
+            for btn in _kb_buttons(kb)
+            if isinstance(btn.callback_data, DepartmentCB)
+        }
         assert cb_values == {d.value for d in Department}
 
 
