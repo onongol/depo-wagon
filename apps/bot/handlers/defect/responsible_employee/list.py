@@ -2,11 +2,9 @@ from telegram import CallbackQuery, Message
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 
+from apps.bot.constants import UD_RESP_EMPLOYEES, UD_RESP_SEARCH
 from apps.bot.keyboards.defect import RESP_EMP_PAGE_SIZE, responsible_employee_keyboard
 from apps.bot.messages import BotMessages as M
-
-UD_RESP_EMPLOYEES = "_resp_employees"
-UD_RESP_SEARCH = "_resp_search"
 
 
 def _filter_and_page(all_employees: list, search: str, page: int) -> tuple:
@@ -54,6 +52,7 @@ async def show_responsible_employee_list(
     page_employees, total, total_pages, page = _filter_and_page(
         all_employees, search, page
     )
+    
     kb = responsible_employee_keyboard(page_employees, page, total_pages)
     text = _build_text(search, page, total, total_pages)
 
