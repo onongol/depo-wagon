@@ -2,19 +2,14 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from apps.bot.callbacks import PhotoSkipCB
-from apps.bot.constants import UD_DEFECT
+from apps.bot.constants import PHOTO_MG_JOB_PREFIX, UD_DEFECT, UD_LAST_PHOTO_MSG
 from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import PHOTO
 from apps.bot.user_data import DefectData
 from apps.defects.validators import MAX_PHOTO_BYTES
 
-from .jobs import (
-    PHOTO_MG,
-    UD_LAST_PHOTO_MSG,
-    clear_last_photo_keyboard,
-    flush_media_group,
-)
+from .jobs import clear_last_photo_keyboard, flush_media_group
 from .routing import after_photos
 
 
@@ -30,7 +25,7 @@ async def receive_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     defect.photo_file_ids.append(photo.file_id)
 
     if update.message.media_group_id and context.job_queue is not None:
-        job_name = f"{PHOTO_MG}{update.effective_user.id}"
+        job_name = f"{PHOTO_MG_JOB_PREFIX}{update.effective_user.id}"
         for job in context.job_queue.get_jobs_by_name(job_name):
             job.schedule_removal()
         context.job_queue.run_once(
