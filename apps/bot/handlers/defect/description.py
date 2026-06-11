@@ -2,12 +2,11 @@ from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 from apps.bot.constants import UD_DEFECT
-from apps.bot.keyboards.defect import confirm_keyboard
 from apps.bot.messages import BotMessages as M
-from apps.bot.states import CONFIRM, DESC
+from apps.bot.states import DESC
 from apps.bot.user_data import DefectData
 
-from .summary import build_summary
+from .summary import show_summary
 
 
 def _get_defect(context: ContextTypes.DEFAULT_TYPE) -> DefectData | None:
@@ -32,12 +31,7 @@ async def receive_description(
         return DESC
 
     defect.description = text
-    await update.message.reply_text(
-        build_summary(defect),
-        parse_mode=M.PARSE_MODE,
-        reply_markup=confirm_keyboard(),
-    )
-    return CONFIRM
+    return await show_summary(update, context, defect)
 
 
 async def skip_description(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -51,9 +45,4 @@ async def skip_description(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return ConversationHandler.END
 
     defect.description = ""
-    await query.edit_message_text(
-        build_summary(defect),
-        parse_mode=M.PARSE_MODE,
-        reply_markup=confirm_keyboard(),
-    )
-    return CONFIRM
+    return await show_summary(update, context, defect)
