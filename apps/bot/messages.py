@@ -128,6 +128,15 @@ class BotMessages:
         "✅ Severity: <b>{label}</b>\n\n📸 Send a photo of the defect (or skip):"
     )
 
+    # ── Edit from summary ─────────────────────────────────────────────────────
+
+    EDIT_WAGON = _("✏️ Enter the new wagon number:")
+    EDIT_NODE = _("✏️ Select the node:")
+    EDIT_PART_NUMBER = _("✏️ Enter the part number (or skip):")
+    EDIT_DEFECT_TYPE = _("✏️ Select the defect type:")
+    EDIT_SEVERITY = _("✏️ Select severity:")
+    EDIT_DESCRIPTION = _("✏️ Enter the description (or skip):")
+
     # ── Photo ─────────────────────────────────────────────────────────────────
 
     PHOTO_RECEIVED = _("✅ Photo {count} received.\n\n📸 Send another photo (or skip):")
