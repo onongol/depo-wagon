@@ -27,6 +27,27 @@ class ResponsibleEmployeePageCB:
 
 
 @dataclass(frozen=True)
+class PassCB:
+    """No-op callback for layout spacer buttons; dismissed by the stale fallback."""
+
+    pass
+
+
+@dataclass(frozen=True)
+class CancelCB:
+    """Cancel the defect conversation from any step's inline keyboard."""
+
+    pass
+
+
+@dataclass(frozen=True)
+class EditCB:
+    """Jump from the summary screen to re-enter a single field."""
+
+    field: str
+
+
+@dataclass(frozen=True)
 class NodeCB:
     value: str
 
