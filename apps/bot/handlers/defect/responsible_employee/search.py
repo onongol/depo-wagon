@@ -1,9 +1,10 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from apps.bot.constants import UD_RESP_SEARCH
 from apps.bot.states import RESPONSIBLE_EMPLOYEE
 
-from .list import UD_RESP_SEARCH, show_responsible_employee_list
+from .list import show_responsible_employee_list
 
 
 async def search_responsible_employee(
