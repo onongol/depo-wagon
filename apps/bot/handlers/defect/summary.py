@@ -2,8 +2,37 @@ import html
 
 from django.utils.text import format_lazy
 from django.utils.translation import gettext_lazy as _
+from telegram import Update
+from telegram.ext import ContextTypes
 
+from apps.bot.constants import UD_EDITING
+from apps.bot.messages import BotMessages as M
+from apps.bot.states import CONFIRM
 from apps.bot.user_data import DefectData
+
+
+async def show_summary(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, defect: DefectData
+) -> int:
+    """
+    Works for both callback updates (edit in place) and text updates (new message).
+    Returns the CONFIRM state.
+    """
+    from apps.bot.keyboards.defect import confirm_keyboard
+
+    context.user_data.pop(UD_EDITING, None)
+    text = build_summary(defect)
+    keyboard = confirm_keyboard()
+
+    if update.callback_query:
+        await update.callback_query.edit_message_text(
+            text, parse_mode=M.PARSE_MODE, reply_markup=keyboard
+        )
+    else:
+        await update.message.reply_text(
+            text, parse_mode=M.PARSE_MODE, reply_markup=keyboard
+        )
+    return CONFIRM
 
 
 def build_summary(defect: DefectData) -> str:
