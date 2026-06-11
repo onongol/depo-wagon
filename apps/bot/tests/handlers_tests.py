@@ -9,21 +9,28 @@ from apps.bot.callbacks import (
     ResponsibleEmployeePageCB,
     ResponsibleEmployeeSkipCB,
 )
-from apps.bot.constants import UD_DEFECT, UD_EMPLOYEE, UD_REG
+from apps.bot.constants import (
+    UD_DEFECT,
+    UD_EMPLOYEE,
+    UD_REG,
+    UD_RESP_EMPLOYEES,
+    UD_RESP_SEARCH,
+)
 from apps.bot.handlers.common.cancel import cancel
 from apps.bot.handlers.common.help import help_command
 from apps.bot.handlers.common.start import start
 from apps.bot.handlers.defect.defect_type import receive_defect_type
 from apps.bot.handlers.defect.department import receive_department
 from apps.bot.handlers.defect.node import receive_node
-from apps.bot.handlers.defect.part_number import receive_part_number
+from apps.bot.handlers.defect.part_number import (
+    receive_part_number,
+    skip_part_number,
+)
 from apps.bot.handlers.defect.responsible_employee import (
-    UD_RESP_EMPLOYEES,
-    UD_RESP_SEARCH,
-    _filter_and_page,
     receive_responsible_employee,
     search_responsible_employee,
 )
+from apps.bot.handlers.defect.responsible_employee.list import _filter_and_page
 from apps.bot.keyboards.defect import RESP_EMP_PAGE_SIZE
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import (
@@ -233,7 +240,7 @@ class TestReceivePartNumber:
         mock_context.user_data[UD_DEFECT] = defect
         update = _make_cb_update(PartNumberSkipCB())
 
-        await receive_part_number(update, mock_context)
+        await skip_part_number(update, mock_context)
 
         assert defect.part_number == ""
 
@@ -241,7 +248,7 @@ class TestReceivePartNumber:
         mock_context.user_data[UD_DEFECT] = DefectData()
         update = _make_cb_update(PartNumberSkipCB())
 
-        result = await receive_part_number(update, mock_context)
+        result = await skip_part_number(update, mock_context)
 
         assert result == DEFECT_TYPE
 
