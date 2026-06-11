@@ -6,10 +6,15 @@ from apps.bot.messages import BotMessages as M
 
 
 async def cancel_defect(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Cancel the defect registration conversation."""
+    """Cancel the defect registration conversation (text command or inline button)."""
     for key in DEFECT_USER_DATA_KEYS:
         context.user_data.pop(key, None)
-    await update.message.reply_text(str(M.DEFECT_CANCELLED))
+
+    if update.callback_query:
+        await update.callback_query.answer()
+        await update.callback_query.edit_message_text(str(M.DEFECT_CANCELLED))
+    else:
+        await update.message.reply_text(str(M.DEFECT_CANCELLED))
     return ConversationHandler.END
 
 
