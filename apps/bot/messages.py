@@ -5,18 +5,37 @@ from telegram.constants import ParseMode
 class BotMessages:
     PARSE_MODE = ParseMode.HTML
 
+    # ── Bot profile metadata ─────────────────────────────────────────────────
+
+    BOT_DESCRIPTION = _(
+        "Register wagon defects step by step: wagon, department, node, type and "
+        "severity, with photos and measurements, plus an instant AI assessment.\n\n"
+        "Tap the Menu button or send /start to begin."
+    )
+
+    BOT_SHORT_DESCRIPTION = _(
+        "Register and track wagon defects with photos, measurements and AI analysis."
+    )
+
     # ── Common ────────────────────────────────────────────────────────────────
 
     CANCELLED = _("❌ Cancelled.")
 
     HELP_TEXT = _(
         "🤖 <b>Wagon Defect Registration Bot</b>\n\n"
-        "<b>Commands:</b>\n"
-        "/start — Start / re-login\n"
-        "/new_defect — Register a new defect\n"
-        "/my_tasks — Open defects\n"
-        "/cancel — Cancel current action\n"
-        "/help — Help"
+        "<b>How to register a defect:</b>\n"
+        "1️⃣ Tap <b>📋 New Defect</b>\n"
+        "2️⃣ Enter 🚃 the wagon number\n"
+        "3️⃣ Choose department, node, type and severity\n"
+        "4️⃣ Attach 📸 photos\n"
+        "5️⃣ Enter measurements\n"
+        "6️⃣ Add a 📝 description defect and details\n"
+        "7️⃣ Review the summary — tap a field (Wagon, Node…) to ✏️ edit it, then <b>✅ Save</b>\n"
+        "8️⃣ Wait for the 🤖 AI analysis, then submit your own verdict\n\n"
+        "📊 <b>Open Defects</b> — view and update open defects.\n"
+        "❌ <b>Cancel</b> — stop the current step at any time.\n\n"
+        "💡 Tap the <b>Menu</b> button next to the message field to see all commands.\n\n"
+        "📞 Questions? Send /support and the team will reply to you."
     )
 
     # ── Auth ──────────────────────────────────────────────────────────────────
@@ -61,6 +80,39 @@ class BotMessages:
     OTP_WRONG = _("❌ Incorrect code. Please try again:")
 
     SESSION_ERROR = _("⚠️ Session error. Please try /start again.")
+
+    # ── Support ───────────────────────────────────────────────────────────────
+
+    SUPPORT_ASK = _(
+        "✍️ Write your question and I'll forward it to the support team.\n"
+        "<i>To exit, type /cancel.</i>"
+    )
+
+    SUPPORT_SENT = _(
+        "✅ Your question has been sent. The support team will reply here in the bot."
+    )
+
+    SUPPORT_UNAVAILABLE = _(
+        "⚠️ Support is unavailable right now. Please contact @Erdenebayaraa directly."
+    )
+
+    SUPPORT_REQUEST = _(
+        "🆘 <b>Support request</b>\n\n"
+        "👤 From: {identity}\n"
+        "💬 {username}\n\n"
+        "<b>Question:</b>\n{question}\n\n"
+        "<i>↩️ Reply to this message to answer the user.</i>"
+    )
+
+    SUPPORT_REPLY = _("💬 <b>Reply from support:</b>\n\n{text}")
+
+    SUPPORT_REPLY_HEADER = _("💬 <b>Reply from support:</b>")
+
+    SUPPORT_REPLY_DELIVERED = _("✅ Delivered to the user.")
+
+    SUPPORT_REPLY_FAILED = _(
+        "⚠️ Couldn't deliver — the user may have blocked the bot."
+    )
 
     REGISTERED_NEW = _(
         "✅ <b>Registration successful!</b>\n\n"
