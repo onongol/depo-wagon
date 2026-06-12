@@ -23,3 +23,6 @@ MEASUREMENT_UNIT = 32
 # Auth conversation states
 AUTH_EMAIL = 20  # Step 1: ask for email
 AUTH_OTP = 21  # Step 2: enter OTP code received by email
+
+# Support conversation state
+SUPPORT_MESSAGE = 40  # Awaiting the user's question to relay to support
