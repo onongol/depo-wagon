@@ -4,7 +4,7 @@ from django.core.cache import cache
 from model_bakery import baker
 
 from apps.bot.constants import OtpStatus, RegStatus
-from apps.bot.services.email import generate_and_store_otp, verify_otp
+from apps.bot.services.otp import generate_and_store_otp, verify_otp
 from apps.bot.services.employee import link_employee_telegram, register_employee
 
 make = sync_to_async(baker.make)
