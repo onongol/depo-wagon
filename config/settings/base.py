@@ -139,6 +139,9 @@ TELEGRAM_BOT_TOKEN = config("TELEGRAM_BOT_TOKEN")
 TELEGRAM_WEBHOOK_URL = config("TELEGRAM_WEBHOOK_URL", default="")
 TELEGRAM_WEBHOOK_SECRET = config("TELEGRAM_WEBHOOK_SECRET", default="")
 
+# The support person must have pressed Start on the bot at least once.
+TELEGRAM_SUPPORT_CHAT_ID = config("TELEGRAM_SUPPORT_CHAT_ID", default="")
+
 # Google AI
 GOOGLE_AI_KEY = config("GOOGLE_AI_KEY")
 
