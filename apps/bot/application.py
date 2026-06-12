@@ -31,10 +31,13 @@ class _BotApplication(Application):
 
 async def _post_init(app: Application) -> None:
     """Publish commands, descriptions and the Menu button as stable entry points."""
-    await app.bot.set_my_commands(_BOT_COMMANDS)
+    # Force lazy (gettext) strings to concrete str — Telegram serializes these
+    # to JSON, and a lazy __proxy__ is not JSON-serializable.
+    commands = [BotCommand(c.command, str(c.description)) for c in _BOT_COMMANDS]
+    await app.bot.set_my_commands(commands)
     await app.bot.set_chat_menu_button(menu_button=MenuButtonCommands())
-    await app.bot.set_my_description(M.BOT_DESCRIPTION)
-    await app.bot.set_my_short_description(M.BOT_SHORT_DESCRIPTION)
+    await app.bot.set_my_description(str(M.BOT_DESCRIPTION))
+    await app.bot.set_my_short_description(str(M.BOT_SHORT_DESCRIPTION))
 
 
 def create_application() -> _BotApplication:
