@@ -31,6 +31,4 @@ class SupportMessages:
 
     SUPPORT_REPLY_DELIVERED = _("✅ Delivered to the user.")
 
-    SUPPORT_REPLY_FAILED = _(
-        "⚠️ Couldn't deliver — the user may have blocked the bot."
-    )
+    SUPPORT_REPLY_FAILED = _("⚠️ Couldn't deliver — the user may have blocked the bot.")
