@@ -7,7 +7,8 @@ Modules:
   defect      — create/update defects, open defects list
   photo       — save defect photos to storage
   measurement — create defect measurements
-  email       — OTP generation/verification + email sending
+  otp         — OTP generation/verification in Redis
+  email       — OTP/credentials email sending
 """
 
 from .defect import (
@@ -18,12 +19,8 @@ from .defect import (
     update_defect_ai_result,
     update_defect_status,
 )
-from .email import (
-    generate_and_store_otp,
-    send_credentials_email,
-    send_otp_email,
-    verify_otp,
-)
+from .email import send_credentials_email, send_otp_email
+from .otp import generate_and_store_otp, verify_otp
 from .employee import (
     get_employee_by_email,
     get_employee_by_id,
