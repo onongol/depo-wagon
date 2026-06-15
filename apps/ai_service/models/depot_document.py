@@ -5,6 +5,8 @@ from apps.ai_service.constants import DocumentStatus
 
 
 class DepotDocument(models.Model):
+    """Represents a document uploaded to the AI service, along with its processing status and metadata."""
+
     title = models.CharField(max_length=255, verbose_name=_("Title"))
     description = models.TextField(blank=True, verbose_name=_("Description"))
     file = models.FileField(upload_to="depot_documents/", verbose_name=_("File"))
