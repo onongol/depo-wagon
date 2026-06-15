@@ -86,6 +86,8 @@ def register_employee(employee: object, telegram_id: int):
         (password_or_none, status)
         status: "linked" | "created"
     """
+    from django.db import IntegrityError, transaction
+
     from apps.users.models import CustomUser
 
     if employee.user_id:
@@ -94,19 +96,25 @@ def register_employee(employee: object, telegram_id: int):
         return None, RegStatus.LINKED
 
     alphabet = string.ascii_letters + string.digits
-    password = "".join(secrets.choice(alphabet) for _ in range(10))
+    password = "".join(secrets.choice(alphabet) for _ in range(12))
 
-    user = CustomUser.objects.create_user(
-        email=employee.email,
-        password=password,
-        first_name=employee.first_name,
-        last_name=employee.last_name,
-        is_active=True,
-    )
-
-    employee.user = user
-    employee.telegram_id = telegram_id
-    employee.save(update_fields=["user", "telegram_id"])
+    try:
+        with transaction.atomic():
+            user = CustomUser.objects.create_user(
+                email=employee.email,
+                password=password,
+                first_name=employee.first_name,
+                last_name=employee.last_name,
+                is_active=True,
+            )
+            employee.user = user
+            employee.telegram_id = telegram_id
+            employee.save(update_fields=["user", "telegram_id"])
+    except IntegrityError:
+        logger.warning(
+            "register_employee: user with email %s already exists", employee.email
+        )
+        return None, RegStatus.ALREADY_EXISTS
 
     return password, RegStatus.CREATED
 
