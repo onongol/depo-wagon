@@ -42,6 +42,10 @@ def process_document(document_id: int) -> None:
             raise ValueError("Text extraction produced no chunks")
 
         embeddings = embed_texts([chunk["content"] for chunk in all_chunks])
+        if len(embeddings) != len(all_chunks):
+            raise ValueError(
+                f"embed_texts returned {len(embeddings)} embeddings for {len(all_chunks)} chunks"
+            )
         chunk_objects = [
             DocumentChunk(
                 document=doc,
