@@ -11,3 +11,4 @@ class OtpStatus(str, enum.Enum):
 class RegStatus(str, enum.Enum):
     CREATED = "created"
     LINKED = "linked"
+    ALREADY_EXISTS = "already_exists"
