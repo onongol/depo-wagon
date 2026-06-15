@@ -19,6 +19,7 @@ redis
 # === AI / ML ===
 google-genai
 google-cloud-vision
+langchain-text-splitters
 
 # === File Storage ===
 django-storages
