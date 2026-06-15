@@ -1,6 +1,6 @@
 from asgiref.sync import sync_to_async
 
-from apps.ai_service.rag.config import TOP_K
+TOP_K = 5
 
 
 @sync_to_async
