@@ -1,6 +1,6 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-from pgvector.django import VectorField
+from pgvector.django import HnswIndex, VectorField
 
 
 class DocumentChunk(models.Model):
@@ -13,7 +13,7 @@ class DocumentChunk(models.Model):
         verbose_name=_("Document"),
     )
     content = models.TextField(verbose_name=_("Content"))
-    embedding = VectorField(dimensions=3072, verbose_name=_("Embedding"))
+    embedding = VectorField(dimensions=1536, verbose_name=_("Embedding"))
     chunk_index = models.PositiveIntegerField(verbose_name=_("Chunk Index"))
     page_number = models.PositiveIntegerField(
         null=True, blank=True, verbose_name=_("Page Number")
@@ -26,6 +26,13 @@ class DocumentChunk(models.Model):
         ordering = ["document", "chunk_index"]
         indexes = [
             models.Index(fields=["document"]),
+            HnswIndex(
+                fields=["embedding"],
+                name="embedding_hnsw_idx",
+                m=16,
+                ef_construction=64,
+                opclasses=["vector_cosine_ops"],
+            ),
         ]
 
     def __str__(self):
