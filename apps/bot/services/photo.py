@@ -1,8 +1,4 @@
-import logging
-
 from asgiref.sync import sync_to_async
-
-logger = logging.getLogger(__name__)
 
 
 @sync_to_async
