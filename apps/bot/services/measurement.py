@@ -1,8 +1,4 @@
-import logging
-
 from asgiref.sync import sync_to_async
-
-logger = logging.getLogger(__name__)
 
 
 @sync_to_async
@@ -28,11 +24,11 @@ def create_measurements_bulk(defect_id, measurements: list) -> None:
         [
             DefectMeasurement(
                 defect_id=defect_id,
-                dimension=m.dimension,
-                value=m.value,
-                norm_value=m.norm_value,
-                unit=m.unit,
+                dimension=measurement.dimension,
+                value=measurement.value,
+                norm_value=measurement.norm_value,
+                unit=measurement.unit,
             )
-            for m in measurements
+            for measurement in measurements
         ]
     )
