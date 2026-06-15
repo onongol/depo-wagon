@@ -1,19 +1,18 @@
-from django.conf import settings
-from google import genai
 from google.genai import types
 
-EMBEDDING_MODEL = "gemini-embedding-2"
+from apps.ai_service.client import get_genai_client
+from apps.ai_service.config import EMBEDDING_DIMENSIONS, EMBEDDING_MODEL
 
 
-def embed_text(text: str, task_type: str = "RETRIEVAL_DOCUMENT") -> list[float]:
-    """Embed text via gemini-embedding-2 (synchronous)."""
-    client = genai.Client(api_key=settings.GOOGLE_AI_KEY)
-
-    response = client.models.embed_content(
+def embed_texts(
+    texts: list[str], task_type: str = "RETRIEVAL_DOCUMENT"
+) -> list[list[float]]:
+    """Embed a batch of texts via gemini-embedding-2 (synchronous, single API call)."""
+    response = get_genai_client().models.embed_content(
         model=EMBEDDING_MODEL,
-        contents=text,
+        contents=texts,
         config=types.EmbedContentConfig(
-            task_type=task_type, output_dimensionality=3072
+            task_type=task_type, output_dimensionality=EMBEDDING_DIMENSIONS
         ),
     )
-    return list(response.embeddings[0].values)
+    return [list(e.values) for e in response.embeddings]
