@@ -4,8 +4,8 @@ from django.core.cache import cache
 from model_bakery import baker
 
 from apps.bot.constants import OtpStatus, RegStatus
-from apps.bot.services.otp import generate_and_store_otp, verify_otp
 from apps.bot.services.employee import link_employee_telegram, register_employee
+from apps.bot.services.otp import generate_and_store_otp, verify_otp
 
 make = sync_to_async(baker.make)
 
@@ -116,7 +116,15 @@ class TestRegisterEmployee:
         password, _ = await register_employee(employee, telegram_id=22222)
 
         assert password is not None
-        assert len(password) == 10
+        assert len(password) == 12
+
+    async def test_duplicate_email_returns_already_exists(self):
+        await make("users.CustomUser", email="dup@depot.mn")
+        employee = await make("core.Employee", user=None, email="dup@depot.mn")
+
+        _, status = await register_employee(employee, telegram_id=33333)
+
+        assert status == RegStatus.ALREADY_EXISTS
 
 
 @pytest.mark.django_db(transaction=True)
