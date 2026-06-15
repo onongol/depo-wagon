@@ -4,6 +4,8 @@ from pgvector.django import VectorField
 
 
 class DocumentChunk(models.Model):
+    """Represents a chunk of text extracted from a DepotDocument, along with its embedding vector."""
+
     document = models.ForeignKey(
         "ai_service.DepotDocument",
         on_delete=models.CASCADE,
