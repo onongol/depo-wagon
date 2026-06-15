@@ -1,5 +1,3 @@
-"""OTP generation and verification, backed by Redis (Django cache)."""
-
 import secrets
 import string
 
