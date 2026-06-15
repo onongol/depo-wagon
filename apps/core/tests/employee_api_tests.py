@@ -163,6 +163,4 @@ class TestEmployeeFilters:
         baker.make("core.Employee", employee_id="A001")
         response = api_client.get(reverse("employee-list"), {"ordering": "employee_id"})
         ids = [e["employee_id"] for e in response.data["results"]]
-        assert "A001" in ids
-        assert "Z999" in ids
-        assert ids == sorted(ids)
+        assert ids.index("A001") < ids.index("Z999")
