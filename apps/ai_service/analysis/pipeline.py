@@ -1,14 +1,15 @@
 import logging
 
-from django.conf import settings
-from google import genai
 from google.genai import types
 
-from apps.ai_service.analysis.config import ANALYSIS_PROMPT, GENERATION_MODEL
+from apps.ai_service.analysis.config import ANALYSIS_PROMPT
 from apps.ai_service.analysis.schema import FullAnalysisSchema
+from apps.ai_service.client import get_genai_client
+from apps.ai_service.config import GENERATION_MODEL
 from apps.ai_service.rag.embedding import embed_query
 from apps.ai_service.rag.generation import describe_images
 from apps.ai_service.rag.retrieval import fetch_similar_chunks
+from apps.ai_service.utils import mime_type_for_bytes
 from apps.bot.user_data import AIResult
 
 logger = logging.getLogger(__name__)
@@ -29,12 +30,10 @@ async def analyze_defect(
       4. Build prompt with retrieved context
       5. Single gemini-3.5-flash call with structured schema
     """
-    empty = AIResult()
-
     try:
-        client = genai.Client(api_key=settings.GOOGLE_AI_KEY)
+        client = get_genai_client()
 
-        # 1. Build query text
+        # Build query text
         query_parts = [
             f"Узел/Элемент: {node}",
             f"Тип дефекта: {defect_type}",
@@ -45,7 +44,7 @@ async def analyze_defect(
 
         if photos_bytes:
             try:
-                visual_desc = await describe_images(client, photos_bytes)
+                visual_desc = await describe_images(photos_bytes)
                 if visual_desc:
                     query_parts.append(f"Визуальные признаки: {visual_desc}")
             except Exception as exc:
@@ -53,13 +52,23 @@ async def analyze_defect(
 
         query_text = "\n".join(query_parts)
 
-        # 2. Embed query
-        query_embedding = await embed_query(client, query_text)
+        # Embed query
+        try:
+            query_embedding = await embed_query(query_text)
+        except Exception as exc:
+            logger.warning("Embedding failed, skipping AI analysis: %s", exc)
+            return AIResult()
 
-        # 3. Vector search
-        chunks = await fetch_similar_chunks(query_embedding)
+        # Vector search
+        try:
+            chunks = await fetch_similar_chunks(query_embedding)
+        except Exception as exc:
+            logger.warning(
+                "Vector search failed, proceeding without RAG context: %s", exc
+            )
+            chunks = []
 
-        # 4. Build RAG context
+        # Build RAG context
         if chunks:
             context_block = "\n\n---\n\n".join(chunks)
             rag_context = (
@@ -72,7 +81,12 @@ async def analyze_defect(
                 "(Документы депо не найдены — используй общие технические знания.)"
             )
 
-        description_line = f"- Описание: {description}" if description else ""
+        description_line = (
+            f"<user_description>\n{description}\n</user_description>"
+            if description
+            else ""
+        )
+
         prompt = ANALYSIS_PROMPT.format(
             node=node,
             defect_type=defect_type,
@@ -81,10 +95,12 @@ async def analyze_defect(
             rag_context=rag_context,
         )
 
-        # 5. Single structured call with photos
+        # Single structured call with photos
         contents: list = []
         for photo in photos_bytes or []:
-            contents.append(types.Part.from_bytes(data=photo, mime_type="image/jpeg"))
+            contents.append(
+                types.Part.from_bytes(data=photo, mime_type=mime_type_for_bytes(photo))
+            )
         contents.append(prompt)
 
         response = await client.aio.models.generate_content(
@@ -100,7 +116,7 @@ async def analyze_defect(
 
         if not response.text:
             logger.warning("Gemini returned empty response")
-            return empty
+            return AIResult()
 
         result = FullAnalysisSchema.model_validate_json(response.text)
 
@@ -113,4 +129,4 @@ async def analyze_defect(
 
     except Exception as exc:
         logger.error("AI analysis failed: %s", exc, exc_info=True)
-        return empty
+        return AIResult()
