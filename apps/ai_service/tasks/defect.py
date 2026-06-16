@@ -19,6 +19,10 @@ def embed_defect_task(self, defect_id: str) -> None:
 
         defect = Defect.objects.select_related("wagon").get(pk=defect_id)
 
+        if not defect.verdict:
+            logger.info("Skipping embed for defect %s: no verdict yet", defect_id)
+            return
+
         query_text = "\n".join(
             filter(
                 None,
