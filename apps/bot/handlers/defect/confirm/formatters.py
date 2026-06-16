@@ -30,6 +30,10 @@ def build_recommendation_text(ai_result) -> str | None:
     """Build the RAG recommendation message, or None if there is none."""
     if not (ai_result and ai_result.rag_recommendation):
         return None
-    return str(M.AI_RECOMMENDATION).format(
+    text = str(M.AI_RECOMMENDATION).format(
         rag_recommendation=html.escape(ai_result.rag_recommendation),
     )
+    if ai_result.sources:
+        sources_text = "\n".join(html.escape(s) for s in ai_result.sources)
+        text += str(M.AI_SOURCES).format(sources=sources_text)
+    return text
