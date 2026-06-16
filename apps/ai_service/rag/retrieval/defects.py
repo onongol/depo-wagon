@@ -11,7 +11,7 @@ def fetch_similar_defects(
     query_embedding: list[float],
     query_text: str,
     top_k: int = TOP_K_DEFECTS,
-) -> list[str]:
+) -> list[dict]:
     from pgvector.django import CosineDistance
 
     from apps.ai_service.models import DefectVector
@@ -22,13 +22,13 @@ def fetch_similar_defects(
         )
         .filter(distance__lte=MAX_DISTANCE)
         .order_by("distance")
-        .values_list("content", flat=True)[:TOP_K_CANDIDATES]
+        .values("content", "created_at")[:TOP_K_CANDIDATES]
     )
 
     if not candidates:
         return []
 
-    passages = [{"id": i, "text": text} for i, text in enumerate(candidates)]
+    passages = [{"id": i, "text": c["content"]} for i, c in enumerate(candidates)]
     results = ranker.rerank(RerankRequest(query=query_text, passages=passages))
 
-    return [r["text"] for r in results[:top_k]]
+    return [candidates[r["id"]] for r in results[:top_k]]
