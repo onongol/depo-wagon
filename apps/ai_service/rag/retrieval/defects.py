@@ -1,7 +1,11 @@
 from asgiref.sync import sync_to_async
 from flashrank import RerankRequest
 
-from apps.ai_service.rag.retrieval.config import MAX_DISTANCE, TOP_K_CANDIDATES, ranker
+from apps.ai_service.rag.retrieval.config import (
+    MAX_DISTANCE,
+    TOP_K_CANDIDATES,
+    get_ranker,
+)
 
 TOP_K_DEFECTS = 3
 
@@ -29,6 +33,6 @@ def fetch_similar_defects(
         return []
 
     passages = [{"id": i, "text": c["content"]} for i, c in enumerate(candidates)]
-    results = ranker.rerank(RerankRequest(query=query_text, passages=passages))
+    results = get_ranker().rerank(RerankRequest(query=query_text, passages=passages))
 
     return [candidates[r["id"]] for r in results[:top_k]]
