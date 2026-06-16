@@ -68,27 +68,56 @@ async def analyze_defect(
                 fetch_similar_defects(query_embedding, query_text),
             )
         except Exception as exc:
-            logger.warning("Vector search failed, proceeding without RAG context: %s", exc)
+            logger.warning(
+                "Vector search failed, proceeding without RAG context: %s", exc
+            )
             chunks, past_defects = [], []
 
-        # Build НТД context block
+        # Build НТД context block with source labels
+        doc_sources: list[str] = []
         if chunks:
-            context_block = "\n\n---\n\n".join(chunks)
+            context_parts = []
+            pages_by_title: dict[str, list[int]] = {}
+            for i, chunk in enumerate(chunks, 1):
+                label = f"[DOC-{i}]"
+                title = chunk["document__title"]
+                page = chunk.get("page_number")
+                if page:
+                    pages_by_title.setdefault(title, []).append(page)
+                else:
+                    pages_by_title.setdefault(title, [])
+                source = f"{title}, стр. {page}" if page else title
+                context_parts.append(f"{label} {source}:\n{chunk['content']}")
+            for title, pages in pages_by_title.items():
+                if pages:
+                    doc_sources.append(
+                        f"📄 {title}, page {', '.join(str(p) for p in sorted(set(pages)))}"
+                    )
+                else:
+                    doc_sources.append(f"📄 {title}")
             rag_context = (
                 "=== Справочные материалы из документов депо ===\n\n"
-                f"{context_block}\n\n"
-                "=== Конец справочных материалов ==="
+                + "\n\n---\n\n".join(context_parts)
+                + "\n\n=== Конец справочных материалов ==="
             )
         else:
-            rag_context = "(Документы депо не найдены — используй общие технические знания.)"
+            rag_context = (
+                "(Документы депо не найдены — используй общие технические знания.)"
+            )
 
-        # Build defect history context block
+        # Build defect history context block with source labels
+        case_sources: list[str] = []
         if past_defects:
-            history_block = "\n\n---\n\n".join(past_defects)
+            history_parts = []
+            for i, defect in enumerate(past_defects, 1):
+                label = f"[CASE-{i}]"
+                date = defect["created_at"].strftime("%m.%Y")
+                history_parts.append(f"{label} {date}:\n{defect['content']}")
+            case_sources.append(f"🔁 {len(past_defects)} precedent cases")
             history_context = (
                 "=== Похожие случаи из истории депо ===\n\n"
-                f"{history_block}\n\n"
-                "=== Конец истории депо ==="
+                + "\n\n---\n\n".join(history_parts)
+                + "\n\n=== Конец истории депо ==="
             )
         else:
             history_context = ""
@@ -139,6 +168,7 @@ async def analyze_defect(
             confidence=result.confidence,
             rag_recommendation=result.rag_recommendation,
             verdict=result.verdict,
+            sources=doc_sources + case_sources,
         )
 
     except Exception as exc:
