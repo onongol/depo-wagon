@@ -58,8 +58,7 @@ class DepotDocumentAdmin(
 
         self.message_user(
             request,
-            _(
-                f"{queued} document(s) queued for processing. Refresh the page to check status."
-            ),
+            _("%(count)d document(s) queued for processing. Refresh the page to check status.")
+            % {"count": queued},
             messages.SUCCESS,
         )
