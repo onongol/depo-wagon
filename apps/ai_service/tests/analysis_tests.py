@@ -69,7 +69,7 @@ class TestAnalyzeDefect:
             result = await analyze_defect(node="A", defect_type="B", severity="C")
 
         assert any("Test Manual" in s for s in result.sources)
-        assert any("похожих случая" in s for s in result.sources)
+        assert any("🔁 1 precedent cases" in s for s in result.sources)
 
     async def test_returns_empty_result_on_embedding_failure(self):
         from apps.ai_service.analysis.pipeline import analyze_defect
