@@ -3,6 +3,7 @@ import logging
 from google.genai import types
 
 from apps.ai_service.analysis.config import ANALYSIS_PROMPT
+from apps.ai_service.rag.config import RAG_SYSTEM_PROMPT
 from apps.ai_service.analysis.schema import FullAnalysisSchema
 from apps.ai_service.client import get_genai_client
 from apps.ai_service.config import GENERATION_MODEL
@@ -61,7 +62,7 @@ async def analyze_defect(
 
         # Vector search
         try:
-            chunks = await fetch_similar_chunks(query_embedding)
+            chunks = await fetch_similar_chunks(query_embedding, query_text)
         except Exception as exc:
             logger.warning(
                 "Vector search failed, proceeding without RAG context: %s", exc
@@ -107,10 +108,11 @@ async def analyze_defect(
             model=GENERATION_MODEL,
             contents=contents,
             config=types.GenerateContentConfig(
+                system_instruction=RAG_SYSTEM_PROMPT,
                 response_mime_type="application/json",
                 response_schema=FullAnalysisSchema,
                 temperature=0.1,
-                max_output_tokens=2048,
+                max_output_tokens=768,
             ),
         )
 
