@@ -1,6 +1,5 @@
-import threading
-
 from django.contrib import admin, messages
+from django.db.models import Count
 from django.utils.translation import gettext_lazy as _
 from unfold.admin import ModelAdmin
 
@@ -9,7 +8,6 @@ from apps.ai_service.admin.mixins import (
     DepotDocumentAdminMixinChunksCount,
     DepotDocumentAdminMixinStatus,
 )
-from apps.ai_service.admin.utils import run_processing
 from apps.ai_service.constants import DocumentStatus
 from apps.ai_service.models import DepotDocument
 
@@ -25,8 +23,14 @@ class DepotDocumentAdmin(
     inlines = [DocumentChunkInline]
     actions = ["process_documents"]
 
+    def get_queryset(self, request):
+        """Annotate with chunks count to avoid N+1 queries in list display."""
+        return super().get_queryset(request).annotate(_chunks_count=Count("chunks"))
+
     def save_model(self, request, obj, form, change):
-        """When a document is created or its file is changed, reset status to PENDING and trigger processing."""
+        """When a document is created or its file is changed, reset status to PENDING and queue processing."""
+        from apps.ai_service.tasks import process_document_task
+
         old_file = (
             DepotDocument.objects.filter(pk=obj.pk)
             .values_list("file", flat=True)
@@ -40,20 +44,16 @@ class DepotDocumentAdmin(
             obj.status = DocumentStatus.PENDING
             obj.error_message = ""
             obj.save(update_fields=["status", "error_message", "updated_at"])
-            thread = threading.Thread(
-                target=run_processing, args=(obj.pk,), daemon=True
-            )
-            thread.start()
+            process_document_task.delay(obj.pk)
 
     @admin.action(description=_("Process selected documents (extract & embedding)"))
     def process_documents(self, request, queryset):
-        """Trigger processing for selected documents that aren't already processing."""
+        """Queue processing for selected documents that aren't already processing."""
+        from apps.ai_service.tasks import process_document_task
+
         queued = 0
         for doc in queryset.exclude(status=DocumentStatus.PROCESSING):
-            thread = threading.Thread(
-                target=run_processing, args=(doc.pk,), daemon=True
-            )
-            thread.start()
+            process_document_task.delay(doc.pk)
             queued += 1
 
         self.message_user(
