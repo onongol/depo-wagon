@@ -128,7 +128,7 @@ class TestFetchSimilarChunks:
             chunk_index=1,
         )
 
-        result = await fetch_similar_chunks([0.15] * 1536, top_k=5)
+        result = await fetch_similar_chunks([0.15] * 1536, "axle bearing defect", top_k=5)
 
         assert isinstance(result, list)
         assert all(isinstance(c, str) for c in result)
@@ -146,7 +146,7 @@ class TestFetchSimilarChunks:
             chunk_index=0,
         )
 
-        result = await fetch_similar_chunks([0.1] * 1536, top_k=5)
+        result = await fetch_similar_chunks([0.1] * 1536, "pending chunk query", top_k=5)
 
         assert "pending doc chunk" not in result
 
@@ -163,11 +163,11 @@ class TestFetchSimilarChunks:
                 chunk_index=i,
             )
 
-        result = await fetch_similar_chunks([0.5] * 1536, top_k=3)
+        result = await fetch_similar_chunks([0.5] * 1536, "wheel bearing inspection", top_k=3)
         assert len(result) <= 3
 
     async def test_returns_empty_list_when_no_documents(self):
         from apps.ai_service.rag.retrieval import fetch_similar_chunks
 
-        result = await fetch_similar_chunks([0.1] * 1536)
+        result = await fetch_similar_chunks([0.1] * 1536, "empty query")
         assert result == []
