@@ -12,16 +12,17 @@ logger = logging.getLogger(__name__)
     name="ai_service.embed_defect",
 )
 def embed_defect_task(self, defect_id: str) -> None:
+    from apps.defects.models import Defect
+
+    defect = Defect.objects.select_related("wagon").get(pk=defect_id)
+
+    if not defect.verdict:
+        logger.info("No verdict yet for defect %s, retrying in 30s", defect_id)
+        raise self.retry(countdown=30)
+
     try:
         from apps.ai_service.models import DefectVector
         from apps.ai_service.processing.embedding import embed_texts
-        from apps.defects.models import Defect
-
-        defect = Defect.objects.select_related("wagon").get(pk=defect_id)
-
-        if not defect.verdict:
-            logger.info("Skipping embed for defect %s: no verdict yet", defect_id)
-            return
 
         query_text = "\n".join(
             filter(
