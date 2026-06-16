@@ -11,7 +11,7 @@ def fetch_similar_chunks(
     query_embedding: list[float],
     query_text: str,
     top_k: int = TOP_K,
-) -> list[str]:
+) -> list[dict]:
     from pgvector.django import CosineDistance
 
     from apps.ai_service.constants import DocumentStatus
@@ -22,13 +22,13 @@ def fetch_similar_chunks(
         .annotate(distance=CosineDistance("embedding", query_embedding))
         .filter(distance__lte=MAX_DISTANCE)
         .order_by("distance")
-        .values_list("content", flat=True)[:TOP_K_CANDIDATES]
+        .values("content", "document__title", "page_number")[:TOP_K_CANDIDATES]
     )
 
     if not candidates:
         return []
 
-    passages = [{"id": i, "text": text} for i, text in enumerate(candidates)]
+    passages = [{"id": i, "text": c["content"]} for i, c in enumerate(candidates)]
     results = ranker.rerank(RerankRequest(query=query_text, passages=passages))
 
-    return [r["text"] for r in results[:top_k]]
+    return [candidates[r["id"]] for r in results[:top_k]]
