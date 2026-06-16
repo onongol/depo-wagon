@@ -109,3 +109,79 @@ class TestDocumentChunk:
             page_number=None,
         )
         assert chunk.page_number is None
+
+
+@pytest.mark.django_db
+class TestDefectVector:
+    def _make_defect(self):
+        return baker.make("defects.Defect", wagon__manufacture_year=2020)
+
+    def test_str_includes_defect_id(self):
+        from apps.ai_service.models import DefectVector
+
+        defect = self._make_defect()
+        vec = DefectVector.objects.create(
+            defect=defect,
+            content="Дефект: трещина обода",
+            embedding=[0.1] * 1536,
+        )
+        assert str(vec) == f"Vector({defect.pk})"
+
+    def test_cascade_delete_with_defect(self):
+        from apps.ai_service.models import DefectVector
+
+        defect = self._make_defect()
+        DefectVector.objects.create(
+            defect=defect,
+            content="some defect content",
+            embedding=[0.0] * 1536,
+        )
+        defect_pk = defect.pk
+        defect.delete()
+        assert DefectVector.objects.filter(defect_id=defect_pk).count() == 0
+
+    def test_one_to_one_prevents_duplicate(self):
+        from django.db import IntegrityError
+
+        from apps.ai_service.models import DefectVector
+
+        defect = self._make_defect()
+        DefectVector.objects.create(
+            defect=defect,
+            content="first embedding",
+            embedding=[0.1] * 1536,
+        )
+        with pytest.raises(IntegrityError):
+            DefectVector.objects.create(
+                defect=defect,
+                content="second embedding",
+                embedding=[0.2] * 1536,
+            )
+
+    def test_created_at_set_automatically(self):
+        from apps.ai_service.models import DefectVector
+
+        defect = self._make_defect()
+        vec = DefectVector.objects.create(
+            defect=defect,
+            content="content",
+            embedding=[0.0] * 1536,
+        )
+        assert vec.created_at is not None
+
+    def test_update_or_create_replaces_embedding(self):
+        from apps.ai_service.models import DefectVector
+
+        defect = self._make_defect()
+        DefectVector.objects.create(
+            defect=defect,
+            content="old content",
+            embedding=[0.1] * 1536,
+        )
+        DefectVector.objects.update_or_create(
+            defect_id=defect.pk,
+            defaults={"content": "new content", "embedding": [0.9] * 1536},
+        )
+        vec = DefectVector.objects.get(defect=defect)
+        assert vec.content == "new content"
+        assert DefectVector.objects.filter(defect=defect).count() == 1
