@@ -130,6 +130,8 @@ class DefectMessages:
 
     AI_RECOMMENDATION = _("\n\n💡 <b>Recommendation</b>:\n{rag_recommendation}")
 
+    AI_SOURCES = _("\n\n📎 <b>Sources:</b>\n{sources}")
+
     AI_UNAVAILABLE = _("\nℹ️ AI analysis is not available.")
 
     ASK_EMPLOYEE_VERDICT = _("\n\n👨‍🔧 <b>Your verdict:</b>")
