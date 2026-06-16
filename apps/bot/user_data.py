@@ -12,6 +12,7 @@ class AIResult:
     confidence: float | None = None
     rag_recommendation: str = ""
     verdict: str = ""
+    sources: list[str] = field(default_factory=list)
 
 
 @dataclass
