@@ -4,6 +4,8 @@ import pytest
 
 from apps.defects.constants import DefectVerdict
 
+NO_DEFECT_HISTORY = AsyncMock(return_value=[])
+
 
 def _schema_json(
     defect_class="Bogie frame crack",
@@ -49,14 +51,16 @@ class TestAnalyzeDefect:
                 new=AsyncMock(return_value=["chunk1"]),
             ),
             patch(
+                "apps.ai_service.analysis.pipeline.fetch_similar_defects",
+                new=AsyncMock(return_value=[]),
+            ),
+            patch(
                 "apps.ai_service.analysis.pipeline.describe_images",
                 new=AsyncMock(return_value=""),
             ),
         ):
             result = await analyze_defect(
-                node="Bogie",
-                defect_type="Crack",
-                severity="Critical",
+                node="Bogie", defect_type="Crack", severity="Critical"
             )
 
         assert result.defect_class == "Bogie frame crack"
@@ -105,6 +109,10 @@ class TestAnalyzeDefect:
                 new=AsyncMock(side_effect=RuntimeError("DB down")),
             ),
             patch(
+                "apps.ai_service.analysis.pipeline.fetch_similar_defects",
+                new=AsyncMock(return_value=[]),
+            ),
+            patch(
                 "apps.ai_service.analysis.pipeline.describe_images",
                 new=AsyncMock(return_value=""),
             ),
@@ -112,7 +120,6 @@ class TestAnalyzeDefect:
             result = await analyze_defect(node="A", defect_type="B", severity="C")
 
         assert result.defect_class == "Wear"
-        # Verify fallback context was used in the prompt
         call_args = client.aio.models.generate_content.call_args
         contents = call_args.kwargs.get("contents") or call_args.args[0]
         prompt_text = next(c for c in reversed(contents) if isinstance(c, str))
@@ -134,6 +141,10 @@ class TestAnalyzeDefect:
             ),
             patch(
                 "apps.ai_service.analysis.pipeline.fetch_similar_chunks",
+                new=AsyncMock(return_value=[]),
+            ),
+            patch(
+                "apps.ai_service.analysis.pipeline.fetch_similar_defects",
                 new=AsyncMock(return_value=[]),
             ),
             patch(
@@ -164,6 +175,10 @@ class TestAnalyzeDefect:
                 new=AsyncMock(return_value=[]),
             ),
             patch(
+                "apps.ai_service.analysis.pipeline.fetch_similar_defects",
+                new=AsyncMock(return_value=[]),
+            ),
+            patch(
                 "apps.ai_service.analysis.pipeline.describe_images",
                 new=AsyncMock(return_value=""),
             ),
@@ -175,7 +190,6 @@ class TestAnalyzeDefect:
                 description="Crack on the rim",
             )
 
-        # Description must appear in the text passed to embed_query
         query_text = mock_embed.call_args.args[0]
         assert "Crack on the rim" in query_text
 
@@ -198,6 +212,10 @@ class TestAnalyzeDefect:
                 new=AsyncMock(return_value=["Relevant depot rule"]),
             ),
             patch(
+                "apps.ai_service.analysis.pipeline.fetch_similar_defects",
+                new=AsyncMock(return_value=[]),
+            ),
+            patch(
                 "apps.ai_service.analysis.pipeline.describe_images",
                 new=AsyncMock(return_value=""),
             ),
@@ -208,6 +226,41 @@ class TestAnalyzeDefect:
         contents = call_args.kwargs.get("contents") or call_args.args[0]
         prompt_text = next(c for c in reversed(contents) if isinstance(c, str))
         assert "Relevant depot rule" in prompt_text
+
+    async def test_defect_history_included_in_prompt(self):
+        from apps.ai_service.analysis.pipeline import analyze_defect
+
+        client = _make_mock_client(_schema_json())
+
+        with (
+            patch(
+                "apps.ai_service.analysis.pipeline.get_genai_client",
+                return_value=client,
+            ),
+            patch(
+                "apps.ai_service.analysis.pipeline.embed_query",
+                new=AsyncMock(return_value=[0.1] * 1536),
+            ),
+            patch(
+                "apps.ai_service.analysis.pipeline.fetch_similar_chunks",
+                new=AsyncMock(return_value=[]),
+            ),
+            patch(
+                "apps.ai_service.analysis.pipeline.fetch_similar_defects",
+                new=AsyncMock(return_value=["Past bogie crack — verdict: repair_now"]),
+            ),
+            patch(
+                "apps.ai_service.analysis.pipeline.describe_images",
+                new=AsyncMock(return_value=""),
+            ),
+        ):
+            await analyze_defect(node="A", defect_type="B", severity="C")
+
+        call_args = client.aio.models.generate_content.call_args
+        contents = call_args.kwargs.get("contents") or call_args.args[0]
+        prompt_text = next(c for c in reversed(contents) if isinstance(c, str))
+        assert "Past bogie crack" in prompt_text
+        assert "Похожие случаи из истории депо" in prompt_text
 
     async def test_photos_trigger_image_description(self):
         from apps.ai_service.analysis.pipeline import analyze_defect
@@ -226,6 +279,10 @@ class TestAnalyzeDefect:
             ),
             patch(
                 "apps.ai_service.analysis.pipeline.fetch_similar_chunks",
+                new=AsyncMock(return_value=[]),
+            ),
+            patch(
+                "apps.ai_service.analysis.pipeline.fetch_similar_defects",
                 new=AsyncMock(return_value=[]),
             ),
             patch(
@@ -259,6 +316,10 @@ class TestAnalyzeDefect:
                 new=AsyncMock(return_value=[]),
             ),
             patch(
+                "apps.ai_service.analysis.pipeline.fetch_similar_defects",
+                new=AsyncMock(return_value=[]),
+            ),
+            patch(
                 "apps.ai_service.analysis.pipeline.describe_images",
                 new=AsyncMock(side_effect=RuntimeError("Vision API down")),
             ),
@@ -288,6 +349,10 @@ class TestAnalyzeDefect:
             ),
             patch(
                 "apps.ai_service.analysis.pipeline.fetch_similar_chunks",
+                new=AsyncMock(return_value=[]),
+            ),
+            patch(
+                "apps.ai_service.analysis.pipeline.fetch_similar_defects",
                 new=AsyncMock(return_value=[]),
             ),
             patch(
