@@ -133,7 +133,8 @@ class TestFetchSimilarChunks:
         )
 
         assert isinstance(result, list)
-        assert all(isinstance(c, str) for c in result)
+        assert all(isinstance(c, dict) for c in result)
+        assert all("content" in c and "document__title" in c for c in result)
         assert len(result) <= 2
 
     async def test_excludes_chunks_from_non_ready_documents(self, depot_document):
@@ -152,7 +153,7 @@ class TestFetchSimilarChunks:
             [0.1] * 1536, "pending chunk query", top_k=5
         )
 
-        assert "pending doc chunk" not in result
+        assert not any(c["content"] == "pending doc chunk" for c in result)
 
     async def test_respects_top_k_limit(self, ready_document):
         from apps.ai_service.models import DocumentChunk
@@ -210,7 +211,8 @@ class TestFetchSimilarDefects:
         result = await fetch_similar_defects([0.15] * 1536, "трещина колёсной пары")
 
         assert isinstance(result, list)
-        assert all(isinstance(c, str) for c in result)
+        assert all(isinstance(c, dict) for c in result)
+        assert all("content" in c and "created_at" in c for c in result)
         assert len(result) <= 2
 
     async def test_respects_top_k_limit(self):
