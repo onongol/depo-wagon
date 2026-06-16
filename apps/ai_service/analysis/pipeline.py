@@ -1,15 +1,16 @@
+import asyncio
 import logging
 
 from google.genai import types
 
 from apps.ai_service.analysis.config import ANALYSIS_PROMPT
-from apps.ai_service.rag.config import RAG_SYSTEM_PROMPT
 from apps.ai_service.analysis.schema import FullAnalysisSchema
 from apps.ai_service.client import get_genai_client
 from apps.ai_service.config import GENERATION_MODEL
+from apps.ai_service.rag.config import RAG_SYSTEM_PROMPT
 from apps.ai_service.rag.embedding import embed_query
 from apps.ai_service.rag.generation import describe_images
-from apps.ai_service.rag.retrieval import fetch_similar_chunks
+from apps.ai_service.rag.retrieval import fetch_similar_chunks, fetch_similar_defects
 from apps.ai_service.utils import mime_type_for_bytes
 from apps.bot.user_data import AIResult
 
@@ -27,9 +28,9 @@ async def analyze_defect(
     Unified pipeline — single Gemini call returns structured fields + RAG recommendation:
       1. Describe photos → augment query text
       2. Embed query with gemini-embedding-2
-      3. Vector search → top-K depot document chunks
-      4. Build prompt with retrieved context
-      5. Single gemini-3.5-flash call with structured schema
+      3. Parallel vector search: НТД docs + defect history
+      4. Build prompt with tagged context blocks
+      5. Single gemini-flash call with structured schema
     """
     try:
         client = get_genai_client()
@@ -60,16 +61,17 @@ async def analyze_defect(
             logger.warning("Embedding failed, skipping AI analysis: %s", exc)
             return AIResult()
 
-        # Vector search
+        # Parallel vector search: НТД docs + defect history
         try:
-            chunks = await fetch_similar_chunks(query_embedding, query_text)
-        except Exception as exc:
-            logger.warning(
-                "Vector search failed, proceeding without RAG context: %s", exc
+            chunks, past_defects = await asyncio.gather(
+                fetch_similar_chunks(query_embedding, query_text),
+                fetch_similar_defects(query_embedding, query_text),
             )
-            chunks = []
+        except Exception as exc:
+            logger.warning("Vector search failed, proceeding without RAG context: %s", exc)
+            chunks, past_defects = [], []
 
-        # Build RAG context
+        # Build НТД context block
         if chunks:
             context_block = "\n\n---\n\n".join(chunks)
             rag_context = (
@@ -78,9 +80,18 @@ async def analyze_defect(
                 "=== Конец справочных материалов ==="
             )
         else:
-            rag_context = (
-                "(Документы депо не найдены — используй общие технические знания.)"
+            rag_context = "(Документы депо не найдены — используй общие технические знания.)"
+
+        # Build defect history context block
+        if past_defects:
+            history_block = "\n\n---\n\n".join(past_defects)
+            history_context = (
+                "=== Похожие случаи из истории депо ===\n\n"
+                f"{history_block}\n\n"
+                "=== Конец истории депо ==="
             )
+        else:
+            history_context = ""
 
         description_line = (
             f"<user_description>\n{description}\n</user_description>"
@@ -94,6 +105,7 @@ async def analyze_defect(
             severity=severity,
             description_line=description_line,
             rag_context=rag_context,
+            history_context=history_context,
         )
 
         # Single structured call with photos
