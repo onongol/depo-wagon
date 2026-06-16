@@ -28,7 +28,7 @@ async def analyze_defect(
     Unified pipeline — single Gemini call returns structured fields + RAG recommendation:
       1. Describe photos → augment query text
       2. Embed query with gemini-embedding-2
-      3. Parallel vector search: НТД docs + defect history
+      3. Parallel vector search: docs + defect history
       4. Build prompt with tagged context blocks
       5. Single gemini-flash call with structured schema
     """
@@ -73,7 +73,7 @@ async def analyze_defect(
             )
             chunks, past_defects = [], []
 
-        # Build НТД context block with source labels
+        # Build Doc context block with source labels
         doc_sources: list[str] = []
         if chunks:
             context_parts = []
@@ -86,7 +86,7 @@ async def analyze_defect(
                     pages_by_title.setdefault(title, []).append(page)
                 else:
                     pages_by_title.setdefault(title, [])
-                source = f"{title}, стр. {page}" if page else title
+                source = f"{title}, page {page}" if page else title
                 context_parts.append(f"{label} {source}:\n{chunk['content']}")
             for title, pages in pages_by_title.items():
                 if pages:
