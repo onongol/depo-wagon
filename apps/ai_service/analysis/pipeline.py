@@ -112,7 +112,7 @@ async def analyze_defect(
                 response_mime_type="application/json",
                 response_schema=FullAnalysisSchema,
                 temperature=0.1,
-                max_output_tokens=768,
+                max_output_tokens=2048,
             ),
         )
 
