@@ -128,7 +128,9 @@ class TestFetchSimilarChunks:
             chunk_index=1,
         )
 
-        result = await fetch_similar_chunks([0.15] * 1536, "axle bearing defect", top_k=5)
+        result = await fetch_similar_chunks(
+            [0.15] * 1536, "axle bearing defect", top_k=5
+        )
 
         assert isinstance(result, list)
         assert all(isinstance(c, str) for c in result)
@@ -146,7 +148,9 @@ class TestFetchSimilarChunks:
             chunk_index=0,
         )
 
-        result = await fetch_similar_chunks([0.1] * 1536, "pending chunk query", top_k=5)
+        result = await fetch_similar_chunks(
+            [0.1] * 1536, "pending chunk query", top_k=5
+        )
 
         assert "pending doc chunk" not in result
 
@@ -163,11 +167,84 @@ class TestFetchSimilarChunks:
                 chunk_index=i,
             )
 
-        result = await fetch_similar_chunks([0.5] * 1536, "wheel bearing inspection", top_k=3)
+        result = await fetch_similar_chunks(
+            [0.5] * 1536, "wheel bearing inspection", top_k=3
+        )
         assert len(result) <= 3
 
     async def test_returns_empty_list_when_no_documents(self):
         from apps.ai_service.rag.retrieval import fetch_similar_chunks
 
         result = await fetch_similar_chunks([0.1] * 1536, "empty query")
+        assert result == []
+
+
+@pytest.mark.django_db(transaction=True)
+class TestFetchSimilarDefects:
+    async def _create_defect_vector(self, content: str, embedding: list[float]):
+        from model_bakery import baker
+
+        from apps.ai_service.models import DefectVector
+
+        defect = await sync_to_async(baker.make)(
+            "defects.Defect", wagon__manufacture_year=2020
+        )
+        return await sync_to_async(DefectVector.objects.create)(
+            defect=defect,
+            content=content,
+            embedding=embedding,
+        )
+
+    async def test_returns_matching_defect_vectors(self):
+        from apps.ai_service.rag.retrieval import fetch_similar_defects
+
+        await self._create_defect_vector(
+            "Дефект: Колёсная пара — трещина обода (Критический)",
+            [0.1] * 1536,
+        )
+        await self._create_defect_vector(
+            "Дефект: Рама тележки — износ (Средний)",
+            [0.2] * 1536,
+        )
+
+        result = await fetch_similar_defects([0.15] * 1536, "трещина колёсной пары")
+
+        assert isinstance(result, list)
+        assert all(isinstance(c, str) for c in result)
+        assert len(result) <= 2
+
+    async def test_respects_top_k_limit(self):
+        from apps.ai_service.rag.retrieval import fetch_similar_defects
+
+        for i in range(6):
+            await self._create_defect_vector(
+                f"Дефект: Узел {i} — тип дефекта (Низкий)",
+                [float(i + 1) / 10] * 1536,
+            )
+
+        result = await fetch_similar_defects([0.5] * 1536, "дефект узла", top_k=2)
+
+        assert len(result) <= 2
+
+    async def test_returns_empty_list_when_no_vectors(self):
+        from apps.ai_service.rag.retrieval import fetch_similar_defects
+
+        result = await fetch_similar_defects([0.1] * 1536, "any query")
+
+        assert result == []
+
+    async def test_filters_by_distance_threshold(self):
+        from apps.ai_service.rag.retrieval import fetch_similar_defects
+        from apps.ai_service.rag.retrieval.config import MAX_DISTANCE
+
+        # Orthogonal vector → cosine distance = 1.0, well above MAX_DISTANCE
+        far_embedding = [0.0] * 1536
+        far_embedding[0] = 1.0
+        query_embedding = [0.0] * 1536
+        query_embedding[1] = 1.0
+
+        await self._create_defect_vector("Irrelevant defect", far_embedding)
+
+        result = await fetch_similar_defects(query_embedding, "unrelated query")
+
         assert result == []
