@@ -9,8 +9,6 @@ def on_defect_closed(sender, instance, **kwargs) -> None:
 
     if instance.status != DefectStatus.CLOSED:
         return
-    if not instance.verdict:
-        return
 
     from apps.ai_service.tasks import embed_defect_task
 
