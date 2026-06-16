@@ -25,9 +25,10 @@ class DepotDocumentAdminMixinStatus:
 
 class DepotDocumentAdminMixinChunksCount:
     def chunks_count(self, obj: DepotDocument) -> int:
-        return obj.chunks.count()
+        return obj._chunks_count
 
     chunks_count.short_description = _("Chunks")
+    chunks_count.admin_order_field = "_chunks_count"
 
 
 class DocumentChunkInlineMixin:
