@@ -37,6 +37,7 @@ class DefectListSerializer(serializers.ModelSerializer):
             "severity_display",
             "status",
             "status_display",
+            "responsible_employee",
             "inspected_at",
         ]
 
