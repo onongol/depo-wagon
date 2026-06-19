@@ -7,7 +7,7 @@ from apps.users.permissions import IsAnyEmployee, IsEngineer, IsInspectorOrEngin
 
 
 class DefectMeasurementViewSet(viewsets.ModelViewSet):
-    queryset = DefectMeasurement.objects.select_related("defect").all()
+    queryset = DefectMeasurement.objects.select_related("defect__wagon", "defect__inspector").all()
     serializer_class = DefectMeasurementSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["defect", "dimension"]
