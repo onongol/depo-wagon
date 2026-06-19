@@ -51,14 +51,20 @@ class DepotDocumentAdmin(
         """Queue processing for selected documents that aren't already processing."""
         from apps.ai_service.tasks import process_document_task
 
-        queued = 0
-        for doc in queryset.exclude(status=DocumentStatus.PROCESSING):
-            process_document_task.delay(doc.pk)
-            queued += 1
+        pks = list(
+            queryset.exclude(status=DocumentStatus.PROCESSING).values_list(
+                "pk", flat=True
+            )
+        )
+        for pk in pks:
+            process_document_task.delay(pk)
+        queued = len(pks)
 
         self.message_user(
             request,
-            _("%(count)d document(s) queued for processing. Refresh the page to check status.")
+            _(
+                "%(count)d document(s) queued for processing. Refresh the page to check status."
+            )
             % {"count": queued},
             messages.SUCCESS,
         )
