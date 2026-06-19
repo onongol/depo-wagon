@@ -1,6 +1,7 @@
 import logging
 
 from celery import shared_task
+from django.db import IntegrityError, transaction
 
 logger = logging.getLogger(__name__)
 
@@ -50,10 +51,16 @@ def embed_defect_task(self, defect_id: str) -> None:
 
         [embedding] = embed_texts([query_text], task_type="RETRIEVAL_DOCUMENT")
 
-        DefectVector.objects.update_or_create(
-            defect_id=defect_id,
-            defaults={"content": content, "embedding": embedding},
-        )
+        try:
+            with transaction.atomic():
+                DefectVector.objects.update_or_create(
+                    defect_id=defect_id,
+                    defaults={"content": content, "embedding": embedding},
+                )
+        except IntegrityError:
+            DefectVector.objects.filter(defect_id=defect_id).update(
+                content=content, embedding=embedding
+            )
         logger.info("Embedded defect %s for historical RAG", defect_id)
 
     except Exception as exc:
