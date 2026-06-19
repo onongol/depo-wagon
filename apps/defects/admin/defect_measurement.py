@@ -14,6 +14,8 @@ class DefectMeasurementAdmin(ModelAdmin):
         "unit",
         "created_at",
     ]
+    list_select_related = ["defect__wagon"]
     list_filter = ["dimension"]
     search_fields = ["defect__wagon__number"]
     readonly_fields = ["created_at", "updated_at"]
+    raw_id_fields = ["defect"]
