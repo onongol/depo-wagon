@@ -62,7 +62,8 @@ def process_document(document_id: int) -> None:
             DocumentChunk.objects.bulk_create(chunk_objects)
 
         doc.status = DocumentStatus.READY
-        doc.save(update_fields=["status", "updated_at"])
+        doc.error_message = ""
+        doc.save(update_fields=["status", "error_message", "updated_at"])
         logger.info(
             "Document '%s' processed successfully: %d chunks",
             doc.title,
@@ -75,5 +76,10 @@ def process_document(document_id: int) -> None:
         )
         doc.status = DocumentStatus.ERROR
         doc.error_message = str(exc)
-        doc.save(update_fields=["status", "error_message", "updated_at"])
+        try:
+            doc.save(update_fields=["status", "error_message", "updated_at"])
+        except Exception:
+            logger.exception(
+                "Failed to persist ERROR status for document %s", document_id
+            )
         raise
