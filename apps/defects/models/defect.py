@@ -127,4 +127,5 @@ class Defect(models.Model):
         return self.status == DefectStatus.CLOSED
 
     def __str__(self) -> str:
-        return f"{self.get_node_display()} — {self.get_defect_type_display()} (Wagon: {self.wagon.number})"
+        wagon_number = self.wagon.number if self.wagon_id else "—"
+        return f"{self.get_node_display()} — {self.get_defect_type_display()} (Wagon: {wagon_number})"
