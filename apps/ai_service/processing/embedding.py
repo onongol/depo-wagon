@@ -8,6 +8,7 @@ from apps.ai_service.config import EMBEDDING_DIMENSIONS, EMBEDDING_MODEL
 
 BATCH_SIZE = 100
 RETRY_DELAYS = [10, 30, 60]
+RETRYABLE_HTTP_CODES = {429, 503, 504}
 
 
 def embed_texts(
@@ -36,7 +37,10 @@ def embed_texts(
                 )
                 break
             except ClientError as exc:
-                if exc.code != 429 or attempt == len(RETRY_DELAYS):
+                if exc.code not in RETRYABLE_HTTP_CODES or attempt == len(RETRY_DELAYS):
+                    raise
+            except (ConnectionError, TimeoutError):
+                if attempt == len(RETRY_DELAYS):
                     raise
 
         embeddings.extend(list(e.values) for e in response.embeddings)
