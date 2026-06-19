@@ -23,8 +23,4 @@ class DefectMeasurementSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["created_at", "updated_at"]
-
-    def update(self, instance, validated_data):
-        validated_data.pop("defect", None)
-        return super().update(instance, validated_data)
+        read_only_fields = ["defect", "created_at", "updated_at"]
