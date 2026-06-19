@@ -8,7 +8,7 @@ from apps.users.permissions import IsAnyEmployee, IsEngineer, IsInspectorOrEngin
 
 
 class DefectPhotoViewSet(viewsets.ModelViewSet):
-    queryset = DefectPhoto.objects.select_related("defect").all()
+    queryset = DefectPhoto.objects.select_related("defect__wagon", "defect__inspector").all()
     serializer_class = DefectPhotoSerializer
     parser_classes = [MultiPartParser, FormParser]
     filter_backends = [DjangoFilterBackend]
