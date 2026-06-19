@@ -3,6 +3,11 @@ from rest_framework import serializers
 from apps.core.models import Employee
 
 
+class _UserSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    email = serializers.EmailField(read_only=True)
+
+
 class EmployeeListSerializer(serializers.ModelSerializer):
     role_display = serializers.CharField(source="get_role_display", read_only=True)
     department_display = serializers.CharField(
@@ -31,6 +36,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
     )
     full_name = serializers.CharField(read_only=True)
     short_name = serializers.CharField(read_only=True)
+    user = _UserSerializer(read_only=True)
 
     class Meta:
         model = Employee
