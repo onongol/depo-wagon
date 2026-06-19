@@ -10,7 +10,9 @@ class DefectPhotoAdmin(ModelAdmin):
         "defect__wagon__number",
         "uploaded_at",
     ]
+    list_select_related = ["defect__wagon"]
     search_fields = [
         "defect__wagon__number",
     ]
     readonly_fields = ["uploaded_at"]
+    raw_id_fields = ["defect"]
