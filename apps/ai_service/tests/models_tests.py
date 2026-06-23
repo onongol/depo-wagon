@@ -122,7 +122,7 @@ class TestDefectVector:
         defect = self._make_defect()
         vec = DefectVector.objects.create(
             defect=defect,
-            content="Дефект: трещина обода",
+            content="Defect: rim crack",
             embedding=[0.1] * 1536,
         )
         assert str(vec) == f"Vector({defect.pk})"
