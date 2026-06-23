@@ -17,6 +17,7 @@ _BOT_COMMANDS = [
     BotCommand("start", _("Start")),
     BotCommand("new_defect", _("Register a defect")),
     BotCommand("my_tasks", _("Open defects")),
+    BotCommand("ask", _("AI Assistant")),
     BotCommand("support", _("Ask the support team")),
     BotCommand("help", _("Help")),
     BotCommand("cancel", _("Cancel the current action")),
@@ -42,6 +43,7 @@ async def _post_init(app: Application) -> None:
 
 def create_application() -> _BotApplication:
     """Build the Telegram Application and register all handlers."""
+    from apps.bot.handlers.ai_chat import get_ai_chat_handler
     from apps.bot.handlers.common import (
         cancel,
         error_handler,
@@ -79,7 +81,10 @@ def create_application() -> _BotApplication:
     if support_reply_handler is not None:
         app.add_handler(support_reply_handler)
 
-    # 5. Utility commands
+    # 5. AI assistant chat (/ask)
+    app.add_handler(get_ai_chat_handler())
+
+    # 6. Utility commands
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(MessageHandler(filters.Text(str(BTN_HELP)), help_command))
     app.add_handler(CommandHandler("cancel", cancel))
