@@ -23,8 +23,8 @@ def _make_user_update(text="My printer is broken"):
     update.message.reply_text = AsyncMock()
     update.effective_user.id = 12345
     update.effective_user.username = "basbish"
-    update.effective_user.full_name = "Бат Басбиш"
-    update.effective_user.first_name = "Басбиш"
+    update.effective_user.full_name = "Bat Basbish"
+    update.effective_user.first_name = "Basbish"
     return update
 
 
