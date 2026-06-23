@@ -33,7 +33,7 @@ def _nav_texts(kb: InlineKeyboardMarkup) -> list[str]:
     return [btn.text for btn in all_buttons if btn.text in nav_texts]
 
 
-def _make_employee(pk=1, first="Иван", last="Иванов"):
+def _make_employee(pk=1, first="Brad", last="Pitt"):
     e = MagicMock()
     e.id = pk
     e.first_name = first
@@ -45,7 +45,7 @@ def _kb_buttons(kb: InlineKeyboardMarkup) -> list:
     return [btn for row in kb.inline_keyboard for btn in row]
 
 
-def _make_defect(wagon_number="12345", node_display="Колесная пара"):
+def _make_defect(wagon_number="12345", node_display="Wheelset"):
     defect = MagicMock()
     defect.id = "uuid-001"
     defect.wagon.number = wagon_number
