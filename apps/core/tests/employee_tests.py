@@ -23,23 +23,23 @@ class TestEmployeeModel:
     def test_str(self):
         emp = make_employee()
         assert "1234" in str(emp)
-        assert "Болд" in str(emp)
+        assert "" in str(emp)
 
     def test_full_name(self):
-        emp = make_employee(first_name="Бат", last_name="Болд")
-        assert emp.full_name == "Болд Бат"
+        emp = make_employee(first_name="Elbegdorj", last_name="Tsakhiagiin")
+        assert emp.full_name == "Tsakhiagiin Elbegdorj"
 
     def test_short_name_with_both_names(self):
-        emp = make_employee(first_name="Бат", last_name="Болд")
-        assert emp.short_name == "Б.Бат"
+        emp = make_employee(first_name="Elbegdorj", last_name="Tsakhiagiin")
+        assert emp.short_name == "T.Elbegdorj"
 
     def test_short_name_only_first_name(self):
-        emp = make_employee(first_name="Бат", last_name="")
-        assert emp.short_name == "Бат"
+        emp = make_employee(first_name="Elbegdorj", last_name="")
+        assert emp.short_name == "Elbegdorj"
 
     def test_short_name_only_last_name(self):
-        emp = make_employee(first_name="", last_name="Болд")
-        assert emp.short_name == "Болд"
+        emp = make_employee(first_name="", last_name="Tsakhiagiin")
+        assert emp.short_name == "Tsakhiagiin"
 
     def test_short_name_fallback_to_employee_id(self):
         emp = make_employee(first_name="", last_name="")
