@@ -31,11 +31,11 @@ class RepairType(models.TextChoices):
 
 
 class EmployeeRole(models.TextChoices):
-    WORKER = "worker", _("Worker")  # Рабочий
+    WORKER = "worker", _("Worker")
     INSPECTOR = "inspector", _("Inspector")  # Дефектоскопист
-    MASTER = "master", _("Master")  # Мастер
-    ENGINEER = "engineer", _("Engineer")  # Инженер
-    MANAGER = "manager", _("Manager")  # Менежер
+    MASTER = "master", _("Master")
+    ENGINEER = "engineer", _("Engineer")
+    MANAGER = "manager", _("Manager")
 
 
 class Department(models.TextChoices):
