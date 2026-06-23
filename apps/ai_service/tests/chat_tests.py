@@ -30,7 +30,7 @@ class TestAnswerQuestion:
     async def test_returns_genai_response_text(self):
         from apps.ai_service.rag.chat import answer_question
 
-        client = self._make_client("Ответ по УЗ контролю")
+        client = self._make_client("Ultrasonic inspection answer")
         with (
             patch("apps.ai_service.rag.chat.get_genai_client", return_value=client),
             patch(
@@ -46,9 +46,9 @@ class TestAnswerQuestion:
                 AsyncMock(return_value=[]),
             ),
         ):
-            result = await answer_question("Как провести УЗ контроль?", [])
+            result = await answer_question("How to perform ultrasonic inspection?", [])
 
-        assert result == "Ответ по УЗ контролю"
+        assert result == "Ultrasonic inspection answer"
 
     async def test_empty_response_returns_empty_string(self):
         from apps.ai_service.rag.chat import answer_question
@@ -69,7 +69,7 @@ class TestAnswerQuestion:
                 AsyncMock(return_value=[]),
             ),
         ):
-            result = await answer_question("вопрос", [])
+            result = await answer_question("question", [])
 
         assert result == ""
 
@@ -78,9 +78,9 @@ class TestAnswerQuestion:
 
         chunks = [
             {
-                "document__title": "Инструкция ТО",
+                "document__title": "Maintenance Manual",
                 "page_number": 5,
-                "content": "Норма износа 2 мм",
+                "content": "Wear tolerance 2 mm",
             }
         ]
         client = self._make_client()
@@ -100,19 +100,19 @@ class TestAnswerQuestion:
                 AsyncMock(return_value=[]),
             ),
         ):
-            await answer_question("норма износа", [])
+            await answer_question("wear tolerance", [])
 
         call_kwargs = client.aio.models.generate_content.call_args.kwargs
         last_content = call_kwargs["contents"][-1]
         user_text = last_content.parts[0].text
-        assert "Инструкция ТО" in user_text
-        assert "Норма износа 2 мм" in user_text
-        assert "стр.5" in user_text
+        assert "Maintenance Manual" in user_text
+        assert "Wear tolerance 2 mm" in user_text
+        assert "p.5" in user_text
 
     async def test_includes_defect_history_in_context(self):
         from apps.ai_service.rag.chat import answer_question
 
-        defects = [{"content": "трещина обода колеса", "created_at": date(2024, 3, 15)}]
+        defects = [{"content": "wheel rim crack", "created_at": date(2024, 3, 15)}]
         client = self._make_client()
 
         with (
@@ -130,19 +130,19 @@ class TestAnswerQuestion:
                 AsyncMock(return_value=defects),
             ),
         ):
-            await answer_question("дефекты колёс", [])
+            await answer_question("wheel defects", [])
 
         call_kwargs = client.aio.models.generate_content.call_args.kwargs
         last_content = call_kwargs["contents"][-1]
         user_text = last_content.parts[0].text
-        assert "трещина обода колеса" in user_text
+        assert "wheel rim crack" in user_text
         assert "15.03.2024" in user_text
 
     async def test_no_context_sends_raw_question(self):
         from apps.ai_service.rag.chat import answer_question
 
         client = self._make_client()
-        question = "Что такое колёсная пара?"
+        question = "What is a wheelset?"
 
         with (
             patch("apps.ai_service.rag.chat.get_genai_client", return_value=client),
@@ -169,8 +169,8 @@ class TestAnswerQuestion:
         from apps.ai_service.rag.chat import answer_question
 
         history = [
-            {"role": "user", "content": "Первый вопрос"},
-            {"role": "model", "content": "Первый ответ"},
+            {"role": "user", "content": "First question"},
+            {"role": "model", "content": "First answer"},
         ]
         client = self._make_client()
 
@@ -189,7 +189,7 @@ class TestAnswerQuestion:
                 AsyncMock(return_value=[]),
             ),
         ):
-            await answer_question("Второй вопрос", history)
+            await answer_question("Second question", history)
 
         call_kwargs = client.aio.models.generate_content.call_args.kwargs
         contents = call_kwargs["contents"]
@@ -223,7 +223,7 @@ class TestAnswerQuestion:
                 AsyncMock(return_value=[]),
             ),
         ):
-            await answer_question("новый вопрос", history)
+            await answer_question("new question", history)
 
         call_kwargs = client.aio.models.generate_content.call_args.kwargs
         contents = call_kwargs["contents"]
@@ -251,7 +251,7 @@ class TestAnswerQuestion:
                 AsyncMock(return_value=[]),
             ),
         ):
-            await answer_question("вопрос", [])
+            await answer_question("question", [])
 
         call_kwargs = client.aio.models.generate_content.call_args.kwargs
         assert call_kwargs["config"].system_instruction == CHAT_SYSTEM_PROMPT
@@ -274,19 +274,19 @@ class TestAnswerQuestion:
                 AsyncMock(return_value=[]),
             ),
         ):
-            await answer_question("вопрос про ось", [])
+            await answer_question("question about axle", [])
 
-        embed_mock.assert_awaited_once_with("вопрос про ось")
+        embed_mock.assert_awaited_once_with("question about axle")
 
     async def test_malformed_history_entries_are_skipped(self):
         from apps.ai_service.rag.chat import answer_question
 
         history = [
-            {"role": "user", "content": "нормальный вопрос"},
-            {"role": "model"},  # нет content
-            {"content": "нет роли"},  # нет role
-            {"role": "admin", "content": "чужая роль"},  # role не "user"/"model"
-            {"role": "model", "content": "нормальный ответ"},
+            {"role": "user", "content": "normal question"},
+            {"role": "model"},  # missing content
+            {"content": "no role"},  # missing role
+            {"role": "admin", "content": "invalid role"},  # role not "user"/"model"
+            {"role": "model", "content": "normal answer"},
         ]
         client = self._make_client()
 
@@ -305,11 +305,11 @@ class TestAnswerQuestion:
                 AsyncMock(return_value=[]),
             ),
         ):
-            await answer_question("новый вопрос", history)
+            await answer_question("new question", history)
 
         call_kwargs = client.aio.models.generate_content.call_args.kwargs
         contents = call_kwargs["contents"]
-        # только 2 валидных + 1 текущий вопрос
+        # only 2 valid + 1 current question
         assert len(contents) == 3
         assert contents[0].role == "user"
         assert contents[1].role == "model"
@@ -317,7 +317,7 @@ class TestAnswerQuestion:
     async def test_defect_without_created_at_uses_content_only(self):
         from apps.ai_service.rag.chat import answer_question
 
-        defects = [{"content": "износ реборды", "created_at": None}]
+        defects = [{"content": "flange wear", "created_at": None}]
         client = self._make_client()
 
         with (
@@ -335,7 +335,7 @@ class TestAnswerQuestion:
                 AsyncMock(return_value=defects),
             ),
         ):
-            result = await answer_question("реборда", [])
+            result = await answer_question("flange", [])
 
         assert result == "AI answer"
 
@@ -355,14 +355,14 @@ class TestAnswerQuestion:
             import pytest
 
             with pytest.raises(asyncio.TimeoutError):
-                await answer_question("вопрос", [])
+                await answer_question("question", [])
 
     # --- Fix 2: retrieval failure degrades gracefully ---
 
     async def test_chunks_failure_still_returns_answer(self):
         from apps.ai_service.rag.chat import answer_question
 
-        client = self._make_client("ответ без документов")
+        client = self._make_client("answer without documents")
 
         with (
             patch("apps.ai_service.rag.chat.get_genai_client", return_value=client),
@@ -379,14 +379,14 @@ class TestAnswerQuestion:
                 AsyncMock(return_value=[]),
             ),
         ):
-            result = await answer_question("вопрос", [])
+            result = await answer_question("question", [])
 
-        assert result == "ответ без документов"
+        assert result == "answer without documents"
 
     async def test_defects_failure_still_returns_answer(self):
         from apps.ai_service.rag.chat import answer_question
 
-        client = self._make_client("ответ без дефектов")
+        client = self._make_client("answer without defects")
 
         with (
             patch("apps.ai_service.rag.chat.get_genai_client", return_value=client),
@@ -403,9 +403,9 @@ class TestAnswerQuestion:
                 AsyncMock(side_effect=RuntimeError("db down")),
             ),
         ):
-            result = await answer_question("вопрос", [])
+            result = await answer_question("question", [])
 
-        assert result == "ответ без дефектов"
+        assert result == "answer without defects"
 
     # --- Fix 3: context size cap ---
 
@@ -436,11 +436,11 @@ class TestAnswerQuestion:
                 AsyncMock(return_value=[]),
             ),
         ):
-            await answer_question("вопрос", [])
+            await answer_question("question", [])
 
         call_kwargs = client.aio.models.generate_content.call_args.kwargs
         user_text = call_kwargs["contents"][-1].parts[0].text
-        assert "[контекст обрезан]" in user_text
+        assert "[context truncated]" in user_text
         assert len(user_text) < _MAX_CONTEXT_CHARS + 200
 
     # --- Fix 4 & 5: missing fields in chunks/defects ---
@@ -453,7 +453,7 @@ class TestAnswerQuestion:
             {
                 "document__title": "Doc2",
                 "page_number": 2,
-                "content": "реальный контент",
+                "content": "real content",
             },
         ]
         client = self._make_client()
@@ -473,17 +473,17 @@ class TestAnswerQuestion:
                 AsyncMock(return_value=[]),
             ),
         ):
-            await answer_question("вопрос", [])
+            await answer_question("question", [])
 
         call_kwargs = client.aio.models.generate_content.call_args.kwargs
         user_text = call_kwargs["contents"][-1].parts[0].text
-        assert "реальный контент" in user_text
+        assert "real content" in user_text
         assert "Doc2" in user_text
 
     async def test_chunk_missing_title_uses_placeholder(self):
         from apps.ai_service.rag.chat import answer_question
 
-        chunks = [{"content": "текст без заголовка"}]
+        chunks = [{"content": "text without title"}]
         client = self._make_client()
 
         with (
@@ -501,7 +501,7 @@ class TestAnswerQuestion:
                 AsyncMock(return_value=[]),
             ),
         ):
-            await answer_question("вопрос", [])
+            await answer_question("question", [])
 
         call_kwargs = client.aio.models.generate_content.call_args.kwargs
         user_text = call_kwargs["contents"][-1].parts[0].text
@@ -512,7 +512,7 @@ class TestAnswerQuestion:
 
         defects = [
             {"content": None, "created_at": None},
-            {"content": "реальный дефект", "created_at": None},
+            {"content": "real defect", "created_at": None},
         ]
         client = self._make_client()
 
@@ -531,11 +531,11 @@ class TestAnswerQuestion:
                 AsyncMock(return_value=defects),
             ),
         ):
-            await answer_question("вопрос", [])
+            await answer_question("question", [])
 
         call_kwargs = client.aio.models.generate_content.call_args.kwargs
         user_text = call_kwargs["contents"][-1].parts[0].text
-        assert "реальный дефект" in user_text
+        assert "real defect" in user_text
 
     # --- Fix 6: safety filter ---
 
@@ -568,7 +568,7 @@ class TestAnswerQuestion:
             ),
         ):
             with pytest.raises(ContentBlockedError):
-                await answer_question("вопрос", [])
+                await answer_question("question", [])
 
     async def test_no_candidates_raises_content_blocked_error(self):
         from apps.ai_service.rag.chat import ContentBlockedError, answer_question
@@ -596,4 +596,4 @@ class TestAnswerQuestion:
             ),
         ):
             with pytest.raises(ContentBlockedError):
-                await answer_question("вопрос", [])
+                await answer_question("question", [])
