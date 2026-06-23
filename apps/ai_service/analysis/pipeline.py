@@ -86,12 +86,12 @@ async def analyze_defect(
                     pages_by_title.setdefault(title, []).append(page)
                 else:
                     pages_by_title.setdefault(title, [])
-                source = f"{title}, page {page}" if page else title
+                source = f"{title}, p. {page}" if page else title
                 context_parts.append(f"{label} {source}:\n{chunk['content']}")
             for title, pages in pages_by_title.items():
                 if pages:
                     doc_sources.append(
-                        f"📄 {title}, page {', '.join(str(p) for p in sorted(set(pages)))}"
+                        f"📄 {title}, p. {', '.join(str(p) for p in sorted(set(pages)))}"
                     )
                 else:
                     doc_sources.append(f"📄 {title}")
