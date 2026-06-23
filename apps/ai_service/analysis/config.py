@@ -1,19 +1,19 @@
 ANALYSIS_PROMPT = """
-Проанализируй данные о дефекте и фотографии (если есть).
+Analyze the defect data and photos (if provided).
 
-Зафиксированный дефект:
-- Узел/Элемент: {node}
-- Тип дефекта: {defect_type}
-- Степень критичности: {severity}
+Recorded defect:
+- Node/Element: {node}
+- Defect type: {defect_type}
+- Severity: {severity}
 {description_line}
 
 {rag_context}
 
 {history_context}
 
-Пояснение к статусам вердикта:
-- ok           = в пределах нормы (допуска), ремонт не требуется.
-- repair_soon  = устранить при ближайшем плановом ремонте (деповском/капитальном).
-- repair_now   = требуется текущий отцепочный ремонт (немедленное устранение).
-- decommission = исключение вагона из инвентарного парка (списание/утилизация).
+Verdict status explanations:
+- ok           = within tolerance, no repair required.
+- repair_soon  = fix at the next scheduled maintenance (depot/capital repair).
+- repair_now   = current uncoupling repair required (immediate remediation).
+- decommission = removal of wagon from inventory (write-off/disposal).
 """
