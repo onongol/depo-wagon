@@ -48,6 +48,11 @@ async def ai_chat_receive(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 answer_question(question, history), timeout=_ANSWER_TIMEOUT
             )
         except asyncio.TimeoutError:
+            logger.warning(
+                "AI chat timed out after %.0fs for user %s",
+                _ANSWER_TIMEOUT,
+                update.effective_user.id,
+            )
             await _safe_edit(thinking_msg, str(M.AI_CHAT_OVERLOADED))
             return AI_CHAT
         except ContentBlockedError:
@@ -55,6 +60,9 @@ async def ai_chat_receive(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             return AI_CHAT
         except ServerError as e:
             if e.code == 503:
+                logger.warning(
+                    "AI chat 503 overloaded for user %s", update.effective_user.id
+                )
                 await _safe_edit(thinking_msg, str(M.AI_CHAT_OVERLOADED))
             else:
                 logger.exception(
