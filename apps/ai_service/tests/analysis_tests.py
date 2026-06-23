@@ -102,7 +102,7 @@ class TestAnalyzeDefect:
         call_args = client.aio.models.generate_content.call_args
         contents = call_args.kwargs.get("contents") or call_args.args[0]
         prompt_text = next(c for c in reversed(contents) if isinstance(c, str))
-        assert "Документы депо не найдены" in prompt_text
+        assert "No depot documents found" in prompt_text
 
     async def test_returns_empty_result_on_empty_gemini_response(self):
         from apps.ai_service.analysis.pipeline import analyze_defect
@@ -176,7 +176,7 @@ class TestAnalyzeDefect:
         contents = call_args.kwargs.get("contents") or call_args.args[0]
         prompt_text = next(c for c in reversed(contents) if isinstance(c, str))
         assert "Past bogie crack" in prompt_text
-        assert "Похожие случаи из истории депо" in prompt_text
+        assert "Similar cases from depot history" in prompt_text
 
     async def test_photos_trigger_image_description(self):
         from apps.ai_service.analysis.pipeline import analyze_defect
