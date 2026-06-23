@@ -37,18 +37,18 @@ async def analyze_defect(
 
         # Build query text
         query_parts = [
-            f"Узел/Элемент: {node}",
-            f"Тип дефекта: {defect_type}",
-            f"Степень критичности: {severity}",
+            f"Node/Element: {node}",
+            f"Defect type: {defect_type}",
+            f"Severity: {severity}",
         ]
         if description:
-            query_parts.append(f"Описание: {description}")
+            query_parts.append(f"Description: {description}")
 
         if photos_bytes:
             try:
                 visual_desc = await describe_images(photos_bytes)
                 if visual_desc:
-                    query_parts.append(f"Визуальные признаки: {visual_desc}")
+                    query_parts.append(f"Visual signs: {visual_desc}")
             except Exception as exc:
                 logger.warning("Image description failed: %s", exc)
 
@@ -61,7 +61,7 @@ async def analyze_defect(
             logger.warning("Embedding failed, skipping AI analysis: %s", exc)
             return AIResult()
 
-        # Parallel vector search: НТД docs + defect history
+        # Parallel vector search: regulatory docs + defect history
         try:
             chunks, past_defects = await asyncio.gather(
                 fetch_similar_chunks(query_embedding, query_text),
@@ -96,13 +96,13 @@ async def analyze_defect(
                 else:
                     doc_sources.append(f"📄 {title}")
             rag_context = (
-                "=== Справочные материалы из документов депо ===\n\n"
+                "=== Reference materials from depot documents ===\n\n"
                 + "\n\n---\n\n".join(context_parts)
-                + "\n\n=== Конец справочных материалов ==="
+                + "\n\n=== End of reference materials ==="
             )
         else:
             rag_context = (
-                "(Документы депо не найдены — используй общие технические знания.)"
+                "(No depot documents found — use general technical knowledge.)"
             )
 
         # Build defect history context block with source labels
@@ -115,9 +115,9 @@ async def analyze_defect(
                 history_parts.append(f"{label} {date}:\n{defect['content']}")
             case_sources.append(f"🔁 {len(past_defects)} precedent cases")
             history_context = (
-                "=== Похожие случаи из истории депо ===\n\n"
+                "=== Similar cases from depot history ===\n\n"
                 + "\n\n---\n\n".join(history_parts)
-                + "\n\n=== Конец истории депо ==="
+                + "\n\n=== End of depot history ==="
             )
         else:
             history_context = ""
