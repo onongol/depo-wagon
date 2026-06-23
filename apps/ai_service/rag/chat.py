@@ -48,12 +48,12 @@ async def answer_question(question: str, history: list[dict]) -> str:
     if chunks:
         # .get() with defaults so a schema change doesn't raise KeyError
         docs_text = "\n\n".join(
-            f"[{chunk.get('document__title', '?')}, стр.{chunk.get('page_number', '?')}]\n{chunk.get('content', '')}"
+            f"[{chunk.get('document__title', '?')}, p.{chunk.get('page_number', '?')}]\n{chunk.get('content', '')}"
             for chunk in chunks
             if chunk.get("content")
         )
         if docs_text:
-            context_parts.append(f"=== Документы депо ===\n{docs_text}")
+            context_parts.append(f"=== Depot Documents ===\n{docs_text}")
 
     if defects:
         defect_lines: list[str] = []
@@ -63,20 +63,20 @@ async def answer_question(question: str, history: list[dict]) -> str:
                 continue
             created_at = defect.get("created_at")
             prefix = (
-                f"[Дефект от {created_at.strftime('%d.%m.%Y')}]\n" if created_at else ""
+                f"[Defect from {created_at.strftime('%d.%m.%Y')}]\n" if created_at else ""
             )
             defect_lines.append(f"{prefix}{content}")
         if defect_lines:
             context_parts.append(
-                "=== История дефектов ===\n" + "\n\n".join(defect_lines)
+                "=== Defect History ===\n" + "\n\n".join(defect_lines)
             )
 
     user_text = question
     if context_parts:
         context_block = "\n\n".join(context_parts)
         if len(context_block) > _MAX_CONTEXT_CHARS:
-            context_block = context_block[:_MAX_CONTEXT_CHARS] + "\n[контекст обрезан]"
-        user_text = f"Контекст:\n{context_block}\n\nВопрос: {question}"
+            context_block = context_block[:_MAX_CONTEXT_CHARS] + "\n[context truncated]"
+        user_text = f"Context:\n{context_block}\n\nQuestion: {question}"
 
     contents: list[types.Content] = []
     for msg in history[-_MAX_HISTORY:]:
