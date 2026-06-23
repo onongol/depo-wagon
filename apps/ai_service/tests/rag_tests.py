@@ -200,15 +200,15 @@ class TestFetchSimilarDefects:
         from apps.ai_service.rag.retrieval import fetch_similar_defects
 
         await self._create_defect_vector(
-            "Дефект: Колёсная пара — трещина обода (Критический)",
+            "Defect: Wheelset — rim crack (Critical)",
             [0.1] * 1536,
         )
         await self._create_defect_vector(
-            "Дефект: Рама тележки — износ (Средний)",
+            "Defect: Bogie frame — wear (Medium)",
             [0.2] * 1536,
         )
 
-        result = await fetch_similar_defects([0.15] * 1536, "трещина колёсной пары")
+        result = await fetch_similar_defects([0.15] * 1536, "wheelset rim crack")
 
         assert isinstance(result, list)
         assert all(isinstance(c, dict) for c in result)
@@ -220,11 +220,11 @@ class TestFetchSimilarDefects:
 
         for i in range(6):
             await self._create_defect_vector(
-                f"Дефект: Узел {i} — тип дефекта (Низкий)",
+                f"Defect: Node {i} — defect type (Low)",
                 [float(i + 1) / 10] * 1536,
             )
 
-        result = await fetch_similar_defects([0.5] * 1536, "дефект узла", top_k=2)
+        result = await fetch_similar_defects([0.5] * 1536, "node defect", top_k=2)
 
         assert len(result) <= 2
 
@@ -237,9 +237,7 @@ class TestFetchSimilarDefects:
 
     async def test_filters_by_distance_threshold(self):
         from apps.ai_service.rag.retrieval import fetch_similar_defects
-        from apps.ai_service.rag.retrieval.config import MAX_DISTANCE
 
-        # Orthogonal vector → cosine distance = 1.0, well above MAX_DISTANCE
         far_embedding = [0.0] * 1536
         far_embedding[0] = 1.0
         query_embedding = [0.0] * 1536
