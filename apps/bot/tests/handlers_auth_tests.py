@@ -20,9 +20,9 @@ def _make_update(text, user_id=12345):
 def _make_employee(**kwargs):
     emp = MagicMock()
     emp.id = kwargs.get("id", 1)
-    emp.first_name = kwargs.get("first_name", "Бат")
-    emp.full_name = kwargs.get("full_name", "Батбаяр Дорж")
-    emp.get_role_display.return_value = kwargs.get("role_display", "Инспектор")
+    emp.first_name = kwargs.get("first_name", "Bat")
+    emp.full_name = kwargs.get("full_name", "Batbayar Dorzh")
+    emp.get_role_display.return_value = kwargs.get("role_display", "Inspector")
     return emp
 
 
