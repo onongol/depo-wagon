@@ -29,23 +29,23 @@ def embed_defect_task(self, defect_id: str) -> None:
             filter(
                 None,
                 [
-                    f"Узел: {defect.get_node_display()}",
-                    f"Тип дефекта: {defect.get_defect_type_display()}",
-                    f"Степень: {defect.get_severity_display()}",
-                    f"Описание: {defect.description}" if defect.description else None,
+                    f"Node: {defect.get_node_display()}",
+                    f"Defect type: {defect.get_defect_type_display()}",
+                    f"Severity: {defect.get_severity_display()}",
+                    f"Description: {defect.description}" if defect.description else None,
                 ],
             )
         )
 
         content_parts = [
-            f"Дефект: {defect.get_node_display()} — {defect.get_defect_type_display()} ({defect.get_severity_display()})",
+            f"Defect: {defect.get_node_display()} — {defect.get_defect_type_display()} ({defect.get_severity_display()})",
         ]
         if defect.description:
-            content_parts.append(f"Описание: {defect.description}")
+            content_parts.append(f"Description: {defect.description}")
         if defect.verdict:
-            content_parts.append(f"Вердикт: {defect.get_verdict_display()}")
+            content_parts.append(f"Verdict: {defect.get_verdict_display()}")
         if defect.ai_recommendation:
-            content_parts.append(f"Рекомендация: {defect.ai_recommendation}")
+            content_parts.append(f"Recommendation: {defect.ai_recommendation}")
 
         content = "\n".join(content_parts)
 
