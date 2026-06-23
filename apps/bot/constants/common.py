@@ -11,6 +11,7 @@ UD_RESP_EMPLOYEES = "_resp_employees"
 UD_RESP_SEARCH = "_resp_search"
 UD_LAST_PHOTO_MSG = "_last_photo_msg"
 UD_EDITING = "_editing"
+UD_AI_CHAT_HISTORY = "_ai_chat_history"
 
 # All user_data keys touched by the defect conversation, cleared on cancel
 DEFECT_USER_DATA_KEYS = (
@@ -36,6 +37,7 @@ PHOTO_MG_JOB_PREFIX = "photo_mg_"
 
 BTN_NEW_DEFECT = _("📋 New Defect")
 BTN_OPEN_DEFECTS = _("📊 Open Defects")
+BTN_ASK = _("🤖 AI Assistant")
 BTN_HELP = _("ℹ️ Help")
 
 BTN_SKIP = _("⏭ Skip")
