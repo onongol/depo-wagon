@@ -66,7 +66,7 @@ def _make_msg_update(text="ABC-123"):
     return update
 
 
-def _make_employee(pk=1, first="Бат", last="Эрдэнэ"):
+def _make_employee(pk=1, first="Bat", last="Erdene"):
     e = MagicMock()
     e.id = pk
     e.first_name = first
@@ -113,8 +113,8 @@ class TestHelpHandler:
 class TestStartHandler:
     def _make_employee(self):
         employee = MagicMock()
-        employee.full_name = "Батбаяр Дорж"
-        employee.get_role_display.return_value = "Инспектор"
+        employee.full_name = "Batbayar Dorzh"
+        employee.get_role_display.return_value = "Inspector"
         employee.role = "inspector"
         return employee
 
@@ -309,19 +309,28 @@ class TestFilterAndPage:
         return [_make_employee(i, *n.split()) for i, n in enumerate(names, 1)]
 
     def test_returns_all_when_no_search(self):
-        emps = self._employees(["Иван Петров", "Петр Иванов", "Анна Сидорова"])
+        emps = self._employees(
+            ["Erdenebayar Soyolerdene", "Lionel Messi", "Sigourney Weaver"]
+        )
         page_emps, total, total_pages, page = _filter_and_page(emps, "", 0)
         assert total == 3
         assert len(page_emps) == 3
 
     def test_filters_by_first_name(self):
-        emps = self._employees(["Иван Петров", "Петр Иванов", "Анна Сидорова"])
-        page_emps, total, _, _ = _filter_and_page(emps, "Иван", 0)
-        assert total == 2
+        emps = self._employees(
+            ["Erdenebayar Soyolerdene", "Lionel Messi", "Sigourney Weaver"]
+        )
+        page_emps, total, _, _ = _filter_and_page(emps, "Erdenebayar", 0)
+        assert total == 1
 
     def test_filters_case_insensitive(self):
-        emps = self._employees(["Иван Петров", "Петр Иванов"])
-        _, total, _, _ = _filter_and_page(emps, "иван", 0)
+        emps = self._employees(
+            [
+                "Erdenebayar Soyolerdene",
+                "Soyolerdene Erdenebayar",
+            ]
+        )
+        _, total, _, _ = _filter_and_page(emps, "erdenebayar", 0)
         assert total == 2
 
     def test_pagination_returns_correct_page_size(self):
@@ -400,7 +409,7 @@ class TestReceiveResponsibleEmployee:
         mock_context.user_data[UD_RESP_EMPLOYEES] = []
         update = _make_cb_update(ResponsibleEmployeeCB(employee_id=7))
 
-        emp = _make_employee(7, "Болд", "Бат")
+        emp = _make_employee(7, "Bold", "Bat")
         with patch(
             "asgiref.sync.sync_to_async",
             return_value=AsyncMock(return_value=emp),
@@ -416,7 +425,7 @@ class TestReceiveResponsibleEmployee:
         mock_context.user_data[UD_RESP_SEARCH] = "query"
         update = _make_cb_update(ResponsibleEmployeeCB(employee_id=1))
 
-        emp = _make_employee(1, "А", "Б")
+        emp = _make_employee(1, "A", "B")
         with patch(
             "asgiref.sync.sync_to_async",
             return_value=AsyncMock(return_value=emp),
@@ -429,13 +438,15 @@ class TestReceiveResponsibleEmployee:
 
 class TestSearchResponsibleEmployee:
     async def test_updates_search_query(self, mock_context):
-        mock_context.user_data[UD_RESP_EMPLOYEES] = [_make_employee(1, "Болд", "Бат")]
+        mock_context.user_data[UD_RESP_EMPLOYEES] = [
+            _make_employee(1, "Bold", "Bindariya")
+        ]
         mock_context.user_data[UD_RESP_SEARCH] = ""
-        update = _make_msg_update("Болд")
+        update = _make_msg_update("Bold")
 
         await search_responsible_employee(update, mock_context)
 
-        assert mock_context.user_data[UD_RESP_SEARCH] == "Болд"
+        assert mock_context.user_data[UD_RESP_SEARCH] == "Bold"
 
     async def test_returns_responsible_employee_state(self, mock_context):
         mock_context.user_data[UD_RESP_EMPLOYEES] = []
