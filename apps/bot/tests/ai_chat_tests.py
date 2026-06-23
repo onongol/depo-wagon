@@ -13,7 +13,7 @@ from apps.bot.states import AI_CHAT
 
 def _make_employee():
     emp = MagicMock()
-    emp.full_name = "Бат Эрдэнэ"
+    emp.full_name = "Bat Erdene"
     emp.get_role_display.return_value = "Inspector"
     emp.role = "inspector"
     return emp
@@ -133,7 +133,7 @@ class TestAiChatStart:
 
 
 class TestAiChatReceive:
-    def _make_update(self, text="Как проверить колёсную пару?"):
+    def _make_update(self, text="How to inspect a wheelset?"):
         update = MagicMock()
         update.message.text = text
         update.effective_user.id = 12345
@@ -173,17 +173,17 @@ class TestAiChatReceive:
         assert result == AI_CHAT
 
     async def test_appends_question_and_answer_to_history(self, mock_context):
-        update, _ = self._make_update("вопрос про ось")
+        update, _ = self._make_update("question about axle")
         mock_context.user_data[UD_AI_CHAT_HISTORY] = []
         with patch(
             "apps.bot.handlers.ai_chat.receive.answer_question",
-            AsyncMock(return_value="ответ про ось"),
+            AsyncMock(return_value="answer about axle"),
         ):
             await ai_chat_receive(update, mock_context)
 
         history = mock_context.user_data[UD_AI_CHAT_HISTORY]
-        assert {"role": "user", "content": "вопрос про ось"} in history
-        assert {"role": "model", "content": "ответ про ось"} in history
+        assert {"role": "user", "content": "question about axle"} in history
+        assert {"role": "model", "content": "answer about axle"} in history
 
     async def test_history_grows_by_two_per_turn(self, mock_context):
         update, _ = self._make_update()
@@ -287,10 +287,10 @@ class TestAiChatReceive:
         assert mock_context.user_data[UD_AI_CHAT_HISTORY] == []
 
     async def test_passes_existing_history_to_answer_question(self, mock_context):
-        update, _ = self._make_update("новый вопрос")
+        update, _ = self._make_update("new question")
         existing = [
-            {"role": "user", "content": "старый"},
-            {"role": "model", "content": "ответ"},
+            {"role": "user", "content": "previous question"},
+            {"role": "model", "content": "previous answer"},
         ]
         mock_context.user_data[UD_AI_CHAT_HISTORY] = list(existing)
         answer_mock = AsyncMock(return_value="ok")
