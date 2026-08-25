@@ -4,7 +4,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script src="{% static 'js/theme_init-bundle.js' %}"></script>
+    {% include "web/includes/theme_init.html" %}
     <link rel="stylesheet" href="{% vite_asset 'assets/src/styles.css' %}" />
     <title>{% trans "Sign In" %} — Depo Wagon</title>
   </head>

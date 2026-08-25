@@ -1,0 +1,7 @@
+<script>
+  try {
+    var saved = localStorage.getItem("theme");
+    var prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    document.documentElement.classList.toggle("dark", saved === "dark" || (!saved && prefersDark));
+  } catch (e) {}
+</script>

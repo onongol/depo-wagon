@@ -5,8 +5,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Depo Wagon — wagon defect tracking and management system." />
-    <!-- Prevent theme flash -->
-    <script src="{% static 'js/theme_init-bundle.js' %}"></script>
+    {% include "web/includes/theme_init.html" %}
     <link rel="icon" type="image/x-icon" href="{% static 'images/favicon.ico' %}" />
     <!-- Tailwind + custom styles -->
     <link rel="stylesheet" href="{% vite_asset 'assets/src/styles.css' %}" />
