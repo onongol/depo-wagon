@@ -5,10 +5,3 @@ window.Alpine = Alpine;
 Alpine.start();
 
 import "./theme/theme_switcher";
-
-// Replaced by Alpine.js:
-// import "./sidebar/sidebar_toggle";
-// import "./alert/alert_close";
-// import "./alert/auto_hide_alert";
-// import "./filters/filter_toggle";
-// import "./modals/modals";
