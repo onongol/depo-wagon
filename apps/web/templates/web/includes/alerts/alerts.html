@@ -1,18 +1,18 @@
 {% load i18n %}
 {% if messages %}
-    <div class="pointer-events-none fixed inset-x-0 bottom-4 z-40 flex flex-col items-center gap-2 p-4">
-        {% for message in messages %}
-            <div class="pointer-events-auto w-full md:max-w-md">
-                {% if message.tags == 'success' %}
-                    {% include "web/includes/alerts/alerts_success.html" with message=message %}
-                {% elif message.tags == 'warning' %}
-                    {% include "web/includes/alerts/alerts_warning.html" with message=message %}
-                {% elif message.tags == 'error' %}
-                    {% include "web/includes/alerts/alerts_error.html" with message=message %}
-                {% else %}
-                    {% include "web/includes/alerts/alerts_info.html" with message=message %}
-                {% endif %}
-            </div>
-        {% endfor %}
-    </div>
+  <div class="pointer-events-none fixed inset-x-0 bottom-4 z-40 flex flex-col items-center gap-2 p-4">
+    {% for message in messages %}
+      <div class="pointer-events-auto w-full md:max-w-md">
+        {% if message.tags == 'success' %}
+          {% include "web/includes/alerts/alerts_success.html" with message=message %}
+        {% elif message.tags == 'warning' %}
+          {% include "web/includes/alerts/alerts_warning.html" with message=message %}
+        {% elif message.tags == 'error' %}
+          {% include "web/includes/alerts/alerts_error.html" with message=message %}
+        {% else %}
+          {% include "web/includes/alerts/alerts_info.html" with message=message %}
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
 {% endif %}

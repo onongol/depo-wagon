@@ -1,32 +1,47 @@
 {% extends "web/base.html" %}
 {% load i18n %}
 {% block title %}
-    {% trans "Dashboard" %} — Depo Wagon
+  {% trans "Dashboard" %}
+  — Depo Wagon
 {% endblock %}
 {% block content %}
-    <h1 class="mb-6 text-xl font-semibold text-gray-700 dark:text-gray-300">{% trans "Dashboard" %}</h1>
-    <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <a href="{% url 'web:wagon_list' %}"
-           class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-gray-700 dark:bg-gray-800">
-            <p class="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">{% trans "Total Wagons" %}</p>
-            <p class="mt-2 text-3xl font-bold text-gray-800 dark:text-gray-200">{{ stats.total_wagons }}</p>
-        </a>
-        <a href="{% url 'web:defect_list' %}?status=open"
-           class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-gray-700 dark:bg-gray-800">
-            <p class="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">{% trans "Open Defects" %}</p>
-            <p class="mt-2 text-3xl font-bold text-red-600 dark:text-red-400">{{ stats.open_defects }}</p>
-        </a>
-        <a href="{% url 'web:wagon_list' %}"
-           class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-gray-700 dark:bg-gray-800">
-            <p class="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">{% trans "Repair Due" %}</p>
-            <p class="mt-2 text-3xl font-bold text-yellow-600 dark:text-yellow-400">{{ stats.repair_due }}</p>
-        </a>
-        <a href="{% url 'web:employee_list' %}?is_active=1"
-           class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-gray-700 dark:bg-gray-800">
-            <p class="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
-                {% trans "Active Employees" %}
-            </p>
-            <p class="mt-2 text-3xl font-bold text-gray-800 dark:text-gray-200">{{ stats.total_employees }}</p>
-        </a>
-    </div>
+  <h1 class="mb-6 text-xl font-semibold text-gray-700 dark:text-gray-300">{% trans "Dashboard" %}</h1>
+  <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+    <a
+      href="{% url 'web:wagon_list' %}"
+      class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-gray-700 dark:bg-gray-800"
+    >
+      <p class="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+        {% trans "Total Wagons" %}
+      </p>
+      <p class="mt-2 text-3xl font-bold text-gray-800 dark:text-gray-200">{{ stats.total_wagons }}</p>
+    </a>
+    <a
+      href="{% url 'web:defect_list' %}?status=open"
+      class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-gray-700 dark:bg-gray-800"
+    >
+      <p class="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+        {% trans "Open Defects" %}
+      </p>
+      <p class="mt-2 text-3xl font-bold text-red-600 dark:text-red-400">{{ stats.open_defects }}</p>
+    </a>
+    <a
+      href="{% url 'web:wagon_list' %}"
+      class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-gray-700 dark:bg-gray-800"
+    >
+      <p class="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+        {% trans "Repair Due" %}
+      </p>
+      <p class="mt-2 text-3xl font-bold text-yellow-600 dark:text-yellow-400">{{ stats.repair_due }}</p>
+    </a>
+    <a
+      href="{% url 'web:employee_list' %}?is_active=1"
+      class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-gray-700 dark:bg-gray-800"
+    >
+      <p class="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">
+        {% trans "Active Employees" %}
+      </p>
+      <p class="mt-2 text-3xl font-bold text-gray-800 dark:text-gray-200">{{ stats.total_employees }}</p>
+    </a>
+  </div>
 {% endblock %}

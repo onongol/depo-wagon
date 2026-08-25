@@ -1,23 +1,21 @@
 <div class="relative">
-    <select name="{{ name }}"
-            {% if url %}
-                hx-trigger="change" 
-                hx-get="{{ url }}" 
-                hx-target="{{ target }}" 
-                hx-push-url="true" 
-                hx-include="closest form"
-            {% endif %}
-            class="w-full cursor-pointer appearance-none rounded-xl border border-gray-300 bg-gray-100 py-2 pr-8 pl-4 text-sm text-gray-700 transition focus:border-gray-400 focus:ring-2 focus:ring-gray-400 focus:outline-none sm:w-44 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300">
-        {% if placeholder %}
-            <option value="">{{ placeholder }}</option>
-        {% endif %}
-        {% for value, label in choices %}
-            <option value="{{ value }}" {% if value == selected %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-    </select>
-    <div class="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-gray-500 dark:text-gray-400">
-        <svg class="size-4" aria-hidden="true">
-            <use href="#chevron-down"></use>
-        </svg>
-    </div>
+  <select
+    name="{{ name }}"
+    {% if url %}
+      hx-trigger="change" hx-get="{{ url }}" hx-target="{{ target }}" hx-push-url="true" hx-include="closest form"
+    {% endif %}
+    class="w-full cursor-pointer appearance-none rounded-xl border border-gray-300 bg-gray-100 py-2 pr-8 pl-4 text-sm text-gray-700 transition focus:border-gray-400 focus:ring-2 focus:ring-gray-400 focus:outline-none sm:w-44 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+  >
+    {% if placeholder %}
+      <option value="">{{ placeholder }}</option>
+    {% endif %}
+    {% for value, label in choices %}
+      <option value="{{ value }}" {% if value == selected %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <div class="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-gray-500 dark:text-gray-400">
+    <svg class="size-4" aria-hidden="true">
+      <use href="#chevron-down"></use>
+    </svg>
+  </div>
 </div>

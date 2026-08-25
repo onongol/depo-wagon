@@ -1,41 +1,37 @@
 {% load static i18n vite %}
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta name="description"
-              content="Depo Wagon — wagon defect tracking and management system." />
-        <!-- Prevent theme flash -->
-        <script src="{% static 'js/theme_init-bundle.js' %}"></script>
-        <link rel="icon"
-              type="image/x-icon"
-              href="{% static 'images/favicon.ico' %}" />
-        <!-- Tailwind + custom styles -->
-        <link rel="stylesheet" href="{% vite_asset 'assets/src/styles.css' %}" />
-        <!-- Flatpickr styles -->
-        <link rel="stylesheet" href="{% vite_css 'assets/src/flatpickr_init.ts' %}" />
-        <title>{% block title %}Depo Wagon{% endblock %}</title>
-    </head>
-    <body id="app"
-          x-data="{
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Depo Wagon — wagon defect tracking and management system." />
+    <!-- Prevent theme flash -->
+    <script src="{% static 'js/theme_init-bundle.js' %}"></script>
+    <link rel="icon" type="image/x-icon" href="{% static 'images/favicon.ico' %}" />
+    <!-- Tailwind + custom styles -->
+    <link rel="stylesheet" href="{% vite_asset 'assets/src/styles.css' %}" />
+    <!-- Flatpickr styles -->
+    <link rel="stylesheet" href="{% vite_css 'assets/src/flatpickr_init.ts' %}" />
+    <title>{% block title %}Depo Wagon{% endblock %}</title>
+  </head>
+  <body
+    id="app"
+    x-data="{
               sidebarOpen: false,
               desktopOpen: localStorage.getItem('desktopSidebar') !== 'false',
               toggleDesktop() { this.desktopOpen = !this.desktopOpen; localStorage.setItem('desktopSidebar', this.desktopOpen); }
           }"
-          class="bg-white dark:bg-gray-900">
-        {% include "web/includes/svg_symbols.html" %}
-        {% include "web/base/navbar.html" %}
-        {% include "web/base/sidebar.html" %}
-        <main class="min-h-screen pt-14 transition-[padding] duration-200"
-              :class="desktopOpen ? 'lg:pl-56' : 'lg:pl-16'">
-            <div class="mx-auto max-w-7xl px-4 py-6 md:py-8">
-                {% block content %}{% endblock %}
-            </div>
-        </main>
-        {% include "web/includes/alerts/alerts.html" %}
-        <script src="{% static 'js/flatpickr-bundle.js' %}"></script>
-        <script type="module" src="{% static 'js/main-bundle.js' %}"></script>
-        {% block extra_js %}{% endblock %}
-    </body>
+    class="bg-white dark:bg-gray-900"
+  >
+    {% include "web/includes/svg_symbols.html" %}
+    {% include "web/base/navbar.html" %}
+    {% include "web/base/sidebar.html" %}
+    <main class="min-h-screen pt-14 transition-[padding] duration-200" :class="desktopOpen ? 'lg:pl-56' : 'lg:pl-16'">
+      <div class="mx-auto max-w-7xl px-4 py-6 md:py-8">{% block content %}{% endblock %}</div>
+    </main>
+    {% include "web/includes/alerts/alerts.html" %}
+    <script src="{% static 'js/flatpickr-bundle.js' %}"></script>
+    <script type="module" src="{% static 'js/main-bundle.js' %}"></script>
+    {% block extra_js %}{% endblock %}
+  </body>
 </html>

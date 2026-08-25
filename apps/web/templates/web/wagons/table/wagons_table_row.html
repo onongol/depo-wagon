@@ -1,38 +1,47 @@
 {% load i18n %}
 <td class="w-10 px-4 py-3">
-    <label class="relative inline-flex size-4 cursor-pointer items-center justify-center">
-        <input type="checkbox"
-               class="wagon-cb peer size-4 shrink-0 cursor-pointer appearance-none rounded-md border border-gray-300 bg-white transition-colors checked:border-blue-500 checked:bg-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-0 dark:border-gray-600 dark:bg-gray-700"
-               value="{{ row.pk }}"
-               x-model="selected">
-        <svg class="pointer-events-none absolute hidden size-3 text-white peer-checked:block" aria-hidden="true">
-            <use href="#check"></use>
-        </svg>
-    </label>
+  <label class="relative inline-flex size-4 cursor-pointer items-center justify-center">
+    <input
+      type="checkbox"
+      class="wagon-cb peer size-4 shrink-0 cursor-pointer appearance-none rounded-md border border-gray-300 bg-white transition-colors checked:border-blue-500 checked:bg-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-0 dark:border-gray-600 dark:bg-gray-700"
+      value="{{ row.pk }}"
+      x-model="selected"
+    />
+    <svg class="pointer-events-none absolute hidden size-3 text-white peer-checked:block" aria-hidden="true">
+      <use href="#check"></use>
+    </svg>
+  </label>
 </td>
 <td class="{{ col_class_primary }}">
-    <a href="{% url 'web:wagon_edit' pk=row.pk %}"
-       class="hover:text-blue-500 hover:underline">{{ row.number }}</a>
+  <a href="{% url 'web:wagon_edit' pk=row.pk %}" class="hover:text-blue-500 hover:underline">{{ row.number }}</a>
 </td>
 <td class="{{ col_class_md }}">{{ row.get_wagon_type_display }}</td>
 <td class="{{ col_class }}">{% component "wagon_status_badge" wagon=row %}{% endcomponent %}</td>
 <td class="{{ col_class_lg }}">{{ row.manufacture_year }}</td>
 <td class="{{ col_class_lg }}">
-    {% if row.next_repair_date %}
-        <span class="{% if row.next_repair_date <= today %}font-medium text-red-600 dark:text-red-400{% elif row.needs_repair_soon %}font-medium text-yellow-600 dark:text-yellow-400{% endif %}">
-            {{ row.next_repair_date|date:"d.m.Y" }}
-        </span>
-    {% else %}
-        <span class="text-gray-400">—</span>
-    {% endif %}
+  {% if row.next_repair_date %}
+    <span
+      class="{% if row.next_repair_date <= today %}
+        font-medium text-red-600 dark:text-red-400
+      {% elif row.needs_repair_soon %}
+        font-medium text-yellow-600 dark:text-yellow-400
+      {% endif %}"
+    >
+      {{ row.next_repair_date|date:"d.m.Y" }}
+    </span>
+  {% else %}
+    <span class="text-gray-400">—</span>
+  {% endif %}
 </td>
 <td class="{{ col_class_xl }}">{{ row.mileage_km|default:"—" }}</td>
 <td class="{{ col_class_center }}">
-    {% if row.open_defects > 0 %}
-        <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-100 text-xs font-semibold text-red-700 dark:bg-red-500/20 dark:text-red-400">
-            {{ row.open_defects }}
-        </span>
-    {% else %}
-        <span class="text-gray-400">—</span>
-    {% endif %}
+  {% if row.open_defects > 0 %}
+    <span
+      class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-100 text-xs font-semibold text-red-700 dark:bg-red-500/20 dark:text-red-400"
+    >
+      {{ row.open_defects }}
+    </span>
+  {% else %}
+    <span class="text-gray-400">—</span>
+  {% endif %}
 </td>

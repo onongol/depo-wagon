@@ -1,26 +1,29 @@
 {% load i18n %}
-<div x-show="confirmOpen"
-     x-cloak
-     @keydown.escape.window="confirmOpen = false"
-     class="fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="absolute inset-0 bg-black/40 backdrop-blur-sm"
-         @click="confirmOpen = false"></div>
-    <div class="relative z-10 w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-900">
-        <h2 class="text-base font-semibold text-gray-800 dark:text-gray-200">{% trans "Save Changes" %}</h2>
-        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            {% trans "Save changes to this wagon?" %}
-        </p>
-        <div class="mt-5 flex justify-end gap-3">
-            <button type="button"
-                    @click="confirmOpen = false"
-                    class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700">
-                {% trans "Cancel" %}
-            </button>
-            <button type="button"
-                    @click="$refs.editForm.submit()"
-                    class="rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-600">
-                {% trans "Save" %}
-            </button>
-        </div>
+<div
+  x-show="confirmOpen"
+  x-cloak
+  @keydown.escape.window="confirmOpen = false"
+  class="fixed inset-0 z-50 flex items-center justify-center p-4"
+>
+  <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="confirmOpen = false"></div>
+  <div class="relative z-10 w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-900">
+    <h2 class="text-base font-semibold text-gray-800 dark:text-gray-200">{% trans "Save Changes" %}</h2>
+    <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">{% trans "Save changes to this wagon?" %}</p>
+    <div class="mt-5 flex justify-end gap-3">
+      <button
+        type="button"
+        @click="confirmOpen = false"
+        class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+      >
+        {% trans "Cancel" %}
+      </button>
+      <button
+        type="button"
+        @click="$refs.editForm.submit()"
+        class="rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-600"
+      >
+        {% trans "Save" %}
+      </button>
     </div>
+  </div>
 </div>

@@ -2,16 +2,16 @@
 {% load i18n %}
 {% block title %}{% trans "Wagons" %} — {{ block.super }}{% endblock %}
 {% block content %}
-    {% url 'web:wagon_add' as wagon_add_url %}
-    {% url 'web:wagon_list' as wagon_list_url %}
-    {% include "web/includes/list/list_header.html" with title=_("Wagons") add_url=wagon_add_url %}
-    <div x-data="{ selected: [], deleteModalOpen: false }"
-         @htmx:after-swap.window="if ($event.detail.target?.id === 'wagons-results') selected = []"
-         @keydown.escape.window="if (!deleteModalOpen) selected = []">
-        {% include "web/wagons/filters.html" %}
-        <div id="wagons-results">
-            {% include "web/wagons/table/wagons_table.html" %}
-        </div>
-        {% include "web/wagons/modals/delete_modal.html" %}
-    </div>
+  {% url 'web:wagon_add' as wagon_add_url %}
+  {% url 'web:wagon_list' as wagon_list_url %}
+  {% include "web/includes/list/list_header.html" with title=_("Wagons") add_url=wagon_add_url %}
+  <div
+    x-data="{ selected: [], deleteModalOpen: false }"
+    @htmx:after-swap.window="if ($event.detail.target?.id === 'wagons-results') selected = []"
+    @keydown.escape.window="if (!deleteModalOpen) selected = []"
+  >
+    {% include "web/wagons/filters.html" %}
+    <div id="wagons-results">{% include "web/wagons/table/wagons_table.html" %}</div>
+    {% include "web/wagons/modals/delete_modal.html" %}
+  </div>
 {% endblock %}
