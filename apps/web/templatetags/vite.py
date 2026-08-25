@@ -28,14 +28,3 @@ def vite_asset(entry: str) -> str:
     if entry in manifest:
         return static(manifest[entry]["file"])
     return static(entry)
-
-
-@register.simple_tag
-def vite_css(entry: str) -> str:
-    """Return the CSS file linked by a JS entry (e.g. flatpickr CSS)."""
-    manifest = _get_manifest()
-    if entry in manifest:
-        css_files = manifest[entry].get("css", [])
-        if css_files:
-            return static(css_files[0])
-    return ""

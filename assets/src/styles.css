@@ -9,29 +9,3 @@
 @source "../../apps/**/*.py";
 
 @custom-variant dark (&:where(.dark, .dark *));
-
-@import "./flatpickr_custom.css";
-
-:root {
-  --fp-bg: #f8fafc;
-  --fp-text: #364153;
-  --fp-muted: #6b7280;
-  --fp-accent: #60a5fa;
-  --fp-border: #e5e7eb;
-  --fp-hover: #e5e7eb;
-  --fp-selected-text: #ffffff;
-  --fp-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
-  --fp-range-bg: #e5e7eb;
-}
-
-html.dark {
-  --fp-bg: #1e293b;
-  --fp-text: #99a1af;
-  --fp-muted: #6b7280;
-  --fp-accent: #60a5fa;
-  --fp-border: #334155;
-  --fp-hover: rgba(255, 255, 255, 0.07);
-  --fp-selected-text: #ffffff;
-  --fp-shadow: 0 6px 18px rgba(2, 6, 23, 0.6);
-  --fp-range-bg: #334155;
-}

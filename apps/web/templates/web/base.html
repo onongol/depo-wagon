@@ -9,8 +9,6 @@
     <link rel="icon" type="image/x-icon" href="{% static 'images/favicon.ico' %}" />
     <!-- Tailwind + custom styles -->
     <link rel="stylesheet" href="{% vite_asset 'assets/src/styles.css' %}" />
-    <!-- Flatpickr styles -->
-    <link rel="stylesheet" href="{% vite_css 'assets/src/flatpickr_init.ts' %}" />
     <title>{% block title %}Depo Wagon{% endblock %}</title>
   </head>
   <body
@@ -29,7 +27,6 @@
       <div class="mx-auto max-w-7xl px-4 py-6 md:py-8">{% block content %}{% endblock %}</div>
     </main>
     {% include "web/includes/alerts/alerts.html" %}
-    <script src="{% static 'js/flatpickr-bundle.js' %}"></script>
     <script type="module" src="{% static 'js/main-bundle.js' %}"></script>
     {% block extra_js %}{% endblock %}
   </body>
