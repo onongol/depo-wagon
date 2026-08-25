@@ -1,0 +1,25 @@
+{% load i18n table_tags %}
+{% sort_url field as url %}
+<a href="{{ url }}"
+   hx-get="{{ url }}"
+   hx-target="{{ htmx_target }}"
+   hx-push-url="true"
+   class="group inline-flex items-center gap-1">
+    <span>{{ label }}</span>
+    {% if request.GET.order_by == field %}
+        {% if request.GET.direction == 'desc' %}
+            <svg class="size-3.5 text-gray-500 dark:text-gray-400" aria-hidden="true">
+                <use href="#sort-desc"></use>
+            </svg>
+        {% else %}
+            <svg class="size-3.5 text-gray-500 dark:text-gray-400" aria-hidden="true">
+                <use href="#sort-asc"></use>
+            </svg>
+        {% endif %}
+    {% else %}
+        <svg class="size-3.5 text-gray-300 group-hover:text-gray-500 dark:text-gray-600 dark:group-hover:text-gray-400"
+             aria-hidden="true">
+            <use href="#order-by"></use>
+        </svg>
+    {% endif %}
+</a>

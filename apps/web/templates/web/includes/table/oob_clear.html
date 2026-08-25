@@ -1,0 +1,11 @@
+{% load i18n %}
+{% if request.META.HTTP_HX_REQUEST %}
+    <div id="{{ clear_id }}" hx-swap-oob="true">
+        {% if has_active_filters %}
+            <a href="{{ clear_url }}"
+               class="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-50 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                {% trans "Clear" %}
+            </a>
+        {% endif %}
+    </div>
+{% endif %}

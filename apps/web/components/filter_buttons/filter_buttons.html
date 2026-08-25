@@ -1,0 +1,15 @@
+{% load i18n %}
+<div class="flex items-center gap-2">
+    <button type="submit"
+            class="cursor-pointer rounded-xl bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-300 focus:ring-2 focus:ring-gray-300 focus:outline-none dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600">
+        {% trans "Filter" %}
+    </button>
+    <div id="{{ clear_id }}">
+        {% if has_active_filters %}
+            <a href="{{ clear_url }}"
+               class="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-50 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                {% trans "Clear" %}
+            </a>
+        {% endif %}
+    </div>
+</div>

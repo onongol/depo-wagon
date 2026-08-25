@@ -1,0 +1,35 @@
+{% extends "web/base.html" %}
+{% load i18n %}
+{% block title %}
+    {% trans "Add Wagon" %} — {{ block.super }}
+{% endblock %}
+{% block content %}
+    {% url 'web:wagon_list' as back_url %}
+    {% include "web/includes/form/add/form_header.html" with back_url=back_url %}
+    <form method="post" class="mx-auto max-w-2xl">
+        {% csrf_token %}
+        {% with grid_2="grid grid-cols-1 gap-5 sm:grid-cols-2" %}
+            <div class="space-y-5 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                <div class="{{ grid_2 }}">
+                    {% include "web/includes/form/form_field.html" with field=form.number %}
+                    {% include "web/includes/form/form_field.html" with field=form.wagon_type %}
+                </div>
+                <div class="{{ grid_2 }}">
+                    {% include "web/includes/form/form_field.html" with field=form.manufacture_year %}
+                    {% include "web/includes/form/form_field.html" with field=form.status %}
+                </div>
+                <div class="{{ grid_2 }}">
+                    {% include "web/includes/form/form_field.html" with field=form.repair_type %}
+                    {% include "web/includes/form/form_field.html" with field=form.mileage_km %}
+                </div>
+                <div class="{{ grid_2 }}">
+                    {% include "web/includes/form/form_field.html" with field=form.last_repair_date %}
+                    {% include "web/includes/form/form_field.html" with field=form.next_repair_date %}
+                </div>
+                {% include "web/includes/form/form_field.html" with field=form.owner %}
+                {% include "web/includes/form/form_field.html" with field=form.notes %}
+            </div>
+        {% endwith %}
+        {% include "web/includes/form/form_actions.html" with cancel_url=back_url %}
+    </form>
+{% endblock %}

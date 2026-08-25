@@ -1,0 +1,48 @@
+<!-- Mobile overlay -->
+<div x-show="sidebarOpen"
+     x-cloak
+     @click="sidebarOpen = false"
+     class="fixed inset-0 z-50 bg-black/50 transition-opacity lg:hidden"></div>
+<!-- Mobile sidebar (slide-in) -->
+<aside x-show="sidebarOpen"
+       x-cloak
+       x-transition:enter="transition-transform duration-200"
+       x-transition:enter-start="-translate-x-full"
+       x-transition:enter-end="translate-x-0"
+       x-transition:leave="transition-transform duration-200"
+       x-transition:leave-start="translate-x-0"
+       x-transition:leave-end="-translate-x-full"
+       class="fixed inset-y-0 left-0 z-50 w-64 bg-gray-50 shadow lg:hidden dark:bg-gray-800">
+    <div class="h-full overflow-y-auto px-4 py-2">
+        <div class="mb-4 flex items-center gap-2">
+            <button type="button"
+                    @click="sidebarOpen = false"
+                    class="inline-flex cursor-pointer items-center justify-center rounded-md p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700">
+                <svg class="size-5" aria-hidden="true"><use href="#close"></use></svg>
+            </button>
+            {% include "web/base/navbar/logo.html" %}
+        </div>
+        <!-- desktopOpen: true — mobile always shows full text -->
+        <div x-data="{ desktopOpen: true }">
+            {% include "web/base/sidebar/sidebar_menu.html" %}
+        </div>
+    </div>
+</aside>
+<!-- Desktop sidebar -->
+<aside class="fixed inset-y-0 left-0 z-40 hidden overflow-hidden border-r border-gray-200 bg-gray-50 pt-14 transition-[width] duration-200 lg:flex lg:flex-col dark:border-gray-700 dark:bg-gray-800"
+       :class="desktopOpen ? 'w-56' : 'w-16'">
+    <div class="flex-1 overflow-y-auto overflow-x-hidden px-2 py-4">
+        {% include "web/base/sidebar/sidebar_menu.html" %}
+    </div>
+    <!-- Toggle button -->
+    <div class="border-t border-gray-200 p-2 dark:border-gray-700">
+        <button type="button"
+                @click="toggleDesktop()"
+                class="flex w-full cursor-pointer items-center justify-center rounded-lg p-2 text-gray-500 transition hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+                :title="desktopOpen ? '' : 'Expand sidebar'">
+            <svg class="size-5" aria-hidden="true">
+                <use :href="desktopOpen ? '#panel-open' : '#panel-closed'"></use>
+            </svg>
+        </button>
+    </div>
+</aside>

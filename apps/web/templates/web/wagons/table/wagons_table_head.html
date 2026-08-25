@@ -1,0 +1,28 @@
+{% load i18n %}
+{% with target="#wagons-results" %}
+    <th class="w-10 px-4 py-3">
+        <label class="relative inline-flex size-4 cursor-pointer items-center justify-center">
+            <input type="checkbox"
+                   class="peer size-4 shrink-0 cursor-pointer appearance-none rounded-md border border-gray-300 bg-white transition-colors checked:border-blue-500 checked:bg-blue-500 indeterminate:border-blue-500 indeterminate:bg-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-0 dark:border-gray-600 dark:bg-gray-700"
+                   @click="selected = selected.length > 0 ? [] : [...document.querySelectorAll('.wagon-cb')].map((cb) => cb.value)"
+                   x-effect="
+                       $el.checked = selected.length > 0 && selected.length === document.querySelectorAll('.wagon-cb').length;
+                       $el.indeterminate = selected.length > 0 && selected.length < document.querySelectorAll('.wagon-cb').length;
+                   "
+                   aria-label="{% trans 'Select all' %}">
+            <svg class="pointer-events-none absolute hidden size-3 text-white peer-checked:block" aria-hidden="true">
+                <use href="#check"></use>
+            </svg>
+            <svg class="pointer-events-none absolute hidden size-3 text-white peer-indeterminate:block" aria-hidden="true">
+                <use href="#minus"></use>
+            </svg>
+        </label>
+    </th>
+    <th class="{{ col_class }}">{% include "web/includes/table/sort_column.html" with label=_("Number") field="number" htmx_target=target %}</th>
+    <th class="{{ col_class_md }}">{% trans "Type" %}</th>
+    <th class="{{ col_class }}">{% trans "Status" %}</th>
+    <th class="{{ col_class_lg }}">{% include "web/includes/table/sort_column.html" with label=_("Year") field="manufacture_year" htmx_target=target %}</th>
+    <th class="{{ col_class_lg }}">{% include "web/includes/table/sort_column.html" with label=_("Next Repair") field="next_repair_date" htmx_target=target %}</th>
+    <th class="{{ col_class_xl }}">{% trans "Mileage" %}</th>
+    <th class="{{ col_class_center }}">{% trans "Defects" %}</th>
+{% endwith %}

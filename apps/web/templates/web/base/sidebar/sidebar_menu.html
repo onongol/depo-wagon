@@ -1,0 +1,53 @@
+{% load i18n %}
+{% url 'web:home' as url_home %}
+{% url 'web:dashboard' as url_dashboard %}
+{% url 'web:wagon_list' as url_wagons %}
+{% url 'web:defect_list' as url_defects %}
+{% url 'web:employee_list' as url_employees %}
+{% url 'web:document_list' as url_documents %}
+{% with request.path as path %}
+    <nav class="mt-4 space-y-1" aria-label="Sidebar navigation">
+        <a href="{{ url_home }}"
+           :class="desktopOpen ? 'px-3 gap-3' : 'justify-center px-0'"
+           :title="desktopOpen ? '' : '{% trans "Home" %}'"
+           class="{% if path == url_home %}bg-blue-50 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400{% else %}text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700{% endif %} flex items-center rounded-lg py-2 text-sm font-medium transition">
+            <svg class="size-5 shrink-0" aria-hidden="true"><use href="#home"></use></svg>
+            <span x-show="desktopOpen" x-cloak class="truncate">{% trans "Home" %}</span>
+        </a>
+        <a href="{{ url_dashboard }}"
+           :class="desktopOpen ? 'px-3 gap-3' : 'justify-center px-0'"
+           :title="desktopOpen ? '' : '{% trans "Dashboard" %}'"
+           class="{% if path == url_dashboard %}bg-blue-50 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400{% else %}text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700{% endif %} flex items-center rounded-lg py-2 text-sm font-medium transition">
+            <svg class="size-5 shrink-0" aria-hidden="true"><use href="#chart-bar"></use></svg>
+            <span x-show="desktopOpen" x-cloak class="truncate">{% trans "Dashboard" %}</span>
+        </a>
+        <a href="{{ url_wagons }}"
+           :class="desktopOpen ? 'px-3 gap-3' : 'justify-center px-0'"
+           :title="desktopOpen ? '' : '{% trans "Wagons" %}'"
+           class="{% if url_wagons in path %}bg-blue-50 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400{% else %}text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700{% endif %} flex items-center rounded-lg py-2 text-sm font-medium transition">
+            <svg class="size-5 shrink-0" aria-hidden="true"><use href="#wagon"></use></svg>
+            <span x-show="desktopOpen" x-cloak class="truncate">{% trans "Wagons" %}</span>
+        </a>
+        <a href="{{ url_defects }}"
+           :class="desktopOpen ? 'px-3 gap-3' : 'justify-center px-0'"
+           :title="desktopOpen ? '' : '{% trans "Defects" %}'"
+           class="{% if url_defects in path %}bg-blue-50 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400{% else %}text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700{% endif %} flex items-center rounded-lg py-2 text-sm font-medium transition">
+            <svg class="size-5 shrink-0" aria-hidden="true"><use href="#warning"></use></svg>
+            <span x-show="desktopOpen" x-cloak class="truncate">{% trans "Defects" %}</span>
+        </a>
+        <a href="{{ url_employees }}"
+           :class="desktopOpen ? 'px-3 gap-3' : 'justify-center px-0'"
+           :title="desktopOpen ? '' : '{% trans "Employees" %}'"
+           class="{% if url_employees in path %}bg-blue-50 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400{% else %}text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700{% endif %} flex items-center rounded-lg py-2 text-sm font-medium transition">
+            <svg class="size-5 shrink-0" aria-hidden="true"><use href="#users"></use></svg>
+            <span x-show="desktopOpen" x-cloak class="truncate">{% trans "Employees" %}</span>
+        </a>
+        <a href="{{ url_documents }}"
+           :class="desktopOpen ? 'px-3 gap-3' : 'justify-center px-0'"
+           :title="desktopOpen ? '' : '{% trans "Documents" %}'"
+           class="{% if url_documents in path %}bg-blue-50 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400{% else %}text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700{% endif %} flex items-center rounded-lg py-2 text-sm font-medium transition">
+            <svg class="size-5 shrink-0" aria-hidden="true"><use href="#document"></use></svg>
+            <span x-show="desktopOpen" x-cloak class="truncate">{% trans "Documents" %}</span>
+        </a>
+    </nav>
+{% endwith %}
