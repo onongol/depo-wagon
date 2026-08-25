@@ -1,7 +1,0 @@
-{
-  "hooks": {
-    "PostToolUse": [
-      {"matcher": "Edit|Write", "hooks": [{"type": "command", "command": "python manage.py test --failfast 2>&1 | tail -20"}]}
-    ]
-  }
-}
