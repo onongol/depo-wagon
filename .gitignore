@@ -86,8 +86,12 @@ id_ecdsa
 id_ed25519
 
 # Django static build output (root only)
-# Adjust if your STATIC_ROOT differs
 /staticfiles/
+
+# Vite build output (committed only if deploying without build step)
+/static/assets/
+/static/js/
+/static/manifest.json
 
 # Misc
 *.bak
