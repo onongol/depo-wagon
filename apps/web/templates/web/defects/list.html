@@ -1,0 +1,173 @@
+{% extends "web/base.html" %}
+{% load i18n %}
+{% block title %}
+    {% trans "Defects" %} — Depo Wagon
+{% endblock %}
+{% block content %}
+    {% include "web/includes/list/list_header.html" with title=_("Defects") subtitle=_("Defect registry with AI analysis") %}
+    <!-- Search + Filters -->
+    <form method="get"
+          class="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+        <!-- Search by wagon number -->
+        <div class="relative min-w-48 flex-1">
+            <input type="text"
+                   name="q"
+                   value="{{ q }}"
+                   placeholder="{% trans 'Search by wagon number…' %}"
+                   class="block w-full rounded-xl border border-gray-300 bg-gray-100 px-4 py-2 text-sm text-gray-700 placeholder-gray-400 transition focus:border-gray-400 focus:ring-2 focus:ring-gray-400 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:placeholder-gray-500" />
+        </div>
+        <!-- Status -->
+        <div class="relative">
+            <select name="status"
+                    class="w-full cursor-pointer appearance-none rounded-xl border border-gray-300 bg-gray-100 py-2 pr-8 pl-4 text-sm text-gray-700 transition focus:border-gray-400 focus:ring-2 focus:ring-gray-400 focus:outline-none sm:w-40 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                <option value="">{% trans "All statuses" %}</option>
+                {% for value, label in status_choices %}
+                    <option value="{{ value }}"
+                            {% if value == selected_status %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <div class="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-gray-500 dark:text-gray-400">
+                <svg class="size-4" aria-hidden="true">
+                    <use href="#chevron-down"></use>
+                </svg>
+            </div>
+        </div>
+        <!-- Severity -->
+        <div class="relative">
+            <select name="severity"
+                    class="w-full cursor-pointer appearance-none rounded-xl border border-gray-300 bg-gray-100 py-2 pr-8 pl-4 text-sm text-gray-700 transition focus:border-gray-400 focus:ring-2 focus:ring-gray-400 focus:outline-none sm:w-40 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                <option value="">{% trans "All severities" %}</option>
+                {% for value, label in severity_choices %}
+                    <option value="{{ value }}"
+                            {% if value == selected_severity %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <div class="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-gray-500 dark:text-gray-400">
+                <svg class="size-4" aria-hidden="true">
+                    <use href="#chevron-down"></use>
+                </svg>
+            </div>
+        </div>
+        <!-- Type -->
+        <div class="relative">
+            <select name="defect_type"
+                    class="w-full cursor-pointer appearance-none rounded-xl border border-gray-300 bg-gray-100 py-2 pr-8 pl-4 text-sm text-gray-700 transition focus:border-gray-400 focus:ring-2 focus:ring-gray-400 focus:outline-none sm:w-44 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                <option value="">{% trans "All types" %}</option>
+                {% for value, label in type_choices %}
+                    <option value="{{ value }}"
+                            {% if value == selected_defect_type %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <div class="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-gray-500 dark:text-gray-400">
+                <svg class="size-4" aria-hidden="true">
+                    <use href="#chevron-down"></use>
+                </svg>
+            </div>
+        </div>
+        <!-- Buttons -->
+        <div class="flex gap-2">
+            <button type="submit"
+                    class="cursor-pointer rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-800 focus:ring-2 focus:ring-blue-300 focus:outline-none">
+                {% trans "Filter" %}
+            </button>
+            {% if q or selected_status or selected_severity or selected_defect_type %}
+                <a href="{% url 'web:defect_list' %}"
+                   class="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-50 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                    {% trans "Clear" %}
+                </a>
+            {% endif %}
+        </div>
+    </form>
+    <!-- Table -->
+    <div class="overflow-x-auto rounded-md border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <table class="w-full text-left text-sm text-gray-600 dark:text-gray-400"
+               aria-label="{% trans 'Defects table' %}">
+            <thead class="border-b border-gray-200 bg-gray-100 text-xs font-semibold tracking-wide text-gray-600 uppercase dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+                <tr>
+                    <th class="px-4 py-3">{% trans "Wagon" %}</th>
+                    <th class="px-4 py-3">{% trans "Severity" %}</th>
+                    <th class="px-4 py-3">{% trans "Status" %}</th>
+                    <th class="hidden px-4 py-3 md:table-cell">{% trans "Node" %}</th>
+                    <th class="hidden px-4 py-3 md:table-cell">{% trans "Type" %}</th>
+                    <th class="hidden px-4 py-3 lg:table-cell">{% trans "AI Verdict" %}</th>
+                    <th class="hidden px-4 py-3 lg:table-cell">{% trans "Inspector" %}</th>
+                    <th class="hidden px-4 py-3 xl:table-cell">{% trans "Date" %}</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                {% for defect in defects %}
+                    <tr class="transition-colors odd:bg-white hover:bg-blue-50/40 dark:odd:bg-gray-900 dark:hover:bg-gray-800/60">
+                        <!-- Wagon number -->
+                        <td class="px-4 py-3 font-medium text-gray-800 dark:text-gray-200">{{ defect.wagon.number }}</td>
+                        <!-- Severity badge -->
+                        <td class="px-4 py-3">
+                            {% with s=defect.severity %}
+                                <span class="{% if s == 'critical' %} bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400 {% elif s == 'high' %} bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400 {% elif s == 'medium' %} bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400 {% else %} bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400 {% endif %} inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold">
+                                    {{ defect.get_severity_display }}
+                                </span>
+                            {% endwith %}
+                        </td>
+                        <!-- Status badge -->
+                        <td class="px-4 py-3">
+                            {% with s=defect.status %}
+                                <span class="{% if s == 'open' %} bg-red-50 text-red-600 ring-1 ring-red-200 dark:bg-red-500/10 dark:text-red-400 dark:ring-red-500/30 {% elif s == 'in_progress' %} bg-amber-50 text-amber-600 ring-1 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:ring-amber-500/30 {% else %} bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 {% endif %} inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium">
+                                    {{ defect.get_status_display }}
+                                </span>
+                            {% endwith %}
+                        </td>
+                        <!-- Node -->
+                        <td class="hidden px-4 py-3 md:table-cell">{{ defect.get_node_display }}</td>
+                        <!-- Defect type -->
+                        <td class="hidden px-4 py-3 md:table-cell">{{ defect.get_defect_type_display }}</td>
+                        <!-- AI Verdict -->
+                        <td class="hidden px-4 py-3 lg:table-cell">
+                            {% if defect.ai_verdict %}
+                                {% with v=defect.ai_verdict %}
+                                    <span class="{% if v == 'repair_now' %} font-semibold text-red-600 dark:text-red-400 {% elif v == 'repair_soon' %} font-semibold text-yellow-600 dark:text-yellow-400 {% elif v == 'decommission' %} font-semibold text-gray-500 dark:text-gray-400 {% else %} text-green-600 dark:text-green-400 {% endif %} inline-flex items-center gap-1 text-xs">
+                                        {% if v == 'repair_now' or v == 'decommission' %}
+                                            <svg class="size-3.5" aria-hidden="true">
+                                                <use href="#warning"></use>
+                                            </svg>
+                                        {% elif v == 'ok' %}
+                                            <svg class="size-3.5" aria-hidden="true">
+                                                <use href="#check"></use>
+                                            </svg>
+                                        {% endif %}
+                                        {{ defect.get_ai_verdict_display }}
+                                    </span>
+                                {% endwith %}
+                            {% else %}
+                                <span class="text-gray-400">—</span>
+                            {% endif %}
+                        </td>
+                        <!-- Inspector -->
+                        <td class="hidden px-4 py-3 lg:table-cell">
+                            {% if defect.inspector %}
+                                {{ defect.inspector.short_name }}
+                            {% else %}
+                                <span class="text-gray-400">—</span>
+                            {% endif %}
+                        </td>
+                        <!-- Date -->
+                        <td class="hidden px-4 py-3 text-gray-500 xl:table-cell dark:text-gray-500">{{ defect.inspected_at|date:"d.m.Y" }}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="8"
+                            class="px-4 py-12 text-center text-gray-400 dark:text-gray-500">
+                            {% if q or selected_status or selected_severity or selected_defect_type %}
+                                {% trans "No defects match the selected filters." %}
+                            {% else %}
+                                {% trans "No defects registered yet." %}
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <!-- Pagination -->
+    {% with page_obj=defects %}
+        {% include "web/includes/pagination/pagination.html" %}
+    {% endwith %}
+{% endblock %}

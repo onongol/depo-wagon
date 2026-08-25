@@ -1,0 +1,10 @@
+{% load i18n %}
+<tr>
+    <td colspan="100" class="px-4 py-12 text-center text-gray-400 dark:text-gray-500">
+        {% if has_active_filters %}
+            {% trans "No records match the selected filters" %}
+        {% else %}
+            {% trans "No records found" %}
+        {% endif %}
+    </td>
+</tr>

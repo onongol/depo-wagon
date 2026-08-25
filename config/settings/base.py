@@ -29,12 +29,15 @@ INSTALLED_APPS = [
     "import_export",
     "simple_history",
     "storages",
+    "widget_tweaks",
+    "django_components",
     # Project apps
     "apps.users",
     "apps.core",
     "apps.defects",
     "apps.bot",
     "apps.ai_service",
+    "apps.web",
 ]
 
 AUTH_USER_MODEL = "users.CustomUser"
@@ -57,12 +60,20 @@ TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
         "DIRS": [BASE_DIR / "templates"],
-        "APP_DIRS": True,
+        "APP_DIRS": False,
         "OPTIONS": {
+            "loaders": [
+                "django.template.loaders.filesystem.Loader",
+                "django.template.loaders.app_directories.Loader",
+                "django_components.template_loader.Loader",
+            ],
             "context_processors": [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+            ],
+            "builtins": [
+                "django_components.templatetags.component_tags",
             ],
         },
     },
@@ -110,6 +121,7 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_DIRS = [BASE_DIR / "static"]
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
@@ -182,6 +194,9 @@ SPECTACULAR_SETTINGS = {
         "DefectVerdictEnum": "apps.defects.constants.DefectVerdict",
     },
 }
+
+LOGIN_URL = "web:login"
+LOGIN_REDIRECT_URL = "web:home"
 
 AUTH_PASSWORD_VALIDATORS = [
     {

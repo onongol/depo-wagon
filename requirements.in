@@ -35,6 +35,8 @@ django-import-export
 django-simple-history
 django-select2
 django-filter
+django-widget-tweaks
+django-components
 
 # === Reports & Documents ===
 reportlab
@@ -56,6 +58,7 @@ PyYAML
 django-debug-toolbar
 django-browser-reload
 markdown
+djlint
 
 # === Testing ===
 pytest
