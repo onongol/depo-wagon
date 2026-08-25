@@ -28,7 +28,7 @@ def defect_data(wagon, inspector_employee):
         "wagon": wagon.pk,
         "inspector": inspector_employee.pk,
         "node": DefectNode.WHEELSET,
-        "defect": DefectType.CRACK,
+        "defect_type": DefectType.CRACK,
         "severity": DefectSeverity.MEDIUM,
         "status": DefectStatus.OPEN,
         "inspected_at": timezone.now().isoformat(),

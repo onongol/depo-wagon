@@ -7,6 +7,12 @@ ALLOWED_HOSTS = config("ALLOWED_HOSTS", cast=Csv())
 
 DATABASES["default"]["CONN_MAX_AGE"] = 60
 
+# Email — real Gmail SMTP in production
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp.gmail.com"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_SSL_REDIRECT = True

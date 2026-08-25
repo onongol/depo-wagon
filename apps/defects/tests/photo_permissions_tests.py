@@ -99,54 +99,14 @@ class TestPhotoCreatePermissions:
 
 
 @pytest.mark.django_db
-class TestPhotoUpdatePermissions:
-    def test_anon_cannot_update(self, anon_client, photo):
-        response = anon_client.patch(
+class TestPhotoUpdateNotAllowed:
+    def test_patch_not_allowed(self, api_client, photo):
+        response = api_client.patch(
             reverse("photo-detail", args=[photo.pk]),
             {"image": make_image_file("updated.png")},
             format="multipart",
         )
-        assert response.status_code == status.HTTP_401_UNAUTHORIZED
-
-    def test_inspector_cannot_update(self, inspector_client, photo):
-        response = inspector_client.patch(
-            reverse("photo-detail", args=[photo.pk]),
-            {"image": make_image_file("updated.png")},
-            format="multipart",
-        )
-        assert response.status_code == status.HTTP_403_FORBIDDEN
-
-    def test_master_cannot_update(self, master_client, photo):
-        response = master_client.patch(
-            reverse("photo-detail", args=[photo.pk]),
-            {"image": make_image_file("updated.png")},
-            format="multipart",
-        )
-        assert response.status_code == status.HTTP_403_FORBIDDEN
-
-    def test_manager_cannot_update(self, manager_client, photo):
-        response = manager_client.patch(
-            reverse("photo-detail", args=[photo.pk]),
-            {"image": make_image_file("updated.png")},
-            format="multipart",
-        )
-        assert response.status_code == status.HTTP_403_FORBIDDEN
-
-    def test_engineer_can_update(self, engineer_client, photo):
-        response = engineer_client.patch(
-            reverse("photo-detail", args=[photo.pk]),
-            {"image": make_image_file("updated.png")},
-            format="multipart",
-        )
-        assert response.status_code == status.HTTP_200_OK
-
-    def test_superuser_can_update(self, superuser_client, photo):
-        response = superuser_client.patch(
-            reverse("photo-detail", args=[photo.pk]),
-            {"image": make_image_file("updated.png")},
-            format="multipart",
-        )
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
 
 
 @pytest.mark.django_db

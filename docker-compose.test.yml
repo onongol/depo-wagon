@@ -1,11 +1,13 @@
 services:
   db_test:
-    image: postgres:18-alpine
+    image: pgvector/pgvector:pg18-trixie
     environment:
       POSTGRES_USER: test_user
       POSTGRES_PASSWORD: test_pass
       POSTGRES_DB: test_db
     ports:
       - "5433:5432"
+    volumes:
+      - ./infra/init.sql:/docker-entrypoint-initdb.d/init.sql
     tmpfs:
       - /var/lib/postgresql

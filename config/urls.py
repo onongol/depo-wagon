@@ -7,6 +7,7 @@ urlpatterns = [
     path("api/v1/auth/", include("apps.users.urls")),
     path("api/v1/", include("apps.core.urls")),
     path("api/v1/", include("apps.defects.urls")),
+    path("api/v1/bot/", include("apps.bot.urls")),
 ]
 
 if settings.DEBUG:

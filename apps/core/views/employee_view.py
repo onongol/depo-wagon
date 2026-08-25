@@ -11,7 +11,7 @@ from apps.users.permissions import IsEngineerOrManager
 class EmployeeViewSet(viewsets.ModelViewSet):
     queryset = Employee.objects.select_related("user").all()
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ["role", "is_active"]
+    filterset_fields = ["role", "department", "is_active"]
     search_fields = ["first_name", "last_name", "employee_id"]
     ordering_fields = ["employee_id", "last_name", "first_name"]
     ordering = ["employee_id"]

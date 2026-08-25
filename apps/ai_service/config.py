@@ -1,0 +1,3 @@
+EMBEDDING_MODEL = "gemini-embedding-2"
+EMBEDDING_DIMENSIONS = 1536
+GENERATION_MODEL = "gemini-3.5-flash"

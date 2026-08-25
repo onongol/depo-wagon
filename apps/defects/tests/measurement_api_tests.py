@@ -119,6 +119,17 @@ class TestMeasurementUpdate:
         measurement.refresh_from_db()
         assert measurement.value == Decimal("7.50")
 
+    def test_patch_cannot_reassign_defect(self, api_client, defect, wagon, employee):
+        other_defect = baker.make("defects.Defect", wagon=wagon, inspector=employee)
+        measurement = baker.make("defects.DefectMeasurement", defect=defect)
+        api_client.patch(
+            reverse("measurement-detail", args=[measurement.pk]),
+            {"defect": str(other_defect.pk)},
+            format="json",
+        )
+        measurement.refresh_from_db()
+        assert measurement.defect_id == defect.pk
+
 
 @pytest.mark.django_db
 class TestMeasurementDelete:

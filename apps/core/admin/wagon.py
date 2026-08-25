@@ -21,3 +21,9 @@ class WagonAdmin(ModelAdmin):
     list_filter = ["status", "wagon_type", "repair_type"]
     search_fields = ["number", "owner"]
     readonly_fields = ["created_at", "updated_at"]
+
+    @admin.display(
+        boolean=True, ordering="next_repair_date", description="Needs repair soon"
+    )
+    def needs_repair_soon(self, obj):
+        return obj.needs_repair_soon

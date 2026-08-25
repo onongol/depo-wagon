@@ -3,8 +3,16 @@ from rest_framework import serializers
 from apps.core.models import Employee
 
 
+class _UserSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    email = serializers.EmailField(read_only=True)
+
+
 class EmployeeListSerializer(serializers.ModelSerializer):
     role_display = serializers.CharField(source="get_role_display", read_only=True)
+    department_display = serializers.CharField(
+        source="get_department_display", read_only=True
+    )
     full_name = serializers.CharField(read_only=True)
 
     class Meta:
@@ -15,14 +23,20 @@ class EmployeeListSerializer(serializers.ModelSerializer):
             "full_name",
             "role",
             "role_display",
+            "department",
+            "department_display",
             "is_active",
         ]
 
 
 class EmployeeSerializer(serializers.ModelSerializer):
     role_display = serializers.CharField(source="get_role_display", read_only=True)
+    department_display = serializers.CharField(
+        source="get_department_display", read_only=True
+    )
     full_name = serializers.CharField(read_only=True)
     short_name = serializers.CharField(read_only=True)
+    user = _UserSerializer(read_only=True)
 
     class Meta:
         model = Employee
@@ -35,6 +49,8 @@ class EmployeeSerializer(serializers.ModelSerializer):
             "short_name",
             "role",
             "role_display",
+            "department",
+            "department_display",
             "telegram_id",
             "user",
             "phone",

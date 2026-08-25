@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import timedelta
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -11,11 +11,13 @@ from simple_history.models import HistoricalRecords
 from apps.core.constants import RepairType, WagonStatus, WagonType
 
 
-def current_year():
+def current_year() -> int:
     return timezone.now().year
 
 
 class Wagon(models.Model):
+    """Model representing a wagon in the depot."""
+
     number = models.CharField(
         max_length=20, unique=True, verbose_name=_("Wagon Number")
     )
@@ -53,11 +55,18 @@ class Wagon(models.Model):
 
     history = HistoricalRecords()
 
-    def save(self, *args, **kwargs):
+    def save(self, *args, **kwargs) -> None:
+        """Run full model validation before every save.
+
+        NOTE: adds an extra SELECT (validate_unique) per call and triggers
+        double validation in forms/Admin. For bulk imports use
+        Wagon.objects.bulk_create(wagons) which bypasses save().
+        """
         self.full_clean()
         super().save(*args, **kwargs)
 
-    def clean(self):
+    def clean(self) -> None:
+        """Validate repair dates are logically consistent with manufacture year."""
         super().clean()
         if self.last_repair_date and self.last_repair_date.year < self.manufacture_year:
             raise ValidationError(
@@ -78,17 +87,6 @@ class Wagon(models.Model):
                     }
                 )
 
-    @property
-    def needs_repair_soon(self):
-        """Check if the wagon's next repair date is within the warning period."""
-        if not self.next_repair_date:
-            return False
-        days = getattr(settings, "REPAIR_WARNING_DAYS", 30)
-        return self.next_repair_date <= date.today() + timedelta(days=days)
-
-    def __str__(self):
-        return f"{_('Wagon')}: {self.number}"
-
     class Meta:
         verbose_name = _("Wagon")
         verbose_name_plural = _("Wagons")
@@ -98,3 +96,14 @@ class Wagon(models.Model):
             models.Index(fields=["status", "last_repair_date"]),
             models.Index(fields=["status", "next_repair_date"]),
         ]
+
+    @property
+    def needs_repair_soon(self) -> bool:
+        """Check if the wagon's next repair date is within the warning period."""
+        if not self.next_repair_date:
+            return False
+        days = getattr(settings, "REPAIR_WARNING_DAYS", 30)
+        return self.next_repair_date <= timezone.now().date() + timedelta(days=days)
+
+    def __str__(self) -> str:
+        return f"{_('Wagon')}: {self.number}"

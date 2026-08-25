@@ -6,9 +6,11 @@ whitenoise
 
 # === Database ===
 psycopg
+pgvector
+pypdf
 
 # === Telegram Bot ===
-python-telegram-bot
+python-telegram-bot[all]
 
 # === Async Tasks ===
 celery
@@ -17,6 +19,8 @@ redis
 # === AI / ML ===
 google-genai
 google-cloud-vision
+langchain-text-splitters
+flashrank
 
 # === File Storage ===
 django-storages
@@ -55,6 +59,7 @@ markdown
 
 # === Testing ===
 pytest
+pytest-asyncio
 pytest-django
 model-bakery
 

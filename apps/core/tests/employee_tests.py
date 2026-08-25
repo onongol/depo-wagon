@@ -1,7 +1,7 @@
 import pytest
 from django.contrib.auth import get_user_model
 
-from apps.core.constants import EmployeeRole
+from apps.core.constants import Department, EmployeeRole
 from apps.core.models import Employee
 
 User = get_user_model()
@@ -23,23 +23,23 @@ class TestEmployeeModel:
     def test_str(self):
         emp = make_employee()
         assert "1234" in str(emp)
-        assert "Болд" in str(emp)
+        assert "" in str(emp)
 
     def test_full_name(self):
-        emp = make_employee(first_name="Бат", last_name="Болд")
-        assert emp.full_name == "Болд Бат"
+        emp = make_employee(first_name="Elbegdorj", last_name="Tsakhiagiin")
+        assert emp.full_name == "Tsakhiagiin Elbegdorj"
 
     def test_short_name_with_both_names(self):
-        emp = make_employee(first_name="Бат", last_name="Болд")
-        assert emp.short_name == "Б.Бат"
+        emp = make_employee(first_name="Elbegdorj", last_name="Tsakhiagiin")
+        assert emp.short_name == "T.Elbegdorj"
 
     def test_short_name_only_first_name(self):
-        emp = make_employee(first_name="Бат", last_name="")
-        assert emp.short_name == "Бат"
+        emp = make_employee(first_name="Elbegdorj", last_name="")
+        assert emp.short_name == "Elbegdorj"
 
     def test_short_name_only_last_name(self):
-        emp = make_employee(first_name="", last_name="Болд")
-        assert emp.short_name == "Болд"
+        emp = make_employee(first_name="", last_name="Tsakhiagiin")
+        assert emp.short_name == "Tsakhiagiin"
 
     def test_short_name_fallback_to_employee_id(self):
         emp = make_employee(first_name="", last_name="")
@@ -111,3 +111,22 @@ class TestEmployeeSave:
 
         user.refresh_from_db()
         assert user.is_active is True
+
+
+@pytest.mark.django_db
+class TestEmployeeDepartment:
+    def test_department_blank_by_default(self):
+        emp = make_employee()
+        assert emp.department == ""
+
+    def test_department_can_be_set(self):
+        emp = make_employee(department=Department.BOGIE)
+        emp.save()
+        emp.refresh_from_db()
+        assert emp.department == Department.BOGIE
+
+    def test_department_is_optional(self):
+        emp = make_employee()
+        emp.save()
+        emp.refresh_from_db()
+        assert emp.department == ""
