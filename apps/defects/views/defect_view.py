@@ -8,7 +8,9 @@ from apps.users.permissions import IsAnyEmployee, IsEngineer, IsInspectorOrEngin
 
 
 class DefectViewSet(viewsets.ModelViewSet):
-    queryset = Defect.objects.select_related("wagon", "inspector", "responsible_employee").all()
+    queryset = Defect.objects.select_related(
+        "wagon", "inspector", "responsible_employee"
+    ).all()
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ["status", "severity", "node", "defect_type", "wagon"]
     search_fields = ["wagon__number"]

@@ -54,17 +54,5 @@ tzdata
 requests
 PyYAML
 
-# === Dev ===
-django-debug-toolbar
-django-browser-reload
-markdown
-djlint
-
-# === Testing ===
-pytest
-pytest-asyncio
-pytest-django
-model-bakery
-
 # === API Documentation ===
 drf-spectacular

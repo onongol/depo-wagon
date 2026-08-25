@@ -32,7 +32,9 @@ def embed_defect_task(self, defect_id: str) -> None:
                     f"Node: {defect.get_node_display()}",
                     f"Defect type: {defect.get_defect_type_display()}",
                     f"Severity: {defect.get_severity_display()}",
-                    f"Description: {defect.description}" if defect.description else None,
+                    f"Description: {defect.description}"
+                    if defect.description
+                    else None,
                 ],
             )
         )

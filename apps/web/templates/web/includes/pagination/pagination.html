@@ -1,84 +1,104 @@
 {% load i18n %}
 {% if page_obj.paginator.num_pages > 1 %}
-    <nav class="mt-4 flex items-center justify-between gap-2"
-         aria-label="Pagination">
-        {% with qs=filter_qs|default:"" %}
-            <!-- Mobile: prev / page / next -->
-            <div class="flex flex-1 justify-between sm:hidden">
-                {% if page_obj.has_previous %}
-                    <a href="?{% if qs %}{{ qs }}&{% endif %}page={{ page_obj.previous_page_number }}"
-                       {% if htmx_target %}hx-get="?{% if qs %}{{ qs }}&{% endif %}page={{ page_obj.previous_page_number }}"
-                       hx-target="{{ htmx_target }}"
-                       hx-push-url="true"{% endif %}
-                       class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400">{% trans "Previous" %}</a>
-                {% endif %}
-                <span class="self-center text-sm text-gray-500 dark:text-gray-400">
-                    {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}
-                </span>
-                {% if page_obj.has_next %}
-                    <a href="?{% if qs %}{{ qs }}&{% endif %}page={{ page_obj.next_page_number }}"
-                       {% if htmx_target %}hx-get="?{% if qs %}{{ qs }}&{% endif %}page={{ page_obj.next_page_number }}"
-                       hx-target="{{ htmx_target }}"
-                       hx-push-url="true"{% endif %}
-                       class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400">{% trans "Next" %}</a>
-                {% endif %}
-            </div>
-            <!-- Desktop: full pagination -->
-            <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-                <p class="text-xs text-gray-400 dark:text-gray-500">
-                    {% blocktrans with start=page_obj.start_index end=page_obj.end_index total=total_count %}
+  <nav class="mt-4 flex items-center justify-between gap-2" aria-label="Pagination">
+    {% with qs=filter_qs|default:"" %}
+      <!-- Mobile: prev / page / next -->
+      <div class="flex flex-1 justify-between sm:hidden">
+        {% if page_obj.has_previous %}
+          <a
+            href="?{% if qs %}{{ qs }}&{% endif %}page={{ page_obj.previous_page_number }}"
+            {% if htmx_target %}
+              hx-get="?{% if qs %}{{ qs }}&{% endif %}page={{ page_obj.previous_page_number }}"
+              hx-target="{{ htmx_target }}" hx-push-url="true"
+            {% endif %}
+            class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400"
+            >{% trans "Previous" %}</a
+          >
+        {% endif %}
+        <span class="self-center text-sm text-gray-500 dark:text-gray-400">
+          {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}
+        </span>
+        {% if page_obj.has_next %}
+          <a
+            href="?{% if qs %}{{ qs }}&{% endif %}page={{ page_obj.next_page_number }}"
+            {% if htmx_target %}
+              hx-get="?{% if qs %}{{ qs }}&{% endif %}page={{ page_obj.next_page_number }}"
+              hx-target="{{ htmx_target }}" hx-push-url="true"
+            {% endif %}
+            class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400"
+            >{% trans "Next" %}</a
+          >
+        {% endif %}
+      </div>
+      <!-- Desktop: full pagination -->
+      <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+        <p class="text-xs text-gray-400 dark:text-gray-500">
+          {% blocktrans with start=page_obj.start_index end=page_obj.end_index total=total_count %}
             <span>{{ start }}</span>–<span>{{ end }}</span> of
             <span>{{ total }}</span>
           {% endblocktrans %}
-                </p>
-                <div class="flex items-center gap-1">
-                    {% if page_obj.has_previous %}
-                        <a href="?{% if qs %}{{ qs }}&{% endif %}page=1"
-                           {% if htmx_target %}hx-get="?{% if qs %}{{ qs }}&{% endif %}page=1"
-                           hx-target="{{ htmx_target }}"
-                           hx-push-url="true"{% endif %}
-                           class="inline-flex h-6 w-6 items-center justify-center rounded-md border border-white bg-white text-gray-400 hover:bg-gray-100 dark:border-gray-900 dark:bg-gray-900 dark:text-gray-500 dark:hover:bg-gray-800"
-                           aria-label="{% trans 'First page' %}">
-                            <svg class="size-4" aria-hidden="true">
-                                <use href="#chevron-double-left"></use>
-                            </svg>
-                        </a>
-                        <a href="?{% if qs %}{{ qs }}&{% endif %}page={{ page_obj.previous_page_number }}"
-                           {% if htmx_target %}hx-get="?{% if qs %}{{ qs }}&{% endif %}page={{ page_obj.previous_page_number }}"
-                           hx-target="{{ htmx_target }}"
-                           hx-push-url="true"{% endif %}
-                           class="inline-flex h-6 w-6 items-center justify-center rounded-md border border-white bg-white text-gray-400 hover:bg-gray-100 dark:border-gray-900 dark:bg-gray-900 dark:text-gray-500 dark:hover:bg-gray-800"
-                           aria-label="{% trans 'Previous page' %}">
-                            <svg class="size-4" aria-hidden="true">
-                                <use href="#chevron-left"></use>
-                            </svg>
-                        </a>
-                    {% endif %}
-                    <span class="text-xs text-gray-400 dark:text-gray-500">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
-                    {% if page_obj.has_next %}
-                        <a href="?{% if qs %}{{ qs }}&{% endif %}page={{ page_obj.next_page_number }}"
-                           {% if htmx_target %}hx-get="?{% if qs %}{{ qs }}&{% endif %}page={{ page_obj.next_page_number }}"
-                           hx-target="{{ htmx_target }}"
-                           hx-push-url="true"{% endif %}
-                           class="inline-flex h-6 w-6 items-center justify-center rounded-md border border-white bg-white text-gray-400 hover:bg-gray-100 dark:border-gray-900 dark:bg-gray-900 dark:text-gray-500 dark:hover:bg-gray-800"
-                           aria-label="{% trans 'Next page' %}">
-                            <svg class="size-4" aria-hidden="true">
-                                <use href="#chevron-right"></use>
-                            </svg>
-                        </a>
-                        <a href="?{% if qs %}{{ qs }}&{% endif %}page={{ page_obj.paginator.num_pages }}"
-                           {% if htmx_target %}hx-get="?{% if qs %}{{ qs }}&{% endif %}page={{ page_obj.paginator.num_pages }}"
-                           hx-target="{{ htmx_target }}"
-                           hx-push-url="true"{% endif %}
-                           class="inline-flex h-6 w-6 items-center justify-center rounded-md border border-white bg-white text-gray-400 hover:bg-gray-100 dark:border-gray-900 dark:bg-gray-900 dark:text-gray-500 dark:hover:bg-gray-800"
-                           aria-label="{% trans 'Last page' %}">
-                            <svg class="size-4" aria-hidden="true">
-                                <use href="#chevron-double-right"></use>
-                            </svg>
-                        </a>
-                    {% endif %}
-                </div>
-            </div>
-        {% endwith %}
-    </nav>
+        </p>
+        <div class="flex items-center gap-1">
+          {% if page_obj.has_previous %}
+            <a
+              href="?{% if qs %}{{ qs }}&{% endif %}page=1"
+              {% if htmx_target %}
+                hx-get="?{% if qs %}{{ qs }}&{% endif %}page=1" hx-target="{{ htmx_target }}" hx-push-url="true"
+              {% endif %}
+              class="inline-flex h-6 w-6 items-center justify-center rounded-md border border-white bg-white text-gray-400 hover:bg-gray-100 dark:border-gray-900 dark:bg-gray-900 dark:text-gray-500 dark:hover:bg-gray-800"
+              aria-label="{% trans 'First page' %}"
+            >
+              <svg class="size-4" aria-hidden="true">
+                <use href="#chevron-double-left"></use>
+              </svg>
+            </a>
+            <a
+              href="?{% if qs %}{{ qs }}&{% endif %}page={{ page_obj.previous_page_number }}"
+              {% if htmx_target %}
+                hx-get="?{% if qs %}{{ qs }}&{% endif %}page={{ page_obj.previous_page_number }}"
+                hx-target="{{ htmx_target }}" hx-push-url="true"
+              {% endif %}
+              class="inline-flex h-6 w-6 items-center justify-center rounded-md border border-white bg-white text-gray-400 hover:bg-gray-100 dark:border-gray-900 dark:bg-gray-900 dark:text-gray-500 dark:hover:bg-gray-800"
+              aria-label="{% trans 'Previous page' %}"
+            >
+              <svg class="size-4" aria-hidden="true">
+                <use href="#chevron-left"></use>
+              </svg>
+            </a>
+          {% endif %}
+          <span class="text-xs text-gray-400 dark:text-gray-500"
+            >{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span
+          >
+          {% if page_obj.has_next %}
+            <a
+              href="?{% if qs %}{{ qs }}&{% endif %}page={{ page_obj.next_page_number }}"
+              {% if htmx_target %}
+                hx-get="?{% if qs %}{{ qs }}&{% endif %}page={{ page_obj.next_page_number }}"
+                hx-target="{{ htmx_target }}" hx-push-url="true"
+              {% endif %}
+              class="inline-flex h-6 w-6 items-center justify-center rounded-md border border-white bg-white text-gray-400 hover:bg-gray-100 dark:border-gray-900 dark:bg-gray-900 dark:text-gray-500 dark:hover:bg-gray-800"
+              aria-label="{% trans 'Next page' %}"
+            >
+              <svg class="size-4" aria-hidden="true">
+                <use href="#chevron-right"></use>
+              </svg>
+            </a>
+            <a
+              href="?{% if qs %}{{ qs }}&{% endif %}page={{ page_obj.paginator.num_pages }}"
+              {% if htmx_target %}
+                hx-get="?{% if qs %}{{ qs }}&{% endif %}page={{ page_obj.paginator.num_pages }}"
+                hx-target="{{ htmx_target }}" hx-push-url="true"
+              {% endif %}
+              class="inline-flex h-6 w-6 items-center justify-center rounded-md border border-white bg-white text-gray-400 hover:bg-gray-100 dark:border-gray-900 dark:bg-gray-900 dark:text-gray-500 dark:hover:bg-gray-800"
+              aria-label="{% trans 'Last page' %}"
+            >
+              <svg class="size-4" aria-hidden="true">
+                <use href="#chevron-double-right"></use>
+              </svg>
+            </a>
+          {% endif %}
+        </div>
+      </div>
+    {% endwith %}
+  </nav>
 {% endif %}

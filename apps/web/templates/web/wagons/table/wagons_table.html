@@ -2,7 +2,7 @@
 {% trans "Wagons table" as aria_label %}
 {% include "web/includes/table/list_table.html" with aria_label=aria_label head_template="web/wagons/table/wagons_table_head.html" row_template="web/wagons/table/wagons_table_row.html" rows=wagons selectable=True %}
 {% with page_obj=wagons %}
-    {% include "web/includes/pagination/pagination.html" with htmx_target="#wagons-results" %}
+  {% include "web/includes/pagination/pagination.html" with htmx_target="#wagons-results" %}
 {% endwith %}
 {% url 'web:wagon_list' as clear_url %}
 {% include "web/includes/table/oob_clear.html" with clear_id="wagons-results-clear" clear_url=clear_url %}

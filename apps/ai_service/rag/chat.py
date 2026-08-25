@@ -63,13 +63,13 @@ async def answer_question(question: str, history: list[dict]) -> str:
                 continue
             created_at = defect.get("created_at")
             prefix = (
-                f"[Defect from {created_at.strftime('%d.%m.%Y')}]\n" if created_at else ""
+                f"[Defect from {created_at.strftime('%d.%m.%Y')}]\n"
+                if created_at
+                else ""
             )
             defect_lines.append(f"{prefix}{content}")
         if defect_lines:
-            context_parts.append(
-                "=== Defect History ===\n" + "\n\n".join(defect_lines)
-            )
+            context_parts.append("=== Defect History ===\n" + "\n\n".join(defect_lines))
 
     user_text = question
     if context_parts:

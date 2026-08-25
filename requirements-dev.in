@@ -1,0 +1,23 @@
+# Development and CI only. Not installed into the production image.
+# Compile with: pip-compile requirements-dev.in
+-c requirements.txt
+
+# Linting and formatting. Versions must match the hook revs in
+# .pre-commit-config.yaml, or a manual run and the hook disagree.
+djlint==1.44.2
+pre-commit
+ruff==0.16.3
+
+# Generates requirements.txt / requirements-dev.txt from the .in files.
+pip-tools
+
+# === Testing ===
+pytest
+pytest-asyncio
+pytest-django
+model-bakery
+
+# Local development aids, wired up only in settings/local.py
+django-debug-toolbar
+django-browser-reload
+markdown

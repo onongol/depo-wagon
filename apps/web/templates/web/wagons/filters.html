@@ -3,14 +3,17 @@
 {% trans "All statuses" as status_ph %}
 {% trans "All types" as type_ph %}
 <div class="mb-4">
-    {% with url=wagon_list_url target="#wagons-results" %}
-        {% component "filter_bar" url=url target=target has_active_filters=has_active_filters clear_url=url %}
-            {% fill "filters" %}
-                {% component "filter_search" url=url target=target value=q placeholder=search_ph %}{% endcomponent %}
-                {% component "filter_select" name="status" choices=status_choices selected=selected_status placeholder=status_ph url=url target=target %}{% endcomponent %}
-                {% component "filter_select" name="wagon_type" choices=type_choices selected=selected_wagon_type placeholder=type_ph url=url target=target %}{% endcomponent %}
-            {% endfill %}
+  {% with url=wagon_list_url target="#wagons-results" %}
+    {% component "filter_bar" url=url target=target has_active_filters=has_active_filters clear_url=url %}
+      {% fill "filters" %}
+        {% component "filter_search" url=url target=target value=q placeholder=search_ph %}
         {% endcomponent %}
-    {% endwith %}
+        {% component "filter_select" name="status" choices=status_choices selected=selected_status placeholder=status_ph url=url target=target %}
+        {% endcomponent %}
+        {% component "filter_select" name="wagon_type" choices=type_choices selected=selected_wagon_type placeholder=type_ph url=url target=target %}
+        {% endcomponent %}
+      {% endfill %}
+    {% endcomponent %}
+  {% endwith %}
 </div>
 {% include "web/includes/table/bulk_bar.html" %}

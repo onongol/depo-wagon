@@ -15,9 +15,11 @@ class TestProcessDocument:
     def test_status_becomes_ready_on_success(self, depot_document):
         from apps.ai_service.processing.pipeline import process_document
 
-        with patch("apps.ai_service.processing.pipeline.extract_pages") as mock_extract, \
-                patch("apps.ai_service.processing.pipeline.chunk_page") as mock_chunk, \
-                patch("apps.ai_service.processing.pipeline.embed_texts") as mock_embed:
+        with (
+            patch("apps.ai_service.processing.pipeline.extract_pages") as mock_extract,
+            patch("apps.ai_service.processing.pipeline.chunk_page") as mock_chunk,
+            patch("apps.ai_service.processing.pipeline.embed_texts") as mock_embed,
+        ):
             mock_extract.return_value = [(1, "Page text")]
             mock_chunk.return_value = [{"content": "chunk text", "page_number": 1}]
             mock_embed.return_value = [[0.1] * 1536]
@@ -32,9 +34,11 @@ class TestProcessDocument:
         from apps.ai_service.models import DocumentChunk
         from apps.ai_service.processing.pipeline import process_document
 
-        with patch("apps.ai_service.processing.pipeline.extract_pages") as mock_extract, \
-                patch("apps.ai_service.processing.pipeline.chunk_page") as mock_chunk, \
-                patch("apps.ai_service.processing.pipeline.embed_texts") as mock_embed:
+        with (
+            patch("apps.ai_service.processing.pipeline.extract_pages") as mock_extract,
+            patch("apps.ai_service.processing.pipeline.chunk_page") as mock_chunk,
+            patch("apps.ai_service.processing.pipeline.embed_texts") as mock_embed,
+        ):
             mock_extract.return_value = [(1, "text"), (2, "more text")]
             mock_chunk.side_effect = [
                 [{"content": "chunk 1", "page_number": 1}],
@@ -57,9 +61,11 @@ class TestProcessDocument:
             chunk_index=0,
         )
 
-        with patch("apps.ai_service.processing.pipeline.extract_pages") as mock_extract, \
-                patch("apps.ai_service.processing.pipeline.chunk_page") as mock_chunk, \
-                patch("apps.ai_service.processing.pipeline.embed_texts") as mock_embed:
+        with (
+            patch("apps.ai_service.processing.pipeline.extract_pages") as mock_extract,
+            patch("apps.ai_service.processing.pipeline.chunk_page") as mock_chunk,
+            patch("apps.ai_service.processing.pipeline.embed_texts") as mock_embed,
+        ):
             mock_extract.return_value = [(1, "new text")]
             mock_chunk.return_value = [{"content": "fresh chunk", "page_number": 1}]
             mock_embed.return_value = [[0.5] * 1536]
@@ -96,8 +102,10 @@ class TestProcessDocument:
     def test_status_becomes_error_when_no_chunks_produced(self, depot_document):
         from apps.ai_service.processing.pipeline import process_document
 
-        with patch("apps.ai_service.processing.pipeline.extract_pages") as mock_extract, \
-                patch("apps.ai_service.processing.pipeline.chunk_page") as mock_chunk:
+        with (
+            patch("apps.ai_service.processing.pipeline.extract_pages") as mock_extract,
+            patch("apps.ai_service.processing.pipeline.chunk_page") as mock_chunk,
+        ):
             mock_extract.return_value = [(1, "some text")]
             mock_chunk.return_value = []
             with pytest.raises(ValueError, match="no chunks"):
@@ -113,9 +121,11 @@ class TestProcessDocument:
         depot_document.error_message = "Previous failure"
         depot_document.save()
 
-        with patch("apps.ai_service.processing.pipeline.extract_pages") as mock_extract, \
-                patch("apps.ai_service.processing.pipeline.chunk_page") as mock_chunk, \
-                patch("apps.ai_service.processing.pipeline.embed_texts") as mock_embed:
+        with (
+            patch("apps.ai_service.processing.pipeline.extract_pages") as mock_extract,
+            patch("apps.ai_service.processing.pipeline.chunk_page") as mock_chunk,
+            patch("apps.ai_service.processing.pipeline.embed_texts") as mock_embed,
+        ):
             mock_extract.return_value = [(1, "text")]
             mock_chunk.return_value = [{"content": "chunk", "page_number": 1}]
             mock_embed.return_value = [[0.1] * 1536]

@@ -1,8 +1,11 @@
-<form method="get"
-      hx-get="{{ url }}"
-      hx-target="{{ target }}"
-      hx-push-url="true"
-      class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-    {% slot "filters" %}{% endslot %}
-    {% component "filter_buttons" target=target has_active_filters=has_active_filters clear_url=clear_url %}{% endcomponent %}
+<form
+  method="get"
+  hx-get="{{ url }}"
+  hx-target="{{ target }}"
+  hx-push-url="true"
+  class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end"
+>
+  {% slot "filters" %}{% endslot %}
+  {% component "filter_buttons" target=target has_active_filters=has_active_filters clear_url=clear_url %}
+  {% endcomponent %}
 </form>

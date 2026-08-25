@@ -1,0 +1,6 @@
+# Vite build output (see vite.config.ts)
+static/
+staticfiles/
+
+node_modules/
+package-lock.json

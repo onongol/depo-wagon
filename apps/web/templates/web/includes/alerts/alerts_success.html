@@ -1,18 +1,22 @@
 {% load i18n %}
-<div x-data="{ show: true }"
-     x-show="show"
-     x-init="setTimeout(() => show = false, 4000)"
-     class="relative flex w-full items-start rounded-md bg-green-50 p-4 text-green-700 shadow-sm dark:bg-green-500/20 dark:text-green-400"
-     role="alert"
-     aria-live="polite">
-    <div class="pr-6 text-sm">
-        <strong class="font-semibold">{% trans "Success" %}!</strong>
-        <p>{{ message }}</p>
-    </div>
-    <button type="button"
-            @click="show = false"
-            class="absolute top-2 right-2 cursor-pointer rounded p-1 transition hover:bg-green-100 focus:ring-2 focus:ring-green-400 focus:outline-none dark:hover:bg-green-200/10"
-            aria-label="{% trans 'Close' %}">
-        <svg class="size-4" aria-hidden="true"><use href="#close"></use></svg>
-    </button>
+<div
+  x-data="{ show: true }"
+  x-show="show"
+  x-init="setTimeout(() => show = false, 4000)"
+  class="relative flex w-full items-start rounded-md bg-green-50 p-4 text-green-700 shadow-sm dark:bg-green-500/20 dark:text-green-400"
+  role="alert"
+  aria-live="polite"
+>
+  <div class="pr-6 text-sm">
+    <strong class="font-semibold">{% trans "Success" %}!</strong>
+    <p>{{ message }}</p>
+  </div>
+  <button
+    type="button"
+    @click="show = false"
+    class="absolute top-2 right-2 cursor-pointer rounded p-1 transition hover:bg-green-100 focus:ring-2 focus:ring-green-400 focus:outline-none dark:hover:bg-green-200/10"
+    aria-label="{% trans 'Close' %}"
+  >
+    <svg class="size-4" aria-hidden="true"><use href="#close"></use></svg>
+  </button>
 </div>

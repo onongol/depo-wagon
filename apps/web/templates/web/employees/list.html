@@ -1,185 +1,219 @@
 {% extends "web/base.html" %}
 {% load i18n %}
 {% block title %}
-    {% trans "Employees" %} — Depo Wagon
+  {% trans "Employees" %}
+  — Depo Wagon
 {% endblock %}
 {% block content %}
-    {% include "web/includes/list/list_header.html" with title=_("Employees") subtitle=_("Employee directory") %}
-    <!-- Search + Filters -->
-    <form method="get"
-          class="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-        <!-- Search -->
-        <div class="relative min-w-48 flex-1">
-            <input type="text"
-                   name="q"
-                   value="{{ q }}"
-                   placeholder="{% trans 'Search by name or ID…' %}"
-                   class="block w-full rounded-xl border border-gray-300 bg-gray-100 px-4 py-2 text-sm text-gray-700 placeholder-gray-400 transition focus:border-gray-400 focus:ring-2 focus:ring-gray-400 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:placeholder-gray-500" />
-        </div>
-        <!-- Role -->
-        <div class="relative">
-            <select name="role"
-                    class="w-full cursor-pointer appearance-none rounded-xl border border-gray-300 bg-gray-100 py-2 pr-8 pl-4 text-sm text-gray-700 transition focus:border-gray-400 focus:ring-2 focus:ring-gray-400 focus:outline-none sm:w-40 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300">
-                <option value="">{% trans "All roles" %}</option>
-                {% for value, label in role_choices %}
-                    <option value="{{ value }}"
-                            {% if value == selected_role %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-            </select>
-            <div class="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-gray-500 dark:text-gray-400">
-                <svg class="size-4" aria-hidden="true">
-                    <use href="#chevron-down"></use>
-                </svg>
-            </div>
-        </div>
-        <!-- Department -->
-        <div class="relative">
-            <select name="department"
-                    class="w-full cursor-pointer appearance-none rounded-xl border border-gray-300 bg-gray-100 py-2 pr-8 pl-4 text-sm text-gray-700 transition focus:border-gray-400 focus:ring-2 focus:ring-gray-400 focus:outline-none sm:w-48 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300">
-                <option value="">{% trans "All departments" %}</option>
-                {% for value, label in department_choices %}
-                    <option value="{{ value }}"
-                            {% if value == selected_department %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-            </select>
-            <div class="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-gray-500 dark:text-gray-400">
-                <svg class="size-4" aria-hidden="true">
-                    <use href="#chevron-down"></use>
-                </svg>
-            </div>
-        </div>
-        <!-- Active status -->
-        <div class="relative">
-            <select name="is_active"
-                    class="w-full cursor-pointer appearance-none rounded-xl border border-gray-300 bg-gray-100 py-2 pr-8 pl-4 text-sm text-gray-700 transition focus:border-gray-400 focus:ring-2 focus:ring-gray-400 focus:outline-none sm:w-36 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300">
-                <option value="">{% trans "All" %}</option>
-                <option value="1" {% if selected_is_active == "1" %}selected{% endif %}>{% trans "Active" %}</option>
-                <option value="0" {% if selected_is_active == "0" %}selected{% endif %}>{% trans "Inactive" %}</option>
-            </select>
-            <div class="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-gray-500 dark:text-gray-400">
-                <svg class="size-4" aria-hidden="true">
-                    <use href="#chevron-down"></use>
-                </svg>
-            </div>
-        </div>
-        <!-- Buttons -->
-        <div class="flex gap-2">
-            <button type="submit"
-                    class="cursor-pointer rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-800 focus:ring-2 focus:ring-blue-300 focus:outline-none">
-                {% trans "Filter" %}
-            </button>
-            {% if q or selected_role or selected_department or selected_is_active %}
-                <a href="{% url 'web:employee_list' %}"
-                   class="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-50 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400">
-                    {% trans "Clear" %}
-                </a>
-            {% endif %}
-        </div>
-    </form>
-    <!-- Table -->
-    <div class="overflow-x-auto rounded-md border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
-        <table class="w-full text-left text-sm text-gray-600 dark:text-gray-400"
-               aria-label="{% trans 'Employees table' %}">
-            <thead class="border-b border-gray-200 bg-gray-100 text-xs font-semibold tracking-wide text-gray-600 uppercase dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
-                <tr>
-                    <th class="px-4 py-3">{% trans "ID" %}</th>
-                    <th class="px-4 py-3">{% trans "Name" %}</th>
-                    <th class="px-4 py-3">{% trans "Role" %}</th>
-                    <th class="hidden px-4 py-3 md:table-cell">{% trans "Department" %}</th>
-                    <th class="hidden px-4 py-3 lg:table-cell">{% trans "Contact" %}</th>
-                    <th class="hidden px-4 py-3 text-center lg:table-cell">{% trans "Telegram" %}</th>
-                    <th class="hidden px-4 py-3 text-center xl:table-cell">{% trans "Inspections" %}</th>
-                    <th class="px-4 py-3 text-center">{% trans "Status" %}</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-                {% for emp in employees %}
-                    <tr class="transition-colors odd:bg-white hover:bg-blue-50/40 dark:odd:bg-gray-900 dark:hover:bg-gray-800/60">
-                        <!-- ID -->
-                        <td class="px-4 py-3 font-mono text-xs text-gray-500 dark:text-gray-500">{{ emp.employee_id }}</td>
-                        <!-- Name -->
-                        <td class="px-4 py-3">
-                            <span class="font-medium text-gray-800 dark:text-gray-200">{{ emp.full_name }}</span>
-                        </td>
-                        <!-- Role badge -->
-                        <td class="px-4 py-3">
-                            {% with r=emp.role %}
-                                <span class="{% if r == 'inspector' %} bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400 {% elif r == 'master' %} bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-400 {% elif r == 'engineer' %} bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400 {% elif r == 'manager' %} bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400 {% else %} bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 {% endif %} inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium">
-                                    {{ emp.get_role_display }}
-                                </span>
-                            {% endwith %}
-                        </td>
-                        <!-- Department -->
-                        <td class="hidden px-4 py-3 text-gray-700 md:table-cell dark:text-gray-300">
-                            {% if emp.department %}
-                                {{ emp.get_department_display }}
-                            {% else %}
-                                <span class="text-gray-400">—</span>
-                            {% endif %}
-                        </td>
-                        <!-- Contact -->
-                        <td class="hidden px-4 py-3 lg:table-cell">
-                            {% if emp.email %}
-                                <span class="block text-gray-700 dark:text-gray-300">{{ emp.email }}</span>
-                            {% endif %}
-                            {% if emp.phone %}
-                                <span class="block text-gray-500 dark:text-gray-500">{{ emp.phone }}</span>
-                            {% endif %}
-                            {% if not emp.email and not emp.phone %}
-                                <span class="text-gray-400">—</span>
-                            {% endif %}
-                        </td>
-                        <!-- Telegram -->
-                        <td class="hidden px-4 py-3 text-center lg:table-cell">
-                            {% if emp.telegram_id %}
-                                <svg class="mx-auto size-4 text-blue-500 dark:text-blue-400"
-                                     aria-label="{% trans 'Has Telegram' %}">
-                                    <use href="#check"></use>
-                                </svg>
-                            {% else %}
-                                <span class="text-gray-400">—</span>
-                            {% endif %}
-                        </td>
-                        <!-- Inspections count -->
-                        <td class="hidden px-4 py-3 text-center xl:table-cell">
-                            {% if emp.inspections_count > 0 %}
-                                <span class="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-blue-100 px-1.5 text-xs font-semibold text-blue-700 dark:bg-blue-500/20 dark:text-blue-400">
-                                    {{ emp.inspections_count }}
-                                </span>
-                            {% else %}
-                                <span class="text-gray-400">—</span>
-                            {% endif %}
-                        </td>
-                        <!-- Active status -->
-                        <td class="px-4 py-3 text-center">
-                            {% if emp.is_active %}
-                                <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400">
-                                    {% trans "Active" %}
-                                </span>
-                            {% else %}
-                                <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-500 dark:bg-gray-700 dark:text-gray-400">
-                                    {% trans "Inactive" %}
-                                </span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                {% empty %}
-                    <tr>
-                        <td colspan="8"
-                            class="px-4 py-12 text-center text-gray-400 dark:text-gray-500">
-                            {% if q or selected_role or selected_department or selected_is_active %}
-                                {% trans "No employees match the selected filters." %}
-                            {% else %}
-                                {% trans "No employees registered yet." %}
-                            {% endif %}
-                        </td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+  {% include "web/includes/list/list_header.html" with title=_("Employees") subtitle=_("Employee directory") %}
+  <!-- Search + Filters -->
+  <form method="get" class="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+    <!-- Search -->
+    <div class="relative min-w-48 flex-1">
+      <input
+        type="text"
+        name="q"
+        value="{{ q }}"
+        placeholder="{% trans 'Search by name or ID…' %}"
+        class="block w-full rounded-xl border border-gray-300 bg-gray-100 px-4 py-2 text-sm text-gray-700 placeholder-gray-400 transition focus:border-gray-400 focus:ring-2 focus:ring-gray-400 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:placeholder-gray-500"
+      />
     </div>
-    <!-- Pagination -->
-    {% with page_obj=employees %}
-        {% include "web/includes/pagination/pagination.html" %}
-    {% endwith %}
+    <!-- Role -->
+    <div class="relative">
+      <select
+        name="role"
+        class="w-full cursor-pointer appearance-none rounded-xl border border-gray-300 bg-gray-100 py-2 pr-8 pl-4 text-sm text-gray-700 transition focus:border-gray-400 focus:ring-2 focus:ring-gray-400 focus:outline-none sm:w-40 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+      >
+        <option value="">{% trans "All roles" %}</option>
+        {% for value, label in role_choices %}
+          <option value="{{ value }}" {% if value == selected_role %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <div class="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-gray-500 dark:text-gray-400">
+        <svg class="size-4" aria-hidden="true">
+          <use href="#chevron-down"></use>
+        </svg>
+      </div>
+    </div>
+    <!-- Department -->
+    <div class="relative">
+      <select
+        name="department"
+        class="w-full cursor-pointer appearance-none rounded-xl border border-gray-300 bg-gray-100 py-2 pr-8 pl-4 text-sm text-gray-700 transition focus:border-gray-400 focus:ring-2 focus:ring-gray-400 focus:outline-none sm:w-48 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+      >
+        <option value="">{% trans "All departments" %}</option>
+        {% for value, label in department_choices %}
+          <option value="{{ value }}" {% if value == selected_department %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <div class="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-gray-500 dark:text-gray-400">
+        <svg class="size-4" aria-hidden="true">
+          <use href="#chevron-down"></use>
+        </svg>
+      </div>
+    </div>
+    <!-- Active status -->
+    <div class="relative">
+      <select
+        name="is_active"
+        class="w-full cursor-pointer appearance-none rounded-xl border border-gray-300 bg-gray-100 py-2 pr-8 pl-4 text-sm text-gray-700 transition focus:border-gray-400 focus:ring-2 focus:ring-gray-400 focus:outline-none sm:w-36 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+      >
+        <option value="">{% trans "All" %}</option>
+        <option value="1" {% if selected_is_active == "1" %}selected{% endif %}>{% trans "Active" %}</option>
+        <option value="0" {% if selected_is_active == "0" %}selected{% endif %}>{% trans "Inactive" %}</option>
+      </select>
+      <div class="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-gray-500 dark:text-gray-400">
+        <svg class="size-4" aria-hidden="true">
+          <use href="#chevron-down"></use>
+        </svg>
+      </div>
+    </div>
+    <!-- Buttons -->
+    <div class="flex gap-2">
+      <button
+        type="submit"
+        class="cursor-pointer rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-800 focus:ring-2 focus:ring-blue-300 focus:outline-none"
+      >
+        {% trans "Filter" %}
+      </button>
+      {% if q or selected_role or selected_department or selected_is_active %}
+        <a
+          href="{% url 'web:employee_list' %}"
+          class="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-50 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400"
+        >
+          {% trans "Clear" %}
+        </a>
+      {% endif %}
+    </div>
+  </form>
+  <!-- Table -->
+  <div
+    class="overflow-x-auto rounded-md border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900"
+  >
+    <table
+      class="w-full text-left text-sm text-gray-600 dark:text-gray-400"
+      aria-label="{% trans 'Employees table' %}"
+    >
+      <thead
+        class="border-b border-gray-200 bg-gray-100 text-xs font-semibold tracking-wide text-gray-600 uppercase dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
+      >
+        <tr>
+          <th class="px-4 py-3">{% trans "ID" %}</th>
+          <th class="px-4 py-3">{% trans "Name" %}</th>
+          <th class="px-4 py-3">{% trans "Role" %}</th>
+          <th class="hidden px-4 py-3 md:table-cell">{% trans "Department" %}</th>
+          <th class="hidden px-4 py-3 lg:table-cell">{% trans "Contact" %}</th>
+          <th class="hidden px-4 py-3 text-center lg:table-cell">{% trans "Telegram" %}</th>
+          <th class="hidden px-4 py-3 text-center xl:table-cell">{% trans "Inspections" %}</th>
+          <th class="px-4 py-3 text-center">{% trans "Status" %}</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+        {% for emp in employees %}
+          <tr
+            class="transition-colors odd:bg-white hover:bg-blue-50/40 dark:odd:bg-gray-900 dark:hover:bg-gray-800/60"
+          >
+            <!-- ID -->
+            <td class="px-4 py-3 font-mono text-xs text-gray-500 dark:text-gray-500">{{ emp.employee_id }}</td>
+            <!-- Name -->
+            <td class="px-4 py-3">
+              <span class="font-medium text-gray-800 dark:text-gray-200">{{ emp.full_name }}</span>
+            </td>
+            <!-- Role badge -->
+            <td class="px-4 py-3">
+              {% with r=emp.role %}
+                <span
+                  class="{% if r == 'inspector' %}
+                    bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400
+                  {% elif r == 'master' %}
+                    bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-400
+                  {% elif r == 'engineer' %}
+                    bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400
+                  {% elif r == 'manager' %}
+                    bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400
+                  {% else %}
+                    bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400
+                  {% endif %} inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
+                >
+                  {{ emp.get_role_display }}
+                </span>
+              {% endwith %}
+            </td>
+            <!-- Department -->
+            <td class="hidden px-4 py-3 text-gray-700 md:table-cell dark:text-gray-300">
+              {% if emp.department %}
+                {{ emp.get_department_display }}
+              {% else %}
+                <span class="text-gray-400">—</span>
+              {% endif %}
+            </td>
+            <!-- Contact -->
+            <td class="hidden px-4 py-3 lg:table-cell">
+              {% if emp.email %}
+                <span class="block text-gray-700 dark:text-gray-300">{{ emp.email }}</span>
+              {% endif %}
+              {% if emp.phone %}
+                <span class="block text-gray-500 dark:text-gray-500">{{ emp.phone }}</span>
+              {% endif %}
+              {% if not emp.email and not emp.phone %}
+                <span class="text-gray-400">—</span>
+              {% endif %}
+            </td>
+            <!-- Telegram -->
+            <td class="hidden px-4 py-3 text-center lg:table-cell">
+              {% if emp.telegram_id %}
+                <svg class="mx-auto size-4 text-blue-500 dark:text-blue-400" aria-label="{% trans 'Has Telegram' %}">
+                  <use href="#check"></use>
+                </svg>
+              {% else %}
+                <span class="text-gray-400">—</span>
+              {% endif %}
+            </td>
+            <!-- Inspections count -->
+            <td class="hidden px-4 py-3 text-center xl:table-cell">
+              {% if emp.inspections_count > 0 %}
+                <span
+                  class="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-blue-100 px-1.5 text-xs font-semibold text-blue-700 dark:bg-blue-500/20 dark:text-blue-400"
+                >
+                  {{ emp.inspections_count }}
+                </span>
+              {% else %}
+                <span class="text-gray-400">—</span>
+              {% endif %}
+            </td>
+            <!-- Active status -->
+            <td class="px-4 py-3 text-center">
+              {% if emp.is_active %}
+                <span
+                  class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400"
+                >
+                  {% trans "Active" %}
+                </span>
+              {% else %}
+                <span
+                  class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-500 dark:bg-gray-700 dark:text-gray-400"
+                >
+                  {% trans "Inactive" %}
+                </span>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="8" class="px-4 py-12 text-center text-gray-400 dark:text-gray-500">
+              {% if q or selected_role or selected_department or selected_is_active %}
+                {% trans "No employees match the selected filters." %}
+              {% else %}
+                {% trans "No employees registered yet." %}
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <!-- Pagination -->
+  {% with page_obj=employees %}
+    {% include "web/includes/pagination/pagination.html" %}
+  {% endwith %}
 {% endblock %}
