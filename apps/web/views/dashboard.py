@@ -1,12 +1,12 @@
-from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 from django.utils import timezone
 
 from apps.core.models import Employee, Wagon
 from apps.defects.models import Defect
+from apps.web.decorators import employee_required
 
 
-@login_required
+@employee_required
 def dashboard(request):
     today = timezone.now().date()
     stats = {

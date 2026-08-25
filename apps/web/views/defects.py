@@ -1,13 +1,13 @@
-from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.shortcuts import render
 
 from apps.defects.constants import DefectSeverity, DefectStatus, DefectType
 from apps.defects.models import Defect
 from apps.web.constants import PAGE_SIZE
+from apps.web.decorators import employee_required
 
 
-@login_required
+@employee_required
 def defect_list(request):
     qs = Defect.objects.select_related("wagon", "inspector").order_by("-inspected_at")
 

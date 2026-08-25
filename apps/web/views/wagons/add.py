@@ -1,12 +1,12 @@
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 from django.utils.translation import gettext_lazy as _
 
+from apps.web.decorators import engineer_or_manager_required
 from apps.web.forms import WagonForm
 
 
-@login_required
+@engineer_or_manager_required
 def wagon_add(request):
     form = WagonForm(request.POST or None)
     if request.method == "POST" and form.is_valid():

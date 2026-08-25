@@ -1,4 +1,3 @@
-from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Count, Q
 from django.shortcuts import render
@@ -6,9 +5,10 @@ from django.shortcuts import render
 from apps.core.constants import Department, EmployeeRole
 from apps.core.models import Employee
 from apps.web.constants import PAGE_SIZE
+from apps.web.decorators import employee_required
 
 
-@login_required
+@employee_required
 def employee_list(request):
     qs = Employee.objects.annotate(
         inspections_count=Count("inspected_defects", distinct=True)

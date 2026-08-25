@@ -1,4 +1,3 @@
-from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Count, Q
 from django.shortcuts import render
@@ -7,12 +6,13 @@ from django.utils import timezone
 from apps.core.constants import WagonStatus, WagonType
 from apps.core.models import Wagon
 from apps.web.constants import PAGE_SIZE
+from apps.web.decorators import employee_required
 
 
 WAGON_SORTABLE_FIELDS = {"number", "wagon_type", "status", "manufacture_year", "next_repair_date", "mileage_km", "open_defects"}
 
 
-@login_required
+@employee_required
 def wagon_list(request):
     today = timezone.now().date()
     qs = Wagon.objects.annotate(

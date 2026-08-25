@@ -1,4 +1,3 @@
-from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Count
 from django.shortcuts import render
@@ -6,9 +5,10 @@ from django.shortcuts import render
 from apps.ai_service.constants import DocumentStatus
 from apps.ai_service.models import DepotDocument
 from apps.web.constants import PAGE_SIZE
+from apps.web.decorators import employee_required
 
 
-@login_required
+@employee_required
 def document_list(request):
     qs = DepotDocument.objects.annotate(chunks_count=Count("chunks")).order_by(
         "-created_at"
