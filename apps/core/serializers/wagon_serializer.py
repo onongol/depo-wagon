@@ -10,7 +10,9 @@ class WagonListSerializer(serializers.ModelSerializer):
     )
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     needs_repair_soon = serializers.BooleanField(read_only=True)
-    manufacture_year = serializers.IntegerField(min_value=1900, max_value=timezone.now().year)
+    manufacture_year = serializers.IntegerField(
+        min_value=1900, max_value=timezone.now().year
+    )
 
     class Meta:
         model = Wagon
@@ -36,7 +38,9 @@ class WagonSerializer(serializers.ModelSerializer):
         source="get_repair_type_display", read_only=True
     )
     needs_repair_soon = serializers.BooleanField(read_only=True)
-    manufacture_year = serializers.IntegerField(min_value=1900, max_value=timezone.now().year)
+    manufacture_year = serializers.IntegerField(
+        min_value=1900, max_value=timezone.now().year
+    )
 
     class Meta:
         model = Wagon

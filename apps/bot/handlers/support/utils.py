@@ -17,7 +17,7 @@ def support_chat_id() -> int | None:
     raw = settings.TELEGRAM_SUPPORT_CHAT_ID
     try:
         return int(raw)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         if raw:
             logger.warning(
                 "Invalid TELEGRAM_SUPPORT_CHAT_ID=%r — support relay disabled.", raw
@@ -31,7 +31,9 @@ def _map_key(message_id: int) -> str:
 
 async def remember_request(message_id: int, user_id: int) -> None:
     """Link a relayed group message to the user who sent the request."""
-    await sync_to_async(cache.set)(_map_key(message_id), user_id, timeout=SUPPORT_MAP_TTL)
+    await sync_to_async(cache.set)(
+        _map_key(message_id), user_id, timeout=SUPPORT_MAP_TTL
+    )
 
 
 async def lookup_request(message_id: int) -> int | None:

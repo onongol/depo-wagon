@@ -12,7 +12,9 @@ class TestOnDefectClosed:
         return baker.make("defects.Defect", wagon__manufacture_year=2020, **kwargs)
 
     def test_queues_task_when_status_becomes_closed(self):
-        defect = self._make_defect(status=DefectStatus.OPEN, verdict=DefectVerdict.REPAIR_NOW)
+        defect = self._make_defect(
+            status=DefectStatus.OPEN, verdict=DefectVerdict.REPAIR_NOW
+        )
 
         with patch("apps.ai_service.tasks.embed_defect_task.delay") as mock_delay:
             defect.status = DefectStatus.CLOSED
@@ -22,7 +24,9 @@ class TestOnDefectClosed:
 
     def test_queues_task_when_closed_without_verdict_in_memory(self):
         """Signal fires even if instance.verdict is empty — task reads verdict fresh from DB."""
-        defect = self._make_defect(status=DefectStatus.OPEN, verdict=DefectVerdict.REPAIR_NOW)
+        defect = self._make_defect(
+            status=DefectStatus.OPEN, verdict=DefectVerdict.REPAIR_NOW
+        )
 
         with patch("apps.ai_service.tasks.embed_defect_task.delay") as mock_delay:
             defect.status = DefectStatus.CLOSED
@@ -32,7 +36,9 @@ class TestOnDefectClosed:
         mock_delay.assert_called_once_with(str(defect.id))
 
     def test_does_not_queue_when_not_closed(self):
-        defect = self._make_defect(status=DefectStatus.OPEN, verdict=DefectVerdict.REPAIR_NOW)
+        defect = self._make_defect(
+            status=DefectStatus.OPEN, verdict=DefectVerdict.REPAIR_NOW
+        )
 
         with patch("apps.ai_service.tasks.embed_defect_task.delay") as mock_delay:
             defect.save()

@@ -1,0 +1,111 @@
+[tool.ruff]
+line-length = 88
+target-version = "py314"
+extend-exclude = ["*/migrations/*.py", "static/*", "staticfiles/*", ".venv/*"]
+
+[tool.ruff.lint]
+select = [
+  "A", "ASYNC", "B", "BLE", "C4", "C90", "COM", "DJ", "DTZ", "E", "EM",
+  "ERA", "EXE", "F", "FA", "FBT", "FLY", "G", "I", "ICN", "INP", "INT",
+  "ISC", "N", "PD", "PERF", "PGH", "PIE", "PL", "PT", "PTH", "PYI", "Q",
+  "RET", "RSE", "RUF", "S", "SIM", "SLF", "SLOT", "T10", "T20", "TC",
+  "TID", "TRY", "UP", "W", "YTT",
+]
+ignore = [
+  "RUF012",
+  "S101",
+  "SIM102",
+  # Ruff warns on every run that COM812 conflicts with the formatter.
+  "COM812",
+  # Line length is the formatter's job.
+  "E501",
+  # Comments and UI text are Russian and Mongolian; Ruff reads Cyrillic as
+  # lookalike Latin.
+  "RUF001",
+  "RUF002",
+  "RUF003",
+
+  # --- Pre-existing debt, silenced to get the hooks green on the current
+  # code. Counts are from the first full run; each line is its own cleanup
+  # task. Roughly half of these are mechanical: `ruff check --fix` clears the
+  # ones marked (fix) without a judgement call, and deleting those lines
+  # afterwards is the cheapest way to shrink this block.
+  "TC002",    # 62 (fix) — third-party imports used only in annotations
+  "PLC0415",  # 49 — imports inside functions; some break real import cycles
+  "TC001",    # 25 (fix) — first-party imports used only in annotations
+  "BLE001",   # 19 — `except Exception` in bot handlers and the AI pipeline
+  "RUF022",   # 13 (fix) — unsorted __all__
+  "I001",     # 10 (fix) — unsorted imports
+  "PLW0603",  # 6 — global statement, the bot application singleton
+  "DJ012",    # 6 — model body ordering
+  "TRY400",   # 5 (fix) — logger.error where logger.exception belongs
+  "TRY003",   # 4 — long messages in raise
+  "FBT001",   # 4 — boolean positional arguments
+  "Q000",     # 4 (fix) — quote style
+  "PLR2004",  # 3 — magic values outside tests
+  "PERF401",  # 3 — manual list comprehension
+  "G201",     # 3 — logging exc_info=True
+  "TRY301",   # 3 — raise inside try
+  "EM101",    # 3 (fix) — string literal in exception
+  "SIM105",   # 3 (fix) — contextlib.suppress
+  "TRY300",   # 3 — return inside try
+  "FBT002",   # 3 — boolean default positional
+  "C901",     # 2 — analysis and chat pipelines
+  "RSE102",   # 2 (fix)
+  "B904",     # 2 — raise without from inside except
+  "PIE790",   # 2 (fix)
+  "UP042",    # 2 (fix) — StrEnum
+  "S110",     # 2 — try/except/pass
+  "PLR0913",  # 2 — too many arguments
+  "PLR0917",  # 2 — too many positional arguments
+  "SLF001",   # 1 — private member access
+  "PLR0912",  # 1
+  "PLR0915",  # 1
+  "RUF005",   # 1 (fix)
+  "EM102",    # 1 (fix)
+  "B905",     # 1 (fix) — zip without strict
+  "FBT003",   # 1
+  "C416",     # 1 (fix)
+  "UP041",    # 1 (fix)
+  "PLR0911",  # 1
+  "W293",     # 1 (fix)
+  "UP035",    # 1 (fix)
+  "DJ001",    # 1 — null=True on a string field
+  "PTH123",   # 1 — open() instead of Path.open()
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["apps", "config"]
+
+[tool.ruff.lint.per-file-ignores]
+# Settings modules are assembled with star imports.
+"config/settings/*.py" = ["F403", "F405"]
+# Decisions, not debt. In an assertion the literal is the documentation, and
+# naming it hides what is checked. Test credentials are fixtures. pytest.raises
+# on a broad exception is the point of the test in these cases.
+"**/tests/*.py" = [
+  "B011", "B017", "DTZ011", "N806", "PT011", "PT015", "PT018", "PT022",
+  "RET504", "RUF059", "S105", "S106", "SIM117", "UP017", "UP041",
+]
+"conftest.py" = ["S105", "S106"]
+# django-components discovers component directories by path, not by import, so
+# they deliberately have no __init__.py.
+"apps/web/components/*" = ["INP001"]
+# Modules that exist to re-export; F401 stays on everywhere else so the
+# `# noqa: F401` on signal imports in apps.py keeps meaning something.
+"apps/ai_service/views.py" = ["F401"]
+"apps/bot/admin.py" = ["F401"]
+"apps/bot/models.py" = ["F401"]
+
+[tool.djlint]
+# Lint only. Formatting is Prettier's: djlint --reformat and Prettier rewrite
+# each other's output forever, so the formatter options are deliberately absent.
+profile = "django"
+extension = "html"
+# django-components' tags are block tags; without this djlint reports every
+# {% endcomponent %}/{% endslot %}/{% endfill %} as an unmatched end tag.
+custom_blocks = "component,slot,fill"
+# H021 (inline styles): the two hits are <svg> sprite sheets, where the
+# attributes are the graphic. H030/H031 (meta description/keywords): this is a
+# logged-in depot tool, not an indexed page.
+ignore = "H021,H030,H031"

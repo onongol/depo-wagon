@@ -39,7 +39,7 @@ def embed_texts(
             except ClientError as exc:
                 if exc.code not in RETRYABLE_HTTP_CODES or attempt == len(RETRY_DELAYS):
                     raise
-            except (ConnectionError, TimeoutError):
+            except ConnectionError, TimeoutError:
                 if attempt == len(RETRY_DELAYS):
                     raise
 

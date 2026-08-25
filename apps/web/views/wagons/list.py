@@ -9,7 +9,15 @@ from apps.web.constants import PAGE_SIZE
 from apps.web.decorators import employee_required
 
 
-WAGON_SORTABLE_FIELDS = {"number", "wagon_type", "status", "manufacture_year", "next_repair_date", "mileage_km", "open_defects"}
+WAGON_SORTABLE_FIELDS = {
+    "number",
+    "wagon_type",
+    "status",
+    "manufacture_year",
+    "next_repair_date",
+    "mileage_km",
+    "open_defects",
+}
 
 
 @employee_required
