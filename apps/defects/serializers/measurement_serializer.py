@@ -23,4 +23,13 @@ class DefectMeasurementSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["defect", "created_at", "updated_at"]
+        read_only_fields = ["created_at", "updated_at"]
+
+    def update(self, instance, validated_data):
+        """Keep a measurement on the defect it was recorded against.
+
+        `defect` has to stay writable so create can set it, so reassignment
+        is refused here rather than through read_only_fields.
+        """
+        validated_data.pop("defect", None)
+        return super().update(instance, validated_data)
