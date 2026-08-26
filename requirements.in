@@ -4,6 +4,9 @@ djangorestframework
 gunicorn
 whitenoise
 
+# === Security ===
+argon2-cffi
+
 # === Database ===
 psycopg
 pgvector
