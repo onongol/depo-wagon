@@ -198,6 +198,17 @@ SPECTACULAR_SETTINGS = {
 LOGIN_URL = "web:login"
 LOGIN_REDIRECT_URL = "web:home"
 
+# Argon2id first: it's the OWASP-recommended default. The rest stay as
+# fallbacks so existing PBKDF2 hashes still verify — Django transparently
+# re-hashes each password to Argon2 the next time its owner logs in.
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.Argon2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+    "django.contrib.auth.hashers.BCryptSHA256PasswordHasher",
+    "django.contrib.auth.hashers.ScryptPasswordHasher",
+]
+
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
