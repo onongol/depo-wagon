@@ -12,7 +12,6 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, "assets/js/main.ts"),
-        flatpickr: path.resolve(__dirname, "assets/src/flatpickr_init.ts"),
         styles: path.resolve(__dirname, "assets/src/styles.css"),
       },
       output: {
