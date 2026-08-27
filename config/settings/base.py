@@ -17,12 +17,17 @@ SECRET_KEY = env("SECRET_KEY")
 DEBUG = env.bool("DEBUG", default=False)
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
 
-INSTALLED_APPS = [
+# Must precede django.contrib.admin: unfold ships replacements for the admin's
+# own templates, and template resolution is won by the app listed first.
+ADMIN_THEME_APPS = [
     "unfold",
     "unfold.contrib.filters",
     "unfold.contrib.inlines",
     "unfold.contrib.import_export",
     "unfold.contrib.simple_history",
+]
+
+DJANGO_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -30,7 +35,9 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.humanize",
-    # Third-party
+]
+
+THIRD_PARTY_APPS = [
     "allauth",
     "allauth.account",
     "allauth.mfa",
@@ -45,7 +52,9 @@ INSTALLED_APPS = [
     "storages",
     "widget_tweaks",
     "django_components",
-    # Project apps
+]
+
+LOCAL_APPS = [
     "apps.users",
     "apps.core",
     "apps.defects",
@@ -53,6 +62,8 @@ INSTALLED_APPS = [
     "apps.ai_service",
     "apps.web",
 ]
+
+INSTALLED_APPS = ADMIN_THEME_APPS + DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 AUTH_USER_MODEL = "users.CustomUser"
 
