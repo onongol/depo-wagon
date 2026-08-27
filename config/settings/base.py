@@ -12,7 +12,6 @@ environ.Env.read_env(BASE_DIR / ".env")
 
 # GENERAL
 # ------------------------------------------------------------------------------
-DEBUG = env.bool("DEBUG", default=False)
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
 TIME_ZONE = "Asia/Ulaanbaatar"
 LANGUAGE_CODE = "en"
