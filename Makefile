@@ -40,9 +40,6 @@ build:
 watch:
 	npm run watch
 
-# pytest, not manage.py test: the suite is named *_tests.py, which Django's
-# default test*.py discovery does not match, and pytest.ini points at
-# config.settings.test rather than the local settings manage.py defaults to.
 test:
 	$(PYTEST)
 

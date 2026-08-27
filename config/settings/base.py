@@ -1,3 +1,4 @@
+from datetime import timedelta
 from pathlib import Path
 
 from decouple import Csv, config
@@ -21,7 +22,13 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.humanize",
     # Third-party
+    "allauth",
+    "allauth.account",
+    "allauth.mfa",
+    "allauth.usersessions",
+    "axes",
     "django_filters",
     "rest_framework",
     "knox",
@@ -52,6 +59,8 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "simple_history.middleware.HistoryRequestMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
+    "allauth.usersessions.middleware.UserSessionsMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -146,8 +155,11 @@ EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
 DEFAULT_FROM_EMAIL = config("EMAIL_HOST_USER", default="noreply@depowagon.mn")
 
+SITE_URL = config("SITE_URL", default="http://localhost:8000")
+
 # Telegram
 TELEGRAM_BOT_TOKEN = config("TELEGRAM_BOT_TOKEN")
+TELEGRAM_BOT_USERNAME = config("TELEGRAM_BOT_USERNAME", default="")
 TELEGRAM_WEBHOOK_URL = config("TELEGRAM_WEBHOOK_URL", default="")
 TELEGRAM_WEBHOOK_SECRET = config("TELEGRAM_WEBHOOK_SECRET", default="")
 
@@ -195,12 +207,72 @@ SPECTACULAR_SETTINGS = {
     },
 }
 
-LOGIN_URL = "web:login"
-LOGIN_REDIRECT_URL = "web:home"
+AUTHENTICATION_BACKENDS = [
+    # Must stay first: it is what refuses a locked-out attempt.
+    "axes.backends.AxesStandaloneBackend",
+    "django.contrib.auth.backends.ModelBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
+]
 
-# Argon2id first: it's the OWASP-recommended default. The rest stay as
-# fallbacks so existing PBKDF2 hashes still verify — Django transparently
-# re-hashes each password to Argon2 the next time its owner logs in.
+LOGIN_URL = "account_login"
+LOGIN_REDIRECT_URL = "web:home"
+LOGOUT_REDIRECT_URL = "account_login"
+
+ACCOUNT_LOGIN_METHODS = {"email"}
+ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
+ACCOUNT_SIGNUP_FORM_CLASS = "apps.users.forms.EmployeeSignupForm"
+ACCOUNT_EMAIL_VERIFICATION = "mandatory"
+ACCOUNT_EMAIL_CONFIRMATION_EXPIRE_DAYS = 1
+ACCOUNT_CONFIRM_EMAIL_ON_GET = True
+ACCOUNT_LOGOUT_ON_GET = False
+ACCOUNT_EMAIL_NOTIFICATIONS = True
+ACCOUNT_LOGOUT_ON_PASSWORD_CHANGE = True
+ACCOUNT_ADAPTER = "apps.users.adapters.AccountAdapter"
+ACCOUNT_EMAIL_SUBJECT_PREFIX = "[Depo Wagon] "
+ACCOUNT_SESSION_REMEMBER = False
+ACCOUNT_PREVENT_ENUMERATION = True
+
+# Must match the deployment: at 0 the per-IP limits below see only the proxy's address.
+ALLAUTH_TRUSTED_PROXY_COUNT = config("TRUSTED_PROXY_COUNT", default=0, cast=int)
+
+ACCOUNT_RATE_LIMITS = {
+    "login": "30/m/ip",
+    "login_failed": "10/m/ip,5/300s/key",
+    "signup": "10/m/ip",
+    "confirm_email": "1/180s/key",
+    "reset_password": "20/m/ip,5/m/key",
+    "reset_password_from_key": "20/m/ip",
+    "change_password": "5/m/user",
+    "reauthenticate": "10/m/user",
+}
+
+AXES_MIDDLEWARE_PATH = "axes.middleware.AxesMiddleware"
+# Backstop behind ACCOUNT_RATE_LIMITS: kept in the database, so it survives a
+# cache flush, and hooked on the login signal, so it also covers /admin/, which
+# allauth's limiter never sees. The limit is above allauth's on purpose — the
+# nicer 429 should be what users normally hit.
+AXES_FAILURE_LIMIT = 10
+AXES_COOLOFF_TIME = timedelta(minutes=30)
+AXES_LOCKOUT_PARAMETERS = [["username", "ip_address"]]
+AXES_RESET_ON_SUCCESS = True
+AXES_USERNAME_CALLABLE = "apps.users.axes.get_username"
+AXES_IPWARE_PROXY_COUNT = ALLAUTH_TRUSTED_PROXY_COUNT or None
+
+USERSESSIONS_TRACK_ACTIVITY = True
+
+# SAVE_EVERY_REQUEST makes the age an idle timeout, counted from the last request.
+SESSION_COOKIE_AGE = 8 * 60 * 60
+SESSION_SAVE_EVERY_REQUEST = True
+# Also covers sessions allauth does not create, e.g. the admin's.
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
+REST_KNOX = {
+    "TOKEN_TTL": timedelta(hours=10),
+    "AUTO_REFRESH": False,  # no browser-close signal on the API; TTL is the only bound
+    "TOKEN_LIMIT_PER_USER": None,
+}
+
 PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.Argon2PasswordHasher",
     "django.contrib.auth.hashers.PBKDF2PasswordHasher",
@@ -213,10 +285,17 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
     },
-    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
-    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {"min_length": 12},
+    },
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+    {"NAME": "pwned_passwords_django.validators.PwnedPasswordsValidator"},
 ]
+
+# django-allauth: optional two-factor auth. TOTP (authenticator apps) + recovery
+MFA_SUPPORTED_TYPES = ["totp", "recovery_codes"]
+MFA_TOTP_ISSUER = "Depot Management"
 
 LOGGING = {
     "version": 1,

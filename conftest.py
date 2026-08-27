@@ -1,11 +1,20 @@
 import pytest
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from model_bakery import baker
 from rest_framework.test import APIClient
 
 from apps.core.constants import EmployeeRole
 
 User = get_user_model()
+
+
+@pytest.fixture(autouse=True)
+def _clear_cache():
+    """Sign-in rate limits are counted in the cache; don't leak them between tests."""
+    cache.clear()
+    yield
+    cache.clear()
 
 
 def make_client_with_role(role):

@@ -6,6 +6,9 @@ whitenoise
 
 # === Security ===
 argon2-cffi
+pwned-passwords-django
+django-allauth[mfa]
+django-axes
 
 # === Database ===
 psycopg
