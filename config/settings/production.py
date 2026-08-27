@@ -3,7 +3,19 @@ from decouple import Csv, config
 from config.settings.base import *
 
 DEBUG = False
+
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", cast=Csv())
+
+# Same-origin POSTs pass on the host alone; this matters when a form is served
+# from another host than Django sees, which is exactly what a proxy can cause.
+CSRF_TRUSTED_ORIGINS = config(
+    "CSRF_TRUSTED_ORIGINS",
+    default=",".join(
+        f"https://*{host}" if host.startswith(".") else f"https://{host}"
+        for host in ALLOWED_HOSTS
+    ),
+    cast=Csv(),
+)
 
 DATABASES["default"]["CONN_MAX_AGE"] = 60
 
@@ -12,12 +24,33 @@ EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
+# Django has no timeout by default, so one hung SMTP connection pins a worker.
+EMAIL_TIMEOUT = config("EMAIL_TIMEOUT", default=5, cast=int)
 
+# Behind the TLS terminator every request reaches Django as plain HTTP, so
+# without this SECURE_SSL_REDIRECT would redirect forever. Set the variable to
+# false if gunicorn is ever reachable directly: the header can then be spoofed.
+SECURE_PROXY_SSL_HEADER = (
+    ("HTTP_X_FORWARDED_PROTO", "https")
+    if config("USE_X_FORWARDED_PROTO", default=True, cast=bool)
+    else None
+)
+
+SECURE_SSL_REDIRECT = True
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-SECURE_SSL_REDIRECT = True
+# Scheme for the links allauth mails out; the host comes from the request.
+ACCOUNT_DEFAULT_HTTP_PROTOCOL = "https"
+
 SESSION_COOKIE_SECURE = True
+SESSION_COOKIE_NAME = "__Secure-sessionid"
 CSRF_COOKIE_SECURE = True
+CSRF_COOKIE_NAME = "__Secure-csrftoken"
+# No JS reads this cookie; every form uses {% csrf_token %}.
+CSRF_COOKIE_HTTPONLY = True
+
+MIDDLEWARE = [*MIDDLEWARE, AXES_MIDDLEWARE_PATH]
+assert MIDDLEWARE[-1] == AXES_MIDDLEWARE_PATH, "AxesMiddleware must be last"
 
 _LOGS_DIR = BASE_DIR / "logs"
 _LOGS_DIR.mkdir(exist_ok=True)
