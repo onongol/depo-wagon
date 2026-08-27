@@ -19,7 +19,16 @@ def inspector_employee(db):
 
 @pytest.fixture
 def defect(db, wagon, inspector_employee):
-    return baker.make("defects.Defect", wagon=wagon, inspector=inspector_employee)
+    # `defect_type` must be pinned. Left to model_bakery it is drawn at random
+    # from the choices, and when HUMAN_FACTOR came up DefectSerializer.validate()
+    # demanded a responsible_employee this fixture never sets — failing every
+    # PATCH in this module with 400 regardless of the permission being tested.
+    return baker.make(
+        "defects.Defect",
+        wagon=wagon,
+        inspector=inspector_employee,
+        defect_type=DefectType.CRACK,
+    )
 
 
 @pytest.fixture
