@@ -26,6 +26,8 @@ LANGUAGES = [
 USE_I18N = True
 USE_TZ = True
 
+LOCALE_PATHS = [BASE_DIR / "locale"]
+
 # DATABASES
 # ------------------------------------------------------------------------------
 DATABASES = {"default": env.db("DATABASE_URL")}
@@ -128,12 +130,15 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "pwned_passwords_django.validators.PwnedPasswordsValidator"},
 ]
 
+PASSWORD_RESET_TIMEOUT = 60 * 60
+
 # MIDDLEWARE
 # ------------------------------------------------------------------------------
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -188,7 +193,9 @@ TEMPLATES = [
                 "django_components.template_loader.Loader",
             ],
             "context_processors": [
+                "django.template.context_processors.debug",
                 "django.template.context_processors.request",
+                "django.template.context_processors.i18n",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
             ],
@@ -310,12 +317,8 @@ USERSESSIONS_TRACK_ACTIVITY = True
 
 # django-axes
 # ------------------------------------------------------------------------------
-# Backstop behind ACCOUNT_RATE_LIMITS: kept in the database, so it survives a
-# cache flush, and hooked on the login signal, so it also covers /admin/, which
-# allauth's limiter never sees. The limit is above allauth's on purpose — the
-# nicer 429 should be what users normally hit.
 AXES_FAILURE_LIMIT = 10
-AXES_COOLOFF_TIME = timedelta(minutes=30)
+AXES_COOLOFF_TIME = timedelta(hours=1)
 AXES_LOCKOUT_PARAMETERS = [["username", "ip_address"]]
 AXES_RESET_ON_SUCCESS = True
 AXES_USERNAME_CALLABLE = "apps.users.axes.get_username"
@@ -343,7 +346,7 @@ REST_FRAMEWORK = {
 
 REST_KNOX = {
     "TOKEN_TTL": timedelta(hours=10),
-    "AUTO_REFRESH": False,  # no browser-close signal on the API; TTL is the only bound
+    "AUTO_REFRESH": False,
     "TOKEN_LIMIT_PER_USER": None,
 }
 
