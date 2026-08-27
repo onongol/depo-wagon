@@ -5,6 +5,22 @@ from sentry_sdk.integrations.django import DjangoIntegration
 
 from config.settings.base import *
 
+# REQUIRED CONFIGURATION
+# ------------------------------------------------------------------------------
+for _name in (
+    "SECRET_KEY",
+    "DATABASE_URL",
+    "REDIS_URL",
+    "AWS_ACCESS_KEY_ID",
+    "AWS_SECRET_ACCESS_KEY",
+    "AWS_STORAGE_BUCKET_NAME",
+    "AWS_S3_ENDPOINT_URL",
+    "TELEGRAM_BOT_TOKEN",
+    "GOOGLE_AI_KEY",
+):
+    if not env(_name, default=""):
+        raise ImproperlyConfigured(f"{_name} environment variable not set")
+
 # GENERAL
 # ------------------------------------------------------------------------------
 DEBUG = False
@@ -15,6 +31,7 @@ if not ALLOWED_HOSTS:
 # DATABASES
 # ------------------------------------------------------------------------------
 DATABASES["default"]["CONN_MAX_AGE"] = 60
+DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
 
 # MIDDLEWARE
 # ------------------------------------------------------------------------------
@@ -35,7 +52,7 @@ SECURE_PROXY_SSL_HEADER = (
 
 SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=True)
 
-SECURE_HSTS_SECONDS = 60
+SECURE_HSTS_SECONDS = 60  # Set to 60 seconds first and then increase to 518400 (6 days) once confirmed working.
 SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool(
     "SECURE_HSTS_INCLUDE_SUBDOMAINS", default=True
 )
@@ -45,8 +62,6 @@ SESSION_COOKIE_SECURE = True
 SESSION_COOKIE_NAME = "__Secure-sessionid"
 CSRF_COOKIE_SECURE = True
 CSRF_COOKIE_NAME = "__Secure-csrftoken"
-# No JS reads this cookie; every form uses {% csrf_token %}.
-CSRF_COOKIE_HTTPONLY = True
 
 # EMAIL
 # ------------------------------------------------------------------------------
