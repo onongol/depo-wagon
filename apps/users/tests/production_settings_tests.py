@@ -1,14 +1,16 @@
 """The production module is never loaded by the suite, so its own logic is
-untested unless read directly. Only the two settings it computes are covered
-here; the literal ones are `manage.py check --deploy`'s job."""
+untested unless read directly. Only what it computes or refuses is covered
+here; the literal settings are `manage.py check --deploy`'s job."""
 
 import importlib
 
 import pytest
+from django.core.exceptions import ImproperlyConfigured
 
 
 def load_production(monkeypatch, **env):
     env.setdefault("ALLOWED_HOSTS", "depowagon.mn")
+    env.setdefault("CSRF_TRUSTED_ORIGINS", "https://depowagon.mn")
     for key, value in env.items():
         monkeypatch.setenv(key, value)
 
@@ -33,18 +35,32 @@ def test_the_proxys_scheme_is_trusted_only_when_asked(monkeypatch, flag, expecte
     assert header == expected
 
 
+@pytest.mark.parametrize("setting", ["ALLOWED_HOSTS", "CSRF_TRUSTED_ORIGINS"])
+def test_an_empty_host_list_is_refused(monkeypatch, setting):
+    with pytest.raises(ImproperlyConfigured, match=setting):
+        load_production(monkeypatch, **{setting: ""})
+
+
 @pytest.mark.parametrize(
-    ("hosts", "expected"),
+    ("setting", "value", "expected"),
     [
         (
-            "depowagon.mn,www.depowagon.mn",
+            "ALLOWED_HOSTS",
+            "depowagon.mn, www.depowagon.mn",
+            ["depowagon.mn", "www.depowagon.mn"],
+        ),
+        # A leading space passes Django's 4_0.E001 scheme check and then never
+        # matches an Origin header, so it has to be stripped here.
+        (
+            "CSRF_TRUSTED_ORIGINS",
+            "https://depowagon.mn, https://www.depowagon.mn",
             ["https://depowagon.mn", "https://www.depowagon.mn"],
         ),
-        # Django wants https://*.example.com, not https://.example.com.
-        (".depowagon.mn", ["https://*.depowagon.mn"]),
     ],
 )
-def test_csrf_origins_are_derived_from_the_allowed_hosts(monkeypatch, hosts, expected):
-    origins = load_production(monkeypatch, ALLOWED_HOSTS=hosts).CSRF_TRUSTED_ORIGINS
+def test_whitespace_between_configured_values_is_stripped(
+    monkeypatch, setting, value, expected
+):
+    production = load_production(monkeypatch, **{setting: value})
 
-    assert origins == expected
+    assert getattr(production, setting) == expected
