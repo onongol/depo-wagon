@@ -29,14 +29,18 @@ LOCALE_PATHS = [BASE_DIR / "locale"]
 
 # DATABASES
 # ------------------------------------------------------------------------------
-DATABASES = {"default": env.db("DATABASE_URL")}
+DATABASES = {
+    "default": env.db("DATABASE_URL", default="postgres://localhost:5432/depo_wagon")
+}
+
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # CACHES
 # ------------------------------------------------------------------------------
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": env("REDIS_URL"),
+        "LOCATION": env("REDIS_URL", default="redis://localhost:6379/0"),
     }
 }
 
@@ -171,12 +175,11 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 # Cloudflare R2, which backs the default storage above
-AWS_ACCESS_KEY_ID = env("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = env("AWS_SECRET_ACCESS_KEY")
-AWS_STORAGE_BUCKET_NAME = env("AWS_STORAGE_BUCKET_NAME")
-AWS_S3_ENDPOINT_URL = env("AWS_S3_ENDPOINT_URL")
+AWS_ACCESS_KEY_ID = env("AWS_ACCESS_KEY_ID", default="")
+AWS_SECRET_ACCESS_KEY = env("AWS_SECRET_ACCESS_KEY", default="")
+AWS_STORAGE_BUCKET_NAME = env("AWS_STORAGE_BUCKET_NAME", default="")
+AWS_S3_ENDPOINT_URL = env("AWS_S3_ENDPOINT_URL", default="")
 AWS_S3_SIGNATURE_VERSION = "s3v4"
-DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 
 # TEMPLATES
 # ------------------------------------------------------------------------------
@@ -207,13 +210,17 @@ TEMPLATES = [
 
 # SECURITY
 # ------------------------------------------------------------------------------
-SECRET_KEY = env("SECRET_KEY")
+SECRET_KEY = env("SECRET_KEY", default="django-insecure-development-key-only")
 
 # SAVE_EVERY_REQUEST makes the age an idle timeout, counted from the last request.
 SESSION_COOKIE_AGE = 8 * 60 * 60
 SESSION_SAVE_EVERY_REQUEST = True
 # Also covers sessions allauth does not create, e.g. the admin's.
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
+SESSION_COOKIE_HTTPONLY = True
+# No JS reads this cookie; every form uses {% csrf_token %}.
+CSRF_COOKIE_HTTPONLY = True
 
 # EMAIL
 # ------------------------------------------------------------------------------
@@ -271,8 +278,8 @@ LOGGING = {
 
 # Celery
 # ------------------------------------------------------------------------------
-CELERY_BROKER_URL = env("REDIS_URL")
-CELERY_RESULT_BACKEND = env("REDIS_URL")
+CELERY_BROKER_URL = CACHES["default"]["LOCATION"]
+CELERY_RESULT_BACKEND = CACHES["default"]["LOCATION"]
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
@@ -376,7 +383,7 @@ SPECTACULAR_SETTINGS = {
 SITE_URL = env("SITE_URL", default="http://localhost:8000")
 
 # Telegram
-TELEGRAM_BOT_TOKEN = env("TELEGRAM_BOT_TOKEN")
+TELEGRAM_BOT_TOKEN = env("TELEGRAM_BOT_TOKEN", default="")
 TELEGRAM_BOT_USERNAME = env("TELEGRAM_BOT_USERNAME", default="")
 TELEGRAM_WEBHOOK_URL = env("TELEGRAM_WEBHOOK_URL", default="")
 TELEGRAM_WEBHOOK_SECRET = env("TELEGRAM_WEBHOOK_SECRET", default="")
@@ -385,4 +392,4 @@ TELEGRAM_WEBHOOK_SECRET = env("TELEGRAM_WEBHOOK_SECRET", default="")
 TELEGRAM_SUPPORT_CHAT_ID = env("TELEGRAM_SUPPORT_CHAT_ID", default="")
 
 # Google AI
-GOOGLE_AI_KEY = env("GOOGLE_AI_KEY")
+GOOGLE_AI_KEY = env("GOOGLE_AI_KEY", default="")
