@@ -12,12 +12,19 @@ CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
 CSRF_COOKIE_SECURE = False
 SESSION_COOKIE_SECURE = False
 
+# runserver_nostatic overrides the runserver command so staticfiles stops
+# serving assets and WhiteNoise handles them here the way it does in
+# production. get_commands() walks the apps in reverse, so the override only
+# wins from ahead of django.contrib.staticfiles — appended last it is inert.
 INSTALLED_APPS = [
-    *INSTALLED_APPS,
     "whitenoise.runserver_nostatic",
+    *INSTALLED_APPS,
     "debug_toolbar",
     "django_browser_reload",
 ]
+assert INSTALLED_APPS.index("whitenoise.runserver_nostatic") < INSTALLED_APPS.index(
+    "django.contrib.staticfiles"
+), "runserver_nostatic must precede staticfiles"
 
 MIDDLEWARE = [
     *MIDDLEWARE,
