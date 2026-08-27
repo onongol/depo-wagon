@@ -2,13 +2,16 @@
 Async service layer: wraps Django ORM calls for use in async PTB handlers.
 
 Modules:
-  employee    — get/register/link employees
-  wagon       — wagon lookup
-  defect      — create/update defects, open defects list
-  photo       — save defect photos to storage
-  measurement — create defect measurements
-  otp         — OTP generation/verification in Redis
-  email       — OTP/credentials email sending
+  employee      — employee lookup
+  telegram_link — attach a chat to a user via a web-issued deep-link token
+  login_link    — one-time web sign-in links sent over Telegram
+  wagon         — wagon lookup
+  defect        — create/update defects, open defects list
+  photo         — save defect photos to storage
+  measurement   — create defect measurements
+
+There is no OTP or credentials-email module any more: identity is established
+on the web by allauth, and the bot only ever receives a token proving it.
 """
 
 from .defect import (
@@ -19,8 +22,6 @@ from .defect import (
     update_defect_ai_result,
     update_defect_status,
 )
-from .email import send_credentials_email, send_otp_email
-from .otp import generate_and_store_otp, verify_otp
 from .employee import (
     get_employee_by_email,
     get_employee_by_id,
@@ -29,10 +30,11 @@ from .employee import (
     get_employees_by_department,
     get_managers_and_engineers,
     link_employee_telegram,
-    register_employee,
 )
+from .login_link import build_login_link, get_connect_url
 from .measurement import create_measurement, create_measurements_bulk
 from .photo import create_photo_from_bytes
+from .telegram_link import link_telegram_by_token
 from .wagon import get_wagon_by_number
 
 __all__ = [
@@ -43,8 +45,12 @@ __all__ = [
     "get_employee_for_auth",
     "get_employees_by_department",
     "get_managers_and_engineers",
-    "register_employee",
     "link_employee_telegram",
+    # telegram linking
+    "link_telegram_by_token",
+    # login link
+    "build_login_link",
+    "get_connect_url",
     # wagon
     "get_wagon_by_number",
     # defect
@@ -59,9 +65,4 @@ __all__ = [
     # measurement
     "create_measurement",
     "create_measurements_bulk",
-    # email
-    "generate_and_store_otp",
-    "verify_otp",
-    "send_otp_email",
-    "send_credentials_email",
 ]

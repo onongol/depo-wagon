@@ -1,0 +1,188 @@
+{% extends "web/base.html" %}
+{% load i18n %}
+{% block title %}
+  {% trans "Account" %}
+  — Depo Wagon
+{% endblock %}
+{% block content %}
+  <div class="mx-auto max-w-2xl">
+    <h1 class="mb-1 text-lg font-semibold text-gray-800 dark:text-gray-200">{% trans "Account" %}</h1>
+    <p class="mb-6 text-sm text-gray-500 dark:text-gray-400">
+      {% trans "Your sign-in details and the devices signed in to this account." %}
+    </p>
+    <div class="space-y-3">
+      {% if employee %}
+        <div
+          class="flex items-center gap-4 rounded-md border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+        >
+          <span
+            class="flex size-10 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
+          >
+            <svg class="size-5" aria-hidden="true">
+              <use href="#user"></use>
+            </svg>
+          </span>
+          <div>
+            <p class="text-sm font-medium text-gray-700 dark:text-gray-300">{% trans "Name" %}</p>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {{ employee.full_name }} · {{ employee.get_role_display }}
+            </p>
+          </div>
+        </div>
+      {% endif %}
+      <div
+        class="flex items-center justify-between gap-4 rounded-md border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+      >
+        <div class="flex items-center gap-4">
+          <span
+            class="flex size-10 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
+          >
+            <svg class="size-5" aria-hidden="true">
+              <use href="#envelope"></use>
+            </svg>
+          </span>
+          <div>
+            <p class="text-sm font-medium text-gray-700 dark:text-gray-300">{% trans "Email" %}</p>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ request.user.email }}</p>
+          </div>
+        </div>
+        <a
+          href="{% url 'account_email' %}"
+          class="shrink-0 cursor-pointer rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 transition hover:bg-gray-200 focus:ring-2 focus:ring-gray-400 focus:outline-none dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+        >
+          {% trans "Manage" %}
+        </a>
+      </div>
+      <div
+        class="flex items-center justify-between gap-4 rounded-md border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+      >
+        <div class="flex items-center gap-4">
+          <span
+            class="flex size-10 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
+          >
+            <svg class="size-5" aria-hidden="true">
+              <use href="#key"></use>
+            </svg>
+          </span>
+          <p class="text-sm font-medium text-gray-700 dark:text-gray-300">{% trans "Password" %}</p>
+        </div>
+        <a
+          href="{% url 'account_change_password' %}"
+          class="shrink-0 cursor-pointer rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 transition hover:bg-gray-200 focus:ring-2 focus:ring-gray-400 focus:outline-none dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+        >
+          {% trans "Change" %}
+        </a>
+      </div>
+      <div
+        class="flex items-start justify-between gap-4 rounded-md border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+      >
+        <div class="flex items-start gap-4">
+          <span
+            class="{% if is_mfa_enabled %}
+              bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400
+            {% else %}
+              bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400
+            {% endif %} flex size-10 shrink-0 items-center justify-center rounded-full"
+          >
+            <svg class="size-5" aria-hidden="true">
+              <use href="#shield"></use>
+            </svg>
+          </span>
+          <div>
+            <p class="text-sm font-medium text-gray-700 dark:text-gray-300">{% trans "Two-factor authentication" %}</p>
+            <span
+              class="{% if is_mfa_enabled %}
+                bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400
+              {% else %}
+                bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400
+              {% endif %} mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium"
+            >
+              {% if is_mfa_enabled %}
+                {% trans "On" %}
+              {% else %}
+                {% trans "Off" %}
+              {% endif %}
+            </span>
+          </div>
+        </div>
+        <a
+          href="{% url 'mfa_index' %}"
+          class="shrink-0 cursor-pointer rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 transition hover:bg-gray-200 focus:ring-2 focus:ring-gray-400 focus:outline-none dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+        >
+          {% trans "Manage" %}
+        </a>
+      </div>
+      <div
+        class="flex items-start justify-between gap-4 rounded-md border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+      >
+        <div class="flex items-start gap-4">
+          <span
+            class="flex size-10 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
+          >
+            <svg class="size-5" aria-hidden="true">
+              <use href="#signal"></use>
+            </svg>
+          </span>
+          <div>
+            <p class="text-sm font-medium text-gray-700 dark:text-gray-300">{% trans "Signed-in devices" %}</p>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {% blocktrans count count=session_count %}
+                {{ count }}
+                active session {% plural %}
+                {{ count }}
+                active sessions
+              {% endblocktrans %}
+            </p>
+          </div>
+        </div>
+        <a
+          href="{% url 'usersessions_list' %}"
+          class="shrink-0 cursor-pointer rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 transition hover:bg-gray-200 focus:ring-2 focus:ring-gray-400 focus:outline-none dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+        >
+          {% trans "Manage" %}
+        </a>
+      </div>
+      {% if employee %}
+        <div
+          class="flex items-start justify-between gap-4 rounded-md border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+        >
+          <div class="flex items-start gap-4">
+            <span
+              class="{% if employee.telegram_id %}
+                bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400
+              {% else %}
+                bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400
+              {% endif %} flex size-10 shrink-0 items-center justify-center rounded-full"
+            >
+              <svg class="size-5" aria-hidden="true">
+                <use href="#user-circle"></use>
+              </svg>
+            </span>
+            <div>
+              <p class="text-sm font-medium text-gray-700 dark:text-gray-300">{% trans "Telegram" %}</p>
+              <span
+                class="{% if employee.telegram_id %}
+                  bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400
+                {% else %}
+                  bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400
+                {% endif %} mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium"
+              >
+                {% if employee.telegram_id %}
+                  {% trans "Connected" %}
+                {% else %}
+                  {% trans "Not connected" %}
+                {% endif %}
+              </span>
+            </div>
+          </div>
+          <a
+            href="{% url 'web:telegram_connect' %}"
+            class="shrink-0 cursor-pointer rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 transition hover:bg-gray-200 focus:ring-2 focus:ring-gray-400 focus:outline-none dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+          >
+            {% trans "Manage" %}
+          </a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

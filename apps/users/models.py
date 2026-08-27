@@ -24,7 +24,22 @@ class CustomUserManager(BaseUserManager):
         if extra_fields.get("is_superuser") is not True:
             raise ValueError(_("Superuser must have is_superuser=True."))
 
-        return self.create_user(email, password, **extra_fields)
+        user = self.create_user(email, password, **extra_fields)
+
+        # Email verification is mandatory, so an account with no verified
+        # address cannot sign in to the web app at all. `createsuperuser` runs
+        # on the server by someone who already has shell access, so requiring
+        # them to confirm their own address adds nothing — without this they'd
+        # be silently limited to /admin/ and stuck on the confirmation page
+        # everywhere else.
+        from allauth.account.models import EmailAddress
+
+        EmailAddress.objects.update_or_create(
+            user=user,
+            email=user.email,
+            defaults={"verified": True, "primary": True},
+        )
+        return user
 
 
 class CustomUser(AbstractUser):

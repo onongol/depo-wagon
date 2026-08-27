@@ -17,16 +17,29 @@
   <!-- User info + logout -->
   {% if request.user.is_authenticated %}
     <div class="flex items-center gap-2">
-      <span class="hidden text-sm text-gray-600 sm:block dark:text-gray-400">{{ request.user.email }}</span>
       <a
-        href="{% url 'web:logout' %}"
-        class="inline-flex cursor-pointer items-center justify-center rounded-md p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 focus:ring-2 focus:ring-gray-400 focus:outline-none dark:text-gray-400 dark:hover:bg-gray-700"
-        aria-label="{% trans 'Sign out' %}"
+        href="{% url 'web:account_overview' %}"
+        class="inline-flex cursor-pointer items-center gap-2 rounded-md p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 focus:ring-2 focus:ring-gray-400 focus:outline-none dark:text-gray-400 dark:hover:bg-gray-700"
+        aria-label="{% trans 'Account' %}"
       >
         <svg class="size-5" aria-hidden="true">
-          <use href="#signout"></use>
+          <use href="#user-circle"></use>
         </svg>
+        <span class="hidden text-sm text-gray-600 sm:block dark:text-gray-400">{{ request.user.email }}</span>
       </a>
+      {# POST, not a link: a GET logout lets any page sign the user out with an <img> tag. #}
+      <form method="post" action="{% url 'account_logout' %}">
+        {% csrf_token %}
+        <button
+          type="submit"
+          class="inline-flex cursor-pointer items-center justify-center rounded-md p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 focus:ring-2 focus:ring-gray-400 focus:outline-none dark:text-gray-400 dark:hover:bg-gray-700"
+          aria-label="{% trans 'Sign out' %}"
+        >
+          <svg class="size-5" aria-hidden="true">
+            <use href="#signout"></use>
+          </svg>
+        </button>
+      </form>
     </div>
   {% endif %}
 </div>

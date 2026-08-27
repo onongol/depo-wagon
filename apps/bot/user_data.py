@@ -2,11 +2,6 @@ from dataclasses import dataclass, field
 
 
 @dataclass
-class RegData:
-    email: str = ""
-
-
-@dataclass
 class AIResult:
     defect_class: str = ""
     confidence: float | None = None

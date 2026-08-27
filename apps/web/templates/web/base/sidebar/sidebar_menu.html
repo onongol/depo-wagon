@@ -5,6 +5,7 @@
 {% url 'web:defect_list' as url_defects %}
 {% url 'web:employee_list' as url_employees %}
 {% url 'web:document_list' as url_documents %}
+{% url 'web:telegram_connect' as url_telegram %}
 {% with request.path as path %}
   <nav class="mt-4 space-y-1" aria-label="Sidebar navigation">
     <a
@@ -84,6 +85,19 @@
     >
       <svg class="size-5 shrink-0" aria-hidden="true"><use href="#document"></use></svg>
       <span x-show="desktopOpen" x-cloak class="truncate">{% trans "Documents" %}</span>
+    </a>
+    <a
+      href="{{ url_telegram }}"
+      :class="desktopOpen ? 'px-3 gap-3' : 'justify-center px-0'"
+      :title="desktopOpen ? '' : '{% trans "Telegram" %}'"
+      class="{% if url_telegram in path %}
+        bg-blue-50 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400
+      {% else %}
+        text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700
+      {% endif %} flex items-center rounded-lg py-2 text-sm font-medium transition"
+    >
+      <svg class="size-5 shrink-0" aria-hidden="true"><use href="#user"></use></svg>
+      <span x-show="desktopOpen" x-cloak class="truncate">{% trans "Telegram" %}</span>
     </a>
   </nav>
 {% endwith %}

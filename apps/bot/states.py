@@ -20,9 +20,9 @@ MEASUREMENT_DIMENSION = 30
 MEASUREMENT_NORM = 31
 MEASUREMENT_UNIT = 32
 
-# Auth conversation states
-AUTH_EMAIL = 20  # Step 1: ask for email
-AUTH_OTP = 21  # Step 2: enter OTP code received by email
+# No auth states: linking a Telegram account is a single /start carrying a
+# deep-link token issued by the web app, so there is nothing to converse about.
+# (20 and 21 were the old email/OTP steps — left unused rather than recycled.)
 
 # Support conversation state
 SUPPORT_MESSAGE = 40  # Awaiting the user's question to relay to support

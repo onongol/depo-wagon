@@ -47,8 +47,8 @@ def create_application() -> _BotApplication:
     from apps.bot.handlers.common import (
         cancel,
         error_handler,
-        get_auth_handler,
         help_command,
+        start,
     )
     from apps.bot.handlers.defect import get_defect_handler
     from apps.bot.handlers.support import (
@@ -65,8 +65,9 @@ def create_application() -> _BotApplication:
         .build()
     )
 
-    # 1. /start + employee linking
-    app.add_handler(get_auth_handler())
+    # 1. /start — shows the menu, and attaches this chat when the web app's
+    #    deep link supplies a token. No conversation: there is nothing to ask.
+    app.add_handler(CommandHandler("start", start))
 
     # 2. Defect registration (8-step conversation)
     app.add_handler(get_defect_handler())

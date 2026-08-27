@@ -1,0 +1,8 @@
+{% if field.help_text %}
+  <div
+    id="{{ field.auto_id }}_helptext"
+    class="mt-1.5 text-xs text-gray-500 dark:text-gray-400 [&_a]:font-medium [&_a]:text-blue-700 [&_a]:hover:underline dark:[&_a]:text-blue-400 [&_li]:mt-0.5 [&_ul]:list-disc [&_ul]:pl-4"
+  >
+    {{ field.help_text|safe }}
+  </div>
+{% endif %}

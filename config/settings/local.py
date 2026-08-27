@@ -1,36 +1,41 @@
-from decouple import config
+from decouple import Csv, config
 
 from config.settings.base import *
 
 DEBUG = True
-ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
-INSTALLED_APPS += [
+ALLOWED_HOSTS = ["*"]
+
+# Needed for a tunnel (ngrok, cloudflared) in front of runserver: the origin is
+# then https on someone else's host, which Django rejects for POSTs otherwise.
+CSRF_TRUSTED_ORIGINS = config("CSRF_TRUSTED_ORIGINS", default="", cast=Csv())
+
+# Cookies don't need Secure over plain HTTP locally
+CSRF_COOKIE_SECURE = False
+SESSION_COOKIE_SECURE = False
+
+INSTALLED_APPS = [
+    *INSTALLED_APPS,
+    "whitenoise.runserver_nostatic",
     "debug_toolbar",
     "django_browser_reload",
 ]
 
-MIDDLEWARE += [
+MIDDLEWARE = [
+    *MIDDLEWARE,
     "debug_toolbar.middleware.DebugToolbarMiddleware",
     "django_browser_reload.middleware.BrowserReloadMiddleware",
+    AXES_MIDDLEWARE_PATH,
 ]
+assert MIDDLEWARE[-1] == AXES_MIDDLEWARE_PATH, "AxesMiddleware must be last"
 
 INTERNAL_IPS = ["127.0.0.1"]
 
-# Email — Mailtrap sandbox via SMTP (catches all emails, nothing sent to real users)
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "sandbox.smtp.mailtrap.io"
-EMAIL_PORT = 2525
-EMAIL_USE_TLS = False
-EMAIL_HOST_USER = config("MAILTRAP_USER", default="")
-EMAIL_HOST_PASSWORD = config("MAILTRAP_PASSWORD", default="")
+EMAIL_BACKEND = config(
+    "EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend"
+)
 
 DATABASES["default"]["CONN_MAX_AGE"] = 0
 
 # Show all SQL queries in the console during development
 LOGGING["loggers"]["django.db.backends"]["level"] = "DEBUG"
-
-REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"] = [
-    "knox.auth.TokenAuthentication",
-    "rest_framework.authentication.SessionAuthentication",
-]

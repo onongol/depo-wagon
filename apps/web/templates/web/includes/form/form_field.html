@@ -22,6 +22,7 @@
             </svg>
           </div>
         </div>
+        {% include "web/includes/form/form_help_text.html" with field=field %}
         {% for error in field.errors %}
           <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ error }}</p>
         {% endfor %}
@@ -44,6 +45,7 @@
         {% else %}
           {{ field|add_class:classes }}
         {% endif %}
+        {% include "web/includes/form/form_help_text.html" with field=field %}
         {% for error in field.errors %}
           <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ error }}</p>
         {% endfor %}
