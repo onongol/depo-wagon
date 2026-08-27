@@ -52,4 +52,4 @@ LOGGING["loggers"]["django.db.backends"]["level"] = "DEBUG"
 
 # django-debug-toolbar
 # ------------------------------------------------------------------------------
-INTERNAL_IPS = ["127.0.0.1"]
+INTERNAL_IPS = env.list("INTERNAL_IPS", cast=str.strip, default=["127.0.0.1", "::1"])
