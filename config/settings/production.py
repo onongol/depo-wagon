@@ -1,4 +1,7 @@
+import sentry_sdk
 from django.core.exceptions import ImproperlyConfigured
+from sentry_sdk.integrations.celery import CeleryIntegration
+from sentry_sdk.integrations.django import DjangoIntegration
 
 from config.settings.base import *
 
@@ -57,3 +60,16 @@ EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=5)
 # django-allauth
 # ------------------------------------------------------------------------------
 ACCOUNT_DEFAULT_HTTP_PROTOCOL = "https"
+
+# sentry-sdk
+# ------------------------------------------------------------------------------
+SENTRY_DSN = env("SENTRY_DSN", default="")
+if SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[DjangoIntegration(), CeleryIntegration()],
+        environment=env("SENTRY_ENVIRONMENT", default="production"),
+        release=env("SENTRY_RELEASE", default=None),
+        traces_sample_rate=env.float("SENTRY_TRACES_SAMPLE_RATE", default=0.0),
+        send_default_pii=False,
+    )

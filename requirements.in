@@ -51,6 +51,9 @@ xlsxwriter
 pandas
 tablib
 
+# === Monitoring ===
+sentry-sdk
+
 # === Utils ===
 django-environ
 python-dateutil
