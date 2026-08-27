@@ -4,7 +4,6 @@ from .ai_chat import AiChatMessages
 from .auth import AuthMessages
 from .common import CommonMessages
 from .defects import DefectMessages
-from .email import EmailMessages
 from .support import SupportMessages
 
 
@@ -16,4 +15,4 @@ class BotMessages(
     PARSE_MODE = ParseMode.HTML
 
 
-__all__ = ["BotMessages", "EmailMessages"]
+__all__ = ["BotMessages"]

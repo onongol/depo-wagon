@@ -1,10 +1,6 @@
 import logging
-import secrets
-import string
 
 from asgiref.sync import sync_to_async
-
-from apps.bot.constants import RegStatus
 
 logger = logging.getLogger(__name__)
 
@@ -71,52 +67,6 @@ def get_employee_by_telegram_id(telegram_id: int):
         )
     except Employee.DoesNotExist:
         return None
-
-
-@sync_to_async
-def register_employee(employee: object, telegram_id: int):
-    """
-    Called after OTP is verified.
-
-    - If Employee already has a User → just link telegram_id.
-    - If Employee has no User      → create CustomUser, link everything,
-                                     return generated password.
-
-    Returns:
-        (password_or_none, status)
-        status: "linked" | "created"
-    """
-    from django.db import IntegrityError, transaction
-
-    from apps.users.models import CustomUser
-
-    if employee.user_id:
-        employee.telegram_id = telegram_id
-        employee.save(update_fields=["telegram_id"])
-        return None, RegStatus.LINKED
-
-    alphabet = string.ascii_letters + string.digits
-    password = "".join(secrets.choice(alphabet) for _ in range(12))
-
-    try:
-        with transaction.atomic():
-            user = CustomUser.objects.create_user(
-                email=employee.email,
-                password=password,
-                first_name=employee.first_name,
-                last_name=employee.last_name,
-                is_active=True,
-            )
-            employee.user = user
-            employee.telegram_id = telegram_id
-            employee.save(update_fields=["user", "telegram_id"])
-    except IntegrityError:
-        logger.warning(
-            "register_employee: user with email %s already exists", employee.email
-        )
-        return None, RegStatus.ALREADY_EXISTS
-
-    return password, RegStatus.CREATED
 
 
 @sync_to_async

@@ -5,7 +5,6 @@ PARSE_MODE = ParseMode.HTML
 
 # User data keys
 UD_EMPLOYEE = "employee"
-UD_REG = "registration"
 UD_DEFECT = "defect"
 UD_RESP_EMPLOYEES = "_resp_employees"
 UD_RESP_SEARCH = "_resp_search"

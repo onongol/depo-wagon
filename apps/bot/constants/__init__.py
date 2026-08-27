@@ -1,4 +1,4 @@
-from .auth import OtpStatus, RegStatus
+from .auth import LinkStatus
 from .common import (
     BTN_ADD,
     BTN_ASK,
@@ -18,7 +18,6 @@ from .common import (
     UD_EDITING,
     UD_EMPLOYEE,
     UD_LAST_PHOTO_MSG,
-    UD_REG,
     UD_RESP_EMPLOYEES,
     UD_RESP_SEARCH,
 )
@@ -41,11 +40,9 @@ from .tasks import (
 )
 
 __all__ = [
-    "OtpStatus",
-    "RegStatus",
+    "LinkStatus",
     "PARSE_MODE",
     "UD_EMPLOYEE",
-    "UD_REG",
     "UD_DEFECT",
     "UD_RESP_EMPLOYEES",
     "UD_RESP_SEARCH",

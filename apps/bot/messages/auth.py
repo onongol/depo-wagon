@@ -2,45 +2,38 @@ from django.utils.translation import gettext_lazy as _
 
 
 class AuthMessages:
-    """Login, email validation and OTP (Telegram side)."""
+    """Attaching a Telegram account to an existing web account.
 
-    WELCOME_NEW = _("👋 <b>Welcome!</b>\n\nEnter your email:")
+    There are no messages for entering an email or a verification code: this
+    bot never establishes anybody's identity. That happens on the web, and the
+    only thing carried here is a one-time token from an already-signed-in
+    session.
+    """
 
-    EMAIL_INVALID = _(
-        "❌ Invalid email address.\n\nPlease try again <i>(e.g. user@example.com)</i>:"
+    NOT_CONNECTED = _(
+        "👋 <b>Welcome!</b>\n\n"
+        "This chat is not connected to an account yet.\n\n"
+        "Sign in to the web app and press <b>Connect Telegram</b>:\n"
+        "{site_url}"
     )
 
-    EMAIL_NOT_FOUND = _(
-        "❌ <b>{email}</b> is not registered in the system.\n\n"
-        "Enter a valid email or contact your administrator.\n"
-        "/cancel — exit"
+    LINK_OK = _("✅ <b>Telegram connected!</b>")
+
+    LINK_TOKEN_INVALID = _(
+        "⚠️ This connection link has expired or has already been used.\n\n"
+        "Open <b>Connect Telegram</b> in the web app again to get a new one."
     )
 
-    EMAIL_ALREADY_LINKED = _(
-        "⚠️ This email is already linked to another Telegram account.\n"
+    LINK_NO_EMPLOYEE = _(
+        "⚠️ This account is not linked to an active employee record.\n"
         "Please contact your administrator."
     )
 
-    OTP_SENT = _(
-        "📧 A verification code has been sent to <b>{email}</b>.\n\n"
-        "Check your email and enter the <b>6-digit code</b>:\n"
-        "<i>(Code is valid for 10 minutes)</i>"
+    LINK_ALREADY_TAKEN = _(
+        "⚠️ This Telegram account is already connected to another employee.\n"
+        "Disconnect it there first, or contact your administrator."
     )
 
-    OTP_SEND_FAILED = _("⚠️ Failed to send email. Please try again.\n/cancel — exit")
+    LOGIN_LINK_BUTTON = _("🔐 Open the web app")
 
-    OTP_EXPIRED = _("⏰ The code has expired.\n\nPlease enter your email again:")
-
-    OTP_MAX_ATTEMPTS = _(
-        "🚫 Too many incorrect attempts. Locked.\n\nPlease enter your email again:"
-    )
-
-    OTP_WRONG = _("❌ Incorrect code. Please try again:")
-
-    REGISTERED_NEW = _(
-        "✅ <b>Registration successful!</b>\n\n"
-        "📧 Your password has been sent to <b>{email}</b>.\n"
-        "Please check your email."
-    )
-
-    TELEGRAM_LINKED = _("✅ <b>Telegram account linked successfully!</b>")
+    LOGIN_LINK_FAILED = _("⚠️ Could not create a sign-in link. Please try /start again.")
