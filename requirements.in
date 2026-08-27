@@ -52,7 +52,7 @@ pandas
 tablib
 
 # === Utils ===
-python-decouple
+django-environ
 python-dateutil
 python-slugify
 pytz

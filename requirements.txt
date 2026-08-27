@@ -109,6 +109,8 @@ django-components==0.152.0
     # via -r requirements.in
 django-crispy-forms==2.6
     # via -r requirements.in
+django-environ==0.14.0
+    # via -r requirements.in
 django-filter==25.2
     # via -r requirements.in
 django-import-export==4.4.1
@@ -295,8 +297,6 @@ python-dateutil==2.9.0.post0
     #   botocore
     #   celery
     #   pandas
-python-decouple==3.8
-    # via -r requirements.in
 python-slugify==8.0.4
     # via -r requirements.in
 python-telegram-bot[all]==22.8

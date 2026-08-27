@@ -1,14 +1,21 @@
 from datetime import timedelta
 from pathlib import Path
 
-from decouple import Csv, config
+import environ
 from django.utils.translation import gettext_lazy as _
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-SECRET_KEY = config("SECRET_KEY")
-DEBUG = config("DEBUG", default=False, cast=bool)
-ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="", cast=Csv())
+env = environ.Env()
+
+# django-environ reads no .env unless told to, and never overwrites a variable
+# already in the process environment. The production image ships without a
+# .env, so there this call is a no-op and the environment alone configures it.
+environ.Env.read_env(BASE_DIR / ".env")
+
+SECRET_KEY = env("SECRET_KEY")
+DEBUG = env.bool("DEBUG", default=False)
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
 
 INSTALLED_APPS = [
     "unfold",
@@ -90,27 +97,18 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": config("DB_NAME"),
-        "USER": config("DB_USER"),
-        "PASSWORD": config("DB_PASSWORD"),
-        "HOST": config("DB_HOST", default="localhost"),
-        "PORT": config("DB_PORT", default=5432, cast=int),
-    }
-}
+DATABASES = {"default": env.db("DATABASE_URL")}
 
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": config("REDIS_URL"),
+        "LOCATION": env("REDIS_URL"),
     }
 }
 
 # Celery
-CELERY_BROKER_URL = config("REDIS_URL")
-CELERY_RESULT_BACKEND = config("REDIS_URL")
+CELERY_BROKER_URL = env("REDIS_URL")
+CELERY_RESULT_BACKEND = env("REDIS_URL")
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
@@ -143,31 +141,31 @@ STORAGES = {
 }
 
 # Cloudflare R2
-AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = config("AWS_SECRET_ACCESS_KEY")
-AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME")
-AWS_S3_ENDPOINT_URL = config("AWS_S3_ENDPOINT_URL")
+AWS_ACCESS_KEY_ID = env("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = env("AWS_SECRET_ACCESS_KEY")
+AWS_STORAGE_BUCKET_NAME = env("AWS_STORAGE_BUCKET_NAME")
+AWS_S3_ENDPOINT_URL = env("AWS_S3_ENDPOINT_URL")
 AWS_S3_SIGNATURE_VERSION = "s3v4"
 DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 
 # Email — base config (credentials shared between environments)
-EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
-EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
-DEFAULT_FROM_EMAIL = config("EMAIL_HOST_USER", default="noreply@depowagon.mn")
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+DEFAULT_FROM_EMAIL = env("EMAIL_HOST_USER", default="noreply@depowagon.mn")
 
-SITE_URL = config("SITE_URL", default="http://localhost:8000")
+SITE_URL = env("SITE_URL", default="http://localhost:8000")
 
 # Telegram
-TELEGRAM_BOT_TOKEN = config("TELEGRAM_BOT_TOKEN")
-TELEGRAM_BOT_USERNAME = config("TELEGRAM_BOT_USERNAME", default="")
-TELEGRAM_WEBHOOK_URL = config("TELEGRAM_WEBHOOK_URL", default="")
-TELEGRAM_WEBHOOK_SECRET = config("TELEGRAM_WEBHOOK_SECRET", default="")
+TELEGRAM_BOT_TOKEN = env("TELEGRAM_BOT_TOKEN")
+TELEGRAM_BOT_USERNAME = env("TELEGRAM_BOT_USERNAME", default="")
+TELEGRAM_WEBHOOK_URL = env("TELEGRAM_WEBHOOK_URL", default="")
+TELEGRAM_WEBHOOK_SECRET = env("TELEGRAM_WEBHOOK_SECRET", default="")
 
 # The support person must have pressed Start on the bot at least once.
-TELEGRAM_SUPPORT_CHAT_ID = config("TELEGRAM_SUPPORT_CHAT_ID", default="")
+TELEGRAM_SUPPORT_CHAT_ID = env("TELEGRAM_SUPPORT_CHAT_ID", default="")
 
 # Google AI
-GOOGLE_AI_KEY = config("GOOGLE_AI_KEY")
+GOOGLE_AI_KEY = env("GOOGLE_AI_KEY")
 
 # Django REST Framework
 REST_FRAMEWORK = {
@@ -234,7 +232,7 @@ ACCOUNT_SESSION_REMEMBER = False
 ACCOUNT_PREVENT_ENUMERATION = True
 
 # Must match the deployment: at 0 the per-IP limits below see only the proxy's address.
-ALLAUTH_TRUSTED_PROXY_COUNT = config("TRUSTED_PROXY_COUNT", default=0, cast=int)
+ALLAUTH_TRUSTED_PROXY_COUNT = env.int("TRUSTED_PROXY_COUNT", default=0)
 
 ACCOUNT_RATE_LIMITS = {
     "login": "30/m/ip",
