@@ -213,10 +213,8 @@ TEMPLATES = [
 SECRET_KEY = env("SECRET_KEY", default="django-insecure-development-key-only")
 
 # SAVE_EVERY_REQUEST makes the age an idle timeout, counted from the last request.
-SESSION_COOKIE_AGE = 8 * 60 * 60
+SESSION_COOKIE_AGE = 14 * 24 * 60 * 60
 SESSION_SAVE_EVERY_REQUEST = True
-# Also covers sessions allauth does not create, e.g. the admin's.
-SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 
 SESSION_COOKIE_HTTPONLY = True
 # No JS reads this cookie; every form uses {% csrf_token %}.
@@ -299,7 +297,7 @@ ACCOUNT_EMAIL_NOTIFICATIONS = True
 ACCOUNT_LOGOUT_ON_PASSWORD_CHANGE = True
 ACCOUNT_ADAPTER = "apps.users.adapters.AccountAdapter"
 ACCOUNT_EMAIL_SUBJECT_PREFIX = "[Depo Wagon] "
-ACCOUNT_SESSION_REMEMBER = False
+ACCOUNT_SESSION_REMEMBER = None
 ACCOUNT_PREVENT_ENUMERATION = True
 
 # Must match the deployment: at 0 the per-IP limits below see only the proxy's address.
