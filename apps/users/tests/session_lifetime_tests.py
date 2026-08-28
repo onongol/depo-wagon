@@ -24,7 +24,7 @@ def test_activity_pushes_the_session_expiry_forward(client, employee_user):
     """SESSION_COOKIE_AGE is an idle timeout, not a cap on how long a shift lasts.
 
     That only holds because of SESSION_SAVE_EVERY_REQUEST; dropping it as a
-    write-saving measure would silently turn the eight hours into a hard limit.
+    write-saving measure would silently turn the two weeks into a hard limit.
     """
     client.force_login(employee_user)
     client.get(reverse("web:wagon_list"))
@@ -37,4 +37,4 @@ def test_activity_pushes_the_session_expiry_forward(client, employee_user):
     client.get(reverse("web:wagon_list"))
 
     expires_in = Session.objects.get(session_key=key).expire_date - timezone.now()
-    assert expires_in > timedelta(hours=7)
+    assert expires_in > timedelta(days=13)
