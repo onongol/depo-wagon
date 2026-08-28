@@ -39,6 +39,13 @@ DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
 MIDDLEWARE = [*MIDDLEWARE, AXES_MIDDLEWARE_PATH]
 assert MIDDLEWARE[-1] == AXES_MIDDLEWARE_PATH, "AxesMiddleware must be last"
 
+# TEMPLATES
+# ------------------------------------------------------------------------------
+# Django wraps the loaders itself only when they are left unset; base.py sets them.
+TEMPLATES[0]["OPTIONS"]["loaders"] = [
+    ("django.template.loaders.cached.Loader", TEMPLATES[0]["OPTIONS"]["loaders"])
+]
+
 # SECURITY
 # ------------------------------------------------------------------------------
 CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", cast=str.strip, default=[])
