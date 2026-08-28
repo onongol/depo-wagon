@@ -11,6 +11,9 @@ from django.core.exceptions import ImproperlyConfigured
 def load_production(monkeypatch, **env):
     env.setdefault("ALLOWED_HOSTS", "depowagon.mn")
     env.setdefault("CSRF_TRUSTED_ORIGINS", "https://depowagon.mn")
+    env.setdefault("DJANGO_ADMIN_URL", "admin/")
+    env.setdefault("CELERY_BROKER_URL", "redis://localhost:6379/1")
+    env.setdefault("CELERY_RESULT_BACKEND", "redis://localhost:6379/2")
     for key, value in env.items():
         monkeypatch.setenv(key, value)
 
