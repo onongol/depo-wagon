@@ -1,0 +1,101 @@
+name: depo-wagon
+
+x-app: &app
+  build: .
+  image: depo-wagon:latest
+  env_file: .env
+  environment:
+    DJANGO_SETTINGS_MODULE: config.settings.production
+    DATABASE_URL: postgres://${DB_USER:?required}:${DB_PASSWORD:?required}@db:5432/${DB_NAME:?required}
+    REDIS_URL: redis://redis_cache:6379/0
+    CELERY_BROKER_URL: redis://redis_broker:6379/0
+    CELERY_RESULT_BACKEND: redis://redis_broker:6379/1
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "5"
+  depends_on:
+    migrate:
+      condition: service_completed_successfully
+    redis_cache:
+      condition: service_healthy
+    redis_broker:
+      condition: service_healthy
+
+services:
+  db:
+    image: pgvector/pgvector:pg18-trixie
+    environment:
+      POSTGRES_USER: ${DB_USER:?required}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?required}
+      POSTGRES_DB: ${DB_NAME:?required}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  # Volatile: every key here carries a TTL, so LRU may drop them freely.
+  # Persistence off — a cold cache is a cache miss, not data loss.
+  redis_cache:
+    image: redis:8-alpine
+    command: >
+      redis-server
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save ""
+      --appendonly no
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  # The queue must never be evicted: the Celery keys carry no TTL, and losing
+  # `_kombu.binding.celery` loses every pending task at once.
+  redis_broker:
+    image: redis:8-alpine
+    command: >
+      redis-server
+      --maxmemory-policy noeviction
+      --appendonly yes
+    volumes:
+      - brokerdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  migrate:
+    <<: *app
+    command: python manage.py migrate --noinput
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    <<: *app
+    ports:
+      - "${WEB_PORT:-8000}:8000"
+
+  bot:
+    <<: *app
+    command: python manage.py run_bot --drop-pending
+
+  worker:
+    <<: *app
+    command: celery -A config worker -l INFO
+
+volumes:
+  pgdata:
+  brokerdata:
