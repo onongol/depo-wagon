@@ -11,6 +11,8 @@ for _name in (
     "SECRET_KEY",
     "DATABASE_URL",
     "REDIS_URL",
+    "CELERY_BROKER_URL",
+    "CELERY_RESULT_BACKEND",
     "DJANGO_ADMIN_URL",
     "AWS_ACCESS_KEY_ID",
     "AWS_SECRET_ACCESS_KEY",

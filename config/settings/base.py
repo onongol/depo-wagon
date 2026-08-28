@@ -37,10 +37,12 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # CACHES
 # ------------------------------------------------------------------------------
+REDIS_URL = env("REDIS_URL", default="redis://localhost:6379/0")
+
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": env("REDIS_URL", default="redis://localhost:6379/0"),
+        "LOCATION": REDIS_URL,
     }
 }
 
@@ -279,12 +281,15 @@ LOGGING = {
 
 # Celery
 # ------------------------------------------------------------------------------
-CELERY_BROKER_URL = CACHES["default"]["LOCATION"]
-CELERY_RESULT_BACKEND = CACHES["default"]["LOCATION"]
+# Own databases: cache.clear() is a FLUSHDB and would take the queue with it.
+CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/1")
+CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", default="redis://localhost:6379/2")
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "UTC"
+# Nothing calls AsyncResult; a task that needs one sets ignore_result=False.
+CELERY_TASK_IGNORE_RESULT = True
 
 # django-allauth
 # ------------------------------------------------------------------------------
