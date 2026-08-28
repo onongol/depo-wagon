@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 
@@ -41,3 +42,5 @@ if settings.DEBUG:
         path("__reload__/", include("django_browser_reload.urls")),
         path("api-auth/", include("rest_framework.urls")),
     ]
+    # Only local uploads need this; in production R2 serves its own URLs.
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

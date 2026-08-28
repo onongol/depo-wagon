@@ -31,6 +31,15 @@ MIDDLEWARE = [
 ]
 assert MIDDLEWARE[-1] == AXES_MIDDLEWARE_PATH, "AxesMiddleware must be last"
 
+# MEDIA
+# ------------------------------------------------------------------------------
+# R2 only on demand: it is the one place presigned URLs and CORS actually show up.
+if not env.bool("USE_R2", default=False):
+    STORAGES = {
+        **STORAGES,
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    }
+
 # SECURITY
 # ------------------------------------------------------------------------------
 CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
