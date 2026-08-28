@@ -49,6 +49,9 @@ CACHES = {
 ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"
 
+# A missing trailing slash mounts the admin's own routes one path segment too high.
+ADMIN_URL = env("DJANGO_ADMIN_URL", default="admin/").strip("/") + "/"
+
 # APPS
 # ------------------------------------------------------------------------------
 ADMIN_THEME_APPS = [

@@ -11,6 +11,7 @@ for _name in (
     "SECRET_KEY",
     "DATABASE_URL",
     "REDIS_URL",
+    "DJANGO_ADMIN_URL",
     "AWS_ACCESS_KEY_ID",
     "AWS_SECRET_ACCESS_KEY",
     "AWS_STORAGE_BUCKET_NAME",

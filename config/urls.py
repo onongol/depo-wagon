@@ -6,7 +6,7 @@ from django.urls import include, path
 from apps.users.views_login_link import login_link
 
 urlpatterns = [
-    path("admin/", admin.site.urls),
+    path(settings.ADMIN_URL, admin.site.urls),
     # One-time sign-in links the Telegram bot hands out. Kept out of
     # /accounts/ so it is never mistaken for an allauth-provided route.
     path("auth/link/<str:token>/", login_link, name="login_link"),
