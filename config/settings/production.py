@@ -1,77 +1,100 @@
+import sentry_sdk
+from django.core.exceptions import ImproperlyConfigured
+from sentry_sdk.integrations.celery import CeleryIntegration
+from sentry_sdk.integrations.django import DjangoIntegration
+
 from config.settings.base import *
 
+# REQUIRED CONFIGURATION
+# ------------------------------------------------------------------------------
+for _name in (
+    "SECRET_KEY",
+    "DATABASE_URL",
+    "REDIS_URL",
+    "CELERY_BROKER_URL",
+    "CELERY_RESULT_BACKEND",
+    "DJANGO_ADMIN_URL",
+    "AWS_ACCESS_KEY_ID",
+    "AWS_SECRET_ACCESS_KEY",
+    "AWS_STORAGE_BUCKET_NAME",
+    "AWS_S3_ENDPOINT_URL",
+    "TELEGRAM_BOT_TOKEN",
+    "GOOGLE_AI_KEY",
+):
+    if not env(_name, default=""):
+        raise ImproperlyConfigured(f"{_name} environment variable not set")
+
+# GENERAL
+# ------------------------------------------------------------------------------
 DEBUG = False
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", cast=str.strip, default=[])
+if not ALLOWED_HOSTS:
+    raise ImproperlyConfigured("ALLOWED_HOSTS environment variable not set")
 
-ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
-
-# Same-origin POSTs pass on the host alone; this matters when a form is served
-# from another host than Django sees, which is exactly what a proxy can cause.
-CSRF_TRUSTED_ORIGINS = env.list(
-    "CSRF_TRUSTED_ORIGINS",
-    default=[
-        f"https://*{host}" if host.startswith(".") else f"https://{host}"
-        for host in ALLOWED_HOSTS
-    ],
-)
-
+# DATABASES
+# ------------------------------------------------------------------------------
 DATABASES["default"]["CONN_MAX_AGE"] = 60
+DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
 
-# Email — real Gmail SMTP in production
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "smtp.gmail.com"
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-# Django has no timeout by default, so one hung SMTP connection pins a worker.
-EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=5)
+# MIDDLEWARE
+# ------------------------------------------------------------------------------
+MIDDLEWARE = [*MIDDLEWARE, AXES_MIDDLEWARE_PATH]
+assert MIDDLEWARE[-1] == AXES_MIDDLEWARE_PATH, "AxesMiddleware must be last"
 
-# Behind the TLS terminator every request reaches Django as plain HTTP, so
-# without this SECURE_SSL_REDIRECT would redirect forever. Set the variable to
-# false if gunicorn is ever reachable directly: the header can then be spoofed.
+# TEMPLATES
+# ------------------------------------------------------------------------------
+# Django wraps the loaders itself only when they are left unset; base.py sets them.
+TEMPLATES[0]["OPTIONS"]["loaders"] = [
+    ("django.template.loaders.cached.Loader", TEMPLATES[0]["OPTIONS"]["loaders"])
+]
+
+# SECURITY
+# ------------------------------------------------------------------------------
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", cast=str.strip, default=[])
+if not CSRF_TRUSTED_ORIGINS:
+    raise ImproperlyConfigured("CSRF_TRUSTED_ORIGINS environment variable not set")
+
 SECURE_PROXY_SSL_HEADER = (
     ("HTTP_X_FORWARDED_PROTO", "https")
     if env.bool("USE_X_FORWARDED_PROTO", default=True)
     else None
 )
 
-SECURE_SSL_REDIRECT = True
-SECURE_HSTS_SECONDS = 31536000
-SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-# Scheme for the links allauth mails out; the host comes from the request.
-ACCOUNT_DEFAULT_HTTP_PROTOCOL = "https"
+SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=True)
+
+SECURE_HSTS_SECONDS = 60  # Set to 60 seconds first and then increase to 518400 (6 days) once confirmed working.
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool(
+    "SECURE_HSTS_INCLUDE_SUBDOMAINS", default=True
+)
+SECURE_HSTS_PRELOAD = env.bool("SECURE_HSTS_PRELOAD", default=True)
 
 SESSION_COOKIE_SECURE = True
 SESSION_COOKIE_NAME = "__Secure-sessionid"
 CSRF_COOKIE_SECURE = True
 CSRF_COOKIE_NAME = "__Secure-csrftoken"
-# No JS reads this cookie; every form uses {% csrf_token %}.
-CSRF_COOKIE_HTTPONLY = True
 
-MIDDLEWARE = [*MIDDLEWARE, AXES_MIDDLEWARE_PATH]
-assert MIDDLEWARE[-1] == AXES_MIDDLEWARE_PATH, "AxesMiddleware must be last"
+# EMAIL
+# ------------------------------------------------------------------------------
+# Real Gmail SMTP in production
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp.gmail.com"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=5)
 
-_LOGS_DIR = BASE_DIR / "logs"
-_LOGS_DIR.mkdir(exist_ok=True)
+# django-allauth
+# ------------------------------------------------------------------------------
+ACCOUNT_DEFAULT_HTTP_PROTOCOL = "https"
 
-LOGGING["handlers"].update(
-    {
-        "file_app": {
-            "class": "logging.handlers.RotatingFileHandler",
-            "filename": str(_LOGS_DIR / "app.log"),
-            "maxBytes": 10 * 1024 * 1024,  # 10 MB
-            "backupCount": 5,
-            "formatter": "verbose",
-        },
-        "file_errors": {
-            "class": "logging.handlers.RotatingFileHandler",
-            "filename": str(_LOGS_DIR / "errors.log"),
-            "maxBytes": 10 * 1024 * 1024,  # 10 MB
-            "backupCount": 5,
-            "formatter": "verbose",
-            "level": "ERROR",
-        },
-    }
-)
-LOGGING["loggers"]["django"]["handlers"] = ["console", "file_app"]
-LOGGING["loggers"]["celery"]["handlers"] = ["console", "file_app"]
-LOGGING["loggers"]["apps"]["handlers"] = ["console", "file_app"]
-LOGGING["root"]["handlers"] = ["console", "file_errors"]
+# sentry-sdk
+# ------------------------------------------------------------------------------
+SENTRY_DSN = env("SENTRY_DSN", default="")
+if SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[DjangoIntegration(), CeleryIntegration()],
+        environment=env("SENTRY_ENVIRONMENT", default="production"),
+        release=env("SENTRY_RELEASE", default=None),
+        traces_sample_rate=env.float("SENTRY_TRACES_SAMPLE_RATE", default=0.0),
+        send_default_pii=False,
+    )

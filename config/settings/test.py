@@ -1,5 +1,11 @@
 from config.settings.base import *
 
+# GENERAL
+# ------------------------------------------------------------------------------
+DEBUG = False
+
+# DATABASES
+# ------------------------------------------------------------------------------
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -11,6 +17,8 @@ DATABASES = {
     }
 }
 
+# CACHES
+# ------------------------------------------------------------------------------
 # Local memory, so rate limits and one-time tokens don't leak between runs via Redis.
 CACHES = {
     "default": {
@@ -19,24 +27,20 @@ CACHES = {
     }
 }
 
-MIDDLEWARE = [*MIDDLEWARE, AXES_MIDDLEWARE_PATH]
-assert MIDDLEWARE[-1] == AXES_MIDDLEWARE_PATH, "AxesMiddleware must be last"
-
+# PASSWORDS
+# ------------------------------------------------------------------------------
 # Faster password hashing in tests
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 
-# The real validator set calls the HaveIBeenPwned API, which would make every
-# test that sets a password hit the network — slow, and failing offline. The
-# validators themselves are exercised against the real settings module, not here.
 AUTH_PASSWORD_VALIDATORS = []
 
-# Keep mail in memory so tests can assert on django.core.mail.outbox instead of
-# talking to Mailtrap.
-EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+# MIDDLEWARE
+# ------------------------------------------------------------------------------
+MIDDLEWARE = [*MIDDLEWARE, AXES_MIDDLEWARE_PATH]
+assert MIDDLEWARE[-1] == AXES_MIDDLEWARE_PATH, "AxesMiddleware must be last"
 
-# Disable logging in tests
-LOGGING = {}
-
+# STATIC
+# ------------------------------------------------------------------------------
 STATICFILES_DIRS = []
 STATIC_ROOT = None
 
@@ -44,3 +48,12 @@ STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.InMemoryStorage"},
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
+
+# EMAIL
+# ------------------------------------------------------------------------------
+EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+
+# LOGGING
+# ------------------------------------------------------------------------------
+# Disable logging in tests
+LOGGING = {}
