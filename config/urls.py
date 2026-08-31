@@ -15,8 +15,7 @@ urlpatterns = [
     path("accounts/", include("allauth.urls")),
     path("", include("apps.web.urls")),
     path("api/v1/auth/", include("apps.users.urls")),
-    path("api/v1/", include("apps.core.urls")),
-    path("api/v1/", include("apps.defects.urls")),
+    path("api/v1/", include("config.api_router")),
     path("api/v1/bot/", include("apps.bot.urls")),
 ]
 
