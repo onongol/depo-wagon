@@ -1,5 +1,4 @@
-from django.conf import settings
-from rest_framework.routers import DefaultRouter, SimpleRouter
+from rest_framework.routers import SimpleRouter
 
 from apps.core.views import EmployeeViewSet, WagonViewSet
 from apps.defects.views import (
@@ -9,8 +8,7 @@ from apps.defects.views import (
 )
 from apps.users.views_user import UserViewSet
 
-# Browsable api-root is a development aid; production gets no root view.
-router = DefaultRouter() if settings.DEBUG else SimpleRouter()
+router = SimpleRouter()
 
 router.register(r"wagons", WagonViewSet, basename="wagon")
 router.register(r"employees", EmployeeViewSet, basename="employee")
