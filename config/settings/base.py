@@ -77,12 +77,12 @@ DJANGO_APPS = [
 THIRD_PARTY_APPS = [
     "allauth",
     "allauth.account",
+    "allauth.headless",
     "allauth.mfa",
     "allauth.usersessions",
     "axes",
     "django_filters",
     "rest_framework",
-    "knox",
     "drf_spectacular",
     "import_export",
     "simple_history",
@@ -328,6 +328,18 @@ MFA_TOTP_ISSUER = "Depot Management"
 
 USERSESSIONS_TRACK_ACTIVITY = True
 
+# allauth.headless
+# ------------------------------------------------------------------------------
+HEADLESS_CLIENTS = ["app"]
+HEADLESS_ONLY = False
+HEADLESS_TOKEN_STRATEGY = (
+    "allauth.headless.tokens.strategies.jwt.strategy.JWTTokenStrategy"  # noqa: S105
+)
+# Signed with SECRET_KEY; nothing outside this project verifies the tokens.
+HEADLESS_JWT_ALGORITHM = "HS256"
+# Keeps tokens revocable by checking the session behind them.
+HEADLESS_JWT_STATEFUL_VALIDATION_ENABLED = True
+
 # django-axes
 # ------------------------------------------------------------------------------
 AXES_FAILURE_LIMIT = 10
@@ -344,7 +356,7 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.IsAuthenticated",
     ],
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "knox.auth.TokenAuthentication",
+        "allauth.headless.contrib.rest_framework.authentication.JWTTokenAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_FILTER_BACKENDS": [
@@ -357,12 +369,6 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",  # drf-spectacular used for OpenAPI schema generation
 }
 
-REST_KNOX = {
-    "TOKEN_TTL": timedelta(hours=10),
-    "AUTO_REFRESH": False,
-    "TOKEN_LIMIT_PER_USER": None,
-}
-
 # drf-spectacular
 # ------------------------------------------------------------------------------
 SPECTACULAR_SETTINGS = {
@@ -372,7 +378,7 @@ SPECTACULAR_SETTINGS = {
     "COMPONENT_SPLIT_REQUEST": True,
     "SCHEMA_PATH_PREFIX": "/api/v1/",
     "AUTHENTICATION_WHITELIST": [
-        "knox.auth.TokenAuthentication",
+        "allauth.headless.contrib.rest_framework.authentication.JWTTokenAuthentication",
     ],
     "SWAGGER_UI_SETTINGS": {
         "persistAuthorization": True,

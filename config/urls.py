@@ -13,8 +13,8 @@ urlpatterns = [
     # Before apps.web.urls: that one is mounted at the root and would otherwise
     # shadow /accounts/… if a matching route were ever added there.
     path("accounts/", include("allauth.urls")),
+    path("_allauth/", include("allauth.headless.urls")),
     path("", include("apps.web.urls")),
-    path("api/v1/auth/", include("apps.users.urls")),
     path("api/v1/bot/", include("apps.bot.urls")),
     path("api/v1/", include("config.api_router")),
 ]

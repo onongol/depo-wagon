@@ -7,7 +7,7 @@ whitenoise
 # === Security ===
 argon2-cffi
 pwned-passwords-django
-django-allauth[mfa]
+django-allauth[headless,headless-spec,mfa]
 django-axes
 
 # === Database ===
@@ -34,7 +34,6 @@ boto3
 pillow
 
 # === Django Plugins ===
-django-rest-knox
 django-unfold
 django-crispy-forms
 django-import-export
