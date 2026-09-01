@@ -59,6 +59,13 @@ EMAIL_BACKEND = env(
 # Show all SQL queries in the console during development
 LOGGING["loggers"]["django.db.backends"]["level"] = "DEBUG"
 
+# allauth.headless
+# ------------------------------------------------------------------------------
+# Account endpoints are outside the drf-spectacular schema; allauth ships its own.
+HEADLESS_SERVE_SPECIFICATION = True
+# Swagger over the default redoc: these endpoints are POST-only, so a console beats a listing.
+HEADLESS_SPECIFICATION_TEMPLATE_NAME = "headless/spec/swagger_cdn.html"
+
 # django-debug-toolbar
 # ------------------------------------------------------------------------------
 INTERNAL_IPS = env.list("INTERNAL_IPS", cast=str.strip, default=["127.0.0.1", "::1"])
