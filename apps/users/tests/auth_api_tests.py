@@ -95,7 +95,7 @@ class TestLogin:
 
 @pytest.mark.django_db
 class TestLoginStages:
-    """The allauth login stages the Knox view skipped."""
+    """Login stops at a pending stage, and issues no access token until it clears."""
 
     def test_unverified_email_is_refused(self, api_client, db):
         user = User.objects.create_user(email=TEST_EMAIL, password=TEST_PASSWORD)
