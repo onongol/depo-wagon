@@ -22,7 +22,6 @@ urlpatterns = [
     path("", include("apps.web.urls")),
     path("api/v1/bot/", include("apps.bot.urls")),
     path("api/v1/", include("config.api_router")),
-    # Served in every environment; SERVE_PERMISSIONS keeps these staff-only.
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
         "api/schema/swagger-ui/",
@@ -37,5 +36,4 @@ if settings.DEBUG:
         path("__debug__/", include("debug_toolbar.urls")),
         path("__reload__/", include("django_browser_reload.urls")),
     ]
-    # Only local uploads need this; in production R2 serves its own URLs.
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
