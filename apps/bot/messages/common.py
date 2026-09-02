@@ -18,6 +18,11 @@ class CommonMessages:
 
     SESSION_ERROR = _("⚠️ Session error. Please try /start again.")
 
+    BUTTON_EXPIRED = _(
+        "⏳ This button is no longer valid — the bot has restarted since it was "
+        "sent.\n\nSend /start to begin again."
+    )
+
     WELCOME_MENU = _(
         "👋 Hello, <b>{full_name}</b>!\n\n"
         "👷 Role: {role}\n\n"

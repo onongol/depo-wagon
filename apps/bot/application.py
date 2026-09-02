@@ -8,6 +8,7 @@ from telegram.ext import (
     Application,
     CallbackQueryHandler,
     CommandHandler,
+    InvalidCallbackData,
     MessageHandler,
     filters,
 )
@@ -57,6 +58,7 @@ def create_application() -> _BotApplication:
         confirm_link,
         error_handler,
         help_command,
+        stale_button,
         start,
     )
     from apps.bot.handlers.defect import get_defect_handler
@@ -107,6 +109,10 @@ def create_application() -> _BotApplication:
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(MessageHandler(filters.Text(str(BTN_HELP)), help_command))
     app.add_handler(CommandHandler("cancel", cancel))
+
+    # 7. Last, so every typed callback above gets first refusal: buttons whose
+    #    payload died with the previous process.
+    app.add_handler(CallbackQueryHandler(stale_button, pattern=InvalidCallbackData))
 
     app.add_error_handler(error_handler)
 
