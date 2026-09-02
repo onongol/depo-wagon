@@ -51,7 +51,6 @@ class EmployeeSerializer(serializers.ModelSerializer):
             "role_display",
             "department",
             "department_display",
-            "telegram_id",
             "user",
             "phone",
             "email",
