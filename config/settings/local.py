@@ -54,6 +54,12 @@ EMAIL_BACKEND = env(
     "EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend"
 )
 
+# CELERY
+# ------------------------------------------------------------------------------
+# Let a task's own output through: the console email backend writes to stdout,
+# which the worker otherwise swallows into its logger.
+CELERY_WORKER_REDIRECT_STDOUTS = False
+
 # LOGGING
 # ------------------------------------------------------------------------------
 # Show all SQL queries in the console during development
