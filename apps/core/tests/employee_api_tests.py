@@ -58,10 +58,14 @@ class TestEmployeeRetrieve:
         response = api_client.get(reverse("employee-detail", args=[employee.pk]))
         assert "phone" in response.data
         assert "email" in response.data
-        assert "telegram_id" in response.data
         assert "short_name" in response.data
         assert "department" in response.data
         assert "department_display" in response.data
+
+    def test_telegram_id_is_not_exposed(self, api_client, employee):
+        """A personal identifier no client needs; staff read it in the admin."""
+        response = api_client.get(reverse("employee-detail", args=[employee.pk]))
+        assert "telegram_id" not in response.data
 
 
 @pytest.mark.django_db
