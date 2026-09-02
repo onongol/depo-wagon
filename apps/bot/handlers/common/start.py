@@ -30,13 +30,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     token = context.args[0] if context.args else None
 
     if token:
-        await _handle_link_token(update, context, token, telegram_id)
+        await _handle_link_token(update, context, token)
         return
 
     try:
         employee = await services.get_employee_by_telegram_id(telegram_id)
     except Exception:
-        logger.exception("DB lookup failed for telegram_id=%s", telegram_id)
+        logger.exception("Employee lookup failed for the incoming chat")
         await update.message.reply_text(str(M.SESSION_ERROR))
         return
 
@@ -50,7 +50,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 
-async def _handle_link_token(update, context, token: str, telegram_id: int) -> None:
+async def _handle_link_token(update, context, token: str) -> None:
     """Spend the token, then ask before attaching anything.
 
     Nothing is written here. A deep link can be forwarded, so the chat that
@@ -61,7 +61,7 @@ async def _handle_link_token(update, context, token: str, telegram_id: int) -> N
     try:
         employee, status = await services.resolve_link_token(token)
     except Exception:
-        logger.exception("Telegram linking failed for telegram_id=%s", telegram_id)
+        logger.exception("Resolving a link token failed")
         await update.message.reply_text(str(M.SESSION_ERROR))
         return
 
@@ -85,13 +85,13 @@ async def confirm_link(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     query = update.callback_query
     await query.answer()
 
-    telegram_id = update.effective_user.id
+    employee_id = query.data.employee_id
     try:
         employee, status = await services.attach_telegram(
-            query.data.employee_id, telegram_id
+            employee_id, update.effective_user.id
         )
     except Exception:
-        logger.exception("Telegram linking failed for telegram_id=%s", telegram_id)
+        logger.exception("Attaching a chat to employee %s failed", employee_id)
         await query.edit_message_text(str(M.SESSION_ERROR))
         return
 
