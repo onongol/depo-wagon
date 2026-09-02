@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from telegram import Bot
 
@@ -8,6 +9,9 @@ from apps.ai_service.analysis import analyze_defect
 from apps.bot import services
 from apps.bot.user_data import DefectData
 from apps.defects.validators import MAX_PHOTO_BYTES
+
+if TYPE_CHECKING:
+    from apps.core.models import Employee
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +24,9 @@ class PersistResult:
     photo_bytes: list[bytes]
 
 
-async def register_defect(defect_data: DefectData, employee, bot: Bot) -> PersistResult:
+async def register_defect(
+    defect_data: DefectData, employee: Employee, bot: Bot
+) -> PersistResult:
     """Save defect, photos and measurements.
     Raises on the critical create_defect failure. Photo and measurement failures
     are non-critical: they are logged and skipped, never aborting the save.
@@ -31,7 +37,7 @@ async def register_defect(defect_data: DefectData, employee, bot: Bot) -> Persis
         defect_type=defect_data.defect_type,
         severity=defect_data.severity,
         description=defect_data.description,
-        employee_id=employee.id if employee else None,
+        employee_id=employee.id,
         department=defect_data.department or "",
         part_number=defect_data.part_number or "",
         responsible_employee_id=defect_data.responsible_employee_id,
