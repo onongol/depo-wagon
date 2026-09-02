@@ -3,7 +3,8 @@ import logging
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
-from apps.bot.constants import DEFECT_USER_DATA_KEYS, UD_DEFECT, UD_EMPLOYEE
+from apps.bot.constants import DEFECT_USER_DATA_KEYS, UD_DEFECT
+from apps.bot.handlers.employee import get_employee
 from apps.bot.keyboards.defect import employee_verdict_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import EMPLOYEE_VERDICT
@@ -27,7 +28,10 @@ async def confirm_defect(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return ConversationHandler.END
 
     defect_data: DefectData = context.user_data.get(UD_DEFECT)
-    employee = context.user_data.get(UD_EMPLOYEE)
+    employee = await get_employee(update, context)
+    if not employee:
+        await query.edit_message_text(str(M.NOT_REGISTERED))
+        return ConversationHandler.END
 
     # Critical: a failure here means nothing was saved
     await query.edit_message_text(str(M.SAVING))

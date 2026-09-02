@@ -16,7 +16,6 @@ from .common import (
     UD_AI_CHAT_HISTORY,
     UD_DEFECT,
     UD_EDITING,
-    UD_EMPLOYEE,
     UD_LAST_PHOTO_MSG,
     UD_RESP_EMPLOYEES,
     UD_RESP_SEARCH,
@@ -42,7 +41,6 @@ from .tasks import (
 __all__ = [
     "LinkStatus",
     "PARSE_MODE",
-    "UD_EMPLOYEE",
     "UD_DEFECT",
     "UD_RESP_EMPLOYEES",
     "UD_RESP_SEARCH",

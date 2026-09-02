@@ -6,8 +6,9 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from model_bakery import baker
 
-from apps.bot.constants import UD_EMPLOYEE, LinkStatus
+from apps.bot.constants import LinkStatus
 from apps.bot.handlers.common.start import start
+from apps.bot.handlers.employee import get_employee
 from apps.bot.services.telegram_link import link_telegram_by_token
 from apps.users import telegram_tokens
 
@@ -92,6 +93,31 @@ class TestLinkTelegramByToken:
         assert status is LinkStatus.OK
 
 
+@pytest.mark.django_db(transaction=True)
+class TestEmployeeIsReadFresh:
+    """What the web revokes, the bot must stop honouring on the next update."""
+
+    async def test_disconnecting_reaches_the_bot(self, mock_context):
+        employee = await make("core.Employee", telegram_id=777, is_active=True)
+        update = _make_update(user_id=777)
+        assert await get_employee(update, mock_context) is not None
+
+        employee.telegram_id = None
+        await sync_to_async(employee.save)(update_fields=["telegram_id"])
+
+        assert await get_employee(update, mock_context) is None
+
+    async def test_deactivation_reaches_the_bot(self, mock_context):
+        employee = await make("core.Employee", telegram_id=777, is_active=True)
+        update = _make_update(user_id=777)
+        assert await get_employee(update, mock_context) is not None
+
+        employee.is_active = False
+        await sync_to_async(employee.save)(update_fields=["is_active"])
+
+        assert await get_employee(update, mock_context) is None
+
+
 class TestStartHandler:
     async def test_bare_start_when_unlinked_points_at_the_web_app(self, mock_context):
         update = _make_update()
@@ -117,7 +143,7 @@ class TestStartHandler:
             await start(update, mock_context)
         menu.assert_awaited_once()
 
-    async def test_token_links_and_caches_the_employee(self, mock_context):
+    async def test_token_link_greets_the_employee_it_linked(self, mock_context):
         update = _make_update()
         mock_context.args = ["sometoken"]
         employee = MagicMock()
@@ -126,13 +152,13 @@ class TestStartHandler:
             patch(
                 "apps.bot.handlers.common.start.show_welcome_menu",
                 new_callable=AsyncMock,
-            ),
+            ) as menu,
         ):
             svc.link_telegram_by_token = AsyncMock(
                 return_value=(employee, LinkStatus.OK)
             )
             await start(update, mock_context)
-        assert mock_context.user_data[UD_EMPLOYEE] is employee
+        assert menu.await_args.args[1] is employee
 
     async def test_token_is_passed_through_to_the_service(self, mock_context):
         update = _make_update()

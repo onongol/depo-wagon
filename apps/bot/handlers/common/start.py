@@ -4,7 +4,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from apps.bot import services
-from apps.bot.constants import LinkStatus, UD_EMPLOYEE
+from apps.bot.constants import LinkStatus
 from apps.bot.messages import BotMessages as M
 
 from .utils import show_welcome_menu
@@ -39,7 +39,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     if employee:
-        context.user_data[UD_EMPLOYEE] = employee
         await show_welcome_menu(update.message, employee)
         return
 
@@ -66,6 +65,5 @@ async def _handle_link_token(update, context, token: str, telegram_id: int) -> N
         await update.message.reply_text(str(text), parse_mode=M.PARSE_MODE)
         return
 
-    context.user_data[UD_EMPLOYEE] = employee
     await update.message.reply_text(str(M.LINK_OK), parse_mode=M.PARSE_MODE)
     await show_welcome_menu(update.message, employee)

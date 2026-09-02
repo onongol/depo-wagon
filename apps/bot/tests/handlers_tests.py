@@ -444,3 +444,49 @@ class TestEditFromSummary:
 
         assert result == CONFIRM
         assert UD_EDITING not in mock_context.user_data
+
+
+class TestUnlinkedEmployeeIsRefused:
+    """The employee is read per update, so a revoked one must be stopped."""
+
+    async def test_confirm_saves_nothing_without_an_employee(self, mock_context):
+        from apps.bot.callbacks import ConfirmCB
+        from apps.bot.handlers.defect.confirm.handler import confirm_defect
+
+        mock_context.user_data[UD_DEFECT] = DefectData()
+        update = _make_cb_update(ConfirmCB(confirmed=True))
+
+        with (
+            patch(
+                "apps.bot.handlers.defect.confirm.handler.get_employee",
+                AsyncMock(return_value=None),
+            ),
+            patch(
+                "apps.bot.handlers.defect.confirm.handler.register_defect",
+                new_callable=AsyncMock,
+            ) as save,
+        ):
+            result = await confirm_defect(update, mock_context)
+
+        save.assert_not_awaited()
+        assert result == ConversationHandler.END
+
+    async def test_verdict_is_not_recorded_without_an_employee(self, mock_context):
+        from apps.bot.callbacks import VerdictCB
+        from apps.bot.handlers.defect.verdict import receive_employee_verdict
+        from apps.defects.constants import DefectVerdict
+
+        mock_context.user_data[UD_DEFECT] = DefectData(defect_id="1")
+        update = _make_cb_update(VerdictCB(value=DefectVerdict.DECOMMISSION))
+
+        with (
+            patch(
+                "apps.bot.handlers.defect.verdict.get_employee",
+                AsyncMock(return_value=None),
+            ),
+            patch("apps.bot.handlers.defect.verdict.services") as svc,
+        ):
+            result = await receive_employee_verdict(update, mock_context)
+
+        svc.save_employee_verdict.assert_not_called()
+        assert result == ConversationHandler.END

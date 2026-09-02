@@ -4,7 +4,8 @@ from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 from apps.bot import services
-from apps.bot.constants import UD_DEFECT, UD_EMPLOYEE, VERDICT_LABELS
+from apps.bot.constants import UD_DEFECT, VERDICT_LABELS
+from apps.bot.handlers.employee import get_employee
 from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.user_data import DefectData
@@ -25,7 +26,10 @@ async def receive_employee_verdict(
     verdict_value = query.data.value
 
     defect: DefectData = context.user_data.get(UD_DEFECT)
-    employee = context.user_data.get(UD_EMPLOYEE)
+    employee = await get_employee(update, context)
+    if not employee:
+        await query.edit_message_text(str(M.NOT_REGISTERED))
+        return ConversationHandler.END
 
     if defect and defect.defect_id:
         try:
@@ -49,7 +53,7 @@ async def receive_employee_verdict(
     await query.message.reply_text(
         str(M.VERDICT_DONE).format(label=verdict_label),
         parse_mode=M.PARSE_MODE,
-        reply_markup=main_menu_keyboard(employee.role) if employee else None,
+        reply_markup=main_menu_keyboard(employee.role),
     )
 
     context.user_data.pop(UD_DEFECT, None)
