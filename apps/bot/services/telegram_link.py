@@ -40,11 +40,10 @@ def link_telegram_by_token(token: str, telegram_id: int):
 
     # Refuse to move a chat that already belongs to a different employee.
     # Otherwise two people sharing a phone could silently steal each other's
-    # notifications, and the previous owner would never be told.
+    # notifications, and the previous owner would never be told. Inactive
+    # holders count: telegram_id is unique across every row, active or not.
     taken_by = (
-        Employee.objects.filter(telegram_id=telegram_id, is_active=True)
-        .exclude(pk=employee.pk)
-        .first()
+        Employee.objects.filter(telegram_id=telegram_id).exclude(pk=employee.pk).first()
     )
     if taken_by is not None:
         return None, LinkStatus.ALREADY_LINKED

@@ -72,6 +72,16 @@ class TestLinkTelegramByToken:
 
         assert status is LinkStatus.ALREADY_LINKED
 
+    async def test_chat_owned_by_an_inactive_employee_is_rejected(self):
+        await make("core.Employee", telegram_id=777, is_active=False)
+        user = await make("users.CustomUser")
+        await make("core.Employee", user=user, telegram_id=None, is_active=True)
+        token = await sync_to_async(telegram_tokens.issue)(user.pk)
+
+        _, status = await link_telegram_by_token(token, telegram_id=777)
+
+        assert status is LinkStatus.ALREADY_LINKED
+
     async def test_relinking_the_same_chat_is_allowed(self):
         user = await make("users.CustomUser")
         await make("core.Employee", user=user, telegram_id=777, is_active=True)
