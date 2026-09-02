@@ -56,6 +56,18 @@ class TestTelegramConnectPage:
 
         assert telegram_tokens.redeem(token) == user.pk
 
+    def test_reloading_the_page_revokes_the_earlier_link(self, client, settings):
+        settings.TELEGRAM_BOT_USERNAME = "depo_bot"
+        user, _ = _make_employee_user()
+        client.force_login(user)
+        url = reverse("web:telegram_connect")
+        stale = client.get(url).context["deep_link"].split("start=")[1]
+        client.get(url)
+
+        from apps.users import telegram_tokens
+
+        assert telegram_tokens.redeem(stale) is None
+
     def test_linked_employee_is_offered_no_new_link(self, client, settings):
         settings.TELEGRAM_BOT_USERNAME = "depo_bot"
         user, _ = _make_employee_user(telegram_id=555)

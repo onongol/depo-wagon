@@ -20,6 +20,7 @@ from django.core.cache import cache
 
 _TOKEN_BYTES = 32
 _PREFIX = "tg_link_token:"
+_USER_PREFIX = "tg_link_user:"
 
 # Short: the link is meant to be tapped straight away, from the page that just
 # rendered it. A stale one lingering in a browser is not useful to anybody.
@@ -30,10 +31,23 @@ def _key(token: str) -> str:
     return f"{_PREFIX}{token}"
 
 
+def _user_key(user_id: int) -> str:
+    return f"{_USER_PREFIX}{user_id}"
+
+
 def issue(user_id: int) -> str:
-    """Create a single-use linking token for this user and return it."""
+    """Create a single-use linking token for this user and return it.
+
+    Issuing revokes whatever token this user held before, so reloading the
+    connect page leaves one working link rather than a growing pile of them.
+    """
+    previous = cache.get(_user_key(user_id))
+    if previous:
+        cache.delete(_key(previous))
+
     token = secrets.token_urlsafe(_TOKEN_BYTES)
     cache.set(_key(token), user_id, timeout=TOKEN_TTL)
+    cache.set(_user_key(user_id), token, timeout=TOKEN_TTL)
     return token
 
 
@@ -50,4 +64,5 @@ def redeem(token: str) -> int | None:
     if user_id is None:
         return None
     cache.delete(key)
+    cache.delete(_user_key(user_id))
     return user_id
