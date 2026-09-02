@@ -30,6 +30,18 @@ class TestIssueAndRedeem:
         assert telegram_tokens.issue(1) != telegram_tokens.issue(1)
 
 
+class TestTokensAreStoredHashed:
+    """Reading the cache must not hand anybody a working token."""
+
+    def test_the_plaintext_token_is_not_a_cache_key(self):
+        token = telegram_tokens.issue(42)
+        assert cache.get(f"tg_link_token:{token}") is None
+
+    def test_the_user_index_holds_no_plaintext_token(self):
+        token = telegram_tokens.issue(42)
+        assert cache.get("tg_link_user:42") != token
+
+
 class TestOnlyOneLiveTokenPerUser:
     def test_issuing_again_revokes_the_previous_token(self):
         first = telegram_tokens.issue(42)

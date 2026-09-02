@@ -11,9 +11,12 @@ again. That is what removed the emailed one-time codes this project used to
 have.
 
 Same storage reasoning as apps.users.login_tokens: random and held in Redis
-rather than signed and self-contained, so redeeming one destroys it.
+rather than signed and self-contained, so redeeming one destroys it. Only the
+SHA-256 of a token is stored, so reading the cache yields nothing usable; a
+plain digest is enough because the token is 256 random bits, not a password.
 """
 
+import hashlib
 import secrets
 
 from django.core.cache import cache
@@ -27,8 +30,12 @@ _USER_PREFIX = "tg_link_user:"
 TOKEN_TTL = 600  # 10 minutes
 
 
-def _key(token: str) -> str:
-    return f"{_PREFIX}{token}"
+def _digest(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def _key(digest: str) -> str:
+    return f"{_PREFIX}{digest}"
 
 
 def _user_key(user_id: int) -> str:
@@ -46,8 +53,9 @@ def issue(user_id: int) -> str:
         cache.delete(_key(previous))
 
     token = secrets.token_urlsafe(_TOKEN_BYTES)
-    cache.set(_key(token), user_id, timeout=TOKEN_TTL)
-    cache.set(_user_key(user_id), token, timeout=TOKEN_TTL)
+    digest = _digest(token)
+    cache.set(_key(digest), user_id, timeout=TOKEN_TTL)
+    cache.set(_user_key(user_id), digest, timeout=TOKEN_TTL)
     return token
 
 
@@ -59,7 +67,7 @@ def redeem(token: str) -> int | None:
     """
     if not token:
         return None
-    key = _key(token)
+    key = _key(_digest(token))
     user_id = cache.get(key)
     if user_id is None:
         return None
