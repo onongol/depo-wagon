@@ -1,0 +1,12 @@
+{% load i18n %}{% autoescape off %}{% blocktrans %}Hello!
+
+A Telegram account has just been connected to yours. That chat can now report
+defects and receive task notifications in your name.
+
+If this was you, there is nothing to do.
+
+If it was not, open the page below and press Disconnect, then tell your
+administrator:
+
+{{ telegram_url }}{% endblocktrans %}
+{% endautoescape %}

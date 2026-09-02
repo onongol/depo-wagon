@@ -5,6 +5,7 @@ from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_POST
 
 from apps.users import telegram_tokens
+from apps.users.notifications import DISCONNECTED, notify_telegram_link_change
 from apps.web.decorators import employee_required
 
 
@@ -44,5 +45,6 @@ def telegram_disconnect(request):
     employee = request.user.employee
     employee.telegram_id = None
     employee.save(update_fields=["telegram_id"])
+    notify_telegram_link_change(request.user.pk, DISCONNECTED)
     messages.success(request, _("Telegram account disconnected."))
     return redirect("web:telegram_connect")

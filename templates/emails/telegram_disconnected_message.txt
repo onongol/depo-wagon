@@ -1,0 +1,12 @@
+{% load i18n %}{% autoescape off %}{% blocktrans %}Hello!
+
+The Telegram account connected to yours has just been disconnected. That chat
+can no longer report defects or receive notifications for you.
+
+If this was you, there is nothing to do.
+
+If it was not, connect Telegram again from the page below and tell your
+administrator:
+
+{{ telegram_url }}{% endblocktrans %}
+{% endautoescape %}

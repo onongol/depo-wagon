@@ -123,6 +123,25 @@ class TestAttachTelegram:
 
         assert status is LinkStatus.OK
 
+    async def test_the_owner_is_notified(self):
+        user = await make("users.CustomUser")
+        employee = await make(
+            "core.Employee", user=user, telegram_id=None, is_active=True
+        )
+
+        with patch("apps.users.notifications.notify_telegram_link_change") as notify:
+            await attach_telegram(employee.pk, telegram_id=777)
+
+        notify.assert_called_once_with(user.pk, "connected")
+
+    async def test_an_employee_without_an_account_notifies_nobody(self):
+        employee = await make("core.Employee", telegram_id=None, is_active=True)
+
+        with patch("apps.users.notifications.notify_telegram_link_change") as notify:
+            await attach_telegram(employee.pk, telegram_id=777)
+
+        notify.assert_not_called()
+
     async def test_deactivation_between_question_and_answer_is_refused(self):
         employee = await make("core.Employee", telegram_id=None, is_active=True)
         employee.is_active = False

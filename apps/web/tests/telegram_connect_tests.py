@@ -94,6 +94,15 @@ class TestTelegramDisconnect:
         employee.refresh_from_db()
         assert employee.telegram_id is None
 
+    def test_the_owner_is_notified(self, client):
+        from unittest.mock import patch
+
+        user, _ = _make_employee_user(telegram_id=555)
+        client.force_login(user)
+        with patch("apps.web.views.telegram.notify_telegram_link_change") as notify:
+            client.post(reverse("web:telegram_disconnect"))
+        notify.assert_called_once_with(user.pk, "disconnected")
+
     def test_get_is_rejected(self, client):
         user, employee = _make_employee_user(telegram_id=555)
         client.force_login(user)

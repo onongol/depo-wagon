@@ -27,6 +27,12 @@ CACHES = {
     }
 }
 
+# CELERY
+# ------------------------------------------------------------------------------
+# In-memory transport: .delay() in a test would otherwise publish a real task
+# into whatever Redis the developer has running.
+CELERY_BROKER_URL = "memory://"
+
 # PASSWORDS
 # ------------------------------------------------------------------------------
 # Faster password hashing in tests
