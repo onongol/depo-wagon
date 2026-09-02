@@ -8,18 +8,16 @@ logger = logging.getLogger(__name__)
 
 
 @sync_to_async
-def link_telegram_by_token(token: str, telegram_id: int):
-    """Attach this Telegram chat to the user a deep-link token was issued for.
+def resolve_link_token(token: str):
+    """Spend a deep-link token and return the employee it was issued for.
 
-    The token came from an authenticated web session, so identity is already
-    established; all that is left is to record the chat against the right
-    Employee.
+    The token is redeemed here, before the chat is asked to confirm, so that it
+    stays single-use while the question waits for an answer.
 
     Returns:
-        (employee, LinkStatus.OK)              — attached
-        (None, LinkStatus.INVALID_TOKEN)       — unknown, used or expired token
-        (None, LinkStatus.NO_EMPLOYEE)         — user has no active Employee row
-        (employee, LinkStatus.ALREADY_LINKED)  — chat belongs to someone else
+        (employee, LinkStatus.OK)         — token spent, employee found
+        (None, LinkStatus.INVALID_TOKEN)  — unknown, used or expired token
+        (None, LinkStatus.NO_EMPLOYEE)    — user has no active Employee row
     """
     from apps.core.models import Employee
     from apps.users import telegram_tokens
@@ -33,9 +31,32 @@ def link_telegram_by_token(token: str, telegram_id: int):
             user_id=user_id, is_active=True
         )
     except Employee.DoesNotExist:
-        logger.warning(
-            "link_telegram_by_token: no active employee for user %s", user_id
+        logger.warning("resolve_link_token: no active employee for user %s", user_id)
+        return None, LinkStatus.NO_EMPLOYEE
+
+    return employee, LinkStatus.OK
+
+
+@sync_to_async
+def attach_telegram(employee_id: int, telegram_id: int):
+    """Record this chat against the employee a token resolved to.
+
+    The employee is read again rather than carried over: whoever was
+    deactivated between the question and the answer must not be attached.
+
+    Returns:
+        (employee, LinkStatus.OK)         — attached
+        (None, LinkStatus.NO_EMPLOYEE)    — no active Employee row any more
+        (None, LinkStatus.ALREADY_LINKED) — chat belongs to someone else
+    """
+    from apps.core.models import Employee
+
+    try:
+        employee = Employee.objects.select_related("user").get(
+            pk=employee_id, is_active=True
         )
+    except Employee.DoesNotExist:
+        logger.warning("attach_telegram: employee %s is gone or inactive", employee_id)
         return None, LinkStatus.NO_EMPLOYEE
 
     # Refuse to move a chat that already belongs to a different employee.

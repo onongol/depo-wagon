@@ -1,3 +1,4 @@
+import html
 import logging
 
 from telegram import Update
@@ -5,6 +6,7 @@ from telegram.ext import ContextTypes
 
 from apps.bot import services
 from apps.bot.constants import LinkStatus
+from apps.bot.keyboards.common import link_confirm_keyboard
 from apps.bot.messages import BotMessages as M
 
 from .utils import show_welcome_menu
@@ -49,8 +51,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def _handle_link_token(update, context, token: str, telegram_id: int) -> None:
+    """Spend the token, then ask before attaching anything.
+
+    Nothing is written here. A deep link can be forwarded, so the chat that
+    followed it is asked to confirm out loud which account it is about to take
+    over. Spending the token first keeps it single-use while that question
+    waits for an answer.
+    """
     try:
-        employee, status = await services.link_telegram_by_token(token, telegram_id)
+        employee, status = await services.resolve_link_token(token)
     except Exception:
         logger.exception("Telegram linking failed for telegram_id=%s", telegram_id)
         await update.message.reply_text(str(M.SESSION_ERROR))
@@ -60,10 +69,46 @@ async def _handle_link_token(update, context, token: str, telegram_id: int) -> N
         text = {
             LinkStatus.INVALID_TOKEN: M.LINK_TOKEN_INVALID,
             LinkStatus.NO_EMPLOYEE: M.LINK_NO_EMPLOYEE,
-            LinkStatus.ALREADY_LINKED: M.LINK_ALREADY_TAKEN,
         }[status]
         await update.message.reply_text(str(text), parse_mode=M.PARSE_MODE)
         return
 
-    await update.message.reply_text(str(M.LINK_OK), parse_mode=M.PARSE_MODE)
-    await show_welcome_menu(update.message, employee)
+    await update.message.reply_text(
+        str(M.LINK_CONFIRM).format(full_name=html.escape(employee.full_name)),
+        parse_mode=M.PARSE_MODE,
+        reply_markup=link_confirm_keyboard(employee.pk),
+    )
+
+
+async def confirm_link(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Attach the chat now that the person has agreed to it."""
+    query = update.callback_query
+    await query.answer()
+
+    telegram_id = update.effective_user.id
+    try:
+        employee, status = await services.attach_telegram(
+            query.data.employee_id, telegram_id
+        )
+    except Exception:
+        logger.exception("Telegram linking failed for telegram_id=%s", telegram_id)
+        await query.edit_message_text(str(M.SESSION_ERROR))
+        return
+
+    if status is not LinkStatus.OK:
+        text = {
+            LinkStatus.NO_EMPLOYEE: M.LINK_NO_EMPLOYEE,
+            LinkStatus.ALREADY_LINKED: M.LINK_ALREADY_TAKEN,
+        }[status]
+        await query.edit_message_text(str(text), parse_mode=M.PARSE_MODE)
+        return
+
+    await query.edit_message_text(str(M.LINK_OK), parse_mode=M.PARSE_MODE)
+    await show_welcome_menu(query.message, employee)
+
+
+async def cancel_link(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Drop a link the person declined."""
+    query = update.callback_query
+    await query.answer()
+    await query.edit_message_text(str(M.LINK_CANCELLED), parse_mode=M.PARSE_MODE)

@@ -1,8 +1,9 @@
 from unittest.mock import AsyncMock, patch
 
-from telegram.ext import Application
+from telegram.ext import Application, CallbackQueryHandler
 
-from apps.bot.application import _BotApplication
+from apps.bot.application import _BotApplication, create_application
+from apps.bot.callbacks import LinkCancelCB, LinkConfirmCB
 
 
 class TestBotApplication:
@@ -39,3 +40,20 @@ class TestBotApplication:
             await _BotApplication.process_update(instance, update)
 
         mock_super.assert_called_once_with(update)
+
+
+class TestLinkButtonsAreRegistered:
+    """Handler tests call the callbacks directly; only this proves they are wired."""
+
+    def test_link_callbacks_reach_a_handler(self, settings):
+        settings.TELEGRAM_BOT_TOKEN = "123456:ABCdefGHI"
+        app = create_application()
+
+        patterns = [
+            h.pattern
+            for h in app.handlers[0]
+            if isinstance(h, CallbackQueryHandler) and callable(h.pattern)
+        ]
+
+        assert any(p(LinkConfirmCB(employee_id=1)) for p in patterns)
+        assert any(p(LinkCancelCB()) for p in patterns)

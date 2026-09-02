@@ -4,7 +4,13 @@ from django.conf import settings
 from django.db import close_old_connections
 from django.utils.translation import gettext_lazy as _
 from telegram import BotCommand, MenuButtonCommands, Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters
+from telegram.ext import (
+    Application,
+    CallbackQueryHandler,
+    CommandHandler,
+    MessageHandler,
+    filters,
+)
 
 from apps.bot.constants import BTN_HELP
 from apps.bot.messages import BotMessages as M
@@ -44,8 +50,11 @@ async def _post_init(app: Application) -> None:
 def create_application() -> _BotApplication:
     """Build the Telegram Application and register all handlers."""
     from apps.bot.handlers.ai_chat import get_ai_chat_handler
+    from apps.bot.callbacks import LinkCancelCB, LinkConfirmCB
     from apps.bot.handlers.common import (
         cancel,
+        cancel_link,
+        confirm_link,
         error_handler,
         help_command,
         start,
@@ -65,9 +74,18 @@ def create_application() -> _BotApplication:
         .build()
     )
 
-    # 1. /start — shows the menu, and attaches this chat when the web app's
-    #    deep link supplies a token. No conversation: there is nothing to ask.
+    # 1. /start — shows the menu, and offers to attach this chat when the web
+    #    app's deep link supplies a token. The offer is two inline buttons
+    #    rather than a conversation state: the answer is one tap either way.
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(
+        CallbackQueryHandler(
+            confirm_link, pattern=lambda d: isinstance(d, LinkConfirmCB)
+        )
+    )
+    app.add_handler(
+        CallbackQueryHandler(cancel_link, pattern=lambda d: isinstance(d, LinkCancelCB))
+    )
 
     # 2. Defect registration (8-step conversation)
     app.add_handler(get_defect_handler())

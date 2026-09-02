@@ -17,6 +17,21 @@ class AuthMessages:
         "{site_url}"
     )
 
+    LINK_CONFIRM = _(
+        "🔗 Connect this Telegram to <b>{full_name}</b>?\n\n"
+        "<i>The link has been used up either way — declining just means asking "
+        "the web app for a new one.</i>"
+    )
+
+    LINK_CONFIRM_BUTTON = _("✅ Connect")
+
+    LINK_CANCEL_BUTTON = _("✖️ Cancel")
+
+    LINK_CANCELLED = _(
+        "Cancelled. Nothing was connected.\n"
+        "Open <b>Connect Telegram</b> in the web app for a new link."
+    )
+
     LINK_OK = _("✅ <b>Telegram connected!</b>")
 
     LINK_TOKEN_INVALID = _(

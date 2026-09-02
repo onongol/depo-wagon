@@ -128,3 +128,15 @@ class StatusSetCB:
     defect_id: str
     status: str
     page: int
+
+
+@dataclass(frozen=True)
+class LinkConfirmCB:
+    """Attach this chat to the employee a deep-link token resolved to."""
+
+    employee_id: int
+
+
+@dataclass(frozen=True)
+class LinkCancelCB:
+    """Decline the attachment. The token is already spent either way."""
