@@ -48,7 +48,3 @@ class AuthMessages:
         "⚠️ This Telegram account is already connected to another employee.\n"
         "Disconnect it there first, or contact your administrator."
     )
-
-    LOGIN_LINK_BUTTON = _("🔐 Open the web app")
-
-    LOGIN_LINK_FAILED = _("⚠️ Could not create a sign-in link. Please try /start again.")

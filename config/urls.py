@@ -8,13 +8,8 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
 )
 
-from apps.users.views_login_link import login_link
-
 urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls),
-    # One-time sign-in links the Telegram bot hands out. Kept out of
-    # /accounts/ so it is never mistaken for an allauth-provided route.
-    path("auth/link/<str:token>/", login_link, name="login_link"),
     # Before apps.web.urls: that one is mounted at the root and would otherwise
     # shadow /accounts/… if a matching route were ever added there.
     path("accounts/", include("allauth.urls")),
