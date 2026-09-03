@@ -45,6 +45,6 @@ def telegram_disconnect(request):
     employee = request.user.employee
     employee.telegram_id = None
     employee.save(update_fields=["telegram_id"])
-    notify_telegram_link_change(request.user.pk, DISCONNECTED)
+    notify_telegram_link_change(request.user, DISCONNECTED)
     messages.success(request, _("Telegram account disconnected."))
     return redirect("web:telegram_connect")

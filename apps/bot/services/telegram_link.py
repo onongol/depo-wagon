@@ -75,6 +75,6 @@ def attach_telegram(employee_id: int, telegram_id: int):
     if employee.user_id:
         from apps.users.notifications import CONNECTED, notify_telegram_link_change
 
-        notify_telegram_link_change(employee.user_id, CONNECTED)
+        notify_telegram_link_change(employee.user, CONNECTED)
 
     return employee, LinkStatus.OK

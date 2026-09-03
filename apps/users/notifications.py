@@ -2,8 +2,8 @@
 
 allauth's own mail plumbing is not available for these. ``send_notification_mail``
 reads the client IP off the request, and even the adapter's ``send_mail`` resolves
-the current site through one; both events here happen in the bot process or in a
-Celery worker, where there is no request to read.
+the current site through one; a link is made in the bot process, where there is no
+request to read.
 """
 
 import logging
@@ -59,13 +59,11 @@ def send_telegram_link_email(user, action: str) -> bool:
     return True
 
 
-def notify_telegram_link_change(user_id: int, action: str) -> None:
-    """Queue the notice. Losing the broker must not fail the change itself."""
-    from apps.users.tasks import send_telegram_link_notification
-
+def notify_telegram_link_change(user, action: str) -> None:
+    """Send the notice. Losing it must not fail the link change itself."""
     try:
-        send_telegram_link_notification.delay(user_id, action)
+        send_telegram_link_email(user, action)
     except Exception:
         logger.exception(
-            "Could not queue the telegram %s notice for user %s", action, user_id
+            "Could not send the telegram %s notice for user %s", action, user.pk
         )
