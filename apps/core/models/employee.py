@@ -51,17 +51,6 @@ class Employee(models.Model):
 
     history = HistoricalRecords()
 
-    def save(self, *args, **kwargs) -> None:
-        """Override save to ensure phone and email are set to None if blank, and to sync user active status."""
-        self.phone = self.phone or None
-        self.email = self.email or None
-        super().save(*args, **kwargs)
-
-        if self.user_id:
-            get_user_model().objects.filter(pk=self.user_id).update(
-                is_active=self.is_active
-            )
-
     class Meta:
         verbose_name = _("Employee")
         verbose_name_plural = _("Employees")
@@ -73,6 +62,20 @@ class Employee(models.Model):
             models.Index(fields=["department"]),
         ]
 
+    def __str__(self) -> str:
+        return f"{self.full_name} ({self.employee_id})"
+
+    def save(self, *args, **kwargs) -> None:
+        """Override save to ensure phone and email are set to None if blank, and to sync user active status."""
+        self.phone = self.phone or None
+        self.email = self.email or None
+        super().save(*args, **kwargs)
+
+        if self.user_id:
+            get_user_model().objects.filter(pk=self.user_id).update(
+                is_active=self.is_active
+            )
+
     @property
     def full_name(self) -> str:
         return f"{self.last_name} {self.first_name}"
@@ -82,6 +85,3 @@ class Employee(models.Model):
         if self.first_name and self.last_name:
             return f"{self.last_name[0]}.{self.first_name}"
         return self.first_name or self.last_name or self.employee_id
-
-    def __str__(self) -> str:
-        return f"{self.full_name} ({self.employee_id})"

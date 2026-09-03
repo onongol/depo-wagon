@@ -42,12 +42,12 @@ class DefectMeasurement(models.Model):
             models.Index(fields=["-created_at"]),
         ]
 
+    def __str__(self) -> str:
+        unit_str = f" {self.unit}" if self.unit else ""
+        return f"{self.get_dimension_display()}: {self.value}{unit_str}"
+
     @property
     def is_exceeded(self) -> bool:
         if self.norm_value is not None:
             return self.value > self.norm_value
         return False
-
-    def __str__(self) -> str:
-        unit_str = f" {self.unit}" if self.unit else ""
-        return f"{self.get_dimension_display()}: {self.value}{unit_str}"

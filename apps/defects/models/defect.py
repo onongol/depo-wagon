@@ -121,10 +121,10 @@ class Defect(models.Model):
             models.Index(fields=["inspected_at"]),
         ]
 
-    @property
-    def is_repaired(self) -> bool:
-        return self.status == DefectStatus.CLOSED
-
     def __str__(self) -> str:
         wagon_number = self.wagon.number if self.wagon_id else "—"
         return f"{self.get_node_display()} — {self.get_defect_type_display()} (Wagon: {wagon_number})"
+
+    @property
+    def is_repaired(self) -> bool:
+        return self.status == DefectStatus.CLOSED

@@ -55,6 +55,19 @@ class Wagon(models.Model):
 
     history = HistoricalRecords()
 
+    class Meta:
+        verbose_name = _("Wagon")
+        verbose_name_plural = _("Wagons")
+        ordering = ["number"]
+        indexes = [
+            models.Index(fields=["status", "wagon_type"]),
+            models.Index(fields=["status", "last_repair_date"]),
+            models.Index(fields=["status", "next_repair_date"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{_('Wagon')}: {self.number}"
+
     def save(self, *args, **kwargs) -> None:
         """Run full model validation before every save.
 
@@ -87,16 +100,6 @@ class Wagon(models.Model):
                     }
                 )
 
-    class Meta:
-        verbose_name = _("Wagon")
-        verbose_name_plural = _("Wagons")
-        ordering = ["number"]
-        indexes = [
-            models.Index(fields=["status", "wagon_type"]),
-            models.Index(fields=["status", "last_repair_date"]),
-            models.Index(fields=["status", "next_repair_date"]),
-        ]
-
     @property
     def needs_repair_soon(self) -> bool:
         """Check if the wagon's next repair date is within the warning period."""
@@ -104,6 +107,3 @@ class Wagon(models.Model):
             return False
         days = getattr(settings, "REPAIR_WARNING_DAYS", 30)
         return self.next_repair_date <= timezone.now().date() + timedelta(days=days)
-
-    def __str__(self) -> str:
-        return f"{_('Wagon')}: {self.number}"
