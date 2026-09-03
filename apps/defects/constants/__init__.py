@@ -9,11 +9,11 @@ from .constants import (
 )
 
 __all__ = [
+    "DEPARTMENT_NODES",
     "DefectNode",
     "DefectSeverity",
     "DefectStatus",
     "DefectType",
     "DefectVerdict",
-    "DEPARTMENT_NODES",
     "MeasurementDimension",
 ]

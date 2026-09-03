@@ -4,7 +4,7 @@ from .photo_serializer import DefectPhotoSerializer
 
 __all__ = [
     "DefectListSerializer",
-    "DefectSerializer",
     "DefectMeasurementSerializer",
     "DefectPhotoSerializer",
+    "DefectSerializer",
 ]

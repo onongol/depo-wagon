@@ -32,26 +32,20 @@ from .telegram_link import attach_telegram, get_connect_url, resolve_link_token
 from .wagon import get_wagon_by_number
 
 __all__ = [
-    # employee
+    "attach_telegram",
+    "create_defect",
+    "create_measurement",
+    "create_measurements_bulk",
+    "create_photo_from_bytes",
+    "get_connect_url",
     "get_employee_by_telegram_id",
     "get_employees_by_department",
     "get_managers_and_engineers",
-    # telegram linking
-    "resolve_link_token",
-    "attach_telegram",
-    "get_connect_url",
-    # wagon
-    "get_wagon_by_number",
-    # defect
-    "create_defect",
-    "update_defect_ai_result",
-    "update_defect_status",
-    "save_employee_verdict",
     "get_open_defects",
     "get_open_defects_count",
-    # photo
-    "create_photo_from_bytes",
-    # measurement
-    "create_measurement",
-    "create_measurements_bulk",
+    "get_wagon_by_number",
+    "resolve_link_token",
+    "save_employee_verdict",
+    "update_defect_ai_result",
+    "update_defect_status",
 ]

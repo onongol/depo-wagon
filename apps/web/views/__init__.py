@@ -8,17 +8,17 @@ from apps.web.views.telegram import telegram_connect, telegram_disconnect
 from apps.web.views.wagons import wagon_add, wagon_delete_bulk, wagon_edit, wagon_list
 
 __all__ = [
-    "home",
-    "dashboard",
     "account_overview",
-    "end_user_session",
-    "wagon_list",
-    "wagon_add",
-    "wagon_edit",
-    "wagon_delete_bulk",
+    "dashboard",
     "defect_list",
-    "employee_list",
     "document_list",
+    "employee_list",
+    "end_user_session",
+    "home",
     "telegram_connect",
     "telegram_disconnect",
+    "wagon_add",
+    "wagon_delete_bulk",
+    "wagon_edit",
+    "wagon_list",
 ]
