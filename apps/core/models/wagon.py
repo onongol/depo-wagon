@@ -45,8 +45,8 @@ class Wagon(models.Model):
     repair_type = models.CharField(
         max_length=20,
         choices=RepairType.choices,
-        null=True,
         blank=True,
+        default="",
         verbose_name=_("Repair Type"),
     )
     notes = models.TextField(blank=True, verbose_name=_("Notes"))

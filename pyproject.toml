@@ -45,18 +45,13 @@ ignore = [
   "PLC0415",  # 49 — imports inside functions; some break real import cycles
   "PLW0717",  # 4 — try clauses wider than 5 statements, the AI pipelines
   "PLR2004",  # 3 — magic values outside tests
-  "TRY301",   # 3 — raise inside try
-  "TRY300",   # 3 — return inside try
   "C901",     # 2 — analysis and chat pipelines
-  "B904",     # 2 — raise without from inside except
   "PLR0913",  # 2 — too many arguments
   "PLR0917",  # 2 — too many positional arguments
-  "SLF001",   # 1 — private member access
   "PLR0912",  # 1
   "PLR0915",  # 1
   "PLR0914",  # 1 — 23 locals in the analysis pipeline
   "PLR0911",  # 1
-  "DJ001",    # 1 — null=True on a string field
 ]
 
 [tool.ruff.lint.flake8-type-checking]

@@ -67,4 +67,4 @@ def embed_defect_task(self, defect_id: str) -> None:
 
     except Exception as exc:
         logger.exception("embed_defect_task failed for %s", defect_id)
-        raise self.retry(exc=exc)
+        raise self.retry(exc=exc) from exc

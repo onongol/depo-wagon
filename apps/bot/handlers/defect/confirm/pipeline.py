@@ -62,10 +62,11 @@ async def register_defect(
                 file_bytes=file_bytes,
                 filename=filename,
             )
-            return file_bytes
         except Exception as exc:
             logger.warning("Photo save failed (idx=%d): %s", idx, exc, exc_info=True)
             return None
+        else:
+            return file_bytes
 
     photo_results = await asyncio.gather(
         *[_fetch_photo(i, fid) for i, fid in enumerate(defect_data.photo_file_ids)]

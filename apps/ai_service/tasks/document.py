@@ -26,4 +26,4 @@ def process_document_task(self, document_id: int) -> None:
             self.request.retries + 1,
             self.max_retries + 1,
         )
-        raise self.retry(exc=exc)
+        raise self.retry(exc=exc) from exc

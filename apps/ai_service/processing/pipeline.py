@@ -10,6 +10,30 @@ from apps.ai_service.processing.extraction import extract_pages
 logger = logging.getLogger(__name__)
 
 
+def _extract_and_embed(doc) -> tuple[list[dict[str, str | int]], list[list[float]]]:
+    """Extract, chunk and embed a document. Raises ValueError on anything unusable."""
+    with doc.file.open("rb") as f:
+        pages = extract_pages(f)
+    if not pages:
+        msg = "No readable text found in document"
+        raise ValueError(msg)
+
+    all_chunks: list[dict[str, str | int]] = []
+    for page_number, page_text in pages:
+        all_chunks.extend(chunk_page(page_text, page_number))
+
+    if not all_chunks:
+        msg = "Text extraction produced no chunks"
+        raise ValueError(msg)
+
+    embeddings = embed_texts([chunk["content"] for chunk in all_chunks])
+    if len(embeddings) != len(all_chunks):
+        msg = f"embed_texts returned {len(embeddings)} embeddings for {len(all_chunks)} chunks"
+        raise ValueError(msg)
+
+    return all_chunks, embeddings
+
+
 def process_document(document_id: int) -> None:
     """
     Full pipeline: extract text from PDF → chunk → embed with gemini-embedding-2
@@ -28,25 +52,7 @@ def process_document(document_id: int) -> None:
     doc.save(update_fields=["status", "error_message", "updated_at"])
 
     try:
-        with doc.file.open("rb") as f:
-            pages = extract_pages(f)
-        if not pages:
-            msg = "No readable text found in document"
-            raise ValueError(msg)
-
-        all_chunks: list[dict[str, str | int]] = []
-
-        for page_number, page_text in pages:
-            all_chunks.extend(chunk_page(page_text, page_number))
-
-        if not all_chunks:
-            msg = "Text extraction produced no chunks"
-            raise ValueError(msg)
-
-        embeddings = embed_texts([chunk["content"] for chunk in all_chunks])
-        if len(embeddings) != len(all_chunks):
-            msg = f"embed_texts returned {len(embeddings)} embeddings for {len(all_chunks)} chunks"
-            raise ValueError(msg)
+        all_chunks, embeddings = _extract_and_embed(doc)
         chunk_objects = [
             DocumentChunk(
                 document=doc,

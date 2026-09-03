@@ -29,7 +29,7 @@ class DepotDocumentAdminMixinStatus:
 
 class DepotDocumentAdminMixinChunksCount:
     def chunks_count(self, obj: DepotDocument) -> int:
-        return obj._chunks_count
+        return obj._chunks_count  # noqa: SLF001 — annotated in get_queryset
 
     chunks_count.short_description = _("Chunks")
     chunks_count.admin_order_field = "_chunks_count"
