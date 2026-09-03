@@ -17,6 +17,6 @@ class DefectMeasurementViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action == "create":
             return [IsInspectorOrEngineer()]
-        if self.action in ["update", "partial_update", "destroy"]:
+        if self.action in {"update", "partial_update", "destroy"}:
             return [IsEngineer()]
         return [IsAnyEmployee()]

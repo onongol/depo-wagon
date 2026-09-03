@@ -7,7 +7,7 @@ from .defects import DefectMessages
 from .support import SupportMessages
 
 
-class BotMessages(
+class BotMessages(  # noqa: RUF067
     CommonMessages, AuthMessages, DefectMessages, SupportMessages, AiChatMessages
 ):
     """All Telegram bot strings, composed from per-domain message mixins."""

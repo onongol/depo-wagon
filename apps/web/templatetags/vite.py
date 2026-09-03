@@ -15,7 +15,7 @@ def _get_manifest() -> dict:
     if _manifest_cache is None or settings.DEBUG:
         manifest_path = Path(settings.BASE_DIR) / "static" / "manifest.json"
         if manifest_path.exists():
-            with open(manifest_path) as f:
+            with manifest_path.open(encoding="utf-8") as f:
                 _manifest_cache = json.load(f)
         else:
             _manifest_cache = {}

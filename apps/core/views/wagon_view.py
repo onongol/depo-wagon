@@ -21,6 +21,6 @@ class WagonViewSet(viewsets.ModelViewSet):
         return WagonSerializer
 
     def get_permissions(self):
-        if self.action in ["create", "update", "partial_update", "destroy"]:
+        if self.action in {"create", "update", "partial_update", "destroy"}:
             return [IsEngineerOrManager()]
         return [IsAnyEmployee()]

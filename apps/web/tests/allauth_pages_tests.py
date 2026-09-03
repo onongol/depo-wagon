@@ -63,7 +63,7 @@ def test_entrance_pages_render(client, url_name):
 @pytest.mark.parametrize("url_name", MANAGE_PAGES)
 def test_manage_pages_render(signed_in_client, url_name):
     r = signed_in_client.get(reverse(url_name))
-    assert r.status_code in (200, 302), url_name
+    assert r.status_code in {200, 302}, url_name
 
 
 @pytest.mark.django_db
