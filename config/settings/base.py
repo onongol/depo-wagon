@@ -232,6 +232,10 @@ EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
 # Gmail rewrites a From it did not authenticate: keep this equal to EMAIL_HOST_USER.
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@localhost")
+# What the Celery worker delivers through once CeleryEmailBackend has queued a message.
+EMAIL_DELIVERY_BACKEND = env(
+    "EMAIL_DELIVERY_BACKEND", default="django.core.mail.backends.smtp.EmailBackend"
+)
 
 # LOGGING
 # ------------------------------------------------------------------------------
