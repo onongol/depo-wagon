@@ -1,7 +1,7 @@
 import enum
 
 
-class LinkStatus(str, enum.Enum):
+class LinkStatus(enum.StrEnum):
     """Outcome of attaching a Telegram chat via a web-issued deep-link token."""
 
     OK = "ok"

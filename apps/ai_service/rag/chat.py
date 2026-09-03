@@ -80,7 +80,7 @@ async def answer_question(question: str, history: list[dict]) -> str:
 
     contents: list[types.Content] = []
     for msg in history[-_MAX_HISTORY:]:
-        if msg.get("role") not in ("user", "model") or not isinstance(
+        if msg.get("role") not in {"user", "model"} or not isinstance(
             msg.get("content"), str
         ):
             continue

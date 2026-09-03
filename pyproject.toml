@@ -4,6 +4,9 @@ target-version = "py314"
 extend-exclude = ["*/migrations/*.py", "static/*", "staticfiles/*", ".venv/*"]
 
 [tool.ruff.lint]
+# Preview rules are on. They can appear and change between Ruff releases, so a
+# version bump is expected to need a pass over this block.
+preview = true
 select = [
   "A", "ASYNC", "B", "BLE", "C4", "C90", "COM", "DJ", "DTZ", "E", "EM",
   "ERA", "EXE", "F", "FA", "FBT", "FLY", "G", "I", "ICN", "INP", "INT",
@@ -24,6 +27,13 @@ ignore = [
   "RUF001",
   "RUF002",
   "RUF003",
+  # Django, DRF and PTB dispatch on methods: get_queryset, save_model, validate_*
+  # and the handlers all take self by contract, so "could be a function" is wrong
+  # roughly 640 times here.
+  "PLR6301",
+  # Ruff calls this one opinionated itself and says to disable it if you prefer
+  # `noqa`. We do — `noqa` is what every other Python tool understands.
+  "RUF105",
 
   # --- Pre-existing debt, silenced to get the hooks green on the current
   # code. Counts are from the first full run; each line is its own cleanup
@@ -42,6 +52,7 @@ ignore = [
   "TRY003",   # 4 — long messages in raise
   "FBT001",   # 4 — boolean positional arguments
   "Q000",     # 4 (fix) — quote style
+  "PLW0717",  # 4 — try clauses wider than 5 statements, the AI pipelines
   "PLR2004",  # 3 — magic values outside tests
   "PERF401",  # 3 — manual list comprehension
   "G201",     # 3 — logging exc_info=True
@@ -54,13 +65,13 @@ ignore = [
   "RSE102",   # 2 (fix)
   "B904",     # 2 — raise without from inside except
   "PIE790",   # 2 (fix)
-  "UP042",    # 2 (fix) — StrEnum
   "S110",     # 2 — try/except/pass
   "PLR0913",  # 2 — too many arguments
   "PLR0917",  # 2 — too many positional arguments
   "SLF001",   # 1 — private member access
   "PLR0912",  # 1
   "PLR0915",  # 1
+  "PLR0914",  # 1 — 23 locals in the analysis pipeline
   "RUF005",   # 1 (fix)
   "EM102",    # 1 (fix)
   "B905",     # 1 (fix) — zip without strict
@@ -71,7 +82,6 @@ ignore = [
   "W293",     # 1 (fix)
   "UP035",    # 1 (fix)
   "DJ001",    # 1 — null=True on a string field
-  "PTH123",   # 1 — open() instead of Path.open()
 ]
 
 [tool.ruff.lint.isort]
@@ -84,8 +94,8 @@ known-first-party = ["apps", "config"]
 # naming it hides what is checked. Test credentials are fixtures. pytest.raises
 # on a broad exception is the point of the test in these cases.
 "**/tests/*.py" = [
-  "B011", "B017", "DTZ011", "N806", "PT011", "PT015", "PT018", "PT022",
-  "RET504", "RUF059", "S105", "S106", "SIM117", "UP017", "UP041",
+  "B011", "B017", "DTZ011", "N806", "PLC1901", "PT011", "PT015", "PT018",
+  "PT022", "RET504", "RUF059", "S105", "S106", "SIM117", "UP017", "UP041",
 ]
 "conftest.py" = ["S105", "S106"]
 # django-components discovers component directories by path, not by import, so
