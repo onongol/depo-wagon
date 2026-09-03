@@ -43,7 +43,6 @@ ignore = [
   # result differs. Deleting those lines afterwards is the cheapest way to
   # shrink this block.
   "PLC0415",  # 49 — imports inside functions; some break real import cycles
-  "TRY003",   # 4 — long messages in raise
   "FBT001",   # 4 — boolean positional arguments
   "PLW0717",  # 4 — try clauses wider than 5 statements, the AI pipelines
   "PLR2004",  # 3 — magic values outside tests
