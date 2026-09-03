@@ -1,4 +1,5 @@
 import json
+from functools import cache
 from pathlib import Path
 
 from django import template
@@ -7,19 +8,23 @@ from django.templatetags.static import static
 
 register = template.Library()
 
-_manifest_cache: dict | None = None
+
+def _read_manifest() -> dict:
+    manifest_path = Path(settings.BASE_DIR) / "static" / "manifest.json"
+    if not manifest_path.exists():
+        return {}
+    with manifest_path.open(encoding="utf-8") as f:
+        return json.load(f)
+
+
+@cache
+def _cached_manifest() -> dict:
+    return _read_manifest()
 
 
 def _get_manifest() -> dict:
-    global _manifest_cache
-    if _manifest_cache is None or settings.DEBUG:
-        manifest_path = Path(settings.BASE_DIR) / "static" / "manifest.json"
-        if manifest_path.exists():
-            with manifest_path.open(encoding="utf-8") as f:
-                _manifest_cache = json.load(f)
-        else:
-            _manifest_cache = {}
-    return _manifest_cache
+    # Re-read under DEBUG so a rebuild shows up without a restart.
+    return _read_manifest() if settings.DEBUG else _cached_manifest()
 
 
 @register.simple_tag
