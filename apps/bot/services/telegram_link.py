@@ -1,10 +1,21 @@
 import logging
 
 from asgiref.sync import sync_to_async
+from django.conf import settings
+from django.urls import reverse
 
 from apps.bot.constants import LinkStatus
 
 logger = logging.getLogger(__name__)
+
+
+def get_connect_url() -> str:
+    """Absolute URL of the page where an employee attaches their Telegram.
+
+    Synchronous and cheap — it touches neither the database nor the cache — so
+    handlers can call it inline without awaiting.
+    """
+    return f"{settings.SITE_URL.rstrip('/')}{reverse('web:telegram_connect')}"
 
 
 @sync_to_async

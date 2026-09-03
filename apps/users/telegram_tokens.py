@@ -10,10 +10,10 @@ settled by allauth before a token exists, so the bot never has to establish it
 again. That is what removed the emailed one-time codes this project used to
 have.
 
-Same storage reasoning as apps.users.login_tokens: random and held in Redis
-rather than signed and self-contained, so redeeming one destroys it. Only the
-SHA-256 of a token is stored, so reading the cache yields nothing usable; a
-plain digest is enough because the token is 256 random bits, not a password.
+Tokens are random and held in Redis rather than signed and self-contained, so
+redeeming one destroys it. Only the SHA-256 of a token is stored, so reading the
+cache yields nothing usable; a plain digest is enough because the token is 256
+random bits, not a password.
 """
 
 import hashlib

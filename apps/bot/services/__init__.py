@@ -4,7 +4,6 @@ Async service layer: wraps Django ORM calls for use in async PTB handlers.
 Modules:
   employee      — employee lookup
   telegram_link — resolve a web-issued deep-link token, then attach the chat
-  login_link    — one-time web sign-in links sent over Telegram
   wagon         — wagon lookup
   defect        — create/update defects, open defects list
   photo         — save defect photos to storage
@@ -27,10 +26,9 @@ from .employee import (
     get_employees_by_department,
     get_managers_and_engineers,
 )
-from .login_link import build_login_link, get_connect_url
 from .measurement import create_measurement, create_measurements_bulk
 from .photo import create_photo_from_bytes
-from .telegram_link import attach_telegram, resolve_link_token
+from .telegram_link import attach_telegram, get_connect_url, resolve_link_token
 from .wagon import get_wagon_by_number
 
 __all__ = [
@@ -41,8 +39,6 @@ __all__ = [
     # telegram linking
     "resolve_link_token",
     "attach_telegram",
-    # login link
-    "build_login_link",
     "get_connect_url",
     # wagon
     "get_wagon_by_number",
