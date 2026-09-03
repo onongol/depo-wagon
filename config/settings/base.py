@@ -230,7 +230,8 @@ CSRF_COOKIE_HTTPONLY = True
 # Credentials shared between environments; the backend itself is per-environment.
 EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
-DEFAULT_FROM_EMAIL = env("EMAIL_HOST_USER", default="noreply@depowagon.mn")
+# Gmail rewrites a From it did not authenticate: keep this equal to EMAIL_HOST_USER.
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@localhost")
 
 # LOGGING
 # ------------------------------------------------------------------------------
