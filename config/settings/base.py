@@ -295,6 +295,9 @@ CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "UTC"
 # Nothing calls AsyncResult; a task that needs one sets ignore_result=False.
 CELERY_TASK_IGNORE_RESULT = True
+# The soft limit raises inside the task so it can retry; the hard one kills the worker.
+CELERY_TASK_SOFT_TIME_LIMIT = env.int("CELERY_TASK_SOFT_TIME_LIMIT", default=300)
+CELERY_TASK_TIME_LIMIT = env.int("CELERY_TASK_TIME_LIMIT", default=360)
 
 # django-allauth
 # ------------------------------------------------------------------------------

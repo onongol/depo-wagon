@@ -9,6 +9,9 @@ logger = logging.getLogger(__name__)
     bind=True,
     max_retries=3,
     default_retry_delay=60,
+    # OCR is one network call per page, so the global limit is far too tight here.
+    soft_time_limit=1800,
+    time_limit=1860,
     name="ai_service.process_document",
 )
 def process_document_task(self, document_id: int) -> None:
