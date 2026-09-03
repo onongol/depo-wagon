@@ -20,7 +20,7 @@ def process_document(document_id: int) -> None:
     try:
         doc = DepotDocument.objects.get(pk=document_id)
     except DepotDocument.DoesNotExist:
-        logger.error("process_document: document %s not found", document_id)
+        logger.exception("process_document: document %s not found", document_id)
         return
 
     doc.status = DocumentStatus.PROCESSING
