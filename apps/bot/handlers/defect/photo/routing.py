@@ -1,4 +1,5 @@
 import logging
+from typing import TYPE_CHECKING
 
 from telegram.ext import ConversationHandler
 
@@ -7,8 +8,10 @@ from apps.bot.constants import UD_LAST_PHOTO_MSG, UD_RESP_EMPLOYEES, UD_RESP_SEA
 from apps.bot.keyboards.defect import measurement_choice_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import MEASUREMENT_CHOICE, RESPONSIBLE_EMPLOYEE
-from apps.bot.user_data import DefectData
 from apps.defects.constants import DefectType
+
+if TYPE_CHECKING:
+    from apps.bot.user_data import DefectData
 
 logger = logging.getLogger(__name__)
 

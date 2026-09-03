@@ -5,13 +5,14 @@ from apps.bot.constants import SEVERITY_LABELS, UD_DEFECT, UD_EDITING
 from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import PHOTO
-from apps.bot.user_data import DefectData
 
 from .summary import show_summary
 
 if TYPE_CHECKING:
     from telegram import Update
     from telegram.ext import ContextTypes
+
+    from apps.bot.user_data import DefectData
 
 
 async def receive_severity(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:

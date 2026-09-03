@@ -43,7 +43,6 @@ ignore = [
   # result differs. Deleting those lines afterwards is the cheapest way to
   # shrink this block.
   "PLC0415",  # 49 — imports inside functions; some break real import cycles
-  "TC001",    # 25 (fix) — first-party imports used only in annotations
   "RUF022",   # 13 (fix) — unsorted __all__
   "PLW0603",  # 6 — global statement, the bot application singleton
   "DJ012",    # 6 — model body ordering
@@ -82,6 +81,12 @@ ignore = [
   "UP035",    # 1 (fix)
   "DJ001",    # 1 — null=True on a string field
 ]
+
+[tool.ruff.lint.flake8-type-checking]
+# Pydantic resolves field annotations when the class is built, so an import
+# hidden in a TYPE_CHECKING block leaves the model incomplete — it imports
+# fine and raises PydanticUserError at first use.
+runtime-evaluated-base-classes = ["pydantic.BaseModel"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["apps", "config"]

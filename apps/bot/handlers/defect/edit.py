@@ -20,10 +20,11 @@ from apps.bot.states import (
     SEVERITY,
     WAGON_NUM,
 )
-from apps.bot.user_data import DefectData
 
 if TYPE_CHECKING:
     from telegram import Update
+
+    from apps.bot.user_data import DefectData
 
 
 async def start_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:

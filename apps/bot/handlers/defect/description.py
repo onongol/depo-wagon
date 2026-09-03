@@ -5,12 +5,13 @@ from telegram.ext import ContextTypes, ConversationHandler
 from apps.bot.constants import UD_DEFECT
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DESC
-from apps.bot.user_data import DefectData
 
 from .summary import show_summary
 
 if TYPE_CHECKING:
     from telegram import Update
+
+    from apps.bot.user_data import DefectData
 
 
 def _get_defect(context: ContextTypes.DEFAULT_TYPE) -> DefectData | None:

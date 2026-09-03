@@ -5,7 +5,6 @@ from apps.bot.constants import PHOTO_MG_JOB_PREFIX, UD_DEFECT, UD_LAST_PHOTO_MSG
 from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import PHOTO
-from apps.bot.user_data import DefectData
 from apps.defects.validators import MAX_PHOTO_BYTES
 
 from .jobs import clear_last_photo_keyboard, flush_media_group
@@ -14,6 +13,8 @@ from .routing import after_photos
 if TYPE_CHECKING:
     from telegram import Update
     from telegram.ext import ContextTypes
+
+    from apps.bot.user_data import DefectData
 
 
 async def receive_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:

@@ -6,12 +6,13 @@ from apps.bot.constants import UD_DEFECT, UD_EDITING
 from apps.bot.keyboards.defect import defect_type_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DEFECT_TYPE
-from apps.bot.user_data import DefectData
 
 from .summary import show_summary
 
 if TYPE_CHECKING:
     from telegram import Update
+
+    from apps.bot.user_data import DefectData
 
 
 def _get_defect(context: ContextTypes.DEFAULT_TYPE) -> DefectData | None:

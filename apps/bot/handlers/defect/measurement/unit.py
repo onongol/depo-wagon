@@ -4,11 +4,12 @@ from apps.bot.constants import UD_DEFECT
 from apps.bot.keyboards.defect import measurement_next_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import MEASUREMENT_CHOICE
-from apps.bot.user_data import DefectData
 
 if TYPE_CHECKING:
     from telegram import Update
     from telegram.ext import ContextTypes
+
+    from apps.bot.user_data import DefectData
 
 
 def _save_measurement(defect: DefectData) -> str:

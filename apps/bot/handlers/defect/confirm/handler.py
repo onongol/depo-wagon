@@ -8,13 +8,14 @@ from apps.bot.handlers.employee import get_employee
 from apps.bot.keyboards.defect import employee_verdict_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import EMPLOYEE_VERDICT
-from apps.bot.user_data import DefectData
 
 from .formatters import build_recommendation_text, build_result_text
 from .pipeline import register_defect, run_ai_analysis
 
 if TYPE_CHECKING:
     from telegram import Update
+
+    from apps.bot.user_data import DefectData
 
 logger = logging.getLogger(__name__)
 

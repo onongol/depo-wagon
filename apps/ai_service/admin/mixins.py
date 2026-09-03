@@ -1,8 +1,12 @@
+from typing import TYPE_CHECKING
+
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
 from apps.ai_service.constants import DocumentStatus
-from apps.ai_service.models import DepotDocument, DocumentChunk
+
+if TYPE_CHECKING:
+    from apps.ai_service.models import DepotDocument, DocumentChunk
 
 
 class DepotDocumentAdminMixinStatus:

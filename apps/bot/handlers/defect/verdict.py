@@ -9,13 +9,14 @@ from apps.bot.constants import UD_DEFECT, VERDICT_LABELS
 from apps.bot.handlers.employee import get_employee
 from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.messages import BotMessages as M
-from apps.bot.user_data import DefectData
 from apps.defects.constants import DefectVerdict
 
 from .notifications import notify_decommission
 
 if TYPE_CHECKING:
     from telegram import Update
+
+    from apps.bot.user_data import DefectData
 
 logger = logging.getLogger(__name__)
 

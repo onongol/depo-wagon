@@ -5,12 +5,12 @@ from typing import TYPE_CHECKING
 
 from apps.ai_service.analysis import analyze_defect
 from apps.bot import services
-from apps.bot.user_data import DefectData
 from apps.defects.validators import MAX_PHOTO_BYTES
 
 if TYPE_CHECKING:
     from telegram import Bot
 
+    from apps.bot.user_data import DefectData
     from apps.core.models import Employee
 
 logger = logging.getLogger(__name__)

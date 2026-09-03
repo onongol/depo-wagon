@@ -7,10 +7,11 @@ from telegram.error import TelegramError
 
 from apps.bot import services
 from apps.bot.messages import BotMessages as M
-from apps.bot.user_data import DefectData
 
 if TYPE_CHECKING:
     from telegram.ext import ContextTypes
+
+    from apps.bot.user_data import DefectData
 
 logger = logging.getLogger(__name__)
 

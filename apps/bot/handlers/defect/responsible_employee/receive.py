@@ -10,13 +10,14 @@ from apps.bot.constants import UD_DEFECT, UD_RESP_EMPLOYEES, UD_RESP_SEARCH
 from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DESC, RESPONSIBLE_EMPLOYEE
-from apps.bot.user_data import DefectData
 
 from .list import show_responsible_employee_list
 
 if TYPE_CHECKING:
     from telegram import CallbackQuery, Update
     from telegram.ext import ContextTypes
+
+    from apps.bot.user_data import DefectData
 
 
 async def _handle_skip(query: CallbackQuery, context: ContextTypes.DEFAULT_TYPE) -> int:

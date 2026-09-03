@@ -5,11 +5,12 @@ from apps.bot.constants import UD_DEFECT
 from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import MEASUREMENT_NORM, MEASUREMENT_VALUE
-from apps.bot.user_data import DefectData
 
 if TYPE_CHECKING:
     from telegram import Update
     from telegram.ext import ContextTypes
+
+    from apps.bot.user_data import DefectData
 
 
 async def receive_measurement_value(
