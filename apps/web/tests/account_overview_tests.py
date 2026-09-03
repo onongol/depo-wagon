@@ -17,7 +17,7 @@ def clear_cache():
     yield
 
 
-def _make_user(email="acct@depot.mn", with_employee=True):
+def _make_user(email="acct@depot.mn", *, with_employee=True):
     user = User.objects.create_user(email=email, password="pass12345")
     EmailAddress.objects.create(
         user=user, email=user.email, verified=True, primary=True

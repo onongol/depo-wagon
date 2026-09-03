@@ -9,6 +9,7 @@ class FilterBar(Component):
         self,
         url: str,
         target: str,
+        *,
         has_active_filters: bool = False,
         clear_url: str = "",
         **kwargs,

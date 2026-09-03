@@ -8,6 +8,7 @@ class FilterButtons(Component):
     def get_context_data(
         self,
         target: str,
+        *,
         has_active_filters: bool = False,
         clear_url: str = "",
         **kwargs,

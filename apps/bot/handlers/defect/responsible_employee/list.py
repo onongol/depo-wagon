@@ -46,6 +46,7 @@ async def show_responsible_employee_list(
     msg_or_query: Message | CallbackQuery,
     context: ContextTypes.DEFAULT_TYPE,
     page: int = 0,
+    *,
     edit: bool = False,
 ) -> None:
     """Render the paginated employee list.

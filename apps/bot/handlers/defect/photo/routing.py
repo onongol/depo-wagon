@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-async def after_photos(query_or_msg, defect: DefectData, context, edit: bool) -> int:
+async def after_photos(query_or_msg, defect: DefectData, context, *, edit: bool) -> int:
     """Route to responsible_employee or measurement depending on defect type."""
     context.user_data.pop(UD_LAST_PHOTO_MSG, None)
 

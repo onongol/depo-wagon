@@ -71,7 +71,7 @@ def create_application() -> _BotApplication:
     app = (
         _BotApplication.builder()
         .token(settings.TELEGRAM_BOT_TOKEN)
-        .arbitrary_callback_data(True)
+        .arbitrary_callback_data(True)  # noqa: FBT003 — PTB builder takes it positionally
         .post_init(_post_init)
         .build()
     )

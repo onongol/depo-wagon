@@ -64,7 +64,7 @@ def deserialize_message(data: dict) -> EmailMultiAlternatives:
     return message
 
 
-def deliver(email_messages, fail_silently: bool = False) -> int:
+def deliver(email_messages, *, fail_silently: bool = False) -> int:
     connection = get_connection(
         backend=settings.EMAIL_DELIVERY_BACKEND, fail_silently=fail_silently
     )
@@ -85,7 +85,7 @@ class CeleryEmailBackend(BaseEmailBackend):
                 logger.warning(
                     "Message to %s is not queueable, sending it inline", message.to
                 )
-                queued += deliver([message], self.fail_silently)
+                queued += deliver([message], fail_silently=self.fail_silently)
                 continue
 
             try:
@@ -94,7 +94,7 @@ class CeleryEmailBackend(BaseEmailBackend):
                 logger.exception(
                     "Could not queue mail to %s, sending it inline", message.to
                 )
-                queued += deliver([message], self.fail_silently)
+                queued += deliver([message], fail_silently=self.fail_silently)
             else:
                 queued += 1
         return queued
