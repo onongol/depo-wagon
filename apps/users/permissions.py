@@ -11,10 +11,8 @@ class HasEmployeeRole(BasePermission):
             return False
         if request.user.is_superuser:
             return True
-        try:
-            return request.user.employee.role in self.allowed_roles
-        except Exception:
-            return False
+        employee = getattr(request.user, "employee", None)
+        return employee is not None and employee.role in self.allowed_roles
 
 
 class IsInspector(HasEmployeeRole):
