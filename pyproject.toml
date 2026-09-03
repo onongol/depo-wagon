@@ -46,7 +46,6 @@ ignore = [
   "TC001",    # 25 (fix) — first-party imports used only in annotations
   "BLE001",   # 19 — `except Exception` in bot handlers and the AI pipeline
   "RUF022",   # 13 (fix) — unsorted __all__
-  "I001",     # 10 (fix) — unsorted imports
   "PLW0603",  # 6 — global statement, the bot application singleton
   "DJ012",    # 6 — model body ordering
   "TRY400",   # 5 (fix) — logger.error where logger.exception belongs

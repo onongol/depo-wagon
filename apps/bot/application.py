@@ -50,8 +50,8 @@ async def _post_init(app: Application) -> None:
 
 def create_application() -> _BotApplication:
     """Build the Telegram Application and register all handlers."""
-    from apps.bot.handlers.ai_chat import get_ai_chat_handler
     from apps.bot.callbacks import LinkCancelCB, LinkConfirmCB
+    from apps.bot.handlers.ai_chat import get_ai_chat_handler
     from apps.bot.handlers.common import (
         cancel,
         cancel_link,

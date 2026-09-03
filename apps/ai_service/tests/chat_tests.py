@@ -343,6 +343,7 @@ class TestAnswerQuestion:
 
     async def test_embed_timeout_raises(self):
         import asyncio
+
         from apps.ai_service.rag.chat import answer_question
 
         async def slow_embed(_):
@@ -540,9 +541,10 @@ class TestAnswerQuestion:
     # --- Fix 6: safety filter ---
 
     async def test_safety_block_raises_content_blocked_error(self):
-        from google.genai import types
-        from apps.ai_service.rag.chat import ContentBlockedError, answer_question
         import pytest
+        from google.genai import types
+
+        from apps.ai_service.rag.chat import ContentBlockedError, answer_question
 
         candidate = MagicMock()
         candidate.finish_reason = types.FinishReason.SAFETY
@@ -571,8 +573,9 @@ class TestAnswerQuestion:
                 await answer_question("question", [])
 
     async def test_no_candidates_raises_content_blocked_error(self):
-        from apps.ai_service.rag.chat import ContentBlockedError, answer_question
         import pytest
+
+        from apps.ai_service.rag.chat import ContentBlockedError, answer_question
 
         mock_response = MagicMock()
         mock_response.candidates = []

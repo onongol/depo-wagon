@@ -1,10 +1,10 @@
 from .constants import (
+    DEPARTMENT_NODES,
     DefectNode,
     DefectSeverity,
     DefectStatus,
     DefectType,
     DefectVerdict,
-    DEPARTMENT_NODES,
     MeasurementDimension,
 )
 

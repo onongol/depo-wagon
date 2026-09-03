@@ -8,7 +8,6 @@ from apps.core.models import Wagon
 from apps.web.constants import PAGE_SIZE
 from apps.web.decorators import employee_required
 
-
 WAGON_SORTABLE_FIELDS = {
     "number",
     "wagon_type",
