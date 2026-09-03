@@ -19,7 +19,7 @@ def process_document_task(self, document_id: int) -> None:
 
     try:
         process_document(document_id)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 — any failure must reach retry
         logger.error(
             "Task failed for document %s (attempt %d/%d): %s",
             document_id,

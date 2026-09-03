@@ -1,5 +1,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from telegram.error import Forbidden
+
 from apps.bot.handlers.defect.confirm.pipeline import (
     PersistResult,
     register_defect,
@@ -197,12 +199,7 @@ class TestRunAiAnalysis:
             "apps.bot.handlers.defect.confirm.pipeline.analyze_defect",
             AsyncMock(side_effect=RuntimeError("crash")),
         ):
-            try:
-                await run_ai_analysis(
-                    _make_defect_data(), defect_id="id-1", photo_bytes=[]
-                )
-            except Exception:
-                assert False, "run_ai_analysis should not propagate exceptions"
+            await run_ai_analysis(_make_defect_data(), defect_id="id-1", photo_bytes=[])
 
     async def test_persist_failure_still_returns_ai_result(self):
         ai_result = MagicMock()
@@ -289,7 +286,7 @@ class TestNotifyDecommission:
 
     async def test_one_send_failure_does_not_block_others(self):
         context = self._make_context()
-        context.bot.send_message = AsyncMock(side_effect=[Exception("blocked"), None])
+        context.bot.send_message = AsyncMock(side_effect=[Forbidden("blocked"), None])
         managers = [self._make_manager(111), self._make_manager(222)]
         with patch("apps.bot.handlers.defect.notifications.services") as svc:
             svc.get_managers_and_engineers = AsyncMock(return_value=managers)

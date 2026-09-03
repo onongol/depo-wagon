@@ -1,6 +1,7 @@
 import logging
 from typing import TYPE_CHECKING
 
+from telegram.error import TelegramError
 from telegram.ext import ContextTypes, ConversationHandler
 
 from apps.bot.constants import UD_AI_CHAT_HISTORY
@@ -26,7 +27,7 @@ async def ai_chat_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     if not employee:
         try:
             await update.message.reply_text(str(M.AI_CHAT_NOT_AUTHENTICATED))
-        except Exception:
+        except TelegramError:
             pass
         return ConversationHandler.END
 
@@ -37,7 +38,7 @@ async def ai_chat_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
             str(M.AI_CHAT_GREETING),
             parse_mode=M.PARSE_MODE,
         )
-    except Exception:
+    except TelegramError:
         logger.warning("Could not send greeting for user %s", update.effective_user.id)
         return ConversationHandler.END
 

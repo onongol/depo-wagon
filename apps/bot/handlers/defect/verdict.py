@@ -1,6 +1,7 @@
 import logging
 from typing import TYPE_CHECKING
 
+from telegram.error import TelegramError
 from telegram.ext import ContextTypes, ConversationHandler
 
 from apps.bot import services
@@ -50,7 +51,7 @@ async def receive_employee_verdict(
     # Prevent re-clicking verdict buttons after conversation ends (stale callback)
     try:
         await query.edit_message_reply_markup(reply_markup=None)
-    except Exception:
+    except TelegramError:
         logger.debug("Could not clear verdict keyboard (message deleted or too old)")
 
     await query.message.reply_text(

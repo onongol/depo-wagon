@@ -64,7 +64,7 @@ async def register_defect(
             )
             return file_bytes
         except Exception as exc:
-            logger.warning("Photo save failed (idx=%d): %s", idx, exc)
+            logger.warning("Photo save failed (idx=%d): %s", idx, exc, exc_info=True)
             return None
 
     photo_results = await asyncio.gather(
@@ -79,7 +79,7 @@ async def register_defect(
                 saved_defect.id, defect_data.measurements
             )
         except Exception as exc:
-            logger.warning("Measurements save failed: %s", exc)
+            logger.warning("Measurements save failed: %s", exc, exc_info=True)
 
     return PersistResult(defect=saved_defect, photo_bytes=all_photo_bytes)
 
@@ -113,6 +113,8 @@ async def run_ai_analysis(
                 ai_verdict=ai_result.verdict,
             )
         except Exception:
-            logger.warning("Failed to persist AI result for defect %s", defect_id)
+            logger.warning(
+                "Failed to persist AI result for defect %s", defect_id, exc_info=True
+            )
 
     return ai_result

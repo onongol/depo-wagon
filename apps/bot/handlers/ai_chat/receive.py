@@ -3,6 +3,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from google.genai.errors import ServerError
+from telegram.error import TelegramError
 
 from apps.ai_service.rag.chat import ContentBlockedError, answer_question
 from apps.bot.constants import UD_AI_CHAT_HISTORY
@@ -24,7 +25,7 @@ _LOCK_KEY = "_ai_chat_lock"
 async def _safe_edit(msg, text: str) -> None:
     try:
         await msg.edit_text(text)
-    except Exception:
+    except TelegramError:
         pass
 
 
@@ -34,7 +35,7 @@ async def ai_chat_receive(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     try:
         thinking_msg = await update.message.reply_text(str(M.AI_CHAT_THINKING))
-    except Exception:
+    except TelegramError:
         logger.warning(
             "Could not send thinking message for user %s", update.effective_user.id
         )

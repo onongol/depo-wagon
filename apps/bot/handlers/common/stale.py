@@ -1,6 +1,8 @@
 import logging
 from typing import TYPE_CHECKING
 
+from telegram.error import TelegramError
+
 from apps.bot.messages import BotMessages as M
 
 if TYPE_CHECKING:
@@ -22,5 +24,5 @@ async def stale_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     try:
         await query.edit_message_text(str(M.BUTTON_EXPIRED))
-    except Exception:
+    except TelegramError:
         logger.debug("Could not replace a stale keyboard (message deleted or too old)")

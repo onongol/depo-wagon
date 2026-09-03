@@ -50,7 +50,7 @@ async def analyze_defect(
                 if visual_desc:
                     query_parts.append(f"Visual signs: {visual_desc}")
             except Exception as exc:
-                logger.warning("Image description failed: %s", exc)
+                logger.warning("Image description failed: %s", exc, exc_info=True)
 
         query_text = "\n".join(query_parts)
 
@@ -58,7 +58,9 @@ async def analyze_defect(
         try:
             query_embedding = await embed_query(query_text)
         except Exception as exc:
-            logger.warning("Embedding failed, skipping AI analysis: %s", exc)
+            logger.warning(
+                "Embedding failed, skipping AI analysis: %s", exc, exc_info=True
+            )
             return AIResult()
 
         # Parallel vector search: regulatory docs + defect history
@@ -69,7 +71,9 @@ async def analyze_defect(
             )
         except Exception as exc:
             logger.warning(
-                "Vector search failed, proceeding without RAG context: %s", exc
+                "Vector search failed, proceeding without RAG context: %s",
+                exc,
+                exc_info=True,
             )
             chunks, past_defects = [], []
 

@@ -65,6 +65,6 @@ def embed_defect_task(self, defect_id: str) -> None:
             )
         logger.info("Embedded defect %s for historical RAG", defect_id)
 
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 — any failure must reach retry
         logger.error("embed_defect_task failed for %s: %s", defect_id, exc)
         raise self.retry(exc=exc)
