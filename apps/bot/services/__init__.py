@@ -23,13 +23,9 @@ from .defect import (
     update_defect_status,
 )
 from .employee import (
-    get_employee_by_email,
-    get_employee_by_id,
     get_employee_by_telegram_id,
-    get_employee_for_auth,
     get_employees_by_department,
     get_managers_and_engineers,
-    link_employee_telegram,
 )
 from .login_link import build_login_link, get_connect_url
 from .measurement import create_measurement, create_measurements_bulk
@@ -39,13 +35,9 @@ from .wagon import get_wagon_by_number
 
 __all__ = [
     # employee
-    "get_employee_by_id",
-    "get_employee_by_email",
     "get_employee_by_telegram_id",
-    "get_employee_for_auth",
     "get_employees_by_department",
     "get_managers_and_engineers",
-    "link_employee_telegram",
     # telegram linking
     "resolve_link_token",
     "attach_telegram",
