@@ -49,7 +49,6 @@ ignore = [
   "PLW0717",  # 4 — try clauses wider than 5 statements, the AI pipelines
   "PLR2004",  # 3 — magic values outside tests
   "PERF401",  # 3 — manual list comprehension
-  "G201",     # 3 — logging exc_info=True
   "TRY301",   # 3 — raise inside try
   "EM101",    # 3 (fix) — string literal in exception
   "SIM105",   # 3 (fix) — contextlib.suppress
@@ -71,9 +70,7 @@ ignore = [
   "B905",     # 1 (fix) — zip without strict
   "FBT003",   # 1
   "C416",     # 1 (fix)
-  "UP041",    # 1 (fix)
   "PLR0911",  # 1
-  "W293",     # 1 (fix)
   "UP035",    # 1 (fix)
   "DJ001",    # 1 — null=True on a string field
 ]

@@ -51,7 +51,7 @@ async def ai_chat_receive(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             answer = await asyncio.wait_for(
                 answer_question(question, history), timeout=_ANSWER_TIMEOUT
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning(
                 "AI chat timed out after %.0fs for user %s",
                 _ANSWER_TIMEOUT,

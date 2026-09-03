@@ -71,9 +71,7 @@ def process_document(document_id: int) -> None:
         )
 
     except Exception as exc:
-        logger.error(
-            "Processing failed for document '%s': %s", doc.title, exc, exc_info=True
-        )
+        logger.exception("Processing failed for document '%s'", doc.title)
         doc.status = DocumentStatus.ERROR
         doc.error_message = str(exc)
         try:

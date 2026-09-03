@@ -175,6 +175,6 @@ async def analyze_defect(
             sources=doc_sources + case_sources,
         )
 
-    except Exception as exc:
-        logger.error("AI analysis failed: %s", exc, exc_info=True)
+    except Exception:
+        logger.exception("AI analysis failed")
         return AIResult()

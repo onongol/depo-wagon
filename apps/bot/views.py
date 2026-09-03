@@ -67,8 +67,8 @@ def webhook(request):
         update = Update.de_json(data, app.bot)
         _get_loop().run_until_complete(app.process_update(update))
 
-    except Exception as exc:
-        logger.error("Webhook processing error: %s", exc, exc_info=True)
+    except Exception:
+        logger.exception("Webhook processing error")
         # Return 200 anyway — Telegram retries on non-2xx responses
         return HttpResponse("Error logged.", status=200)
 
