@@ -12,6 +12,7 @@ def load_production(monkeypatch, **env):
     env.setdefault("ALLOWED_HOSTS", "depowagon.mn")
     env.setdefault("CSRF_TRUSTED_ORIGINS", "https://depowagon.mn")
     env.setdefault("DJANGO_ADMIN_URL", "admin/")
+    env.setdefault("DEFAULT_FROM_EMAIL", "noreply@example.com")
     env.setdefault("CELERY_BROKER_URL", "redis://localhost:6379/1")
     env.setdefault("CELERY_RESULT_BACKEND", "redis://localhost:6379/2")
     for key, value in env.items():
@@ -42,6 +43,11 @@ def test_the_proxys_scheme_is_trusted_only_when_asked(monkeypatch, flag, expecte
 def test_an_empty_host_list_is_refused(monkeypatch, setting):
     with pytest.raises(ImproperlyConfigured, match=setting):
         load_production(monkeypatch, **{setting: ""})
+
+
+def test_an_unset_sender_address_is_refused(monkeypatch):
+    with pytest.raises(ImproperlyConfigured, match="DEFAULT_FROM_EMAIL"):
+        load_production(monkeypatch, DEFAULT_FROM_EMAIL="")
 
 
 @pytest.mark.parametrize(
