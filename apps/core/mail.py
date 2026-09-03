@@ -13,7 +13,8 @@ logger = logging.getLogger(__name__)
 
 def _serialize_attachment(attachment) -> list:
     if isinstance(attachment, MIMEBase):
-        raise TypeError("a MIMEBase attachment cannot be queued")
+        msg = "a MIMEBase attachment cannot be queued"
+        raise TypeError(msg)
     filename, content, mimetype = attachment
     binary = isinstance(content, bytes)
     if binary:

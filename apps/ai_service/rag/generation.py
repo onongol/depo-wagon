@@ -8,11 +8,10 @@ from apps.ai_service.utils import mime_type_for_bytes
 
 async def describe_images(photos_bytes: list[bytes]) -> str:
     """Generate a short textual description of defect photos for query augmentation."""
-    parts: list[types.Part | str] = []
-    for photo in photos_bytes:
-        parts.append(
-            types.Part.from_bytes(data=photo, mime_type=mime_type_for_bytes(photo))
-        )
+    parts: list[types.Part | str] = [
+        types.Part.from_bytes(data=photo, mime_type=mime_type_for_bytes(photo))
+        for photo in photos_bytes
+    ]
     parts.append(IMAGE_DESCRIPTION_PROMPT)
 
     response = await get_genai_client().aio.models.generate_content(

@@ -12,17 +12,15 @@ from apps.bot.constants import (
 
 def tasks_keyboard(defects: list, page: int, total: int) -> InlineKeyboardMarkup:
     """Pagination + one status-change button per defect."""
-    buttons = []
-
-    for defect in defects:
-        buttons.append(
-            [
-                InlineKeyboardButton(
-                    f"🔄 {defect.wagon.number} — {defect.get_node_display()}",
-                    callback_data=StatusPickCB(defect_id=str(defect.id), page=page),
-                )
-            ]
-        )
+    buttons = [
+        [
+            InlineKeyboardButton(
+                f"🔄 {defect.wagon.number} — {defect.get_node_display()}",
+                callback_data=StatusPickCB(defect_id=str(defect.id), page=page),
+            )
+        ]
+        for defect in defects
+    ]
 
     nav = []
     if page > 0:

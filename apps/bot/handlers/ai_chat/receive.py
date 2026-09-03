@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import logging
 from typing import TYPE_CHECKING
 
@@ -23,10 +24,8 @@ _LOCK_KEY = "_ai_chat_lock"
 
 
 async def _safe_edit(msg, text: str) -> None:
-    try:
+    with contextlib.suppress(TelegramError):
         await msg.edit_text(text)
-    except TelegramError:
-        pass
 
 
 async def ai_chat_receive(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:

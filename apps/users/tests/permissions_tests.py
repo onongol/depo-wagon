@@ -59,7 +59,8 @@ class _UserWithUnreachableEmployee:
 
     @property
     def employee(self):
-        raise DatabaseError("connection lost")
+        msg = "connection lost"
+        raise DatabaseError(msg)
 
 
 class TestAnUnreachableDatabaseIsNotADenial:

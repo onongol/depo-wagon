@@ -45,33 +45,21 @@ ignore = [
   "PLC0415",  # 49 — imports inside functions; some break real import cycles
   "TRY003",   # 4 — long messages in raise
   "FBT001",   # 4 — boolean positional arguments
-  "Q000",     # 4 (fix) — quote style
   "PLW0717",  # 4 — try clauses wider than 5 statements, the AI pipelines
   "PLR2004",  # 3 — magic values outside tests
-  "PERF401",  # 3 — manual list comprehension
   "TRY301",   # 3 — raise inside try
-  "EM101",    # 3 (fix) — string literal in exception
-  "SIM105",   # 3 (fix) — contextlib.suppress
   "TRY300",   # 3 — return inside try
   "FBT002",   # 3 — boolean default positional
   "C901",     # 2 — analysis and chat pipelines
-  "RSE102",   # 2 (fix)
   "B904",     # 2 — raise without from inside except
-  "PIE790",   # 2 (fix)
-  "S110",     # 2 — try/except/pass
   "PLR0913",  # 2 — too many arguments
   "PLR0917",  # 2 — too many positional arguments
   "SLF001",   # 1 — private member access
   "PLR0912",  # 1
   "PLR0915",  # 1
   "PLR0914",  # 1 — 23 locals in the analysis pipeline
-  "RUF005",   # 1 (fix)
-  "EM102",    # 1 (fix)
-  "B905",     # 1 (fix) — zip without strict
   "FBT003",   # 1
-  "C416",     # 1 (fix)
   "PLR0911",  # 1
-  "UP035",    # 1 (fix)
   "DJ001",    # 1 — null=True on a string field
 ]
 

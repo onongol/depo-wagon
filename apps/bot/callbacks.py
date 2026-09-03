@@ -30,14 +30,10 @@ class ResponsibleEmployeePageCB:
 class PassCB:
     """No-op callback for layout spacer buttons; dismissed by the stale fallback."""
 
-    pass
-
 
 @dataclass(frozen=True)
 class CancelCB:
     """Cancel the defect conversation from any step's inline keyboard."""
-
-    pass
 
 
 @dataclass(frozen=True)

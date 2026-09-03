@@ -31,7 +31,8 @@ def process_document(document_id: int) -> None:
         with doc.file.open("rb") as f:
             pages = extract_pages(f)
         if not pages:
-            raise ValueError("No readable text found in document")
+            msg = "No readable text found in document"
+            raise ValueError(msg)
 
         all_chunks: list[dict[str, str | int]] = []
 
@@ -39,13 +40,13 @@ def process_document(document_id: int) -> None:
             all_chunks.extend(chunk_page(page_text, page_number))
 
         if not all_chunks:
-            raise ValueError("Text extraction produced no chunks")
+            msg = "Text extraction produced no chunks"
+            raise ValueError(msg)
 
         embeddings = embed_texts([chunk["content"] for chunk in all_chunks])
         if len(embeddings) != len(all_chunks):
-            raise ValueError(
-                f"embed_texts returned {len(embeddings)} embeddings for {len(all_chunks)} chunks"
-            )
+            msg = f"embed_texts returned {len(embeddings)} embeddings for {len(all_chunks)} chunks"
+            raise ValueError(msg)
         chunk_objects = [
             DocumentChunk(
                 document=doc,
@@ -54,7 +55,9 @@ def process_document(document_id: int) -> None:
                 chunk_index=idx,
                 page_number=chunk_data["page_number"],
             )
-            for idx, (chunk_data, emb) in enumerate(zip(all_chunks, embeddings))
+            for idx, (chunk_data, emb) in enumerate(
+                zip(all_chunks, embeddings, strict=True)
+            )
         ]
 
         with transaction.atomic():

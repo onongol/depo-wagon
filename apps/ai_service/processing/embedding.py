@@ -28,7 +28,7 @@ def embed_texts(
         contents = [
             types.Content(parts=[types.Part.from_text(text=text)]) for text in batch
         ]
-        for attempt, delay in enumerate([0] + RETRY_DELAYS):
+        for attempt, delay in enumerate([0, *RETRY_DELAYS]):
             if delay:
                 time.sleep(delay)
             try:

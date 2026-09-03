@@ -106,8 +106,8 @@ async def answer_question(question: str, history: list[dict]) -> str:
 
     # Distinguish safety block from an empty-but-valid response
     if not response.candidates:
-        raise ContentBlockedError()
+        raise ContentBlockedError
     if response.candidates[0].finish_reason in _SAFETY_FINISH_REASONS:
-        raise ContentBlockedError()
+        raise ContentBlockedError
 
     return response.text or ""

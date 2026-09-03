@@ -142,11 +142,10 @@ async def analyze_defect(
         )
 
         # Single structured call with photos
-        contents: list = []
-        for photo in photos_bytes or []:
-            contents.append(
-                types.Part.from_bytes(data=photo, mime_type=mime_type_for_bytes(photo))
-            )
+        contents: list = [
+            types.Part.from_bytes(data=photo, mime_type=mime_type_for_bytes(photo))
+            for photo in photos_bytes or []
+        ]
         contents.append(prompt)
 
         response = await client.aio.models.generate_content(

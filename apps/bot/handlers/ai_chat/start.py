@@ -1,3 +1,4 @@
+import contextlib
 import logging
 from typing import TYPE_CHECKING
 
@@ -25,10 +26,8 @@ async def ai_chat_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         return ConversationHandler.END
 
     if not employee:
-        try:
+        with contextlib.suppress(TelegramError):
             await update.message.reply_text(str(M.AI_CHAT_NOT_AUTHENTICATED))
-        except TelegramError:
-            pass
         return ConversationHandler.END
 
     context.user_data[UD_AI_CHAT_HISTORY] = []

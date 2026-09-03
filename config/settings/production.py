@@ -23,14 +23,16 @@ for _name in (
     "GOOGLE_AI_KEY",
 ):
     if not env(_name, default=""):
-        raise ImproperlyConfigured(f"{_name} environment variable not set")
+        msg = f"{_name} environment variable not set"
+        raise ImproperlyConfigured(msg)
 
 # GENERAL
 # ------------------------------------------------------------------------------
 DEBUG = False
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", cast=str.strip, default=[])
 if not ALLOWED_HOSTS:
-    raise ImproperlyConfigured("ALLOWED_HOSTS environment variable not set")
+    msg = "ALLOWED_HOSTS environment variable not set"
+    raise ImproperlyConfigured(msg)
 
 # DATABASES
 # ------------------------------------------------------------------------------
@@ -53,7 +55,8 @@ TEMPLATES[0]["OPTIONS"]["loaders"] = [
 # ------------------------------------------------------------------------------
 CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", cast=str.strip, default=[])
 if not CSRF_TRUSTED_ORIGINS:
-    raise ImproperlyConfigured("CSRF_TRUSTED_ORIGINS environment variable not set")
+    msg = "CSRF_TRUSTED_ORIGINS environment variable not set"
+    raise ImproperlyConfigured(msg)
 
 SECURE_PROXY_SSL_HEADER = (
     ("HTTP_X_FORWARDED_PROTO", "https")
