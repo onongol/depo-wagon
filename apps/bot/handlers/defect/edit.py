@@ -1,4 +1,5 @@
-from telegram import Update
+from typing import TYPE_CHECKING
+
 from telegram.ext import ContextTypes, ConversationHandler
 
 from apps.bot.callbacks import DescSkipCB, PartNumberSkipCB
@@ -20,6 +21,9 @@ from apps.bot.states import (
     WAGON_NUM,
 )
 from apps.bot.user_data import DefectData
+
+if TYPE_CHECKING:
+    from telegram import Update
 
 
 async def start_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:

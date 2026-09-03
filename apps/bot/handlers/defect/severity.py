@@ -1,5 +1,4 @@
-from telegram import Update
-from telegram.ext import ContextTypes
+from typing import TYPE_CHECKING
 
 from apps.bot.callbacks import PhotoSkipCB
 from apps.bot.constants import SEVERITY_LABELS, UD_DEFECT, UD_EDITING
@@ -9,6 +8,10 @@ from apps.bot.states import PHOTO
 from apps.bot.user_data import DefectData
 
 from .summary import show_summary
+
+if TYPE_CHECKING:
+    from telegram import Update
+    from telegram.ext import ContextTypes
 
 
 async def receive_severity(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:

@@ -1,12 +1,14 @@
 import asyncio
 import html
 import logging
-
-from telegram.ext import ContextTypes
+from typing import TYPE_CHECKING
 
 from apps.bot import services
 from apps.bot.messages import BotMessages as M
 from apps.bot.user_data import DefectData
+
+if TYPE_CHECKING:
+    from telegram.ext import ContextTypes
 
 logger = logging.getLogger(__name__)
 

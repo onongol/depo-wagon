@@ -1,5 +1,4 @@
-from telegram import Update
-from telegram.ext import ContextTypes
+from typing import TYPE_CHECKING
 
 from apps.bot.callbacks import PartNumberSkipCB
 from apps.bot.constants import UD_DEFECT, UD_EDITING
@@ -10,6 +9,10 @@ from apps.bot.user_data import DefectData
 from apps.defects.constants import DefectNode
 
 from .summary import show_summary
+
+if TYPE_CHECKING:
+    from telegram import Update
+    from telegram.ext import ContextTypes
 
 _NODE_LABELS = dict(DefectNode.choices)
 

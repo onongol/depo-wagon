@@ -1,7 +1,10 @@
-from telegram import Update
-from telegram.ext import ContextTypes
+from typing import TYPE_CHECKING
 
 from apps.bot import services
+
+if TYPE_CHECKING:
+    from telegram import Update
+    from telegram.ext import ContextTypes
 
 
 async def get_employee(update: Update, context: ContextTypes.DEFAULT_TYPE):

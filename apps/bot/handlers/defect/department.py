@@ -1,5 +1,4 @@
-from telegram import Update
-from telegram.ext import ContextTypes
+from typing import TYPE_CHECKING
 
 from apps.bot.constants import UD_DEFECT
 from apps.bot.keyboards.defect import node_keyboard_for_department
@@ -7,6 +6,10 @@ from apps.bot.messages import BotMessages as M
 from apps.bot.states import NODE
 from apps.bot.user_data import DefectData
 from apps.core.constants import Department
+
+if TYPE_CHECKING:
+    from telegram import Update
+    from telegram.ext import ContextTypes
 
 _DEPT_LABELS = dict(Department.choices)
 

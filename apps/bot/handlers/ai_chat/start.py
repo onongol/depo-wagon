@@ -1,12 +1,15 @@
 import logging
+from typing import TYPE_CHECKING
 
-from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 from apps.bot.constants import UD_AI_CHAT_HISTORY
 from apps.bot.handlers.employee import get_employee
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import AI_CHAT
+
+if TYPE_CHECKING:
+    from telegram import Update
 
 logger = logging.getLogger(__name__)
 

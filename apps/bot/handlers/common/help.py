@@ -1,7 +1,10 @@
-from telegram import Update
-from telegram.ext import ContextTypes
+from typing import TYPE_CHECKING
 
 from apps.bot.messages import BotMessages as M
+
+if TYPE_CHECKING:
+    from telegram import Update
+    from telegram.ext import ContextTypes
 
 
 async def help_command(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:

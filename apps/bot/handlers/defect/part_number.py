@@ -1,4 +1,5 @@
-from telegram import Update
+from typing import TYPE_CHECKING
+
 from telegram.ext import ContextTypes, ConversationHandler
 
 from apps.bot.constants import UD_DEFECT, UD_EDITING
@@ -8,6 +9,9 @@ from apps.bot.states import DEFECT_TYPE
 from apps.bot.user_data import DefectData
 
 from .summary import show_summary
+
+if TYPE_CHECKING:
+    from telegram import Update
 
 
 def _get_defect(context: ContextTypes.DEFAULT_TYPE) -> DefectData | None:

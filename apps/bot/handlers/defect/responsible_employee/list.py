@@ -1,10 +1,14 @@
-from telegram import CallbackQuery, Message
+from typing import TYPE_CHECKING
+
 from telegram.error import BadRequest
-from telegram.ext import ContextTypes
 
 from apps.bot.constants import UD_RESP_EMPLOYEES, UD_RESP_SEARCH
 from apps.bot.keyboards.defect import responsible_employee_keyboard
 from apps.bot.messages import BotMessages as M
+
+if TYPE_CHECKING:
+    from telegram import CallbackQuery, Message
+    from telegram.ext import ContextTypes
 
 RESP_EMP_PAGE_SIZE = 5
 

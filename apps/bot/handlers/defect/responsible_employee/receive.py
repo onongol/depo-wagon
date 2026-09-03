@@ -1,5 +1,4 @@
-from telegram import CallbackQuery, Update
-from telegram.ext import ContextTypes
+from typing import TYPE_CHECKING
 
 from apps.bot.callbacks import (
     DescSkipCB,
@@ -14,6 +13,10 @@ from apps.bot.states import DESC, RESPONSIBLE_EMPLOYEE
 from apps.bot.user_data import DefectData
 
 from .list import show_responsible_employee_list
+
+if TYPE_CHECKING:
+    from telegram import CallbackQuery, Update
+    from telegram.ext import ContextTypes
 
 
 async def _handle_skip(query: CallbackQuery, context: ContextTypes.DEFAULT_TYPE) -> int:

@@ -1,6 +1,8 @@
 import logging
+from typing import TYPE_CHECKING
 
-from telegram.ext import ContextTypes
+if TYPE_CHECKING:
+    from telegram.ext import ContextTypes
 
 logger = logging.getLogger(__name__)
 

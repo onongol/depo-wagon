@@ -1,9 +1,11 @@
 import logging
-
-from telegram import Update
-from telegram.ext import ContextTypes
+from typing import TYPE_CHECKING
 
 from apps.bot.messages import BotMessages as M
+
+if TYPE_CHECKING:
+    from telegram import Update
+    from telegram.ext import ContextTypes
 
 logger = logging.getLogger(__name__)
 

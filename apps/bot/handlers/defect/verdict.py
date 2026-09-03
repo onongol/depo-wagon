@@ -1,6 +1,6 @@
 import logging
+from typing import TYPE_CHECKING
 
-from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 from apps.bot import services
@@ -12,6 +12,9 @@ from apps.bot.user_data import DefectData
 from apps.defects.constants import DefectVerdict
 
 from .notifications import notify_decommission
+
+if TYPE_CHECKING:
+    from telegram import Update
 
 logger = logging.getLogger(__name__)
 

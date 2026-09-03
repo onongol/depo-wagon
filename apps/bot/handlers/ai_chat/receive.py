@@ -1,14 +1,17 @@
 import asyncio
 import logging
+from typing import TYPE_CHECKING
 
 from google.genai.errors import ServerError
-from telegram import Update
-from telegram.ext import ContextTypes
 
 from apps.ai_service.rag.chat import ContentBlockedError, answer_question
 from apps.bot.constants import UD_AI_CHAT_HISTORY
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import AI_CHAT
+
+if TYPE_CHECKING:
+    from telegram import Update
+    from telegram.ext import ContextTypes
 
 logger = logging.getLogger(__name__)
 

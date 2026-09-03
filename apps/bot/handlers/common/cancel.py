@@ -1,7 +1,11 @@
-from telegram import Update
+from typing import TYPE_CHECKING
+
 from telegram.ext import ContextTypes, ConversationHandler
 
 from apps.bot.messages import BotMessages as M
+
+if TYPE_CHECKING:
+    from telegram import Update
 
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
