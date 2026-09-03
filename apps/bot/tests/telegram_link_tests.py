@@ -132,7 +132,7 @@ class TestAttachTelegram:
         with patch("apps.users.notifications.notify_telegram_link_change") as notify:
             await attach_telegram(employee.pk, telegram_id=777)
 
-        notify.assert_called_once_with(user.pk, "connected")
+        notify.assert_called_once_with(user, "connected")
 
     async def test_an_employee_without_an_account_notifies_nobody(self):
         employee = await make("core.Employee", telegram_id=None, is_active=True)

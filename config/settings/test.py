@@ -58,6 +58,7 @@ STORAGES = {
 # EMAIL
 # ------------------------------------------------------------------------------
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+EMAIL_DELIVERY_BACKEND = EMAIL_BACKEND
 
 # LOGGING
 # ------------------------------------------------------------------------------

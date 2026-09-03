@@ -11,7 +11,6 @@ from apps.users.notifications import (
     notify_telegram_link_change,
     send_telegram_link_email,
 )
-from apps.users.tasks import send_telegram_link_notification
 
 User = get_user_model()
 
@@ -67,41 +66,20 @@ class TestSendTelegramLinkEmail:
 
 @pytest.mark.django_db
 class TestNotifyTelegramLinkChange:
-    def test_queues_the_task(self, owner):
-        with patch("apps.users.tasks.send_telegram_link_notification.delay") as delay:
-            notify_telegram_link_change(owner.pk, CONNECTED)
-        delay.assert_called_once_with(owner.pk, CONNECTED)
-
-    def test_a_dead_broker_does_not_propagate(self, owner):
-        with patch(
-            "apps.users.tasks.send_telegram_link_notification.delay",
-            side_effect=Exception("broker is down"),
-        ):
-            notify_telegram_link_change(owner.pk, CONNECTED)
-
-
-@pytest.mark.django_db
-class TestSendTelegramLinkNotificationTask:
     def test_sends_the_mail(self, owner):
-        send_telegram_link_notification(owner.pk, CONNECTED)
-        assert len(mail.outbox) == 1
+        notify_telegram_link_change(owner, CONNECTED)
+        assert mail.outbox[0].to == ["owner@depot.mn"]
 
-    def test_a_deleted_user_is_dropped_without_retrying(self, db):
-        send_telegram_link_notification(0, CONNECTED)
-        assert mail.outbox == []
+    def test_the_notice_takes_exactly_one_trip_through_the_queue(self, owner, settings):
+        settings.EMAIL_BACKEND = "apps.core.mail.CeleryEmailBackend"
+        with patch("apps.core.tasks.send_queued_email.delay") as delay:
+            notify_telegram_link_change(owner, CONNECTED)
+        delay.assert_called_once()
 
-    def test_a_send_failure_is_retried(self, owner):
-        with (
-            patch(
-                "apps.users.notifications.send_telegram_link_email",
-                side_effect=Exception("smtp is down"),
-            ),
-            patch.object(
-                send_telegram_link_notification,
-                "retry",
-                return_value=RuntimeError("retrying"),
-            ) as retry,
-            pytest.raises(RuntimeError, match="retrying"),
+    def test_a_send_failure_does_not_fail_the_link_change(self, owner):
+        with patch(
+            "apps.users.notifications.EmailMultiAlternatives.send",
+            side_effect=Exception("smtp is down"),
         ):
-            send_telegram_link_notification(owner.pk, CONNECTED)
-        retry.assert_called_once()
+            notify_telegram_link_change(owner, CONNECTED)
+        assert mail.outbox == []

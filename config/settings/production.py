@@ -76,8 +76,8 @@ CSRF_COOKIE_NAME = "__Secure-csrftoken"
 
 # EMAIL
 # ------------------------------------------------------------------------------
-# Real Gmail SMTP in production
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+# Real Gmail SMTP in production, reached from the Celery worker rather than a request.
+EMAIL_BACKEND = "apps.core.mail.CeleryEmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True

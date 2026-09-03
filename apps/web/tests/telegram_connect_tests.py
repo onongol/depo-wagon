@@ -101,7 +101,7 @@ class TestTelegramDisconnect:
         client.force_login(user)
         with patch("apps.web.views.telegram.notify_telegram_link_change") as notify:
             client.post(reverse("web:telegram_disconnect"))
-        notify.assert_called_once_with(user.pk, "disconnected")
+        notify.assert_called_once_with(user, "disconnected")
 
     def test_get_is_rejected(self, client):
         user, employee = _make_employee_user(telegram_id=555)

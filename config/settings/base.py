@@ -232,6 +232,10 @@ EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
 # Gmail rewrites a From it did not authenticate: keep this equal to EMAIL_HOST_USER.
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@localhost")
+# What the Celery worker delivers through once CeleryEmailBackend has queued a message.
+EMAIL_DELIVERY_BACKEND = env(
+    "EMAIL_DELIVERY_BACKEND", default="django.core.mail.backends.smtp.EmailBackend"
+)
 
 # LOGGING
 # ------------------------------------------------------------------------------
@@ -291,6 +295,9 @@ CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "UTC"
 # Nothing calls AsyncResult; a task that needs one sets ignore_result=False.
 CELERY_TASK_IGNORE_RESULT = True
+# The soft limit raises inside the task so it can retry; the hard one kills the worker.
+CELERY_TASK_SOFT_TIME_LIMIT = env.int("CELERY_TASK_SOFT_TIME_LIMIT", default=300)
+CELERY_TASK_TIME_LIMIT = env.int("CELERY_TASK_TIME_LIMIT", default=360)
 
 # django-allauth
 # ------------------------------------------------------------------------------
