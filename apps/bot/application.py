@@ -71,7 +71,8 @@ def create_application() -> _BotApplication:
     app = (
         _BotApplication.builder()
         .token(settings.TELEGRAM_BOT_TOKEN)
-        .arbitrary_callback_data(True)  # noqa: FBT003 — PTB builder takes it positionally
+        # Keyboards held in memory; older ones fall through to stale_button.
+        .arbitrary_callback_data(1024)
         .post_init(_post_init)
         .build()
     )
