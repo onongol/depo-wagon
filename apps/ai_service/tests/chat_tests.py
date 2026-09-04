@@ -480,6 +480,8 @@ class TestAnswerQuestion:
         user_text = call_kwargs["contents"][-1].parts[0].text
         assert "real content" in user_text
         assert "Doc2" in user_text
+        # The empty chunk must not reach the prompt as a bare label.
+        assert "[Doc, p.1]" not in user_text
 
     async def test_chunk_missing_title_uses_placeholder(self):
         from apps.ai_service.rag.chat import answer_question
