@@ -43,7 +43,6 @@ ignore = [
   # result differs. Deleting those lines afterwards is the cheapest way to
   # shrink this block.
   "PLC0415",  # 49 — imports inside functions; some break real import cycles
-  "PLR0911",  # 1
 ]
 
 [tool.ruff.lint.flake8-type-checking]

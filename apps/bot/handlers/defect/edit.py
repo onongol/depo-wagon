@@ -27,6 +27,26 @@ if TYPE_CHECKING:
     from apps.bot.user_data import DefectData
 
 
+# field -> (prompt, keyboard built from the defect under edit, state to enter).
+# Keyboards are built per call: their callback payloads are per-message.
+_EDIT_STEPS = {
+    "wagon": (M.EDIT_WAGON, None, WAGON_NUM),
+    "node": (
+        M.EDIT_NODE,
+        lambda defect: node_keyboard_for_department(defect.department or ""),
+        NODE,
+    ),
+    "part_number": (
+        M.EDIT_PART_NUMBER,
+        lambda _: skip_keyboard(PartNumberSkipCB()),
+        PART_NUMBER,
+    ),
+    "defect_type": (M.EDIT_DEFECT_TYPE, lambda _: defect_type_keyboard(), DEFECT_TYPE),
+    "severity": (M.EDIT_SEVERITY, lambda _: severity_keyboard(), SEVERITY),
+    "description": (M.EDIT_DESCRIPTION, lambda _: skip_keyboard(DescSkipCB()), DESC),
+}
+
+
 async def start_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Render the chosen field's input and route to its state in edit mode."""
     query = update.callback_query
@@ -37,53 +57,17 @@ async def start_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         await query.edit_message_text(str(M.DEFECT_CANCELLED))
         return ConversationHandler.END
 
-    field = query.data.field
     context.user_data[UD_EDITING] = True
 
-    if field == "wagon":
-        await query.edit_message_text(str(M.EDIT_WAGON), parse_mode=M.PARSE_MODE)
-        return WAGON_NUM
+    step = _EDIT_STEPS.get(query.data.field)
+    if step is None:
+        context.user_data.pop(UD_EDITING, None)
+        return CONFIRM
 
-    if field == "node":
-        await query.edit_message_text(
-            str(M.EDIT_NODE),
-            parse_mode=M.PARSE_MODE,
-            reply_markup=node_keyboard_for_department(defect.department or ""),
-        )
-        return NODE
-
-    if field == "part_number":
-        await query.edit_message_text(
-            str(M.EDIT_PART_NUMBER),
-            parse_mode=M.PARSE_MODE,
-            reply_markup=skip_keyboard(PartNumberSkipCB()),
-        )
-        return PART_NUMBER
-
-    if field == "defect_type":
-        await query.edit_message_text(
-            str(M.EDIT_DEFECT_TYPE),
-            parse_mode=M.PARSE_MODE,
-            reply_markup=defect_type_keyboard(),
-        )
-        return DEFECT_TYPE
-
-    if field == "severity":
-        await query.edit_message_text(
-            str(M.EDIT_SEVERITY),
-            parse_mode=M.PARSE_MODE,
-            reply_markup=severity_keyboard(),
-        )
-        return SEVERITY
-
-    if field == "description":
-        await query.edit_message_text(
-            str(M.EDIT_DESCRIPTION),
-            parse_mode=M.PARSE_MODE,
-            reply_markup=skip_keyboard(DescSkipCB()),
-        )
-        return DESC
-
-    # Unknown field — fall back to the summary state unchanged.
-    context.user_data.pop(UD_EDITING, None)
-    return CONFIRM
+    prompt, keyboard, state = step
+    await query.edit_message_text(
+        str(prompt),
+        parse_mode=M.PARSE_MODE,
+        reply_markup=keyboard(defect) if keyboard else None,
+    )
+    return state
