@@ -103,7 +103,7 @@ class DefectSerializer(serializers.ModelSerializer):
         read_only_fields = ["created_at", "updated_at"]
 
     def validate(self, attrs):
-        """Validate node/department consistency and responsible_employee for human factor."""
+        """Check node/department consistency and the human-factor responsible."""
         department = attrs.get("department") or (
             self.instance.department if self.instance else ""
         )

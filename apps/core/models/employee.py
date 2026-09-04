@@ -66,7 +66,7 @@ class Employee(models.Model):
         return f"{self.full_name} ({self.employee_id})"
 
     def save(self, *args, **kwargs) -> None:
-        """Override save to ensure phone and email are set to None if blank, and to sync user active status."""
+        """Blank phone/email become None, and the user's active flag follows."""
         self.phone = self.phone or None
         self.email = self.email or None
         super().save(*args, **kwargs)

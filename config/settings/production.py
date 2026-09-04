@@ -61,7 +61,8 @@ SECURE_PROXY_SSL_HEADER = (
 
 SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=True)
 
-SECURE_HSTS_SECONDS = 60  # Set to 60 seconds first and then increase to 518400 (6 days) once confirmed working.
+# Start at 60s; raise to 518400 (6 days) once HSTS is confirmed working.
+SECURE_HSTS_SECONDS = 60
 SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool(
     "SECURE_HSTS_INCLUDE_SUBDOMAINS", default=True
 )

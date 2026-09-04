@@ -44,7 +44,7 @@ def _build_query_text(
 
 
 def _build_doc_context(chunks: list[dict]) -> tuple[str, list[str]]:
-    """Reference-material block for the prompt, and the source labels shown to the user."""
+    """Reference-material block for the prompt, plus its user-facing labels."""
     if not chunks:
         return "(No depot documents found — use general technical knowledge.)", []
 
@@ -98,7 +98,7 @@ async def analyze_defect(
     photos_bytes: list[bytes] | None = None,
 ) -> AIResult:
     """
-    Unified pipeline — single Gemini call returns structured fields + RAG recommendation:
+    One Gemini call returning structured fields plus a RAG recommendation:
       1. Describe photos → augment query text
       2. Embed query with gemini-embedding-2
       3. Parallel vector search: docs + defect history

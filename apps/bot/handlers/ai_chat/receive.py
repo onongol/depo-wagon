@@ -30,7 +30,7 @@ async def _safe_edit(msg, text: str) -> None:
 
 
 async def ai_chat_receive(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Receive a user question, call the RAG-based answer generator, and reply with the answer."""
+    """Answer a user question through the RAG generator and reply with it."""
     question = update.message.text.strip()
 
     try:

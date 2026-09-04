@@ -68,7 +68,8 @@ LOGGING["loggers"]["django.db.backends"]["level"] = "DEBUG"
 # ------------------------------------------------------------------------------
 # Account endpoints are outside the drf-spectacular schema; allauth ships its own.
 HEADLESS_SERVE_SPECIFICATION = True
-# Swagger over the default redoc: these endpoints are POST-only, so a console beats a listing.
+# Swagger over the default redoc: these endpoints are POST-only, so a
+# console beats a listing.
 HEADLESS_SPECIFICATION_TEMPLATE_NAME = "headless/spec/swagger_cdn.html"
 
 # django-debug-toolbar

@@ -75,7 +75,7 @@ def update_defect_ai_result(
 
 @sync_to_async
 def update_defect_status(defect_id, status: str) -> None:
-    """Update the status of a Defect record. Sets repaired_at automatically when closed."""
+    """Update a Defect's status, setting repaired_at when it closes."""
     from apps.defects.constants import DefectStatus
 
     defect = _load_defect(defect_id, "update_defect_status")
@@ -126,7 +126,7 @@ def get_open_defects(
 
 @sync_to_async
 def get_open_defects_count(employee_id: int | None = None) -> int:
-    """Return total count of open/in-progress defects. Filtered by employee if provided."""
+    """Count open and in-progress defects, optionally for one employee."""
     from apps.defects.constants import DefectStatus
     from apps.defects.models import Defect
 

@@ -28,7 +28,7 @@ class DepotDocumentAdmin(
         return super().get_queryset(request).annotate(_chunks_count=Count("chunks"))
 
     def save_model(self, request, obj, form, change):
-        """When a document is created or its file is changed, reset status to PENDING and queue processing."""
+        """On create or file change, reset status to PENDING and queue processing."""
         from apps.ai_service.tasks import process_document_task
 
         old_file = (

@@ -23,7 +23,7 @@ class TestOnDefectClosed:
         mock_delay.assert_called_once_with(str(defect.id))
 
     def test_queues_task_when_closed_without_verdict_in_memory(self):
-        """Signal fires even if instance.verdict is empty — task reads verdict fresh from DB."""
+        """Signal fires on an empty verdict; the task reads it fresh from the DB."""
         defect = self._make_defect(
             status=DefectStatus.OPEN, verdict=DefectVerdict.REPAIR_NOW
         )
