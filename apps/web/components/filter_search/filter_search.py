@@ -1,3 +1,5 @@
+from typing import NamedTuple
+
 from django_components import Component, register
 
 
@@ -5,19 +7,18 @@ from django_components import Component, register
 class FilterSearch(Component):
     template_name = "filter_search/filter_search.html"
 
-    def get_context_data(
-        self,
-        url: str,
-        target: str,
-        name: str = "q",
-        value: str = "",
-        placeholder: str = "",
-        **kwargs,
-    ):
+    class Kwargs(NamedTuple):
+        url: str
+        target: str
+        name: str = "q"
+        value: str = ""
+        placeholder: str = ""
+
+    def get_template_data(self, args, kwargs: Kwargs, slots, context):
         return {
-            "url": url,
-            "target": target,
-            "name": name,
-            "value": value,
-            "placeholder": placeholder,
+            "url": kwargs.url,
+            "target": kwargs.target,
+            "name": kwargs.name,
+            "value": kwargs.value,
+            "placeholder": kwargs.placeholder,
         }
