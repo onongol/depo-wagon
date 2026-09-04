@@ -24,6 +24,15 @@ class PersistResult:
     photo_bytes: list[bytes]
 
 
+async def _download_photo(bot: Bot, file_id: str) -> bytes | None:
+    """Photo bytes from Telegram, or None when it exceeds the size cap."""
+    file = await bot.get_file(file_id)
+    if file.file_size and file.file_size > MAX_PHOTO_BYTES:
+        logger.warning("Photo too large (%d bytes), skipping", file.file_size)
+        return None
+    return bytes(await file.download_as_bytearray())
+
+
 async def register_defect(
     defect_data: DefectData, employee: Employee, bot: Bot
 ) -> PersistResult:
@@ -44,23 +53,15 @@ async def register_defect(
     )
 
     async def _fetch_photo(idx: int, file_id: str) -> bytes | None:
-        """
-        Download a photo by file_id and save it linked to the defect.
-        Returns the photo bytes, or None if failed.
-        """
+        """Download a photo and save it linked to the defect; None if it failed."""
         try:
-            file = await bot.get_file(file_id)
-            if file.file_size and file.file_size > MAX_PHOTO_BYTES:
-                logger.warning("Photo too large (%d bytes), skipping", file.file_size)
+            file_bytes = await _download_photo(bot, file_id)
+            if file_bytes is None:
                 return None
-
-            file_bytes = bytes(await file.download_as_bytearray())
-            filename = f"bot_{saved_defect.id}_{idx + 1}_{file_id[-8:]}.jpg"
-
             await services.create_photo_from_bytes(
                 defect_id=saved_defect.id,
                 file_bytes=file_bytes,
-                filename=filename,
+                filename=f"bot_{saved_defect.id}_{idx + 1}_{file_id[-8:]}.jpg",
             )
         except Exception as exc:
             logger.warning("Photo save failed (idx=%d): %s", idx, exc, exc_info=True)
