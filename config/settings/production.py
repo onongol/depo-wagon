@@ -39,11 +39,6 @@ if not ALLOWED_HOSTS:
 DATABASES["default"]["CONN_MAX_AGE"] = 60
 DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
 
-# MIDDLEWARE
-# ------------------------------------------------------------------------------
-MIDDLEWARE = [*MIDDLEWARE, AXES_MIDDLEWARE_PATH]
-assert MIDDLEWARE[-1] == AXES_MIDDLEWARE_PATH, "AxesMiddleware must be last"
-
 # TEMPLATES
 # ------------------------------------------------------------------------------
 # Django wraps the loaders itself only when they are left unset; base.py sets them.

@@ -16,7 +16,6 @@ select = [
 ]
 ignore = [
   "RUF012",
-  "S101",
   # Ruff warns on every run that COM812 conflicts with the formatter.
   "COM812",
   # Line length is the formatter's job.
@@ -60,7 +59,8 @@ known-first-party = ["apps", "config"]
 # on a broad exception is the point of the test in these cases.
 "**/tests/*.py" = [
   "B011", "B017", "DTZ011", "N806", "PLC1901", "PT011", "PT015", "PT018",
-  "PLR2004", "PT022", "RET504", "RUF059", "S105", "S106", "SIM117", "UP017",
+  "PLR2004", "PT022", "RET504", "RUF059", "S101", "S105", "S106", "SIM117",
+  "UP017",
   "UP041",
 ]
 "conftest.py" = ["S105", "S106"]
