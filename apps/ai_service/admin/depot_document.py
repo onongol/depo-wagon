@@ -14,7 +14,9 @@ from apps.ai_service.models import DepotDocument
 
 @admin.register(DepotDocument)
 class DepotDocumentAdmin(
-    ModelAdmin, DepotDocumentAdminMixinStatus, DepotDocumentAdminMixinChunksCount
+    DepotDocumentAdminMixinStatus,
+    DepotDocumentAdminMixinChunksCount,
+    ModelAdmin,
 ):
     list_display = ("title", "status_badge", "chunks_count", "created_at", "updated_at")
     list_filter = ("status",)
