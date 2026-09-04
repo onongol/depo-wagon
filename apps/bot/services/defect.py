@@ -1,7 +1,11 @@
 import logging
+from typing import TYPE_CHECKING
 
 from asgiref.sync import sync_to_async
 from django.utils import timezone
+
+if TYPE_CHECKING:
+    from apps.bot.user_data import DefectData
 
 logger = logging.getLogger(__name__)
 
@@ -20,30 +24,20 @@ def _load_defect(defect_id, op: str):
 
 
 @sync_to_async
-def create_defect(
-    wagon_id,
-    node,
-    defect_type,
-    severity,
-    description,
-    employee_id,
-    department: str = "",
-    part_number: str = "",
-    responsible_employee_id=None,
-):
-    """Create and return a new Defect record."""
+def create_defect(defect_data: DefectData, *, employee_id):
+    """Create and return a new Defect record from a completed conversation."""
     from apps.defects.models import Defect
 
     return Defect.objects.create(
-        wagon_id=wagon_id,
-        node=node,
-        defect_type=defect_type,
-        severity=severity,
-        description=description,
+        wagon_id=defect_data.wagon_id,
+        node=defect_data.node,
+        defect_type=defect_data.defect_type,
+        severity=defect_data.severity,
+        description=defect_data.description,
         inspector_id=employee_id,
-        department=department,
-        part_number=part_number,
-        responsible_employee_id=responsible_employee_id,
+        department=defect_data.department or "",
+        part_number=defect_data.part_number or "",
+        responsible_employee_id=defect_data.responsible_employee_id,
         inspected_at=timezone.now(),
     )
 

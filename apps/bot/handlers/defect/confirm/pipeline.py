@@ -40,17 +40,7 @@ async def register_defect(
     Raises on the critical create_defect failure. Photo and measurement failures
     are non-critical: they are logged and skipped, never aborting the save.
     """
-    saved_defect = await services.create_defect(
-        wagon_id=defect_data.wagon_id,
-        node=defect_data.node,
-        defect_type=defect_data.defect_type,
-        severity=defect_data.severity,
-        description=defect_data.description,
-        employee_id=employee.id,
-        department=defect_data.department or "",
-        part_number=defect_data.part_number or "",
-        responsible_employee_id=defect_data.responsible_employee_id,
-    )
+    saved_defect = await services.create_defect(defect_data, employee_id=employee.id)
 
     async def _fetch_photo(idx: int, file_id: str) -> bytes | None:
         """Download a photo and save it linked to the defect; None if it failed."""
