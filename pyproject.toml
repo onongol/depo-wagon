@@ -15,13 +15,17 @@ select = [
   "TID", "TRY", "UP", "W", "YTT",
 ]
 ignore = [
+  # Django and DRF read mutable class attributes as configuration:
+  # list_display, fields, allowed_roles and the like. ClassVar would be wrong
+  # about 98 times here.
   "RUF012",
   # Ruff warns on every run that COM812 conflicts with the formatter.
   "COM812",
   # Comments and UI text are Russian and Mongolian; Ruff reads Cyrillic as
   # lookalike Latin.
-  "RUF001",
-  "RUF003",
+  "RUF001",  # String contains ambiguous unicode character
+  "RUF002",  # Docstring contains ambiguous unicode character
+  "RUF003",  # Comment contains ambiguous unicode character
   # Django, DRF and PTB dispatch on methods: get_queryset, save_model, validate_*
   # and the handlers all take self by contract, so "could be a function" is wrong
   # roughly 640 times here.
@@ -30,14 +34,11 @@ ignore = [
   # `noqa`. We do — `noqa` is what every other Python tool understands.
   "RUF105",
 
-  # --- Pre-existing debt, silenced to get the hooks green on the current
-  # code. Counts are from the first full run; each line is its own cleanup
-  # task. Roughly half of these are mechanical: `ruff check --fix
-  # --unsafe-fixes` clears the ones marked (fix) without a judgement call —
-  # most are "unsafe" only because they move or reword code, not because the
-  # result differs. Deleting those lines afterwards is the cheapest way to
-  # shrink this block.
-  "PLC0415",  # 49 — imports inside functions; some break real import cycles
+  # --- Pre-existing debt. What is left is the one line that never had a
+  # mechanical fix: every import has to be classified as breaking a real
+  # cycle or as having ended up there by accident. Counts measured, not
+  # inherited.
+  "PLC0415",  # 53 in application code, 127 in tests — imports inside functions
 ]
 
 [tool.ruff.lint.pycodestyle]
@@ -63,10 +64,9 @@ known-first-party = ["apps", "config"]
 # naming it hides what is checked. Test credentials are fixtures. pytest.raises
 # on a broad exception is the point of the test in these cases.
 "**/tests/*.py" = [
-  "B011", "B017", "DTZ011", "N806", "PLC1901", "PT011", "PT015", "PT018",
-  "PLR2004", "PT022", "RET504", "RUF059", "S101", "S105", "S106", "SIM117",
-  "UP017",
-  "UP041",
+  "B011", "B017", "DTZ011", "N806", "PLC1901", "PLR2004", "PT011", "PT015",
+  "PT018", "PT022", "RET504", "RUF059", "S101", "S105", "S106", "SIM117",
+  "UP017", "UP041",
 ]
 "conftest.py" = ["S105", "S106"]
 # django-components discovers component directories by path, not by import, so
@@ -81,7 +81,7 @@ extension = "html"
 # django-components' tags are block tags; without this djlint reports every
 # {% endcomponent %}/{% endslot %}/{% endfill %} as an unmatched end tag.
 custom_blocks = "component,slot,fill"
-# H021 (inline styles): the two hits are <svg> sprite sheets, where the
+# H021 (inline styles): the one hit is the <svg> sprite sheet, where the
 # attributes are the graphic. H030/H031 (meta description/keywords): this is a
 # logged-in depot tool, not an indexed page.
 ignore = "H021,H030,H031"
