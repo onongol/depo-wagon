@@ -1,6 +1,7 @@
 import asyncio
 import contextlib
 import logging
+from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 from google.genai.errors import ServerError
@@ -62,7 +63,7 @@ async def ai_chat_receive(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             await _safe_edit(thinking_msg, str(M.AI_CHAT_BLOCKED))
             return AI_CHAT
         except ServerError as e:
-            if e.code == 503:
+            if e.code == HTTPStatus.SERVICE_UNAVAILABLE:
                 logger.warning(
                     "AI chat 503 overloaded for user %s", update.effective_user.id
                 )

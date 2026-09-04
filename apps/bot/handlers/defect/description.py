@@ -13,6 +13,8 @@ if TYPE_CHECKING:
 
     from apps.bot.user_data import DefectData
 
+_MAX_DESCRIPTION_LEN = 1000
+
 
 def _get_defect(context: ContextTypes.DEFAULT_TYPE) -> DefectData | None:
     return context.user_data.get(UD_DEFECT)
@@ -28,9 +30,11 @@ async def receive_description(
         return ConversationHandler.END
 
     text = update.message.text.strip()
-    if len(text) > 1000:
+    if len(text) > _MAX_DESCRIPTION_LEN:
         await update.message.reply_text(
-            str(M.DESCRIPTION_TOO_LONG).format(length=len(text), max=1000),
+            str(M.DESCRIPTION_TOO_LONG).format(
+                length=len(text), max=_MAX_DESCRIPTION_LEN
+            ),
             parse_mode=M.PARSE_MODE,
         )
         return DESC

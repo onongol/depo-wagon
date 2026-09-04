@@ -43,7 +43,6 @@ ignore = [
   # result differs. Deleting those lines afterwards is the cheapest way to
   # shrink this block.
   "PLC0415",  # 49 — imports inside functions; some break real import cycles
-  "PLR2004",  # 3 — magic values outside tests
   "C901",     # 2 — analysis and chat pipelines
   "PLR0913",  # 2 — too many arguments
   "PLR0917",  # 2 — too many positional arguments
@@ -70,7 +69,8 @@ known-first-party = ["apps", "config"]
 # on a broad exception is the point of the test in these cases.
 "**/tests/*.py" = [
   "B011", "B017", "DTZ011", "N806", "PLC1901", "PT011", "PT015", "PT018",
-  "PT022", "RET504", "RUF059", "S105", "S106", "SIM117", "UP017", "UP041",
+  "PLR2004", "PT022", "RET504", "RUF059", "S105", "S106", "SIM117", "UP017",
+  "UP041",
 ]
 "conftest.py" = ["S105", "S106"]
 # django-components discovers component directories by path, not by import, so

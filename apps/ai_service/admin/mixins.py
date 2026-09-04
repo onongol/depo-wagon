@@ -35,8 +35,13 @@ class DepotDocumentAdminMixinChunksCount:
     chunks_count.admin_order_field = "_chunks_count"
 
 
+_PREVIEW_CHARS = 120
+
+
 class DocumentChunkInlineMixin:
     def content_preview(self, obj: DocumentChunk) -> str:
-        return obj.content[:120] + "…" if len(obj.content) > 120 else obj.content
+        if len(obj.content) <= _PREVIEW_CHARS:
+            return obj.content
+        return obj.content[:_PREVIEW_CHARS] + "…"
 
     content_preview.short_description = _("Content preview")
