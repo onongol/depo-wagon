@@ -43,12 +43,8 @@ ignore = [
   # result differs. Deleting those lines afterwards is the cheapest way to
   # shrink this block.
   "PLC0415",  # 49 — imports inside functions; some break real import cycles
-  "C901",     # 2 — analysis and chat pipelines
   "PLR0913",  # 2 — too many arguments
   "PLR0917",  # 2 — too many positional arguments
-  "PLR0912",  # 1
-  "PLR0915",  # 1
-  "PLR0914",  # 1 — 23 locals in the analysis pipeline
   "PLR0911",  # 1
 ]
 
