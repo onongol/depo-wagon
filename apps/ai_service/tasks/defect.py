@@ -8,21 +8,23 @@ logger = logging.getLogger(__name__)
 
 def _build_defect_texts(defect) -> tuple[str, str]:
     """Query text to embed, and the content blob stored alongside the vector."""
+    node = defect.get_node_display()
+    defect_type = defect.get_defect_type_display()
+    severity = defect.get_severity_display()
+
     query_text = "\n".join(
         filter(
             None,
             [
-                f"Node: {defect.get_node_display()}",
-                f"Defect type: {defect.get_defect_type_display()}",
-                f"Severity: {defect.get_severity_display()}",
+                f"Node: {node}",
+                f"Defect type: {defect_type}",
+                f"Severity: {severity}",
                 f"Description: {defect.description}" if defect.description else None,
             ],
         )
     )
 
-    content_parts = [
-        f"Defect: {defect.get_node_display()} — {defect.get_defect_type_display()} ({defect.get_severity_display()})",
-    ]
+    content_parts = [f"Defect: {node} — {defect_type} ({severity})"]
     if defect.description:
         content_parts.append(f"Description: {defect.description}")
     if defect.verdict:

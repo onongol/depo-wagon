@@ -30,13 +30,19 @@ def _or_empty(result) -> list[dict]:
     return [] if isinstance(result, BaseException) else result
 
 
+def _format_chunk(chunk: dict) -> str:
+    """One chunk as a labelled context entry."""
+    # .get() with defaults so a schema change doesn't raise KeyError
+    title = chunk.get("document__title", "?")
+    page = chunk.get("page_number", "?")
+    content = chunk.get("content", "")
+    return f"[{title}, p.{page}]\n{content}"
+
+
 def _docs_block(chunks: list[dict]) -> str:
     """Depot-documents context section, empty when nothing usable came back."""
-    # .get() with defaults so a schema change doesn't raise KeyError
     docs_text = "\n\n".join(
-        f"[{chunk.get('document__title', '?')}, p.{chunk.get('page_number', '?')}]\n{chunk.get('content', '')}"
-        for chunk in chunks
-        if chunk.get("content")
+        _format_chunk(chunk) for chunk in chunks if chunk.get("content")
     )
     return f"=== Depot Documents ===\n{docs_text}" if docs_text else ""
 

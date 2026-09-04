@@ -122,8 +122,10 @@ class Defect(models.Model):
         ]
 
     def __str__(self) -> str:
+        node = self.get_node_display()
+        defect_type = self.get_defect_type_display()
         wagon_number = self.wagon.number if self.wagon_id else "—"
-        return f"{self.get_node_display()} — {self.get_defect_type_display()} (Wagon: {wagon_number})"
+        return f"{node} — {defect_type} (Wagon: {wagon_number})"
 
     @property
     def is_repaired(self) -> bool:
