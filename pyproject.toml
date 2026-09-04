@@ -18,8 +18,6 @@ ignore = [
   "RUF012",
   # Ruff warns on every run that COM812 conflicts with the formatter.
   "COM812",
-  # Line length is the formatter's job.
-  "E501",
   # Comments and UI text are Russian and Mongolian; Ruff reads Cyrillic as
   # lookalike Latin.
   "RUF001",
@@ -41,6 +39,13 @@ ignore = [
   # shrink this block.
   "PLC0415",  # 49 — imports inside functions; some break real import cycles
 ]
+
+[tool.ruff.lint.pycodestyle]
+# The formatter wraps code at line-length; what it leaves over is string
+# content — docstrings, translated messages, LLM prompts — which it will not
+# split because that would change what the string says. E501 gets a wider
+# limit of its own so it still catches a genuinely runaway line.
+max-line-length = 100
 
 [tool.ruff.lint.flake8-type-checking]
 # Pydantic resolves field annotations when the class is built, so an import
