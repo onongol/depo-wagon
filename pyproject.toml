@@ -17,7 +17,6 @@ select = [
 ignore = [
   "RUF012",
   "S101",
-  "SIM102",
   # Ruff warns on every run that COM812 conflicts with the formatter.
   "COM812",
   # Line length is the formatter's job.
@@ -25,7 +24,6 @@ ignore = [
   # Comments and UI text are Russian and Mongolian; Ruff reads Cyrillic as
   # lookalike Latin.
   "RUF001",
-  "RUF002",
   "RUF003",
   # Django, DRF and PTB dispatch on methods: get_queryset, save_model, validate_*
   # and the handlers all take self by contract, so "could be a function" is wrong

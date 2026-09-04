@@ -120,13 +120,14 @@ class DefectSerializer(serializers.ModelSerializer):
         )
         responsible = attrs.get("responsible_employee")
 
-        if defect_type == DefectType.HUMAN_FACTOR and not responsible:
-            if not (self.instance and self.instance.responsible_employee_id):
-                raise serializers.ValidationError(
-                    {
-                        "responsible_employee": "Required when defect type is Human Factor."
-                    }
-                )
+        if (
+            defect_type == DefectType.HUMAN_FACTOR
+            and not responsible
+            and not (self.instance and self.instance.responsible_employee_id)
+        ):
+            raise serializers.ValidationError(
+                {"responsible_employee": "Required when defect type is Human Factor."}
+            )
 
         if responsible and department and responsible.department != department:
             raise serializers.ValidationError(

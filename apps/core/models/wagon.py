@@ -90,15 +90,18 @@ class Wagon(models.Model):
                 }
             )
 
-        if self.last_repair_date and self.next_repair_date:
-            if self.next_repair_date <= self.last_repair_date:
-                raise ValidationError(
-                    {
-                        "next_repair_date": _(
-                            "Next repair date must be later than the last repair date."
-                        )
-                    }
-                )
+        if (
+            self.last_repair_date
+            and self.next_repair_date
+            and self.next_repair_date <= self.last_repair_date
+        ):
+            raise ValidationError(
+                {
+                    "next_repair_date": _(
+                        "Next repair date must be later than the last repair date."
+                    )
+                }
+            )
 
     @property
     def needs_repair_soon(self) -> bool:
