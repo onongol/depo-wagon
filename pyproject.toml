@@ -72,11 +72,6 @@ known-first-party = ["apps", "config"]
 # django-components discovers component directories by path, not by import, so
 # they deliberately have no __init__.py.
 "apps/web/components/*" = ["INP001"]
-# Modules that exist to re-export; F401 stays on everywhere else so the
-# `# noqa: F401` on signal imports in apps.py keeps meaning something.
-"apps/ai_service/views.py" = ["F401"]
-"apps/bot/admin.py" = ["F401"]
-"apps/bot/models.py" = ["F401"]
 
 [tool.djlint]
 # Lint only. Formatting is Prettier's: djlint --reformat and Prettier rewrite
