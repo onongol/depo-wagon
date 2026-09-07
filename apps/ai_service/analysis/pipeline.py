@@ -17,6 +17,79 @@ from apps.bot.user_data import AIResult
 logger = logging.getLogger(__name__)
 
 
+async def _describe_photos(photos_bytes: list[bytes] | None) -> str:
+    """Visual description for query augmentation; empty when unavailable."""
+    if not photos_bytes:
+        return ""
+    try:
+        return await describe_images(photos_bytes)
+    except Exception as exc:
+        logger.warning("Image description failed: %s", exc, exc_info=True)
+        return ""
+
+
+def _build_query_text(
+    node: str, defect_type: str, severity: str, description: str, visual_desc: str
+) -> str:
+    parts = [
+        f"Node/Element: {node}",
+        f"Defect type: {defect_type}",
+        f"Severity: {severity}",
+    ]
+    if description:
+        parts.append(f"Description: {description}")
+    if visual_desc:
+        parts.append(f"Visual signs: {visual_desc}")
+    return "\n".join(parts)
+
+
+def _build_doc_context(chunks: list[dict]) -> tuple[str, list[str]]:
+    """Reference-material block for the prompt, plus its user-facing labels."""
+    if not chunks:
+        return "(No depot documents found — use general technical knowledge.)", []
+
+    context_parts = []
+    pages_by_title: dict[str, list[int]] = {}
+    for i, chunk in enumerate(chunks, 1):
+        title = chunk["document__title"]
+        page = chunk.get("page_number")
+        pages_by_title.setdefault(title, [])
+        if page:
+            pages_by_title[title].append(page)
+        source = f"{title}, p. {page}" if page else title
+        context_parts.append(f"[DOC-{i}] {source}:\n{chunk['content']}")
+
+    sources = [
+        f"📄 {title}, p. {', '.join(str(p) for p in sorted(set(pages)))}"
+        if pages
+        else f"📄 {title}"
+        for title, pages in pages_by_title.items()
+    ]
+    context = (
+        "=== Reference materials from depot documents ===\n\n"
+        + "\n\n---\n\n".join(context_parts)
+        + "\n\n=== End of reference materials ==="
+    )
+    return context, sources
+
+
+def _build_history_context(past_defects: list[dict]) -> tuple[str, list[str]]:
+    """Precedent-cases block for the prompt, and its source label."""
+    if not past_defects:
+        return "", []
+
+    history_parts = [
+        f"[CASE-{i}] {defect['created_at'].strftime('%m.%Y')}:\n{defect['content']}"
+        for i, defect in enumerate(past_defects, 1)
+    ]
+    context = (
+        "=== Similar cases from depot history ===\n\n"
+        + "\n\n---\n\n".join(history_parts)
+        + "\n\n=== End of depot history ==="
+    )
+    return context, [f"🔁 {len(past_defects)} precedent cases"]
+
+
 async def analyze_defect(
     node: str,
     defect_type: str,
@@ -25,126 +98,65 @@ async def analyze_defect(
     photos_bytes: list[bytes] | None = None,
 ) -> AIResult:
     """
-    Unified pipeline — single Gemini call returns structured fields + RAG recommendation:
+    One Gemini call returning structured fields plus a RAG recommendation:
       1. Describe photos → augment query text
       2. Embed query with gemini-embedding-2
       3. Parallel vector search: docs + defect history
       4. Build prompt with tagged context blocks
       5. Single gemini-flash call with structured schema
+
+    Degrades to an empty AIResult rather than raising on an AI or retrieval
+    failure. Bugs in the context builders propagate to the caller, which logs
+    them with a traceback.
     """
+    client = get_genai_client()
+
+    visual_desc = await _describe_photos(photos_bytes)
+    query_text = _build_query_text(
+        node, defect_type, severity, description, visual_desc
+    )
+
     try:
-        client = get_genai_client()
+        query_embedding = await embed_query(query_text)
+    except Exception as exc:
+        logger.warning("Embedding failed, skipping AI analysis: %s", exc, exc_info=True)
+        return AIResult()
 
-        # Build query text
-        query_parts = [
-            f"Node/Element: {node}",
-            f"Defect type: {defect_type}",
-            f"Severity: {severity}",
-        ]
-        if description:
-            query_parts.append(f"Description: {description}")
-
-        if photos_bytes:
-            try:
-                visual_desc = await describe_images(photos_bytes)
-                if visual_desc:
-                    query_parts.append(f"Visual signs: {visual_desc}")
-            except Exception as exc:
-                logger.warning("Image description failed: %s", exc)
-
-        query_text = "\n".join(query_parts)
-
-        # Embed query
-        try:
-            query_embedding = await embed_query(query_text)
-        except Exception as exc:
-            logger.warning("Embedding failed, skipping AI analysis: %s", exc)
-            return AIResult()
-
-        # Parallel vector search: regulatory docs + defect history
-        try:
-            chunks, past_defects = await asyncio.gather(
-                fetch_similar_chunks(query_embedding, query_text),
-                fetch_similar_defects(query_embedding, query_text),
-            )
-        except Exception as exc:
-            logger.warning(
-                "Vector search failed, proceeding without RAG context: %s", exc
-            )
-            chunks, past_defects = [], []
-
-        # Build Doc context block with source labels
-        doc_sources: list[str] = []
-        if chunks:
-            context_parts = []
-            pages_by_title: dict[str, list[int]] = {}
-            for i, chunk in enumerate(chunks, 1):
-                label = f"[DOC-{i}]"
-                title = chunk["document__title"]
-                page = chunk.get("page_number")
-                if page:
-                    pages_by_title.setdefault(title, []).append(page)
-                else:
-                    pages_by_title.setdefault(title, [])
-                source = f"{title}, p. {page}" if page else title
-                context_parts.append(f"{label} {source}:\n{chunk['content']}")
-            for title, pages in pages_by_title.items():
-                if pages:
-                    doc_sources.append(
-                        f"📄 {title}, p. {', '.join(str(p) for p in sorted(set(pages)))}"
-                    )
-                else:
-                    doc_sources.append(f"📄 {title}")
-            rag_context = (
-                "=== Reference materials from depot documents ===\n\n"
-                + "\n\n---\n\n".join(context_parts)
-                + "\n\n=== End of reference materials ==="
-            )
-        else:
-            rag_context = (
-                "(No depot documents found — use general technical knowledge.)"
-            )
-
-        # Build defect history context block with source labels
-        case_sources: list[str] = []
-        if past_defects:
-            history_parts = []
-            for i, defect in enumerate(past_defects, 1):
-                label = f"[CASE-{i}]"
-                date = defect["created_at"].strftime("%m.%Y")
-                history_parts.append(f"{label} {date}:\n{defect['content']}")
-            case_sources.append(f"🔁 {len(past_defects)} precedent cases")
-            history_context = (
-                "=== Similar cases from depot history ===\n\n"
-                + "\n\n---\n\n".join(history_parts)
-                + "\n\n=== End of depot history ==="
-            )
-        else:
-            history_context = ""
-
-        description_line = (
-            f"<user_description>\n{description}\n</user_description>"
-            if description
-            else ""
+    try:
+        chunks, past_defects = await asyncio.gather(
+            fetch_similar_chunks(query_embedding, query_text),
+            fetch_similar_defects(query_embedding, query_text),
         )
-
-        prompt = ANALYSIS_PROMPT.format(
-            node=node,
-            defect_type=defect_type,
-            severity=severity,
-            description_line=description_line,
-            rag_context=rag_context,
-            history_context=history_context,
+    except Exception as exc:
+        logger.warning(
+            "Vector search failed, proceeding without RAG context: %s",
+            exc,
+            exc_info=True,
         )
+        chunks, past_defects = [], []
 
-        # Single structured call with photos
-        contents: list = []
-        for photo in photos_bytes or []:
-            contents.append(
-                types.Part.from_bytes(data=photo, mime_type=mime_type_for_bytes(photo))
-            )
-        contents.append(prompt)
+    rag_context, doc_sources = _build_doc_context(chunks)
+    history_context, case_sources = _build_history_context(past_defects)
 
+    description_line = (
+        f"<user_description>\n{description}\n</user_description>" if description else ""
+    )
+    prompt = ANALYSIS_PROMPT.format(
+        node=node,
+        defect_type=defect_type,
+        severity=severity,
+        description_line=description_line,
+        rag_context=rag_context,
+        history_context=history_context,
+    )
+
+    contents: list = [
+        types.Part.from_bytes(data=photo, mime_type=mime_type_for_bytes(photo))
+        for photo in photos_bytes or []
+    ]
+    contents.append(prompt)
+
+    try:
         response = await client.aio.models.generate_content(
             model=GENERATION_MODEL,
             contents=contents,
@@ -156,21 +168,18 @@ async def analyze_defect(
                 max_output_tokens=2048,
             ),
         )
-
         if not response.text:
             logger.warning("Gemini returned empty response")
             return AIResult()
-
         result = FullAnalysisSchema.model_validate_json(response.text)
-
-        return AIResult(
-            defect_class=result.defect_class,
-            confidence=result.confidence,
-            rag_recommendation=result.rag_recommendation,
-            verdict=result.verdict,
-            sources=doc_sources + case_sources,
-        )
-
-    except Exception as exc:
-        logger.error("AI analysis failed: %s", exc, exc_info=True)
+    except Exception:
+        logger.exception("AI analysis failed")
         return AIResult()
+
+    return AIResult(
+        defect_class=result.defect_class,
+        confidence=result.confidence,
+        rag_recommendation=result.rag_recommendation,
+        verdict=result.verdict,
+        sources=doc_sources + case_sources,
+    )

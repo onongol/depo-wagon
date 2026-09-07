@@ -157,9 +157,11 @@ MIDDLEWARE = [
     "allauth.usersessions.middleware.UserSessionsMiddleware",
 ]
 
-# AxesMiddleware has to run last, so each environment appends it after its own
-# additions rather than inheriting it in place.
+# AxesMiddleware inspects the response every other middleware has finished with,
+# so it has to be last. An environment that adds middleware of its own repeats
+# the remove/append below to push it back to the end.
 AXES_MIDDLEWARE_PATH = "axes.middleware.AxesMiddleware"
+MIDDLEWARE = [*MIDDLEWARE, AXES_MIDDLEWARE_PATH]
 
 # STATIC
 # ------------------------------------------------------------------------------
@@ -374,7 +376,7 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 50,
-    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",  # drf-spectacular used for OpenAPI schema generation
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
 # drf-spectacular

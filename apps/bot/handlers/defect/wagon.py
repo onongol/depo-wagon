@@ -1,8 +1,6 @@
 import html
 import logging
-
-from telegram import Update
-from telegram.ext import ContextTypes
+from typing import TYPE_CHECKING
 
 from apps.bot import services
 from apps.bot.constants import (
@@ -15,9 +13,14 @@ from apps.bot.constants import (
 from apps.bot.keyboards.defect import department_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DEPARTMENT, WAGON_NUM
-from apps.bot.user_data import DefectData
 
 from .summary import show_summary
+
+if TYPE_CHECKING:
+    from telegram import Update
+    from telegram.ext import ContextTypes
+
+    from apps.bot.user_data import DefectData
 
 logger = logging.getLogger(__name__)
 

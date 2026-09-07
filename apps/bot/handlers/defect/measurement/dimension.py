@@ -1,11 +1,15 @@
-from telegram import Update
-from telegram.ext import ContextTypes
+from typing import TYPE_CHECKING
 
 from apps.bot.constants import UD_DEFECT
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import MEASUREMENT_VALUE
-from apps.bot.user_data import DefectData
 from apps.defects.constants import MeasurementDimension
+
+if TYPE_CHECKING:
+    from telegram import Update
+    from telegram.ext import ContextTypes
+
+    from apps.bot.user_data import DefectData
 
 _DIM_LABELS = dict(MeasurementDimension.choices)
 

@@ -1,14 +1,18 @@
 import html
+from typing import TYPE_CHECKING
 
 from django.utils.text import format_lazy
 from django.utils.translation import gettext_lazy as _
-from telegram import Update
-from telegram.ext import ContextTypes
 
 from apps.bot.constants import UD_EDITING
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import CONFIRM
-from apps.bot.user_data import DefectData
+
+if TYPE_CHECKING:
+    from telegram import Update
+    from telegram.ext import ContextTypes
+
+    from apps.bot.user_data import DefectData
 
 
 async def show_summary(

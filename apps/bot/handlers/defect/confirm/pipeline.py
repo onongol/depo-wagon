@@ -3,14 +3,14 @@ import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from telegram import Bot
-
 from apps.ai_service.analysis import analyze_defect
 from apps.bot import services
-from apps.bot.user_data import DefectData
 from apps.defects.validators import MAX_PHOTO_BYTES
 
 if TYPE_CHECKING:
+    from telegram import Bot
+
+    from apps.bot.user_data import DefectData
     from apps.core.models import Employee
 
 logger = logging.getLogger(__name__)
@@ -24,6 +24,15 @@ class PersistResult:
     photo_bytes: list[bytes]
 
 
+async def _download_photo(bot: Bot, file_id: str) -> bytes | None:
+    """Photo bytes from Telegram, or None when it exceeds the size cap."""
+    file = await bot.get_file(file_id)
+    if file.file_size and file.file_size > MAX_PHOTO_BYTES:
+        logger.warning("Photo too large (%d bytes), skipping", file.file_size)
+        return None
+    return bytes(await file.download_as_bytearray())
+
+
 async def register_defect(
     defect_data: DefectData, employee: Employee, bot: Bot
 ) -> PersistResult:
@@ -31,41 +40,24 @@ async def register_defect(
     Raises on the critical create_defect failure. Photo and measurement failures
     are non-critical: they are logged and skipped, never aborting the save.
     """
-    saved_defect = await services.create_defect(
-        wagon_id=defect_data.wagon_id,
-        node=defect_data.node,
-        defect_type=defect_data.defect_type,
-        severity=defect_data.severity,
-        description=defect_data.description,
-        employee_id=employee.id,
-        department=defect_data.department or "",
-        part_number=defect_data.part_number or "",
-        responsible_employee_id=defect_data.responsible_employee_id,
-    )
+    saved_defect = await services.create_defect(defect_data, employee_id=employee.id)
 
     async def _fetch_photo(idx: int, file_id: str) -> bytes | None:
-        """
-        Download a photo by file_id and save it linked to the defect.
-        Returns the photo bytes, or None if failed.
-        """
+        """Download a photo and save it linked to the defect; None if it failed."""
         try:
-            file = await bot.get_file(file_id)
-            if file.file_size and file.file_size > MAX_PHOTO_BYTES:
-                logger.warning("Photo too large (%d bytes), skipping", file.file_size)
+            file_bytes = await _download_photo(bot, file_id)
+            if file_bytes is None:
                 return None
-
-            file_bytes = bytes(await file.download_as_bytearray())
-            filename = f"bot_{saved_defect.id}_{idx + 1}_{file_id[-8:]}.jpg"
-
             await services.create_photo_from_bytes(
                 defect_id=saved_defect.id,
                 file_bytes=file_bytes,
-                filename=filename,
+                filename=f"bot_{saved_defect.id}_{idx + 1}_{file_id[-8:]}.jpg",
             )
-            return file_bytes
         except Exception as exc:
-            logger.warning("Photo save failed (idx=%d): %s", idx, exc)
+            logger.warning("Photo save failed (idx=%d): %s", idx, exc, exc_info=True)
             return None
+        else:
+            return file_bytes
 
     photo_results = await asyncio.gather(
         *[_fetch_photo(i, fid) for i, fid in enumerate(defect_data.photo_file_ids)]
@@ -79,7 +71,7 @@ async def register_defect(
                 saved_defect.id, defect_data.measurements
             )
         except Exception as exc:
-            logger.warning("Measurements save failed: %s", exc)
+            logger.warning("Measurements save failed: %s", exc, exc_info=True)
 
     return PersistResult(defect=saved_defect, photo_bytes=all_photo_bytes)
 
@@ -113,6 +105,8 @@ async def run_ai_analysis(
                 ai_verdict=ai_result.verdict,
             )
         except Exception:
-            logger.warning("Failed to persist AI result for defect %s", defect_id)
+            logger.warning(
+                "Failed to persist AI result for defect %s", defect_id, exc_info=True
+            )
 
     return ai_result

@@ -1,7 +1,5 @@
 import logging
-
-from telegram import Update
-from telegram.ext import ContextTypes
+from typing import TYPE_CHECKING
 
 from apps.bot import services
 from apps.bot.constants import PAGE_SIZE
@@ -10,6 +8,10 @@ from apps.bot.keyboards.tasks import status_picker_keyboard, tasks_keyboard
 from apps.bot.messages import BotMessages as M
 
 from .text import build_text
+
+if TYPE_CHECKING:
+    from telegram import Update
+    from telegram.ext import ContextTypes
 
 logger = logging.getLogger(__name__)
 

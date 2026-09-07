@@ -4,7 +4,7 @@ from pgvector.django import HnswIndex, VectorField
 
 
 class DocumentChunk(models.Model):
-    """Represents a chunk of text extracted from a DepotDocument, along with its embedding vector."""
+    """A chunk of text from a DepotDocument, with its embedding vector."""
 
     document = models.ForeignKey(
         "ai_service.DepotDocument",

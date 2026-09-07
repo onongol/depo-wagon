@@ -40,11 +40,6 @@ PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 
 AUTH_PASSWORD_VALIDATORS = []
 
-# MIDDLEWARE
-# ------------------------------------------------------------------------------
-MIDDLEWARE = [*MIDDLEWARE, AXES_MIDDLEWARE_PATH]
-assert MIDDLEWARE[-1] == AXES_MIDDLEWARE_PATH, "AxesMiddleware must be last"
-
 # STATIC
 # ------------------------------------------------------------------------------
 STATICFILES_DIRS = []

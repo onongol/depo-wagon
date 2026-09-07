@@ -20,11 +20,10 @@ def process_document_task(self, document_id: int) -> None:
     try:
         process_document(document_id)
     except Exception as exc:
-        logger.error(
-            "Task failed for document %s (attempt %d/%d): %s",
+        logger.exception(
+            "Task failed for document %s (attempt %d/%d)",
             document_id,
             self.request.retries + 1,
             self.max_retries + 1,
-            exc,
         )
-        raise self.retry(exc=exc)
+        raise self.retry(exc=exc) from exc

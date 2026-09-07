@@ -20,7 +20,7 @@ VERDICT_CHOICES = [
     (DefectVerdict.DECOMMISSION, _("🔴 Decommission")),
 ]
 
-VERDICT_LABELS = {v: label for v, label in VERDICT_CHOICES}
+VERDICT_LABELS = dict(VERDICT_CHOICES)
 
 # Severity choices: (label, value) for user display and selection
 SEVERITY_CHOICES = [

@@ -14,7 +14,9 @@ from apps.ai_service.models import DepotDocument
 
 @admin.register(DepotDocument)
 class DepotDocumentAdmin(
-    ModelAdmin, DepotDocumentAdminMixinStatus, DepotDocumentAdminMixinChunksCount
+    DepotDocumentAdminMixinStatus,
+    DepotDocumentAdminMixinChunksCount,
+    ModelAdmin,
 ):
     list_display = ("title", "status_badge", "chunks_count", "created_at", "updated_at")
     list_filter = ("status",)
@@ -28,7 +30,7 @@ class DepotDocumentAdmin(
         return super().get_queryset(request).annotate(_chunks_count=Count("chunks"))
 
     def save_model(self, request, obj, form, change):
-        """When a document is created or its file is changed, reset status to PENDING and queue processing."""
+        """On create or file change, reset status to PENDING and queue processing."""
         from apps.ai_service.tasks import process_document_task
 
         old_file = (

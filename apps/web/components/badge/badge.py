@@ -1,4 +1,9 @@
+from typing import TYPE_CHECKING, NamedTuple
+
 from django_components import Component, register
+
+if TYPE_CHECKING:
+    from apps.core.models import Wagon
 
 _COLORS = {
     "emerald": "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400",
@@ -28,10 +33,14 @@ _WAGON_STATUS_COLORS = {
 class Badge(Component):
     template_name = "badge/badge.html"
 
-    def get_context_data(self, label: str, color: str = "gray", **kwargs):
+    class Kwargs(NamedTuple):
+        label: str
+        color: str = "gray"
+
+    def get_template_data(self, args, kwargs: Kwargs, slots, context):
         return {
-            "label": label,
-            "classes": _COLORS.get(color, _COLORS["gray"]),
+            "label": kwargs.label,
+            "classes": _COLORS.get(kwargs.color, _COLORS["gray"]),
         }
 
 
@@ -39,9 +48,12 @@ class Badge(Component):
 class WagonStatusBadge(Component):
     template_name = "badge/badge.html"
 
-    def get_context_data(self, wagon, **kwargs):
-        color = _WAGON_STATUS_COLORS.get(wagon.status, "gray")
+    class Kwargs(NamedTuple):
+        wagon: Wagon
+
+    def get_template_data(self, args, kwargs: Kwargs, slots, context):
+        color = _WAGON_STATUS_COLORS.get(kwargs.wagon.status, "gray")
         return {
-            "label": wagon.get_status_display(),
-            "classes": _COLORS.get(color, _COLORS["gray"]),
+            "label": kwargs.wagon.get_status_display(),
+            "classes": _COLORS[color],
         }

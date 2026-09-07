@@ -1,6 +1,6 @@
 import logging
+from typing import TYPE_CHECKING
 
-from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 from apps.bot.constants import UD_DEFECT
@@ -8,6 +8,9 @@ from apps.bot.handlers.employee import get_employee
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import WAGON_NUM
 from apps.bot.user_data import DefectData
+
+if TYPE_CHECKING:
+    from telegram import Update
 
 logger = logging.getLogger(__name__)
 

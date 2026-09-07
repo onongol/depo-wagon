@@ -1,3 +1,4 @@
+import contextlib
 import logging
 
 from django.core.management.base import BaseCommand
@@ -26,12 +27,10 @@ class Command(BaseCommand):
 
         app = create_application()
 
-        try:
+        with contextlib.suppress(KeyboardInterrupt):
             app.run_polling(
                 drop_pending_updates=options["drop_pending"],
                 allowed_updates=["message", "callback_query"],
             )
-        except KeyboardInterrupt:
-            pass
 
         self.stdout.write(self.style.WARNING("Bot stopped."))

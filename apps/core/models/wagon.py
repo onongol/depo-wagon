@@ -45,8 +45,8 @@ class Wagon(models.Model):
     repair_type = models.CharField(
         max_length=20,
         choices=RepairType.choices,
-        null=True,
         blank=True,
+        default="",
         verbose_name=_("Repair Type"),
     )
     notes = models.TextField(blank=True, verbose_name=_("Notes"))
@@ -54,6 +54,19 @@ class Wagon(models.Model):
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_("Updated At"))
 
     history = HistoricalRecords()
+
+    class Meta:
+        verbose_name = _("Wagon")
+        verbose_name_plural = _("Wagons")
+        ordering = ["number"]
+        indexes = [
+            models.Index(fields=["status", "wagon_type"]),
+            models.Index(fields=["status", "last_repair_date"]),
+            models.Index(fields=["status", "next_repair_date"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{_('Wagon')}: {self.number}"
 
     def save(self, *args, **kwargs) -> None:
         """Run full model validation before every save.
@@ -77,25 +90,18 @@ class Wagon(models.Model):
                 }
             )
 
-        if self.last_repair_date and self.next_repair_date:
-            if self.next_repair_date <= self.last_repair_date:
-                raise ValidationError(
-                    {
-                        "next_repair_date": _(
-                            "Next repair date must be later than the last repair date."
-                        )
-                    }
-                )
-
-    class Meta:
-        verbose_name = _("Wagon")
-        verbose_name_plural = _("Wagons")
-        ordering = ["number"]
-        indexes = [
-            models.Index(fields=["status", "wagon_type"]),
-            models.Index(fields=["status", "last_repair_date"]),
-            models.Index(fields=["status", "next_repair_date"]),
-        ]
+        if (
+            self.last_repair_date
+            and self.next_repair_date
+            and self.next_repair_date <= self.last_repair_date
+        ):
+            raise ValidationError(
+                {
+                    "next_repair_date": _(
+                        "Next repair date must be later than the last repair date."
+                    )
+                }
+            )
 
     @property
     def needs_repair_soon(self) -> bool:
@@ -104,6 +110,3 @@ class Wagon(models.Model):
             return False
         days = getattr(settings, "REPAIR_WARNING_DAYS", 30)
         return self.next_repair_date <= timezone.now().date() + timedelta(days=days)
-
-    def __str__(self) -> str:
-        return f"{_('Wagon')}: {self.number}"

@@ -17,5 +17,5 @@ def send_queued_email(self, payload: dict) -> None:
     try:
         deliver([deserialize_message(payload)])
     except Exception as exc:
-        logger.error("Queued mail to %s failed: %s", payload.get("to"), exc)
-        raise self.retry(exc=exc)
+        logger.exception("Queued mail to %s failed", payload.get("to"))
+        raise self.retry(exc=exc) from exc

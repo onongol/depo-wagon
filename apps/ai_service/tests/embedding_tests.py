@@ -6,7 +6,7 @@ from apps.ai_service.processing.embedding import BATCH_SIZE, embed_texts
 
 
 def _mock_client(responses_per_call):
-    """Build a mock genai client whose embed_content returns the given responses in order."""
+    """Mock genai client whose embed_content returns the responses in order."""
     mock_responses = []
     for emb_vectors in responses_per_call:
         resp = MagicMock()

@@ -1,3 +1,5 @@
+from typing import NamedTuple
+
 from django_components import Component, register
 
 
@@ -5,21 +7,20 @@ from django_components import Component, register
 class FilterSelect(Component):
     template_name = "filter_select/filter_select.html"
 
-    def get_context_data(
-        self,
-        name: str,
-        choices,
-        selected: str = "",
-        placeholder: str = "",
-        url: str = "",
-        target: str = "",
-        **kwargs,
-    ):
+    class Kwargs(NamedTuple):
+        name: str
+        choices: list[tuple[str, str]]
+        selected: str = ""
+        placeholder: str = ""
+        url: str = ""
+        target: str = ""
+
+    def get_template_data(self, args, kwargs: Kwargs, slots, context):
         return {
-            "name": name,
-            "choices": choices,
-            "selected": selected,
-            "placeholder": placeholder,
-            "url": url,
-            "target": target,
+            "name": kwargs.name,
+            "choices": kwargs.choices,
+            "selected": kwargs.selected,
+            "placeholder": kwargs.placeholder,
+            "url": kwargs.url,
+            "target": kwargs.target,
         }

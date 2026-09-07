@@ -1,8 +1,6 @@
 import html
 import logging
-
-from telegram import Update
-from telegram.ext import ContextTypes
+from typing import TYPE_CHECKING
 
 from apps.bot import services
 from apps.bot.constants import LinkStatus
@@ -10,6 +8,10 @@ from apps.bot.keyboards.common import link_confirm_keyboard
 from apps.bot.messages import BotMessages as M
 
 from .utils import show_welcome_menu
+
+if TYPE_CHECKING:
+    from telegram import Update
+    from telegram.ext import ContextTypes
 
 logger = logging.getLogger(__name__)
 

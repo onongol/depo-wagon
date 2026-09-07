@@ -1,5 +1,4 @@
-from telegram import Update
-from telegram.ext import ContextTypes
+from typing import TYPE_CHECKING
 
 from apps.bot.callbacks import DescSkipCB, MeasurementAddCB
 from apps.bot.constants import UD_DEFECT
@@ -8,6 +7,10 @@ from apps.bot.keyboards.defect import dimension_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DESC, MEASUREMENT_DIMENSION
 from apps.bot.user_data import DefectData, MeasurementEntry
+
+if TYPE_CHECKING:
+    from telegram import Update
+    from telegram.ext import ContextTypes
 
 
 async def handle_measurement_choice(

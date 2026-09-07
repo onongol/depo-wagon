@@ -1,11 +1,17 @@
+from typing import TYPE_CHECKING
+
+from django.contrib import admin
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
 from apps.ai_service.constants import DocumentStatus
-from apps.ai_service.models import DepotDocument, DocumentChunk
+
+if TYPE_CHECKING:
+    from apps.ai_service.models import DepotDocument, DocumentChunk
 
 
 class DepotDocumentAdminMixinStatus:
+    @admin.display(description=_("Status"))
     def status_badge(self, obj: DepotDocument) -> str:
         colors = {
             DocumentStatus.PENDING: "#6b7280",
@@ -20,19 +26,19 @@ class DepotDocumentAdminMixinStatus:
             obj.get_status_display(),
         )
 
-    status_badge.short_description = _("Status")
-
 
 class DepotDocumentAdminMixinChunksCount:
+    @admin.display(description=_("Chunks"), ordering="_chunks_count")
     def chunks_count(self, obj: DepotDocument) -> int:
-        return obj._chunks_count
+        return obj._chunks_count  # noqa: SLF001 — annotated in get_queryset
 
-    chunks_count.short_description = _("Chunks")
-    chunks_count.admin_order_field = "_chunks_count"
+
+_PREVIEW_CHARS = 120
 
 
 class DocumentChunkInlineMixin:
+    @admin.display(description=_("Content preview"))
     def content_preview(self, obj: DocumentChunk) -> str:
-        return obj.content[:120] + "…" if len(obj.content) > 120 else obj.content
-
-    content_preview.short_description = _("Content preview")
+        if len(obj.content) <= _PREVIEW_CHARS:
+            return obj.content
+        return obj.content[:_PREVIEW_CHARS] + "…"

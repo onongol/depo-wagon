@@ -1,7 +1,10 @@
-from telegram import Message
+from typing import TYPE_CHECKING
 
 from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.messages import BotMessages as M
+
+if TYPE_CHECKING:
+    from telegram import Message
 
 
 async def show_welcome_menu(message: Message, employee) -> None:

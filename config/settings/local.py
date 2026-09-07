@@ -12,14 +12,12 @@ DATABASES["default"]["CONN_MAX_AGE"] = 0
 # APPS
 # ------------------------------------------------------------------------------
 INSTALLED_APPS = [
+    # First, so its runserver shadows the one staticfiles installs.
     "whitenoise.runserver_nostatic",
     *INSTALLED_APPS,
     "debug_toolbar",
     "django_browser_reload",
 ]
-assert INSTALLED_APPS.index("whitenoise.runserver_nostatic") < INSTALLED_APPS.index(
-    "django.contrib.staticfiles"
-), "runserver_nostatic must precede staticfiles"
 
 # MIDDLEWARE
 # ------------------------------------------------------------------------------
@@ -27,9 +25,10 @@ MIDDLEWARE = [
     *MIDDLEWARE,
     "debug_toolbar.middleware.DebugToolbarMiddleware",
     "django_browser_reload.middleware.BrowserReloadMiddleware",
-    AXES_MIDDLEWARE_PATH,
 ]
-assert MIDDLEWARE[-1] == AXES_MIDDLEWARE_PATH, "AxesMiddleware must be last"
+if AXES_MIDDLEWARE_PATH in MIDDLEWARE:
+    MIDDLEWARE.remove(AXES_MIDDLEWARE_PATH)
+MIDDLEWARE.append(AXES_MIDDLEWARE_PATH)
 
 # MEDIA
 # ------------------------------------------------------------------------------
@@ -69,7 +68,8 @@ LOGGING["loggers"]["django.db.backends"]["level"] = "DEBUG"
 # ------------------------------------------------------------------------------
 # Account endpoints are outside the drf-spectacular schema; allauth ships its own.
 HEADLESS_SERVE_SPECIFICATION = True
-# Swagger over the default redoc: these endpoints are POST-only, so a console beats a listing.
+# Swagger over the default redoc: these endpoints are POST-only, so a
+# console beats a listing.
 HEADLESS_SPECIFICATION_TEMPLATE_NAME = "headless/spec/swagger_cdn.html"
 
 # django-debug-toolbar

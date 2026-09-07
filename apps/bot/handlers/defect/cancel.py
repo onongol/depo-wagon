@@ -1,8 +1,12 @@
-from telegram import Update
+from typing import TYPE_CHECKING
+
 from telegram.ext import ContextTypes, ConversationHandler
 
 from apps.bot.constants import DEFECT_USER_DATA_KEYS
 from apps.bot.messages import BotMessages as M
+
+if TYPE_CHECKING:
+    from telegram import Update
 
 
 async def cancel_defect(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:

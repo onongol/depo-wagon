@@ -23,24 +23,21 @@ for _name in (
     "GOOGLE_AI_KEY",
 ):
     if not env(_name, default=""):
-        raise ImproperlyConfigured(f"{_name} environment variable not set")
+        msg = f"{_name} environment variable not set"
+        raise ImproperlyConfigured(msg)
 
 # GENERAL
 # ------------------------------------------------------------------------------
 DEBUG = False
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", cast=str.strip, default=[])
 if not ALLOWED_HOSTS:
-    raise ImproperlyConfigured("ALLOWED_HOSTS environment variable not set")
+    msg = "ALLOWED_HOSTS environment variable not set"
+    raise ImproperlyConfigured(msg)
 
 # DATABASES
 # ------------------------------------------------------------------------------
 DATABASES["default"]["CONN_MAX_AGE"] = 60
 DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
-
-# MIDDLEWARE
-# ------------------------------------------------------------------------------
-MIDDLEWARE = [*MIDDLEWARE, AXES_MIDDLEWARE_PATH]
-assert MIDDLEWARE[-1] == AXES_MIDDLEWARE_PATH, "AxesMiddleware must be last"
 
 # TEMPLATES
 # ------------------------------------------------------------------------------
@@ -53,7 +50,8 @@ TEMPLATES[0]["OPTIONS"]["loaders"] = [
 # ------------------------------------------------------------------------------
 CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", cast=str.strip, default=[])
 if not CSRF_TRUSTED_ORIGINS:
-    raise ImproperlyConfigured("CSRF_TRUSTED_ORIGINS environment variable not set")
+    msg = "CSRF_TRUSTED_ORIGINS environment variable not set"
+    raise ImproperlyConfigured(msg)
 
 SECURE_PROXY_SSL_HEADER = (
     ("HTTP_X_FORWARDED_PROTO", "https")
@@ -63,7 +61,8 @@ SECURE_PROXY_SSL_HEADER = (
 
 SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=True)
 
-SECURE_HSTS_SECONDS = 60  # Set to 60 seconds first and then increase to 518400 (6 days) once confirmed working.
+# Start at 60s; raise to 518400 (6 days) once HSTS is confirmed working.
+SECURE_HSTS_SECONDS = 60
 SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool(
     "SECURE_HSTS_INCLUDE_SUBDOMAINS", default=True
 )

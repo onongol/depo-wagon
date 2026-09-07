@@ -103,7 +103,7 @@ class DefectSerializer(serializers.ModelSerializer):
         read_only_fields = ["created_at", "updated_at"]
 
     def validate(self, attrs):
-        """Validate node/department consistency and responsible_employee for human factor."""
+        """Check node/department consistency and the human-factor responsible."""
         department = attrs.get("department") or (
             self.instance.department if self.instance else ""
         )
@@ -120,13 +120,14 @@ class DefectSerializer(serializers.ModelSerializer):
         )
         responsible = attrs.get("responsible_employee")
 
-        if defect_type == DefectType.HUMAN_FACTOR and not responsible:
-            if not (self.instance and self.instance.responsible_employee_id):
-                raise serializers.ValidationError(
-                    {
-                        "responsible_employee": "Required when defect type is Human Factor."
-                    }
-                )
+        if (
+            defect_type == DefectType.HUMAN_FACTOR
+            and not responsible
+            and not (self.instance and self.instance.responsible_employee_id)
+        ):
+            raise serializers.ValidationError(
+                {"responsible_employee": "Required when defect type is Human Factor."}
+            )
 
         if responsible and department and responsible.department != department:
             raise serializers.ValidationError(

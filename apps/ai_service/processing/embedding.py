@@ -14,7 +14,7 @@ RETRYABLE_HTTP_CODES = {429, 503, 504}
 def embed_texts(
     texts: list[str], task_type: str = "RETRIEVAL_DOCUMENT"
 ) -> list[list[float]]:
-    """Embed a list of texts via gemini-embedding-2 (sync, with batching and retries)."""
+    """Embed texts via gemini-embedding-2: sync, batched, with retries."""
     client = get_genai_client()
 
     config = types.EmbedContentConfig(
@@ -28,7 +28,7 @@ def embed_texts(
         contents = [
             types.Content(parts=[types.Part.from_text(text=text)]) for text in batch
         ]
-        for attempt, delay in enumerate([0] + RETRY_DELAYS):
+        for attempt, delay in enumerate([0, *RETRY_DELAYS]):
             if delay:
                 time.sleep(delay)
             try:

@@ -1,14 +1,20 @@
 import asyncio
+import contextlib
 import logging
+from http import HTTPStatus
+from typing import TYPE_CHECKING
 
 from google.genai.errors import ServerError
-from telegram import Update
-from telegram.ext import ContextTypes
+from telegram.error import TelegramError
 
 from apps.ai_service.rag.chat import ContentBlockedError, answer_question
 from apps.bot.constants import UD_AI_CHAT_HISTORY
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import AI_CHAT
+
+if TYPE_CHECKING:
+    from telegram import Update
+    from telegram.ext import ContextTypes
 
 logger = logging.getLogger(__name__)
 
@@ -19,19 +25,17 @@ _LOCK_KEY = "_ai_chat_lock"
 
 
 async def _safe_edit(msg, text: str) -> None:
-    try:
+    with contextlib.suppress(TelegramError):
         await msg.edit_text(text)
-    except Exception:
-        pass
 
 
 async def ai_chat_receive(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Receive a user question, call the RAG-based answer generator, and reply with the answer."""
+    """Answer a user question through the RAG generator and reply with it."""
     question = update.message.text.strip()
 
     try:
         thinking_msg = await update.message.reply_text(str(M.AI_CHAT_THINKING))
-    except Exception:
+    except TelegramError:
         logger.warning(
             "Could not send thinking message for user %s", update.effective_user.id
         )
@@ -47,7 +51,7 @@ async def ai_chat_receive(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             answer = await asyncio.wait_for(
                 answer_question(question, history), timeout=_ANSWER_TIMEOUT
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning(
                 "AI chat timed out after %.0fs for user %s",
                 _ANSWER_TIMEOUT,
@@ -59,7 +63,7 @@ async def ai_chat_receive(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             await _safe_edit(thinking_msg, str(M.AI_CHAT_BLOCKED))
             return AI_CHAT
         except ServerError as e:
-            if e.code == 503:
+            if e.code == HTTPStatus.SERVICE_UNAVAILABLE:
                 logger.warning(
                     "AI chat 503 overloaded for user %s", update.effective_user.id
                 )

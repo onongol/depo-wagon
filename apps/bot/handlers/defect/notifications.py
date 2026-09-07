@@ -1,12 +1,17 @@
 import asyncio
 import html
 import logging
+from typing import TYPE_CHECKING
 
-from telegram.ext import ContextTypes
+from telegram.error import TelegramError
 
 from apps.bot import services
 from apps.bot.messages import BotMessages as M
-from apps.bot.user_data import DefectData
+
+if TYPE_CHECKING:
+    from telegram.ext import ContextTypes
+
+    from apps.bot.user_data import DefectData
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +40,7 @@ async def notify_decommission(
                 text=text,
                 parse_mode=M.PARSE_MODE,
             )
-        except Exception as exc:
+        except TelegramError as exc:
             logger.warning(
                 "Failed to notify manager %s (tg=%s): %s",
                 manager.full_name,

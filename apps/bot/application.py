@@ -50,8 +50,8 @@ async def _post_init(app: Application) -> None:
 
 def create_application() -> _BotApplication:
     """Build the Telegram Application and register all handlers."""
-    from apps.bot.handlers.ai_chat import get_ai_chat_handler
     from apps.bot.callbacks import LinkCancelCB, LinkConfirmCB
+    from apps.bot.handlers.ai_chat import get_ai_chat_handler
     from apps.bot.handlers.common import (
         cancel,
         cancel_link,
@@ -71,7 +71,8 @@ def create_application() -> _BotApplication:
     app = (
         _BotApplication.builder()
         .token(settings.TELEGRAM_BOT_TOKEN)
-        .arbitrary_callback_data(True)
+        # Keyboards held in memory; older ones fall through to stale_button.
+        .arbitrary_callback_data(1024)
         .post_init(_post_init)
         .build()
     )

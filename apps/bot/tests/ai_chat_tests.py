@@ -2,6 +2,7 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from google.genai.errors import ServerError
+from telegram.error import NetworkError
 from telegram.ext import ConversationHandler
 
 from apps.bot.constants import UD_AI_CHAT_HISTORY
@@ -110,7 +111,7 @@ class TestAiChatStart:
         mock_update.message.reply_text.assert_not_called()
 
     async def test_greeting_send_failure_returns_end(self, mock_update, mock_context):
-        mock_update.message.reply_text = AsyncMock(side_effect=RuntimeError("network"))
+        mock_update.message.reply_text = AsyncMock(side_effect=NetworkError("network"))
         with patch(
             "apps.bot.handlers.ai_chat.start.get_employee",
             AsyncMock(return_value=_make_employee()),
@@ -122,7 +123,7 @@ class TestAiChatStart:
     async def test_unauthenticated_reply_failure_still_returns_end(
         self, mock_update, mock_context
     ):
-        mock_update.message.reply_text = AsyncMock(side_effect=RuntimeError("network"))
+        mock_update.message.reply_text = AsyncMock(side_effect=NetworkError("network"))
         with patch(
             "apps.bot.handlers.ai_chat.start.get_employee",
             AsyncMock(return_value=None),
@@ -326,7 +327,7 @@ class TestAiChatReceive:
 
     async def test_thinking_send_failure_returns_ai_chat(self, mock_context):
         update, _ = self._make_update()
-        update.message.reply_text = AsyncMock(side_effect=RuntimeError("network"))
+        update.message.reply_text = AsyncMock(side_effect=NetworkError("network"))
 
         with patch(
             "apps.bot.handlers.ai_chat.receive.answer_question",
@@ -338,7 +339,7 @@ class TestAiChatReceive:
 
     async def test_thinking_send_failure_skips_answer_question(self, mock_context):
         update, _ = self._make_update()
-        update.message.reply_text = AsyncMock(side_effect=RuntimeError("network"))
+        update.message.reply_text = AsyncMock(side_effect=NetworkError("network"))
         answer_mock = AsyncMock(return_value="ok")
 
         with patch("apps.bot.handlers.ai_chat.receive.answer_question", answer_mock):

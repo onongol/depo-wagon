@@ -1,6 +1,9 @@
-from typing import Callable, Iterable
+from typing import TYPE_CHECKING
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
 
 
 def build_grid_keyboard(

@@ -1,5 +1,4 @@
 import uuid
-
 from decimal import Decimal
 
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -122,10 +121,12 @@ class Defect(models.Model):
             models.Index(fields=["inspected_at"]),
         ]
 
+    def __str__(self) -> str:
+        node = self.get_node_display()
+        defect_type = self.get_defect_type_display()
+        wagon_number = self.wagon.number if self.wagon_id else "—"
+        return f"{node} — {defect_type} (Wagon: {wagon_number})"
+
     @property
     def is_repaired(self) -> bool:
         return self.status == DefectStatus.CLOSED
-
-    def __str__(self) -> str:
-        wagon_number = self.wagon.number if self.wagon_id else "—"
-        return f"{self.get_node_display()} — {self.get_defect_type_display()} (Wagon: {wagon_number})"
