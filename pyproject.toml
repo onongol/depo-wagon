@@ -1,7 +1,6 @@
 [tool.ruff]
 line-length = 88
 target-version = "py314"
-required-version = "==0.16.3"
 extend-exclude = ["*/migrations/*", "static/*", "staticfiles/*"]
 
 [tool.ruff.lint]
