@@ -1,17 +1,15 @@
 [tool.ruff]
 line-length = 88
 target-version = "py314"
-extend-exclude = ["*/migrations/*.py", "static/*", "staticfiles/*", ".venv/*"]
+required-version = "==0.16.3"
+extend-exclude = ["*/migrations/*", "static/*", "staticfiles/*"]
 
 [tool.ruff.lint]
-# Preview rules are on. They can appear and change between Ruff releases, so a
-# version bump is expected to need a pass over this block.
-preview = true
 select = [
   "A", "ASYNC", "B", "BLE", "C4", "C90", "COM", "DJ", "DTZ", "E", "EM",
   "ERA", "EXE", "F", "FA", "FBT", "FLY", "G", "I", "ICN", "INP", "INT",
-  "ISC", "N", "PD", "PERF", "PGH", "PIE", "PL", "PT", "PTH", "PYI", "Q",
-  "RET", "RSE", "RUF", "S", "SIM", "SLF", "SLOT", "T10", "T20", "TC",
+  "ISC", "LOG", "N", "PD", "PERF", "PGH", "PIE", "PL", "PT", "PTH", "PYI",
+  "Q", "RET", "RSE", "RUF", "S", "SIM", "SLF", "SLOT", "T10", "T20", "TC",
   "TID", "TRY", "UP", "W", "YTT",
 ]
 ignore = [
@@ -19,20 +17,15 @@ ignore = [
   # list_display, fields, allowed_roles and the like. ClassVar would be wrong
   # about 98 times here.
   "RUF012",
-  # Ruff warns on every run that COM812 conflicts with the formatter.
-  "COM812",
-  # Comments and UI text are Russian and Mongolian; Ruff reads Cyrillic as
-  # lookalike Latin.
+  "COM812",  # missing-trailing-comma — Ruff warns about this one on every run
+  "COM819",  # prohibited-trailing-comma
+  "ISC001",  # single-line-implicit-string-concatenation
+  "ISC002",  # multi-line-implicit-string-concatenation
+  "Q000", "Q001", "Q002", "Q003", "Q004",  # quote style
+  "W191",  # tab-indentation
   "RUF001",  # String contains ambiguous unicode character
   "RUF002",  # Docstring contains ambiguous unicode character
   "RUF003",  # Comment contains ambiguous unicode character
-  # Django, DRF and PTB dispatch on methods: get_queryset, save_model, validate_*
-  # and the handlers all take self by contract, so "could be a function" is wrong
-  # roughly 640 times here.
-  "PLR6301",
-  # Ruff calls this one opinionated itself and says to disable it if you prefer
-  # `noqa`. We do — `noqa` is what every other Python tool understands.
-  "RUF105",
 
   # --- Pre-existing debt. What is left is the one line that never had a
   # mechanical fix: every import has to be classified as breaking a real
@@ -42,10 +35,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.pycodestyle]
-# The formatter wraps code at line-length; what it leaves over is string
-# content — docstrings, translated messages, LLM prompts — which it will not
-# split because that would change what the string says. E501 gets a wider
-# limit of its own so it still catches a genuinely runaway line.
+# Wider than line-length: the formatter cannot split string content.
 max-line-length = 100
 
 [tool.ruff.lint.flake8-type-checking]
@@ -74,8 +64,6 @@ known-first-party = ["apps", "config"]
 "apps/web/components/*" = ["INP001"]
 
 [tool.djlint]
-# Lint only. Formatting is Prettier's: djlint --reformat and Prettier rewrite
-# each other's output forever, so the formatter options are deliberately absent.
 profile = "django"
 extension = "html"
 # django-components' tags are block tags; without this djlint reports every
