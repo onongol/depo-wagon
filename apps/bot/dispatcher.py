@@ -62,11 +62,13 @@ def _routers() -> list:
         get_start_router,
         get_utility_router,
     )
+    from apps.bot.handlers.support.router import get_support_router
     from apps.bot.handlers.tasks.router import get_tasks_router
 
     return [
         get_start_router(),
         get_tasks_router(),
+        get_support_router(),
         get_utility_router(),
         get_stale_router(),
     ]

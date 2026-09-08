@@ -1,42 +1,35 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from django.test import override_settings
-from telegram.ext import ConversationHandler
 
 from apps.bot.handlers.support import admin_handlers, user_handlers
 from apps.bot.handlers.support.utils import support_chat_id
 from apps.bot.messages import BotMessages as M
-from apps.bot.states import SUPPORT_MESSAGE
+from apps.bot.states import SupportSG
+from apps.bot.tests.builders import make_message
 
 
-def _make_context():
-    context = MagicMock()
-    context.user_data = {}
-    context.bot = AsyncMock()
-    return context
-
-
-def _make_user_update(text="My printer is broken"):
+def _make_user_message(text="My printer is broken"):
     """A private message from a user starting/continuing the /support flow."""
-    update = MagicMock()
-    update.message.text = text
-    update.message.reply_text = AsyncMock()
-    update.effective_user.id = 12345
-    update.effective_user.username = "basbish"
-    update.effective_user.full_name = "Bat Basbish"
-    update.effective_user.first_name = "Basbish"
-    return update
+    message = make_message(text)
+    message.from_user.id = 12345
+    message.from_user.username = "basbish"
+    message.from_user.full_name = "Bat Basbish"
+    message.from_user.first_name = "Basbish"
+    return message
 
 
 def _make_group_reply(text="Your wagon is fixed", reply_to_id=100):
     """A reply inside the support group to a relayed request message."""
-    update = MagicMock()
-    update.message.text = text
-    update.message.message_id = 555
-    update.message.chat_id = -1001234567890
-    update.message.reply_text = AsyncMock()
-    update.message.reply_to_message.message_id = reply_to_id
-    return update
+    message = make_message(text)
+    message.message_id = 555
+    message.chat.id = -1001234567890
+    message.reply_to_message.message_id = reply_to_id
+    return message
+
+
+def _make_bot():
+    return MagicMock(send_message=AsyncMock(), copy_message=AsyncMock())
 
 
 class TestSupportChatId:
@@ -55,132 +48,149 @@ class TestSupportChatId:
 
 class TestSupportReply:
     async def test_ignores_when_not_a_reply(self):
-        update = MagicMock()
-        update.message.reply_to_message = None
-        context = _make_context()
+        message = make_message()
+        message.reply_to_message = None
+        bot = _make_bot()
 
         with patch.object(admin_handlers, "lookup_request", AsyncMock()) as lookup:
-            await admin_handlers.support_reply(update, context)
+            await admin_handlers.support_reply(message, bot)
 
         lookup.assert_not_awaited()
-        context.bot.send_message.assert_not_awaited()
+        bot.send_message.assert_not_awaited()
 
     async def test_ignores_when_mapping_missing(self):
-        update = _make_group_reply()
-        context = _make_context()
+        message = _make_group_reply()
+        bot = _make_bot()
 
         with patch.object(
             admin_handlers, "lookup_request", AsyncMock(return_value=None)
         ):
-            await admin_handlers.support_reply(update, context)
+            await admin_handlers.support_reply(message, bot)
 
-        context.bot.send_message.assert_not_awaited()
-        context.bot.copy_message.assert_not_awaited()
+        bot.send_message.assert_not_awaited()
+        bot.copy_message.assert_not_awaited()
 
     async def test_text_reply_delivered_to_user(self):
-        update = _make_group_reply("Your wagon is fixed")
-        context = _make_context()
+        message = _make_group_reply("Your wagon is fixed")
+        bot = _make_bot()
 
         with patch.object(
             admin_handlers, "lookup_request", AsyncMock(return_value=777)
         ):
-            await admin_handlers.support_reply(update, context)
+            await admin_handlers.support_reply(message, bot)
 
-        context.bot.send_message.assert_awaited_once()
-        assert context.bot.send_message.call_args.kwargs["chat_id"] == 777
-        context.bot.copy_message.assert_not_awaited()
-        update.message.reply_text.assert_awaited_once_with(
-            str(M.SUPPORT_REPLY_DELIVERED)
-        )
+        bot.send_message.assert_awaited_once()
+        assert bot.send_message.call_args.kwargs["chat_id"] == 777
+        bot.copy_message.assert_not_awaited()
+        message.reply.assert_awaited_once_with(str(M.SUPPORT_REPLY_DELIVERED))
 
     async def test_media_reply_uses_copy_message(self):
-        update = _make_group_reply(text=None)  # non-text (photo / sticker / voice)
-        context = _make_context()
+        message = _make_group_reply(text=None)  # non-text (photo / sticker / voice)
+        bot = _make_bot()
 
         with patch.object(
             admin_handlers, "lookup_request", AsyncMock(return_value=777)
         ):
-            await admin_handlers.support_reply(update, context)
+            await admin_handlers.support_reply(message, bot)
 
         # header sent + original content copied to the user
-        context.bot.send_message.assert_awaited_once()
-        context.bot.copy_message.assert_awaited_once()
-        assert context.bot.copy_message.call_args.kwargs["chat_id"] == 777
-        update.message.reply_text.assert_awaited_once_with(
-            str(M.SUPPORT_REPLY_DELIVERED)
-        )
+        bot.send_message.assert_awaited_once()
+        bot.copy_message.assert_awaited_once()
+        assert bot.copy_message.call_args.kwargs["chat_id"] == 777
+        message.reply.assert_awaited_once_with(str(M.SUPPORT_REPLY_DELIVERED))
 
     async def test_delivery_failure_notifies_support(self):
-        update = _make_group_reply("answer")
-        context = _make_context()
-        context.bot.send_message = AsyncMock(side_effect=Exception("blocked"))
+        message = _make_group_reply("answer")
+        bot = _make_bot()
+        bot.send_message = AsyncMock(side_effect=Exception("blocked"))
 
         with patch.object(
             admin_handlers, "lookup_request", AsyncMock(return_value=777)
         ):
-            await admin_handlers.support_reply(update, context)
+            await admin_handlers.support_reply(message, bot)
 
-        update.message.reply_text.assert_awaited_once_with(str(M.SUPPORT_REPLY_FAILED))
+        message.reply.assert_awaited_once_with(str(M.SUPPORT_REPLY_FAILED))
 
 
 class TestSupportStart:
-    async def test_unavailable_when_not_configured(self):
-        update = _make_user_update()
-        context = _make_context()
+    async def test_unavailable_when_not_configured(self, state):
+        message = _make_user_message()
 
         with patch.object(user_handlers, "support_chat_id", return_value=None):
-            result = await user_handlers.support_start(update, context)
+            await user_handlers.support_start(message, state)
 
-        assert result == ConversationHandler.END
-        update.message.reply_text.assert_awaited_once_with(
+        assert await state.get_state() is None
+        message.answer.assert_awaited_once_with(
             str(M.SUPPORT_UNAVAILABLE), parse_mode=M.PARSE_MODE
         )
 
-    async def test_asks_question_when_configured(self):
-        update = _make_user_update()
-        context = _make_context()
+    async def test_asks_question_when_configured(self, state):
+        message = _make_user_message()
 
         with patch.object(user_handlers, "support_chat_id", return_value=-100):
-            result = await user_handlers.support_start(update, context)
+            await user_handlers.support_start(message, state)
 
-        assert result == SUPPORT_MESSAGE
-        update.message.reply_text.assert_awaited_once_with(
+        assert await state.get_state() == SupportSG.message.state
+        message.answer.assert_awaited_once_with(
             str(M.SUPPORT_ASK), parse_mode=M.PARSE_MODE
         )
 
 
 class TestSupportReceive:
-    async def test_relays_and_stores_mapping(self):
-        update = _make_user_update("Printer broken")
-        context = _make_context()
+    async def test_relays_and_stores_mapping(self, state):
+        message = _make_user_message("Printer broken")
+        bot = _make_bot()
         sent = MagicMock()
         sent.message_id = 999
-        context.bot.send_message = AsyncMock(return_value=sent)
+        bot.send_message = AsyncMock(return_value=sent)
 
         with (
             patch.object(user_handlers, "support_chat_id", return_value=-100),
             patch.object(user_handlers, "get_employee", AsyncMock(return_value=None)),
             patch.object(user_handlers, "remember_request", AsyncMock()) as remember,
         ):
-            result = await user_handlers.support_receive(update, context)
+            await user_handlers.support_receive(message, state, bot)
 
-        assert result == ConversationHandler.END
+        assert await state.get_state() is None
         # relayed to the support chat
-        context.bot.send_message.assert_awaited_once()
-        assert context.bot.send_message.call_args.kwargs["chat_id"] == -100
+        bot.send_message.assert_awaited_once()
+        assert bot.send_message.call_args.kwargs["chat_id"] == -100
         # mapping stored: (relayed group message_id, asking user id)
         remember.assert_awaited_once_with(999, 12345)
         # user gets the confirmation
-        update.message.reply_text.assert_awaited_once_with(str(M.SUPPORT_SENT))
+        message.answer.assert_awaited_once_with(str(M.SUPPORT_SENT))
 
-    async def test_unavailable_when_not_configured(self):
-        update = _make_user_update()
-        context = _make_context()
+    async def test_unavailable_when_not_configured(self, state):
+        message = _make_user_message()
+        bot = _make_bot()
 
         with patch.object(user_handlers, "support_chat_id", return_value=None):
-            result = await user_handlers.support_receive(update, context)
+            await user_handlers.support_receive(message, state, bot)
 
-        assert result == ConversationHandler.END
-        update.message.reply_text.assert_awaited_once_with(
+        assert await state.get_state() is None
+        message.answer.assert_awaited_once_with(
             str(M.SUPPORT_UNAVAILABLE), parse_mode=M.PARSE_MODE
         )
+
+
+class TestSupportRouter:
+    """The reply half needs a concrete chat id to filter on."""
+
+    def test_registers_the_reply_handler_when_a_chat_is_configured(self):
+        from apps.bot.handlers.support.router import get_support_router
+
+        with override_settings(TELEGRAM_SUPPORT_CHAT_ID="-1001234567890"):
+            router = get_support_router()
+
+        callbacks = [h.callback.__name__ for h in router.message.handlers]
+        assert "support_reply" in callbacks
+
+    def test_omits_the_reply_handler_when_no_chat_is_configured(self):
+        from apps.bot.handlers.support.router import get_support_router
+
+        with override_settings(TELEGRAM_SUPPORT_CHAT_ID=""):
+            router = get_support_router()
+
+        callbacks = [h.callback.__name__ for h in router.message.handlers]
+        assert "support_reply" not in callbacks
+        assert "support_start" in callbacks

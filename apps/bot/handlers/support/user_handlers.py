@@ -4,46 +4,43 @@ import html
 import logging
 from typing import TYPE_CHECKING
 
-from telegram.ext import ContextTypes, ConversationHandler
-
 from apps.bot.handlers.employee import get_employee
 from apps.bot.messages import BotMessages as M
-from apps.bot.states import SUPPORT_MESSAGE
+from apps.bot.states import SupportSG
 
 from .utils import remember_request, support_chat_id
 
 if TYPE_CHECKING:
-    from telegram import Update
+    from aiogram import Bot
+    from aiogram.fsm.context import FSMContext
+    from aiogram.types import Message
 
 logger = logging.getLogger(__name__)
 
 
-async def support_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def support_start(message: Message, state: FSMContext) -> None:
     """Entry: /support — ask the user to type their question."""
     if support_chat_id() is None:
-        await update.message.reply_text(
-            str(M.SUPPORT_UNAVAILABLE), parse_mode=M.PARSE_MODE
-        )
-        return ConversationHandler.END
+        await message.answer(str(M.SUPPORT_UNAVAILABLE), parse_mode=M.PARSE_MODE)
+        return
 
-    await update.message.reply_text(str(M.SUPPORT_ASK), parse_mode=M.PARSE_MODE)
-    return SUPPORT_MESSAGE
+    await message.answer(str(M.SUPPORT_ASK), parse_mode=M.PARSE_MODE)
+    await state.set_state(SupportSG.message)
 
 
-async def support_receive(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def support_receive(message: Message, state: FSMContext, bot: Bot) -> None:
     """Relay the user's question to the support chat with their identity."""
     chat_id = support_chat_id()
     if chat_id is None:
-        await update.message.reply_text(
-            str(M.SUPPORT_UNAVAILABLE), parse_mode=M.PARSE_MODE
-        )
-        return ConversationHandler.END
+        await message.answer(str(M.SUPPORT_UNAVAILABLE), parse_mode=M.PARSE_MODE)
+        await state.set_state(None)
+        return
 
-    question = update.message.text.strip()
-    user = update.effective_user
+    question = message.text.strip()
+    user = message.from_user
 
     try:
-        employee = await get_employee(update.effective_user.id)
+        employee = await get_employee(user.id)
     except Exception:
         logger.exception("Failed to resolve employee for support request")
         employee = None
@@ -63,19 +60,16 @@ async def support_receive(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     )
 
     try:
-        sent = await context.bot.send_message(
-            chat_id=chat_id,
-            text=text,
-            parse_mode=M.PARSE_MODE,
+        sent = await bot.send_message(
+            chat_id=chat_id, text=text, parse_mode=M.PARSE_MODE
         )
     except Exception:
         logger.exception("Failed to relay support request from %s", user.id)
-        await update.message.reply_text(
-            str(M.SUPPORT_UNAVAILABLE), parse_mode=M.PARSE_MODE
-        )
-        return ConversationHandler.END
+        await message.answer(str(M.SUPPORT_UNAVAILABLE), parse_mode=M.PARSE_MODE)
+        await state.set_state(None)
+        return
 
     await remember_request(sent.message_id, user.id)
 
-    await update.message.reply_text(str(M.SUPPORT_SENT))
-    return ConversationHandler.END
+    await message.answer(str(M.SUPPORT_SENT))
+    await state.set_state(None)
