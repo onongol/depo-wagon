@@ -2,60 +2,37 @@ import logging
 from typing import TYPE_CHECKING
 
 from apps.bot import services
-from apps.bot.constants import PAGE_SIZE
 from apps.bot.handlers.employee import get_employee
-from apps.bot.keyboards.tasks import status_picker_keyboard, tasks_keyboard
-from apps.bot.messages import BotMessages as M
+from apps.bot.keyboards.tasks import status_picker_keyboard
 
-from .text import build_text
+from .list import render_page
 
 if TYPE_CHECKING:
-    from telegram import Update
-    from telegram.ext import ContextTypes
+    from aiogram.types import CallbackQuery
+
+    from apps.bot.callback_data import StatusPickCB, StatusSetCB
 
 logger = logging.getLogger(__name__)
 
 
 async def show_status_picker(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
+    callback: CallbackQuery, callback_data: StatusPickCB
 ) -> None:
     """Replace keyboard with status options for a specific defect."""
-    query = update.callback_query
-    await query.answer()
+    await callback.answer()
 
-    await query.edit_message_reply_markup(
-        reply_markup=status_picker_keyboard(query.data.defect_id, query.data.page)
+    await callback.message.edit_reply_markup(
+        reply_markup=status_picker_keyboard(callback_data.defect_id, callback_data.page)
     )
 
 
-async def set_defect_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def set_defect_status(
+    callback: CallbackQuery, callback_data: StatusSetCB
+) -> None:
     """Save new status and refresh the defect list."""
-    query = update.callback_query
-    await query.answer()
+    await callback.answer()
 
-    defect_id = query.data.defect_id
-    status = query.data.status
-    page = query.data.page
+    await services.update_defect_status(callback_data.defect_id, callback_data.status)
 
-    await services.update_defect_status(defect_id, status)
-
-    employee = await get_employee(update.effective_user.id)
-    employee_id = employee.id if employee else None
-    offset = page * PAGE_SIZE
-    total = await services.get_open_defects_count(employee_id=employee_id)
-    defects = await services.get_open_defects(
-        limit=PAGE_SIZE, offset=offset, employee_id=employee_id
-    )
-
-    if not defects:
-        await query.edit_message_text(
-            str(M.NO_TASKS),
-            parse_mode=M.PARSE_MODE,
-        )
-        return
-
-    await query.edit_message_text(
-        build_text(defects, page, total),
-        parse_mode=M.PARSE_MODE,
-        reply_markup=tasks_keyboard(defects, page, total),
-    )
+    employee = await get_employee(callback.from_user.id)
+    await render_page(callback.message.edit_text, employee, page=callback_data.page)

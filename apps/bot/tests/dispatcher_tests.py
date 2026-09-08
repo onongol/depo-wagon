@@ -32,7 +32,13 @@ class TestRouterOrder:
         """The Help button inside a flow must reach that flow, not help_command."""
         names = [r.name for r in dispatcher.sub_routers]
 
-        assert names.index("utility") > names.index("start")
+        assert names.index("utility") > names.index("tasks")
+
+    def test_tasks_comes_after_start(self, dispatcher):
+        """/start mid-list is answered by start, leaving the list on screen."""
+        names = [r.name for r in dispatcher.sub_routers]
+
+        assert names.index("tasks") > names.index("start")
 
     def test_stale_goes_last(self, dispatcher):
         """Anything registered after it would never be reached."""

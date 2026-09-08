@@ -10,35 +10,26 @@ from apps.bot.messages import BotMessages as M
 from .text import build_text
 
 if TYPE_CHECKING:
-    from telegram import Update
-    from telegram.ext import ContextTypes
+    from collections.abc import Awaitable, Callable
+
+    from aiogram.types import CallbackQuery, Message
+
+    from apps.bot.callback_data import TasksPageCB
 
 logger = logging.getLogger(__name__)
 
 
-async def my_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Show paginated list of open defects for the current employee."""
-    employee = await get_employee(update.effective_user.id)
+async def render_page(send: Callable[..., Awaitable], employee, page: int) -> None:
+    """Fetch one page of open defects and hand it to send.
 
-    if update.callback_query:
-        query = update.callback_query
-        await query.answer()
-        page = query.data.page
-        send = query.edit_message_text
-    else:
-        if not employee:
-            await update.message.reply_text(
-                str(M.NOT_REGISTERED), parse_mode=M.PARSE_MODE
-            )
-            return
-        page = 0
-        send = update.message.reply_text
-
+    send is either Message.answer or Message.edit_text — the list is a fresh
+    message when it comes from a command and an edit when it comes from a page
+    button, which is what PTB did by switching on update.callback_query.
+    """
     employee_id = employee.id if employee else None
-    offset = page * PAGE_SIZE
     total = await services.get_open_defects_count(employee_id=employee_id)
     defects = await services.get_open_defects(
-        limit=PAGE_SIZE, offset=offset, employee_id=employee_id
+        limit=PAGE_SIZE, offset=page * PAGE_SIZE, employee_id=employee_id
     )
 
     if not defects:
@@ -50,3 +41,26 @@ async def my_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         parse_mode=M.PARSE_MODE,
         reply_markup=tasks_keyboard(defects, page, total),
     )
+
+
+async def my_tasks(message: Message) -> None:
+    """Show the first page of open defects."""
+    employee = await get_employee(message.from_user.id)
+
+    if not employee:
+        await message.answer(str(M.NOT_REGISTERED), parse_mode=M.PARSE_MODE)
+        return
+
+    await render_page(message.answer, employee, page=0)
+
+
+async def my_tasks_page(callback: CallbackQuery, callback_data: TasksPageCB) -> None:
+    """Turn to another page of the list.
+
+    No unregistered guard, matching PTB: reaching this needs a keyboard that
+    was rendered for a registered employee in the first place.
+    """
+    await callback.answer()
+
+    employee = await get_employee(callback.from_user.id)
+    await render_page(callback.message.edit_text, employee, page=callback_data.page)

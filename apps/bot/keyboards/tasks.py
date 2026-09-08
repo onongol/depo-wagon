@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-from apps.bot.callbacks import StatusPickCB, StatusSetCB, TasksPageCB
+from apps.bot.callback_data import StatusPickCB, StatusSetCB, TasksPageCB
 from apps.bot.constants import (
     BTN_BACK,
     BTN_NEXT,
@@ -20,8 +20,8 @@ def tasks_keyboard(defects: list, page: int, total: int) -> InlineKeyboardMarkup
     buttons = [
         [
             InlineKeyboardButton(
-                f"🔄 {defect.wagon.number} — {defect.get_node_display()}",
-                callback_data=StatusPickCB(defect_id=defect.id, page=page),
+                text=f"🔄 {defect.wagon.number} — {defect.get_node_display()}",
+                callback_data=StatusPickCB(defect_id=defect.id, page=page).pack(),
             )
         ]
         for defect in defects
@@ -31,19 +31,19 @@ def tasks_keyboard(defects: list, page: int, total: int) -> InlineKeyboardMarkup
     if page > 0:
         nav.append(
             InlineKeyboardButton(
-                str(BTN_PREV), callback_data=TasksPageCB(page=page - 1)
+                text=str(BTN_PREV), callback_data=TasksPageCB(page=page - 1).pack()
             )
         )
     if (page + 1) * PAGE_SIZE < total:
         nav.append(
             InlineKeyboardButton(
-                str(BTN_NEXT), callback_data=TasksPageCB(page=page + 1)
+                text=str(BTN_NEXT), callback_data=TasksPageCB(page=page + 1).pack()
             )
         )
     if nav:
         buttons.append(nav)
 
-    return InlineKeyboardMarkup(buttons)
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
 def status_picker_keyboard(defect_id: uuid.UUID, page: int) -> InlineKeyboardMarkup:
@@ -51,15 +51,21 @@ def status_picker_keyboard(defect_id: uuid.UUID, page: int) -> InlineKeyboardMar
     buttons = [
         [
             InlineKeyboardButton(
-                str(label),
-                callback_data=StatusSetCB(defect_id=defect_id, status=value, page=page),
+                text=str(label),
+                callback_data=StatusSetCB(
+                    defect_id=defect_id, status=value, page=page
+                ).pack(),
             )
         ]
         for label, value in STATUS_OPTIONS
     ]
 
     buttons.append(
-        [InlineKeyboardButton(str(BTN_BACK), callback_data=TasksPageCB(page=page))]
+        [
+            InlineKeyboardButton(
+                text=str(BTN_BACK), callback_data=TasksPageCB(page=page).pack()
+            )
+        ]
     )
 
-    return InlineKeyboardMarkup(buttons)
+    return InlineKeyboardMarkup(inline_keyboard=buttons)

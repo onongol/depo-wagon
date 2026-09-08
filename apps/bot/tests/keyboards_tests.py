@@ -2,17 +2,13 @@ import uuid
 from unittest.mock import MagicMock
 
 import pytest
-from aiogram.types import ReplyKeyboardMarkup
+from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
 
-# The defect and tasks keyboards are still PTB until their routers convert.
-from telegram import InlineKeyboardMarkup
+# The defect keyboards are still PTB until that router converts.
+from telegram import InlineKeyboardMarkup as PtbInlineKeyboardMarkup
 
-from apps.bot.callbacks import (
-    DepartmentCB,
-    ResponsibleEmployeeCB,
-    StatusPickCB,
-    StatusSetCB,
-)
+from apps.bot.callback_data import StatusPickCB, StatusSetCB
+from apps.bot.callbacks import DepartmentCB, ResponsibleEmployeeCB
 from apps.bot.constants import (
     BTN_HELP,
     BTN_NEW_DEFECT,
@@ -138,7 +134,7 @@ class TestTasksKeyboard:
 
 class TestDepartmentKeyboard:
     def test_returns_inline_keyboard(self):
-        assert isinstance(department_keyboard(), InlineKeyboardMarkup)
+        assert isinstance(department_keyboard(), PtbInlineKeyboardMarkup)
 
     def test_all_departments_present(self):
         kb = department_keyboard()
@@ -218,13 +214,12 @@ class TestTaskCallbackDataCarriesUuid:
         kb = tasks_keyboard([defect], page=0, total=1)
 
         picks = [
-            btn.callback_data
+            StatusPickCB.unpack(btn.callback_data)
             for btn in _kb_buttons(kb)
-            if isinstance(btn.callback_data, StatusPickCB)
+            if btn.callback_data.startswith(StatusPickCB.__prefix__ + ":")
         ]
         assert len(picks) == 1
         assert picks[0].defect_id == defect.id
-        assert isinstance(picks[0].defect_id, uuid.UUID)
 
     def test_status_picker_passes_the_uuid_through(self):
         defect_id = uuid.uuid4()
@@ -232,12 +227,12 @@ class TestTaskCallbackDataCarriesUuid:
         kb = status_picker_keyboard(defect_id, page=0)
 
         sets = [
-            btn.callback_data
+            StatusSetCB.unpack(btn.callback_data)
             for btn in _kb_buttons(kb)
-            if isinstance(btn.callback_data, StatusSetCB)
+            if btn.callback_data.startswith(StatusSetCB.__prefix__ + ":")
         ]
         assert sets
-        assert all(isinstance(cb.defect_id, uuid.UUID) for cb in sets)
+        assert all(cb.defect_id == defect_id for cb in sets)
         assert {cb.status for cb in sets} == set(DefectStatus.values)
 
 
