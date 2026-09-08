@@ -41,7 +41,12 @@ max-line-length = 100
 # Pydantic resolves field annotations when the class is built, so an import
 # hidden in a TYPE_CHECKING block leaves the model incomplete — it imports
 # fine and raises PydanticUserError at first use.
-runtime-evaluated-base-classes = ["pydantic.BaseModel"]
+# aiogram's CallbackData is a BaseModel, and ruff matches base classes by the
+# name written, not by walking the MRO — so it needs its own entry.
+runtime-evaluated-base-classes = [
+  "pydantic.BaseModel",
+  "aiogram.filters.callback_data.CallbackData",
+]
 
 [tool.ruff.lint.isort]
 known-first-party = ["apps", "config"]
