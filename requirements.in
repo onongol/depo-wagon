@@ -16,7 +16,11 @@ pgvector
 pypdf
 
 # === Telegram Bot ===
+# Both are installed for the duration of the aiogram migration; only one of them
+# ever polls. python-telegram-bot goes away when the last router is converted.
+# Not aiogram[redis]: that extra pins redis<8 and the project is on redis 8.
 python-telegram-bot[all]
+aiogram
 
 # === Async Tasks ===
 celery
