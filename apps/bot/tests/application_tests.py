@@ -82,3 +82,57 @@ class TestCallbackHandlersAreRegistered:
         catch_all = next(h for h in handlers if h.pattern is InvalidCallbackData)
 
         assert handlers.index(catch_all) == len(handlers) - 1
+
+
+class TestDefectStatesRouteEachCallbackToOneHandler:
+    """The split handlers replace an isinstance chain; routing has to be exact."""
+
+    def _handlers_for(self, state, cb):
+        from apps.bot.handlers.defect.conversation import get_defect_handler
+
+        return [
+            h
+            for h in get_defect_handler().states[state]
+            if isinstance(h, CallbackQueryHandler) and h.pattern(cb)
+        ]
+
+    def test_each_responsible_employee_callback_has_exactly_one_handler(self):
+        from apps.bot.callbacks import (
+            ResponsibleEmployeeCB,
+            ResponsibleEmployeePageCB,
+            ResponsibleEmployeeSkipCB,
+        )
+        from apps.bot.states import RESPONSIBLE_EMPLOYEE
+
+        for cb, expected in (
+            (ResponsibleEmployeeCB(employee_id=1), "select_responsible_employee"),
+            (ResponsibleEmployeeSkipCB(), "skip_responsible_employee"),
+            (ResponsibleEmployeePageCB(page=0), "page_responsible_employee"),
+        ):
+            matched = self._handlers_for(RESPONSIBLE_EMPLOYEE, cb)
+            assert len(matched) == 1, cb
+            assert matched[0].callback.__name__ == expected
+
+    def test_each_measurement_choice_callback_has_exactly_one_handler(self):
+        from apps.bot.callbacks import (
+            MeasurementAddCB,
+            MeasurementDoneCB,
+            MeasurementSkipCB,
+        )
+        from apps.bot.states import MEASUREMENT_CHOICE
+
+        for cb, expected in (
+            (MeasurementAddCB(), "measurement_add"),
+            (MeasurementSkipCB(), "measurement_done"),
+            (MeasurementDoneCB(), "measurement_done"),
+        ):
+            matched = self._handlers_for(MEASUREMENT_CHOICE, cb)
+            assert len(matched) == 1, cb
+            assert matched[0].callback.__name__ == expected
+
+    def test_a_foreign_callback_matches_nothing_in_those_states(self):
+        from apps.bot.callbacks import DepartmentCB
+        from apps.bot.states import MEASUREMENT_CHOICE, RESPONSIBLE_EMPLOYEE
+
+        for state in (RESPONSIBLE_EMPLOYEE, MEASUREMENT_CHOICE):
+            assert self._handlers_for(state, DepartmentCB(value="bogie")) == []

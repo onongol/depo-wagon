@@ -55,7 +55,8 @@ from .department import receive_department
 from .description import receive_description, skip_description
 from .edit import start_edit
 from .measurement import (
-    handle_measurement_choice,
+    measurement_add,
+    measurement_done,
     receive_dimension,
     receive_measurement_value,
     receive_norm_value,
@@ -67,8 +68,10 @@ from .node import receive_node
 from .part_number import receive_part_number, skip_part_number
 from .photo import receive_photo, skip_photo
 from .responsible_employee import (
-    receive_responsible_employee,
+    page_responsible_employee,
     search_responsible_employee,
+    select_responsible_employee,
+    skip_responsible_employee,
 )
 from .severity import receive_severity
 from .start import new_defect_start
@@ -113,23 +116,25 @@ def get_defect_handler() -> ConversationHandler:
             ],
             RESPONSIBLE_EMPLOYEE: [
                 CallbackQueryHandler(
-                    receive_responsible_employee,
-                    pattern=_match(
-                        ResponsibleEmployeeCB,
-                        ResponsibleEmployeeSkipCB,
-                        ResponsibleEmployeePageCB,
-                    ),
+                    select_responsible_employee, pattern=_match(ResponsibleEmployeeCB)
+                ),
+                CallbackQueryHandler(
+                    skip_responsible_employee,
+                    pattern=_match(ResponsibleEmployeeSkipCB),
+                ),
+                CallbackQueryHandler(
+                    page_responsible_employee,
+                    pattern=_match(ResponsibleEmployeePageCB),
                 ),
                 MessageHandler(
                     filters.TEXT & ~filters.COMMAND, search_responsible_employee
                 ),
             ],
             MEASUREMENT_CHOICE: [
+                CallbackQueryHandler(measurement_add, pattern=_match(MeasurementAddCB)),
                 CallbackQueryHandler(
-                    handle_measurement_choice,
-                    pattern=_match(
-                        MeasurementAddCB, MeasurementSkipCB, MeasurementDoneCB
-                    ),
+                    measurement_done,
+                    pattern=_match(MeasurementSkipCB, MeasurementDoneCB),
                 ),
             ],
             MEASUREMENT_DIMENSION: [

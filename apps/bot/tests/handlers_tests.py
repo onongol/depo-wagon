@@ -24,8 +24,10 @@ from apps.bot.handlers.defect.part_number import (
     skip_part_number,
 )
 from apps.bot.handlers.defect.responsible_employee import (
-    receive_responsible_employee,
+    page_responsible_employee,
     search_responsible_employee,
+    select_responsible_employee,
+    skip_responsible_employee,
 )
 from apps.bot.handlers.defect.responsible_employee.list import _filter_and_page
 from apps.bot.messages import BotMessages as M
@@ -310,7 +312,7 @@ class TestReceiveResponsibleEmployee:
         mock_context.user_data[UD_RESP_SEARCH] = ""
         update = _make_cb_update(ResponsibleEmployeeSkipCB())
 
-        result = await receive_responsible_employee(update, mock_context)
+        result = await skip_responsible_employee(update, mock_context)
 
         assert result == DESC
 
@@ -320,7 +322,7 @@ class TestReceiveResponsibleEmployee:
         mock_context.user_data[UD_RESP_EMPLOYEES] = []
         update = _make_cb_update(ResponsibleEmployeeSkipCB())
 
-        await receive_responsible_employee(update, mock_context)
+        await skip_responsible_employee(update, mock_context)
 
         assert defect.responsible_employee_id is None
         assert defect.responsible_employee_label is None
@@ -331,7 +333,7 @@ class TestReceiveResponsibleEmployee:
         mock_context.user_data[UD_RESP_SEARCH] = "foo"
         update = _make_cb_update(ResponsibleEmployeeSkipCB())
 
-        await receive_responsible_employee(update, mock_context)
+        await skip_responsible_employee(update, mock_context)
 
         assert UD_RESP_EMPLOYEES not in mock_context.user_data
         assert UD_RESP_SEARCH not in mock_context.user_data
@@ -344,7 +346,7 @@ class TestReceiveResponsibleEmployee:
         mock_context.user_data[UD_RESP_SEARCH] = ""
         update = _make_cb_update(ResponsibleEmployeePageCB(page=1))
 
-        result = await receive_responsible_employee(update, mock_context)
+        result = await page_responsible_employee(update, mock_context)
 
         assert result == RESPONSIBLE_EMPLOYEE
 
@@ -359,7 +361,7 @@ class TestReceiveResponsibleEmployee:
             "asgiref.sync.sync_to_async",
             return_value=AsyncMock(return_value=emp),
         ):
-            result = await receive_responsible_employee(update, mock_context)
+            result = await select_responsible_employee(update, mock_context)
 
         assert defect.responsible_employee_id == 7
         assert result == DESC
@@ -375,7 +377,7 @@ class TestReceiveResponsibleEmployee:
             "asgiref.sync.sync_to_async",
             return_value=AsyncMock(return_value=emp),
         ):
-            await receive_responsible_employee(update, mock_context)
+            await select_responsible_employee(update, mock_context)
 
         assert UD_RESP_EMPLOYEES not in mock_context.user_data
         assert UD_RESP_SEARCH not in mock_context.user_data
@@ -548,3 +550,57 @@ class TestAfterPhotosStoresSerializableEmployees:
 
         roster = mock_context.user_data[UD_RESP_EMPLOYEES]
         assert json.dumps([ref.to_dict() for ref in roster])
+
+
+class TestMeasurementChoice:
+    """Add and skip/done were one handler branching on the callback type."""
+
+    async def test_add_starts_a_measurement_and_asks_for_the_dimension(
+        self, mock_context
+    ):
+        from apps.bot.callbacks import MeasurementAddCB
+        from apps.bot.handlers.defect.measurement import measurement_add
+        from apps.bot.states import MEASUREMENT_DIMENSION
+        from apps.bot.user_data import MeasurementEntry
+
+        defect = DefectData()
+        mock_context.user_data[UD_DEFECT] = defect
+        update = _make_cb_update(MeasurementAddCB())
+
+        result = await measurement_add(update, mock_context)
+
+        assert defect.current_measurement == MeasurementEntry()
+        assert result == MEASUREMENT_DIMENSION
+        update.callback_query.answer.assert_awaited_once()
+
+    async def test_done_moves_on_to_the_description(self, mock_context):
+        from apps.bot.callbacks import MeasurementDoneCB
+        from apps.bot.handlers.defect.measurement import measurement_done
+
+        defect = DefectData()
+        mock_context.user_data[UD_DEFECT] = defect
+        update = _make_cb_update(MeasurementDoneCB())
+
+        result = await measurement_done(update, mock_context)
+
+        assert result == DESC
+        assert defect.current_measurement is None
+
+    async def test_skip_takes_the_same_path_as_done(self, mock_context):
+        from apps.bot.callbacks import MeasurementSkipCB
+        from apps.bot.handlers.defect.measurement import measurement_done
+
+        mock_context.user_data[UD_DEFECT] = DefectData()
+        update = _make_cb_update(MeasurementSkipCB())
+
+        result = await measurement_done(update, mock_context)
+
+        assert result == DESC
+
+    async def test_done_does_not_need_a_defect_in_state(self, mock_context):
+        from apps.bot.callbacks import MeasurementDoneCB
+        from apps.bot.handlers.defect.measurement import measurement_done
+
+        update = _make_cb_update(MeasurementDoneCB())
+
+        assert await measurement_done(update, mock_context) == DESC
