@@ -40,12 +40,12 @@ async def receive_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
             chat_id=update.effective_chat.id,
         )
     else:
-        await clear_last_photo_keyboard(context)
+        await clear_last_photo_keyboard(context.bot, context.user_data)
         msg = await update.message.reply_text(
             str(M.PHOTO_RECEIVED).format(count=len(defect.photo_file_ids)),
             reply_markup=skip_keyboard(PhotoSkipCB()),
         )
-        context.user_data[UD_LAST_PHOTO_MSG] = msg
+        context.user_data[UD_LAST_PHOTO_MSG] = [msg.chat_id, msg.message_id]
 
     return PHOTO
 

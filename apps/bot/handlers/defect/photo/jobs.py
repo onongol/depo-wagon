@@ -9,6 +9,7 @@ from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.messages import BotMessages as M
 
 if TYPE_CHECKING:
+    from telegram import Bot
     from telegram.ext import ContextTypes
 
     from apps.bot.user_data import DefectData
@@ -16,14 +17,19 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-async def clear_last_photo_keyboard(context: ContextTypes.DEFAULT_TYPE) -> None:
+async def clear_last_photo_keyboard(bot: Bot, user_data: dict) -> None:
     """Remove the inline keyboard from the previous photo-count message."""
-    prev_msg = context.user_data.pop(UD_LAST_PHOTO_MSG, None)
-    if prev_msg:
-        try:
-            await prev_msg.edit_reply_markup(reply_markup=None)
-        except TelegramError:
-            logger.debug("Could not clear photo keyboard (message deleted or too old)")
+    ref = user_data.pop(UD_LAST_PHOTO_MSG, None)
+    if not ref:
+        return
+
+    chat_id, message_id = ref
+    try:
+        await bot.edit_message_reply_markup(
+            chat_id=chat_id, message_id=message_id, reply_markup=None
+        )
+    except TelegramError:
+        logger.debug("Could not clear photo keyboard (message deleted or too old)")
 
 
 async def flush_media_group(context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -34,10 +40,10 @@ async def flush_media_group(context: ContextTypes.DEFAULT_TYPE) -> None:
     defect: DefectData | None = user_data.get(UD_DEFECT)
     count = len(defect.photo_file_ids) if defect else 0
 
-    await clear_last_photo_keyboard(context)
+    await clear_last_photo_keyboard(context.bot, user_data)
     msg = await context.bot.send_message(
         chat_id=chat_id,
         text=str(M.PHOTO_RECEIVED).format(count=count),
         reply_markup=skip_keyboard(PhotoSkipCB()),
     )
-    user_data[UD_LAST_PHOTO_MSG] = msg
+    user_data[UD_LAST_PHOTO_MSG] = [msg.chat_id, msg.message_id]
