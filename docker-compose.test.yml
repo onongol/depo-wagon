@@ -11,3 +11,8 @@ services:
       - ./infra/init.sql:/docker-entrypoint-initdb.d/init.sql
     tmpfs:
       - /var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user -d test_db"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
