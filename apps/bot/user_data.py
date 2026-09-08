@@ -1,4 +1,35 @@
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field, fields
+from typing import Any, Self
+
+
+def _known_fields(cls: type, data: dict[str, Any]) -> dict[str, Any]:
+    """Drop keys the dataclass no longer declares, so stored state survives a deploy."""
+    declared = {f.name for f in fields(cls)}
+    return {k: v for k, v in data.items() if k in declared}
+
+
+@dataclass(frozen=True)
+class EmployeeRef:
+    """The three Employee attributes the responsible-employee flow reads."""
+
+    id: int
+    first_name: str = ""
+    last_name: str = ""
+
+    @classmethod
+    def from_employee(cls, employee: Any) -> Self:
+        return cls(
+            id=employee.id,
+            first_name=employee.first_name or "",
+            last_name=employee.last_name or "",
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Self:
+        return cls(**_known_fields(cls, data))
 
 
 @dataclass
@@ -17,6 +48,13 @@ class MeasurementEntry:
     value: float | None = None
     norm_value: float | None = None
     unit: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Self:
+        return cls(**_known_fields(cls, data))
 
 
 @dataclass
@@ -39,3 +77,18 @@ class DefectData:
     current_measurement: MeasurementEntry | None = None
     responsible_employee_id: int | None = None
     responsible_employee_label: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Self:
+        raw = _known_fields(cls, data)
+        raw["measurements"] = [
+            MeasurementEntry.from_dict(m) for m in raw.get("measurements") or []
+        ]
+        current = raw.get("current_measurement")
+        raw["current_measurement"] = (
+            MeasurementEntry.from_dict(current) if current else None
+        )
+        return cls(**raw)
