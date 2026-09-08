@@ -414,5 +414,11 @@ TELEGRAM_WEBHOOK_SECRET = env("TELEGRAM_WEBHOOK_SECRET", default="")
 # The support person must have pressed Start on the bot at least once.
 TELEGRAM_SUPPORT_CHAT_ID = env("TELEGRAM_SUPPORT_CHAT_ID", default="")
 
+# Conversation state. Deliberately not REDIS_URL: that instance is configured
+# allkeys-lru with no persistence, which would drop a half-filled defect form.
+TELEGRAM_FSM_REDIS_URL = env(
+    "TELEGRAM_FSM_REDIS_URL", default="redis://localhost:6379/3"
+)
+
 # Google AI
 GOOGLE_AI_KEY = env("GOOGLE_AI_KEY", default="")
