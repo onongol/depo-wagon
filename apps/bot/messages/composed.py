@@ -1,4 +1,4 @@
-from telegram.constants import ParseMode
+from aiogram.enums import ParseMode
 
 from .ai_chat import AiChatMessages
 from .auth import AuthMessages

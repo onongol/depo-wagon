@@ -1,5 +1,5 @@
+from aiogram.enums import ParseMode
 from django.utils.translation import gettext_lazy as _
-from telegram.constants import ParseMode
 
 PARSE_MODE = ParseMode.HTML
 
