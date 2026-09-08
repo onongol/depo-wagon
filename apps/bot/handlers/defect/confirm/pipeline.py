@@ -8,7 +8,7 @@ from apps.bot import services
 from apps.defects.validators import MAX_PHOTO_BYTES
 
 if TYPE_CHECKING:
-    from telegram import Bot
+    from aiogram import Bot
 
     from apps.bot.user_data import DefectData
     from apps.core.models import Employee
@@ -25,12 +25,17 @@ class PersistResult:
 
 
 async def _download_photo(bot: Bot, file_id: str) -> bytes | None:
-    """Photo bytes from Telegram, or None when it exceeds the size cap."""
+    """Photo bytes from Telegram, or None when it exceeds the size cap.
+
+    PTB's File.download_as_bytearray has no aiogram counterpart; download_file
+    returns a BytesIO instead.
+    """
     file = await bot.get_file(file_id)
     if file.file_size and file.file_size > MAX_PHOTO_BYTES:
         logger.warning("Photo too large (%d bytes), skipping", file.file_size)
         return None
-    return bytes(await file.download_as_bytearray())
+    buffer = await bot.download_file(file.file_path)
+    return buffer.read()
 
 
 async def register_defect(

@@ -1,37 +1,32 @@
 import logging
 from typing import TYPE_CHECKING
 
-from telegram.ext import ContextTypes, ConversationHandler
-
-from apps.bot.constants import UD_DEFECT
+from apps.bot.fsm import save_defect
 from apps.bot.handlers.employee import get_employee
 from apps.bot.messages import BotMessages as M
-from apps.bot.states import WAGON_NUM
+from apps.bot.states import DefectSG
 from apps.bot.user_data import DefectData
 
 if TYPE_CHECKING:
-    from telegram import Update
+    from aiogram.fsm.context import FSMContext
+    from aiogram.types import Message
 
 logger = logging.getLogger(__name__)
 
 
-async def new_defect_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def new_defect_start(message: Message, state: FSMContext) -> None:
     """Entry point: /new_defect or menu button."""
     try:
-        employee = await get_employee(update.effective_user.id)
+        employee = await get_employee(message.from_user.id)
     except Exception:
         logger.exception("Failed to fetch employee in new_defect_start")
-        await update.message.reply_text(str(M.SESSION_ERROR))
-        return ConversationHandler.END
+        await message.answer(str(M.SESSION_ERROR))
+        return
 
     if not employee:
-        await update.message.reply_text(str(M.NOT_REGISTERED))
-        return ConversationHandler.END
+        await message.answer(str(M.NOT_REGISTERED))
+        return
 
-    context.user_data[UD_DEFECT] = DefectData()
-
-    await update.message.reply_text(
-        str(M.NEW_DEFECT_START),
-        parse_mode=M.PARSE_MODE,
-    )
-    return WAGON_NUM
+    await save_defect(state, DefectData())
+    await message.answer(str(M.NEW_DEFECT_START), parse_mode=M.PARSE_MODE)
+    await state.set_state(DefectSG.wagon_num)

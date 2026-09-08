@@ -1,38 +1,29 @@
 from typing import TYPE_CHECKING
 
 from apps.bot.callback_data import CB_NORM_SKIP
-from apps.bot.constants import UD_DEFECT
+from apps.bot.fsm import load_defect, save_defect
 from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.messages import BotMessages as M
-from apps.bot.states import MEASUREMENT_NORM, MEASUREMENT_VALUE
+from apps.bot.states import DefectSG
 
 if TYPE_CHECKING:
-    from telegram import Update
-    from telegram.ext import ContextTypes
-
-    from apps.bot.user_data import DefectData
+    from aiogram.fsm.context import FSMContext
+    from aiogram.types import Message
 
 
-async def receive_measurement_value(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> int:
+async def receive_measurement_value(message: Message, state: FSMContext) -> None:
     """Receive measurement value as text, validate and save."""
-    text = update.message.text.strip()
+    text = message.text.strip()
 
     try:
         value = float(text.replace(",", "."))
     except ValueError:
-        await update.message.reply_text(
-            str(M.VALUE_INVALID),
-            parse_mode=M.PARSE_MODE,
-        )
-        return MEASUREMENT_VALUE
+        await message.answer(str(M.VALUE_INVALID), parse_mode=M.PARSE_MODE)
+        return
 
-    defect: DefectData = context.user_data[UD_DEFECT]
+    defect = await load_defect(state)
     defect.current_measurement.value = value
+    await save_defect(state, defect)
 
-    await update.message.reply_text(
-        str(M.ASK_NORM),
-        reply_markup=skip_keyboard(CB_NORM_SKIP),
-    )
-    return MEASUREMENT_NORM
+    await message.answer(str(M.ASK_NORM), reply_markup=skip_keyboard(CB_NORM_SKIP))
+    await state.set_state(DefectSG.measurement_norm)

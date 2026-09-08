@@ -1,59 +1,53 @@
 from typing import TYPE_CHECKING
 
 from apps.bot.callback_data import CB_PHOTO_SKIP
-from apps.bot.constants import PHOTO_MG_JOB_PREFIX, UD_DEFECT, UD_LAST_PHOTO_MSG
+from apps.bot.constants import UD_LAST_PHOTO_MSG
+from apps.bot.fsm import load_defect, save_defect, user_lock
 from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.messages import BotMessages as M
-from apps.bot.states import PHOTO
 from apps.defects.validators import MAX_PHOTO_BYTES
 
-from .jobs import clear_last_photo_keyboard, flush_media_group
+from .jobs import clear_last_photo_keyboard, schedule_flush
 from .routing import after_photos
 
 if TYPE_CHECKING:
-    from telegram import Update
-    from telegram.ext import ContextTypes
+    from aiogram import Bot
+    from aiogram.fsm.context import FSMContext
+    from aiogram.types import CallbackQuery, Message
 
-    from apps.bot.user_data import DefectData
 
-
-async def receive_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Handle incoming photo."""
-    photo = update.message.photo[-1]
+async def receive_photo(message: Message, state: FSMContext, bot: Bot) -> None:
+    """Handle an incoming photo, one album member at a time."""
+    photo = message.photo[-1]
 
     if photo.file_size and photo.file_size > MAX_PHOTO_BYTES:
-        await update.message.reply_text(str(M.PHOTO_TOO_LARGE))
-        return PHOTO
+        await message.answer(str(M.PHOTO_TOO_LARGE))
+        return
 
-    defect: DefectData = context.user_data[UD_DEFECT]
-    defect.photo_file_ids.append(photo.file_id)
+    user_id = message.from_user.id
 
-    if update.message.media_group_id and context.job_queue is not None:
-        job_name = f"{PHOTO_MG_JOB_PREFIX}{update.effective_user.id}"
-        for job in context.job_queue.get_jobs_by_name(job_name):
-            job.schedule_removal()
-        context.job_queue.run_once(
-            flush_media_group,
-            when=0.5,
-            name=job_name,
-            user_id=update.effective_user.id,
-            chat_id=update.effective_chat.id,
-        )
-    else:
-        await clear_last_photo_keyboard(context.bot, context.user_data)
-        msg = await update.message.reply_text(
-            str(M.PHOTO_RECEIVED).format(count=len(defect.photo_file_ids)),
+    async with user_lock(user_id):
+        defect = await load_defect(state)
+        defect.photo_file_ids.append(photo.file_id)
+        await save_defect(state, defect)
+        count = len(defect.photo_file_ids)
+
+        if message.media_group_id:
+            # One acknowledgement for the whole album, not one per photo.
+            schedule_flush(bot, state, chat_id=message.chat.id, user_id=user_id)
+            return
+
+        await clear_last_photo_keyboard(bot, state)
+        sent = await message.answer(
+            str(M.PHOTO_RECEIVED).format(count=count),
             reply_markup=skip_keyboard(CB_PHOTO_SKIP),
         )
-        context.user_data[UD_LAST_PHOTO_MSG] = [msg.chat_id, msg.message_id]
-
-    return PHOTO
+        await state.update_data({UD_LAST_PHOTO_MSG: [sent.chat.id, sent.message_id]})
 
 
-async def skip_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def skip_photo(callback: CallbackQuery, state: FSMContext) -> None:
     """Handle photo skip — proceed to next step without photos."""
-    query = update.callback_query
-    await query.answer()
+    await callback.answer()
 
-    defect: DefectData = context.user_data[UD_DEFECT]
-    return await after_photos(query, defect, context, edit=True)
+    defect = await load_defect(state)
+    await after_photos(callback.message.edit_text, defect, state)

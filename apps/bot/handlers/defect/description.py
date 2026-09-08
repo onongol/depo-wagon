@@ -1,57 +1,50 @@
 from typing import TYPE_CHECKING
 
-from telegram.ext import ContextTypes, ConversationHandler
-
-from apps.bot.constants import UD_DEFECT
+from apps.bot.fsm import load_defect, save_defect
 from apps.bot.messages import BotMessages as M
-from apps.bot.states import DESC
 
 from .summary import show_summary
 
 if TYPE_CHECKING:
-    from telegram import Update
-
-    from apps.bot.user_data import DefectData
+    from aiogram.fsm.context import FSMContext
+    from aiogram.types import CallbackQuery, Message
 
 _MAX_DESCRIPTION_LEN = 1000
 
 
-def _get_defect(context: ContextTypes.DEFAULT_TYPE) -> DefectData | None:
-    return context.user_data.get(UD_DEFECT)
-
-
-async def receive_description(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> int:
+async def receive_description(message: Message, state: FSMContext) -> None:
     """Handle incoming description text."""
-    defect = _get_defect(context)
+    defect = await load_defect(state)
     if defect is None:
-        await update.message.reply_text(str(M.DEFECT_CANCELLED))
-        return ConversationHandler.END
+        await message.answer(str(M.DEFECT_CANCELLED))
+        await state.set_state(None)
+        return
 
-    text = update.message.text.strip()
+    text = message.text.strip()
     if len(text) > _MAX_DESCRIPTION_LEN:
-        await update.message.reply_text(
+        await message.answer(
             str(M.DESCRIPTION_TOO_LONG).format(
                 length=len(text), max=_MAX_DESCRIPTION_LEN
             ),
             parse_mode=M.PARSE_MODE,
         )
-        return DESC
+        return
 
     defect.description = text
-    return await show_summary(update, context, defect)
+    await save_defect(state, defect)
+    await show_summary(message.answer, state, defect)
 
 
-async def skip_description(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def skip_description(callback: CallbackQuery, state: FSMContext) -> None:
     """Handle description skip — set empty description and show summary."""
-    query = update.callback_query
-    await query.answer()
+    await callback.answer()
 
-    defect = _get_defect(context)
+    defect = await load_defect(state)
     if defect is None:
-        await query.edit_message_text(str(M.DEFECT_CANCELLED))
-        return ConversationHandler.END
+        await callback.message.edit_text(str(M.DEFECT_CANCELLED))
+        await state.set_state(None)
+        return
 
     defect.description = ""
-    return await show_summary(update, context, defect)
+    await save_defect(state, defect)
+    await show_summary(callback.message.edit_text, state, defect)

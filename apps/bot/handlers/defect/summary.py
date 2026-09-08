@@ -6,37 +6,35 @@ from django.utils.translation import gettext_lazy as _
 
 from apps.bot.constants import UD_EDITING
 from apps.bot.messages import BotMessages as M
-from apps.bot.states import CONFIRM
+from apps.bot.states import DefectSG
 
 if TYPE_CHECKING:
-    from telegram import Update
-    from telegram.ext import ContextTypes
+    from collections.abc import Awaitable, Callable
+
+    from aiogram.fsm.context import FSMContext
 
     from apps.bot.user_data import DefectData
 
 
 async def show_summary(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, defect: DefectData
-) -> int:
-    """
-    Works for both callback updates (edit in place) and text updates (new message).
-    Returns the CONFIRM state.
+    send: Callable[..., Awaitable], state: FSMContext, defect: DefectData
+) -> None:
+    """Render the review screen and enter the confirm state.
+
+    Takes the send callable rather than the event: six handlers converge here,
+    some from a text message (a new message) and some from a button (an edit in
+    place), which is what PTB expressed by branching on update.callback_query.
     """
     from apps.bot.keyboards.defect import confirm_keyboard
 
-    context.user_data.pop(UD_EDITING, None)
-    text = build_summary(defect)
-    keyboard = confirm_keyboard()
+    data = await state.get_data()
+    data.pop(UD_EDITING, None)
+    await state.set_data(data)
 
-    if update.callback_query:
-        await update.callback_query.edit_message_text(
-            text, parse_mode=M.PARSE_MODE, reply_markup=keyboard
-        )
-    else:
-        await update.message.reply_text(
-            text, parse_mode=M.PARSE_MODE, reply_markup=keyboard
-        )
-    return CONFIRM
+    await send(
+        build_summary(defect), parse_mode=M.PARSE_MODE, reply_markup=confirm_keyboard()
+    )
+    await state.set_state(DefectSG.confirm)
 
 
 def build_summary(defect: DefectData) -> str:

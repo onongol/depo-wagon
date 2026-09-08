@@ -1,9 +1,8 @@
 from typing import TYPE_CHECKING
 
-from telegram.ext import ContextTypes, ConversationHandler
-
 from apps.bot.callback_data import CB_DESC_SKIP, CB_PART_NUMBER_SKIP
-from apps.bot.constants import UD_DEFECT, UD_EDITING
+from apps.bot.constants import UD_EDITING
+from apps.bot.fsm import load_defect
 from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.keyboards.defect import (
     defect_type_keyboard,
@@ -11,63 +10,66 @@ from apps.bot.keyboards.defect import (
     severity_keyboard,
 )
 from apps.bot.messages import BotMessages as M
-from apps.bot.states import (
-    CONFIRM,
-    DEFECT_TYPE,
-    DESC,
-    NODE,
-    PART_NUMBER,
-    SEVERITY,
-    WAGON_NUM,
-)
+from apps.bot.states import DefectSG
 
 if TYPE_CHECKING:
-    from telegram import Update
+    from aiogram.fsm.context import FSMContext
+    from aiogram.types import CallbackQuery
 
-    from apps.bot.user_data import DefectData
+    from apps.bot.callback_data import EditCB
 
 
 # field -> (prompt, keyboard built from the defect under edit, state to enter).
 # Keyboards are built per call: their callback payloads are per-message.
 _EDIT_STEPS = {
-    "wagon": (M.EDIT_WAGON, None, WAGON_NUM),
+    "wagon": (M.EDIT_WAGON, None, DefectSG.wagon_num),
     "node": (
         M.EDIT_NODE,
         lambda defect: node_keyboard_for_department(defect.department or ""),
-        NODE,
+        DefectSG.node,
     ),
     "part_number": (
         M.EDIT_PART_NUMBER,
         lambda _: skip_keyboard(CB_PART_NUMBER_SKIP),
-        PART_NUMBER,
+        DefectSG.part_number,
     ),
-    "defect_type": (M.EDIT_DEFECT_TYPE, lambda _: defect_type_keyboard(), DEFECT_TYPE),
-    "severity": (M.EDIT_SEVERITY, lambda _: severity_keyboard(), SEVERITY),
-    "description": (M.EDIT_DESCRIPTION, lambda _: skip_keyboard(CB_DESC_SKIP), DESC),
+    "defect_type": (
+        M.EDIT_DEFECT_TYPE,
+        lambda _: defect_type_keyboard(),
+        DefectSG.defect_type,
+    ),
+    "severity": (M.EDIT_SEVERITY, lambda _: severity_keyboard(), DefectSG.severity),
+    "description": (
+        M.EDIT_DESCRIPTION,
+        lambda _: skip_keyboard(CB_DESC_SKIP),
+        DefectSG.desc,
+    ),
 }
 
 
-async def start_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def start_edit(
+    callback: CallbackQuery, callback_data: EditCB, state: FSMContext
+) -> None:
     """Render the chosen field's input and route to its state in edit mode."""
-    query = update.callback_query
-    await query.answer()
+    await callback.answer()
 
-    defect: DefectData | None = context.user_data.get(UD_DEFECT)
+    defect = await load_defect(state)
     if defect is None:
-        await query.edit_message_text(str(M.DEFECT_CANCELLED))
-        return ConversationHandler.END
+        await callback.message.edit_text(str(M.DEFECT_CANCELLED))
+        await state.set_state(None)
+        return
 
-    context.user_data[UD_EDITING] = True
-
-    step = _EDIT_STEPS.get(query.data.field)
+    step = _EDIT_STEPS.get(callback_data.field)
     if step is None:
-        context.user_data.pop(UD_EDITING, None)
-        return CONFIRM
+        await state.set_state(DefectSG.confirm)
+        return
 
-    prompt, keyboard, state = step
-    await query.edit_message_text(
+    await state.update_data({UD_EDITING: True})
+
+    prompt, keyboard, target = step
+    await callback.message.edit_text(
         str(prompt),
         parse_mode=M.PARSE_MODE,
         reply_markup=keyboard(defect) if keyboard else None,
     )
-    return state
+    await state.set_state(target)

@@ -115,3 +115,59 @@ class TestStartupHook:
 
     async def test_start_is_offered_first_in_the_command_menu(self):
         assert _BOT_COMMANDS[0][0] == "start"
+
+
+class TestDefectRouterOrder:
+    """The flow router must precede its own entry points.
+
+    That ordering is what stopped PTB's entry point from restarting a
+    conversation already in progress: BTN_NEW_DEFECT typed mid-flow reaches
+    receive_wagon_number, whose MENU_BUTTONS guard re-prompts, rather than
+    wiping the half-filled form.
+    """
+
+    def test_flow_comes_before_entry(self, dispatcher):
+        names = [r.name for r in dispatcher.sub_routers]
+
+        assert names.index("defect_flow") < names.index("defect_entry")
+
+    def test_flow_comes_after_start(self, dispatcher):
+        """Link buttons keep working mid-flow, as they did under PTB."""
+        names = [r.name for r in dispatcher.sub_routers]
+
+        assert names.index("start") < names.index("defect_flow")
+
+    def test_flow_comes_before_tasks(self, dispatcher):
+        """1:1 with PTB: list pagination is inert while a defect is in progress."""
+        names = [r.name for r in dispatcher.sub_routers]
+
+        assert names.index("defect_flow") < names.index("tasks")
+
+    def test_the_flow_catch_all_is_registered_last_within_the_flow(self):
+        from apps.bot.handlers.defect.router import get_defect_flow_router
+
+        router = get_defect_flow_router()
+        callbacks = [h.callback.__name__ for h in router.callback_query.handlers]
+
+        assert callbacks[-1] == "stale_callback"
+
+    def test_every_defect_state_has_at_least_one_handler(self):
+        """Guards against a step losing its route during the conversion."""
+        from aiogram.filters import StateFilter
+
+        from apps.bot.handlers.defect.router import get_defect_flow_router
+        from apps.bot.states import DefectSG
+
+        router = get_defect_flow_router()
+        covered = set()
+        for observer in (router.message, router.callback_query):
+            for handler in observer.handlers:
+                for flt in handler.filters or ():
+                    if isinstance(flt.callback, StateFilter):
+                        covered |= {
+                            s.state if hasattr(s, "state") else s
+                            for s in flt.callback.states
+                        }
+
+        missing = {s.state for s in DefectSG.__states__} - covered
+        assert not missing

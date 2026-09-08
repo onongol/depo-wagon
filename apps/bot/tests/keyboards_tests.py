@@ -4,11 +4,13 @@ from unittest.mock import MagicMock
 import pytest
 from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
 
-# The defect keyboards are still PTB until that router converts.
-from telegram import InlineKeyboardMarkup as PtbInlineKeyboardMarkup
-
-from apps.bot.callback_data import StatusPickCB, StatusSetCB
-from apps.bot.callbacks import DepartmentCB, ResponsibleEmployeeCB
+from apps.bot.callback_data import (
+    DepartmentCB,
+    NodeCB,
+    ResponsibleEmployeeCB,
+    StatusPickCB,
+    StatusSetCB,
+)
 from apps.bot.constants import (
     BTN_HELP,
     BTN_NEW_DEFECT,
@@ -134,26 +136,24 @@ class TestTasksKeyboard:
 
 class TestDepartmentKeyboard:
     def test_returns_inline_keyboard(self):
-        assert isinstance(department_keyboard(), PtbInlineKeyboardMarkup)
+        assert isinstance(department_keyboard(), InlineKeyboardMarkup)
 
     def test_all_departments_present(self):
         kb = department_keyboard()
         cb_values = {
-            btn.callback_data.value
+            DepartmentCB.unpack(btn.callback_data).value
             for btn in _kb_buttons(kb)
-            if isinstance(btn.callback_data, DepartmentCB)
+            if btn.callback_data.startswith(DepartmentCB.__prefix__ + ":")
         }
         assert cb_values == {d.value for d in Department}
 
 
 class TestNodeKeyboardForDepartment:
     def _cb_values(self, kb):
-        from apps.bot.callbacks import NodeCB
-
         return {
-            btn.callback_data.value
+            NodeCB.unpack(btn.callback_data).value
             for btn in _kb_buttons(kb)
-            if isinstance(btn.callback_data, NodeCB)
+            if btn.callback_data.startswith(NodeCB.__prefix__ + ":")
         }
 
     def test_bogie_dept_has_bogie_node(self):
@@ -200,7 +200,7 @@ class TestResponsibleEmployeeKeyboard:
     def test_employee_buttons_use_correct_callback(self):
         kb = responsible_employee_keyboard([_make_employee(42)], page=0, total_pages=1)
         assert any(
-            isinstance(btn.callback_data, ResponsibleEmployeeCB)
+            btn.callback_data.startswith(ResponsibleEmployeeCB.__prefix__ + ":")
             for btn in _kb_buttons(kb)
         )
 

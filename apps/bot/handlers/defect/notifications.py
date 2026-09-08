@@ -3,13 +3,13 @@ import html
 import logging
 from typing import TYPE_CHECKING
 
-from telegram.error import TelegramError
+from aiogram.exceptions import TelegramAPIError
 
 from apps.bot import services
 from apps.bot.messages import BotMessages as M
 
 if TYPE_CHECKING:
-    from telegram.ext import ContextTypes
+    from aiogram import Bot
 
     from apps.bot.user_data import DefectData
 
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 async def notify_decommission(
-    context: ContextTypes.DEFAULT_TYPE,
+    bot: Bot,
     employee,
     defect: DefectData | None,
 ) -> None:
@@ -35,12 +35,12 @@ async def notify_decommission(
 
     async def _send_one(manager) -> None:
         try:
-            await context.bot.send_message(
+            await bot.send_message(
                 chat_id=manager.telegram_id,
                 text=text,
                 parse_mode=M.PARSE_MODE,
             )
-        except TelegramError as exc:
+        except TelegramAPIError as exc:
             logger.warning(
                 "Failed to notify manager %s (tg=%s): %s",
                 manager.full_name,

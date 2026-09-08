@@ -1,14 +1,16 @@
 from typing import TYPE_CHECKING
 
-from telegram.error import BadRequest
+from aiogram.exceptions import TelegramBadRequest
 
-from apps.bot.constants import UD_RESP_EMPLOYEES, UD_RESP_SEARCH
+from apps.bot.constants import UD_RESP_SEARCH
+from apps.bot.fsm import load_employees
 from apps.bot.keyboards.defect import responsible_employee_keyboard
 from apps.bot.messages import BotMessages as M
 
 if TYPE_CHECKING:
-    from telegram import CallbackQuery, Message
-    from telegram.ext import ContextTypes
+    from collections.abc import Awaitable, Callable
+
+    from aiogram.fsm.context import FSMContext
 
 RESP_EMP_PAGE_SIZE = 5
 
@@ -43,18 +45,18 @@ def _build_text(search: str, page: int, total: int, total_pages: int) -> str:
 
 
 async def show_responsible_employee_list(
-    msg_or_query: Message | CallbackQuery,
-    context: ContextTypes.DEFAULT_TYPE,
+    send: Callable[..., Awaitable],
+    state: FSMContext,
     page: int = 0,
     *,
     edit: bool = False,
 ) -> None:
     """Render the paginated employee list.
 
-    msg_or_query: telegram Message (edit=False) or CallbackQuery (edit=True).
+    send is Message.answer (a new message) or Message.edit_text (in place).
     """
-    all_employees = context.user_data.get(UD_RESP_EMPLOYEES, [])
-    search = context.user_data.get(UD_RESP_SEARCH, "")
+    all_employees = await load_employees(state)
+    search = (await state.get_data()).get(UD_RESP_SEARCH, "")
 
     page_employees, total, total_pages, page = _filter_and_page(
         all_employees, search, page
@@ -63,13 +65,12 @@ async def show_responsible_employee_list(
     kb = responsible_employee_keyboard(page_employees, page, total_pages)
     text = _build_text(search, page, total, total_pages)
 
-    if edit:
-        try:
-            await msg_or_query.edit_message_text(
-                text, parse_mode=M.PARSE_MODE, reply_markup=kb
-            )
-        except BadRequest as exc:
-            if "Message is not modified" not in str(exc):
-                raise
-    else:
-        await msg_or_query.reply_text(text, parse_mode=M.PARSE_MODE, reply_markup=kb)
+    try:
+        await send(text, parse_mode=M.PARSE_MODE, reply_markup=kb)
+    except TelegramBadRequest as exc:
+        # Re-rendering the same page is a no-op Telegram rejects. PTB
+        # normalised this text; aiogram passes Telegram's own wording through,
+        # which is lower case — matching on the old string would never hit and
+        # every idle re-render would raise.
+        if not edit or "message is not modified" not in exc.message.lower():
+            raise

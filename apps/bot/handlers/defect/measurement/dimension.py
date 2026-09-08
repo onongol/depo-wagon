@@ -1,33 +1,34 @@
 from typing import TYPE_CHECKING
 
-from apps.bot.constants import UD_DEFECT
+from apps.bot.fsm import load_defect, save_defect
 from apps.bot.messages import BotMessages as M
-from apps.bot.states import MEASUREMENT_VALUE
+from apps.bot.states import DefectSG
 from apps.defects.constants import MeasurementDimension
 
 if TYPE_CHECKING:
-    from telegram import Update
-    from telegram.ext import ContextTypes
+    from aiogram.fsm.context import FSMContext
+    from aiogram.types import CallbackQuery
 
-    from apps.bot.user_data import DefectData
+    from apps.bot.callback_data import DimensionCB
 
 _DIM_LABELS = dict(MeasurementDimension.choices)
 
 
-async def receive_dimension(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def receive_dimension(
+    callback: CallbackQuery, callback_data: DimensionCB, state: FSMContext
+) -> None:
     """Receive selected dimension from inline keyboard."""
-    query = update.callback_query
-    await query.answer()
+    await callback.answer()
 
-    dim_value = query.data.value
+    dim_value = callback_data.value
     dim_label = _DIM_LABELS.get(dim_value, dim_value)
 
-    defect: DefectData = context.user_data[UD_DEFECT]
+    defect = await load_defect(state)
     defect.current_measurement.dimension = dim_value
     defect.current_measurement.dimension_label = dim_label
+    await save_defect(state, defect)
 
-    await query.edit_message_text(
-        str(M.DIMENSION_CONFIRMED).format(label=dim_label),
-        parse_mode=M.PARSE_MODE,
+    await callback.message.edit_text(
+        str(M.DIMENSION_CONFIRMED).format(label=dim_label), parse_mode=M.PARSE_MODE
     )
-    return MEASUREMENT_VALUE
+    await state.set_state(DefectSG.measurement_value)

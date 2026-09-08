@@ -44,6 +44,13 @@ async def on_startup(bot: Bot) -> None:
     await bot.set_my_short_description(str(M.BOT_SHORT_DESCRIPTION))
 
 
+async def on_shutdown() -> None:
+    """Drop scheduled album acknowledgements so the loop closes cleanly."""
+    from apps.bot.handlers.defect.photo import cancel_pending_flushes
+
+    await cancel_pending_flushes()
+
+
 def _routers() -> list:
     """Every router, in the order updates are offered to them.
 
@@ -63,11 +70,17 @@ def _routers() -> list:
         get_start_router,
         get_utility_router,
     )
+    from apps.bot.handlers.defect.router import (
+        get_defect_entry_router,
+        get_defect_flow_router,
+    )
     from apps.bot.handlers.support.router import get_support_router
     from apps.bot.handlers.tasks.router import get_tasks_router
 
     return [
         get_start_router(),
+        get_defect_flow_router(),
+        get_defect_entry_router(),
         get_tasks_router(),
         get_support_router(),
         get_ai_chat_router(),
@@ -87,6 +100,7 @@ def make_dispatcher(storage: BaseStorage) -> Dispatcher:
     dp.update.outer_middleware(CloseOldConnectionsMiddleware())
 
     dp.startup.register(on_startup)
+    dp.shutdown.register(on_shutdown)
     dp.errors.register(error_handler)
 
     for router in _routers():

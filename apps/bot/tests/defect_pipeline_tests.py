@@ -1,6 +1,7 @@
+import io
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from telegram.error import Forbidden
+from aiogram.exceptions import TelegramForbiddenError
 
 from apps.bot.handlers.defect.confirm.pipeline import (
     PersistResult,
@@ -36,11 +37,19 @@ def _make_saved_defect(defect_id="uuid-001"):
     return defect
 
 
-def _make_bot_file(size=1000, content=b"fake image"):
+def _make_bot_file(size=1000, file_path="photos/x.jpg"):
+    """aiogram returns a File; the bytes come from Bot.download_file."""
     mock_file = MagicMock()
     mock_file.file_size = size
-    mock_file.download_as_bytearray = AsyncMock(return_value=bytearray(content))
+    mock_file.file_path = file_path
     return mock_file
+
+
+def _make_bot(content=b"fake image"):
+    bot = AsyncMock()
+    bot.get_file = AsyncMock(return_value=_make_bot_file())
+    bot.download_file = AsyncMock(return_value=io.BytesIO(content))
+    return bot
 
 
 class TestRegisterDefect:
@@ -66,7 +75,8 @@ class TestRegisterDefect:
 
     async def test_photo_downloaded_and_returned(self):
         bot = AsyncMock()
-        bot.get_file = AsyncMock(return_value=_make_bot_file(content=b"img"))
+        bot.get_file = AsyncMock(return_value=_make_bot_file())
+        bot.download_file = AsyncMock(return_value=io.BytesIO(b"img"))
         with patch("apps.bot.handlers.defect.confirm.pipeline.services") as svc:
             svc.create_defect = AsyncMock(return_value=_make_saved_defect())
             svc.create_photo_from_bytes = AsyncMock()
@@ -93,6 +103,7 @@ class TestRegisterDefect:
     async def test_oversized_photo_is_skipped(self):
         bot = AsyncMock()
         bot.get_file = AsyncMock(return_value=_make_bot_file(size=99_999_999))
+        bot.download_file = AsyncMock()
         with patch("apps.bot.handlers.defect.confirm.pipeline.services") as svc:
             svc.create_defect = AsyncMock(return_value=_make_saved_defect())
             result = await register_defect(
@@ -103,15 +114,11 @@ class TestRegisterDefect:
         assert result.photo_bytes == []
 
     async def test_one_photo_fail_does_not_block_others(self):
-        good_file = _make_bot_file(content=b"ok")
-        bad_file = MagicMock()
-        bad_file.file_size = 100
-        bad_file.download_as_bytearray = AsyncMock(
-            side_effect=Exception("network error")
-        )
-
         bot = AsyncMock()
-        bot.get_file = AsyncMock(side_effect=[bad_file, good_file])
+        bot.get_file = AsyncMock(return_value=_make_bot_file())
+        bot.download_file = AsyncMock(
+            side_effect=[Exception("network error"), io.BytesIO(b"ok")]
+        )
 
         with patch("apps.bot.handlers.defect.confirm.pipeline.services") as svc:
             svc.create_defect = AsyncMock(return_value=_make_saved_defect())
@@ -257,7 +264,7 @@ class TestNotifyDecommission:
         with patch("apps.bot.handlers.defect.notifications.services") as svc:
             svc.get_managers_and_engineers = AsyncMock(return_value=[])
             await notify_decommission(
-                context, employee=MagicMock(), defect=_make_defect_data()
+                context.bot, employee=MagicMock(), defect=_make_defect_data()
             )
         context.bot.send_message.assert_not_awaited()
 
@@ -267,7 +274,7 @@ class TestNotifyDecommission:
         with patch("apps.bot.handlers.defect.notifications.services") as svc:
             svc.get_managers_and_engineers = AsyncMock(return_value=managers)
             await notify_decommission(
-                context, employee=MagicMock(), defect=_make_defect_data()
+                context.bot, employee=MagicMock(), defect=_make_defect_data()
             )
         assert context.bot.send_message.await_count == 2
 
@@ -277,7 +284,7 @@ class TestNotifyDecommission:
         with patch("apps.bot.handlers.defect.notifications.services") as svc:
             svc.get_managers_and_engineers = AsyncMock(return_value=managers)
             await notify_decommission(
-                context, employee=MagicMock(), defect=_make_defect_data()
+                context.bot, employee=MagicMock(), defect=_make_defect_data()
             )
         sent_ids = {
             call.kwargs["chat_id"] for call in context.bot.send_message.call_args_list
@@ -286,12 +293,14 @@ class TestNotifyDecommission:
 
     async def test_one_send_failure_does_not_block_others(self):
         context = self._make_context()
-        context.bot.send_message = AsyncMock(side_effect=[Forbidden("blocked"), None])
+        context.bot.send_message = AsyncMock(
+            side_effect=[TelegramForbiddenError(method=None, message="blocked"), None]
+        )
         managers = [self._make_manager(111), self._make_manager(222)]
         with patch("apps.bot.handlers.defect.notifications.services") as svc:
             svc.get_managers_and_engineers = AsyncMock(return_value=managers)
             await notify_decommission(
-                context, employee=MagicMock(), defect=_make_defect_data()
+                context.bot, employee=MagicMock(), defect=_make_defect_data()
             )
         assert context.bot.send_message.await_count == 2
 
@@ -303,5 +312,5 @@ class TestNotifyDecommission:
             svc.get_managers_and_engineers = AsyncMock(
                 return_value=[self._make_manager(111)]
             )
-            await notify_decommission(context, employee=employee, defect=None)
+            await notify_decommission(context.bot, employee=employee, defect=None)
         context.bot.send_message.assert_awaited_once()
