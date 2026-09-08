@@ -490,3 +490,61 @@ class TestUnlinkedEmployeeIsRefused:
 
         svc.save_employee_verdict.assert_not_called()
         assert result == ConversationHandler.END
+
+
+class TestAfterPhotosStoresSerializableEmployees:
+    """The roster is parked in user_data, so it must not hold live ORM objects."""
+
+    async def test_stores_employee_refs_not_model_instances(self, mock_context):
+        from apps.bot.handlers.defect.photo.routing import after_photos
+        from apps.bot.user_data import EmployeeRef
+
+        defect = DefectData(
+            defect_type=DefectType.HUMAN_FACTOR, department="coupler_brake"
+        )
+        msg = MagicMock()
+        msg.reply_text = AsyncMock()
+
+        with (
+            patch(
+                "apps.bot.services.get_employees_by_department",
+                AsyncMock(return_value=[_make_employee(7, "Ivan", "Petrov")]),
+            ),
+            patch(
+                "apps.bot.handlers.defect.responsible_employee"
+                ".show_responsible_employee_list",
+                AsyncMock(),
+            ),
+        ):
+            result = await after_photos(msg, defect, mock_context, edit=False)
+
+        stored = mock_context.user_data[UD_RESP_EMPLOYEES]
+        assert stored == [EmployeeRef(id=7, first_name="Ivan", last_name="Petrov")]
+        assert result == RESPONSIBLE_EMPLOYEE
+
+    async def test_stored_roster_is_json_serializable(self, mock_context):
+        import json
+
+        from apps.bot.handlers.defect.photo.routing import after_photos
+
+        defect = DefectData(
+            defect_type=DefectType.HUMAN_FACTOR, department="coupler_brake"
+        )
+        msg = MagicMock()
+        msg.reply_text = AsyncMock()
+
+        with (
+            patch(
+                "apps.bot.services.get_employees_by_department",
+                AsyncMock(return_value=[_make_employee(7, "Ivan", "Petrov")]),
+            ),
+            patch(
+                "apps.bot.handlers.defect.responsible_employee"
+                ".show_responsible_employee_list",
+                AsyncMock(),
+            ),
+        ):
+            await after_photos(msg, defect, mock_context, edit=False)
+
+        roster = mock_context.user_data[UD_RESP_EMPLOYEES]
+        assert json.dumps([ref.to_dict() for ref in roster])

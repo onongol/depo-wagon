@@ -8,6 +8,7 @@ from apps.bot.constants import UD_LAST_PHOTO_MSG, UD_RESP_EMPLOYEES, UD_RESP_SEA
 from apps.bot.keyboards.defect import measurement_choice_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import MEASUREMENT_CHOICE, RESPONSIBLE_EMPLOYEE
+from apps.bot.user_data import EmployeeRef
 from apps.defects.constants import DefectType
 
 if TYPE_CHECKING:
@@ -34,7 +35,9 @@ async def after_photos(query_or_msg, defect: DefectData, context, *, edit: bool)
             await query_or_msg.reply_text(str(M.SESSION_ERROR))
             return ConversationHandler.END
 
-        context.user_data[UD_RESP_EMPLOYEES] = employees
+        context.user_data[UD_RESP_EMPLOYEES] = [
+            EmployeeRef.from_employee(emp) for emp in employees
+        ]
         context.user_data[UD_RESP_SEARCH] = ""
         await show_responsible_employee_list(query_or_msg, context, page=0, edit=edit)
         return RESPONSIBLE_EMPLOYEE
