@@ -1,4 +1,8 @@
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import uuid
 
 
 @dataclass(frozen=True)
@@ -115,13 +119,13 @@ class TasksPageCB:
 
 @dataclass(frozen=True)
 class StatusPickCB:
-    defect_id: str
+    defect_id: uuid.UUID
     page: int
 
 
 @dataclass(frozen=True)
 class StatusSetCB:
-    defect_id: str
+    defect_id: uuid.UUID
     status: str
     page: int
 

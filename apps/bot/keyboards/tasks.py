@@ -1,3 +1,5 @@
+from typing import TYPE_CHECKING
+
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 from apps.bot.callbacks import StatusPickCB, StatusSetCB, TasksPageCB
@@ -9,6 +11,9 @@ from apps.bot.constants import (
     STATUS_OPTIONS,
 )
 
+if TYPE_CHECKING:
+    import uuid
+
 
 def tasks_keyboard(defects: list, page: int, total: int) -> InlineKeyboardMarkup:
     """Pagination + one status-change button per defect."""
@@ -16,7 +21,7 @@ def tasks_keyboard(defects: list, page: int, total: int) -> InlineKeyboardMarkup
         [
             InlineKeyboardButton(
                 f"🔄 {defect.wagon.number} — {defect.get_node_display()}",
-                callback_data=StatusPickCB(defect_id=str(defect.id), page=page),
+                callback_data=StatusPickCB(defect_id=defect.id, page=page),
             )
         ]
         for defect in defects
@@ -41,7 +46,7 @@ def tasks_keyboard(defects: list, page: int, total: int) -> InlineKeyboardMarkup
     return InlineKeyboardMarkup(buttons)
 
 
-def status_picker_keyboard(defect_id: str, page: int) -> InlineKeyboardMarkup:
+def status_picker_keyboard(defect_id: uuid.UUID, page: int) -> InlineKeyboardMarkup:
     """Status options keyboard for a specific defect."""
     buttons = [
         [

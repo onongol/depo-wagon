@@ -1,9 +1,15 @@
+import uuid
 from unittest.mock import MagicMock
 
 import pytest
 from telegram import InlineKeyboardMarkup, ReplyKeyboardMarkup
 
-from apps.bot.callbacks import DepartmentCB, ResponsibleEmployeeCB
+from apps.bot.callbacks import (
+    DepartmentCB,
+    ResponsibleEmployeeCB,
+    StatusPickCB,
+    StatusSetCB,
+)
 from apps.bot.constants import (
     BTN_HELP,
     BTN_NEW_DEFECT,
@@ -19,8 +25,9 @@ from apps.bot.keyboards.defect import (
     responsible_employee_keyboard,
 )
 from apps.bot.keyboards.menu import main_menu_keyboard
-from apps.bot.keyboards.tasks import tasks_keyboard
+from apps.bot.keyboards.tasks import status_picker_keyboard, tasks_keyboard
 from apps.core.constants import Department, EmployeeRole
+from apps.defects.constants import DefectStatus
 
 
 def _menu_texts(kb: ReplyKeyboardMarkup) -> list[str]:
@@ -47,7 +54,7 @@ def _kb_buttons(kb: InlineKeyboardMarkup) -> list:
 
 def _make_defect(wagon_number="12345", node_display="Wheelset"):
     defect = MagicMock()
-    defect.id = "uuid-001"
+    defect.id = uuid.uuid4()
     defect.wagon.number = wagon_number
     defect.get_node_display.return_value = node_display
     return defect
@@ -197,3 +204,65 @@ class TestResponsibleEmployeeKeyboard:
             isinstance(btn.callback_data, ResponsibleEmployeeCB)
             for btn in _kb_buttons(kb)
         )
+
+
+class TestTaskCallbackDataCarriesUuid:
+    """defect_id travels as a UUID so aiogram can pack it as 32 hex chars."""
+
+    def test_tasks_keyboard_carries_the_uuid_itself(self):
+        defect = _make_defect()
+
+        kb = tasks_keyboard([defect], page=0, total=1)
+
+        picks = [
+            btn.callback_data
+            for btn in _kb_buttons(kb)
+            if isinstance(btn.callback_data, StatusPickCB)
+        ]
+        assert len(picks) == 1
+        assert picks[0].defect_id == defect.id
+        assert isinstance(picks[0].defect_id, uuid.UUID)
+
+    def test_status_picker_passes_the_uuid_through(self):
+        defect_id = uuid.uuid4()
+
+        kb = status_picker_keyboard(defect_id, page=0)
+
+        sets = [
+            btn.callback_data
+            for btn in _kb_buttons(kb)
+            if isinstance(btn.callback_data, StatusSetCB)
+        ]
+        assert sets
+        assert all(isinstance(cb.defect_id, uuid.UUID) for cb in sets)
+        assert {cb.status for cb in sets} == set(DefectStatus.values)
+
+
+class TestCallbackDataStaysUnder64Bytes:
+    """aiogram rejects callback_data over 64 bytes at pack() time.
+
+    A dashed UUID plus the longest status plus a page costs 62 of 64 with a
+    10-character prefix. Encoding the UUID as hex is what buys the headroom,
+    so the budget is asserted here rather than discovered in production.
+    """
+
+    def _packed(self, prefix: str, *values) -> int:
+        return len(":".join([prefix, *(str(v) for v in values)]).encode())
+
+    def test_dashed_uuid_is_what_makes_it_tight(self):
+        worst = max(DefectStatus.values, key=len)
+
+        assert self._packed("status_set", uuid.uuid4(), worst, 99) == 62
+
+    def test_hex_uuid_leaves_room(self):
+        worst = max(DefectStatus.values, key=len)
+
+        assert self._packed("dset", uuid.uuid4().hex, worst, 99) <= 64
+
+    def test_hex_uuid_still_fits_with_a_four_digit_page(self):
+        worst = max(DefectStatus.values, key=len)
+
+        assert self._packed("dset", uuid.uuid4().hex, worst, 9999) <= 64
+
+    def test_status_pick_fits(self):
+        assert self._packed("dpick", uuid.uuid4().hex, 9999) <= 64
