@@ -10,6 +10,8 @@ UD_RESP_SEARCH = "_resp_search"
 UD_LAST_PHOTO_MSG = "_last_photo_msg"
 UD_EDITING = "_editing"
 UD_AI_CHAT_HISTORY = "_ai_chat_history"
+# Last activity, stamped so the idle timeout can be enforced lazily.
+UD_AI_CHAT_LAST = "_ai_chat_last"
 
 # All user_data keys touched by the defect conversation, cleared on cancel
 DEFECT_USER_DATA_KEYS = (

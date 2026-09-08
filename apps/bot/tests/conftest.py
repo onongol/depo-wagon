@@ -30,6 +30,20 @@ def state() -> FSMContext:
 
 
 @pytest.fixture
+def message() -> MagicMock:
+    from apps.bot.tests.builders import make_message
+
+    return make_message()
+
+
+@pytest.fixture
+def callback() -> MagicMock:
+    from apps.bot.tests.builders import make_callback
+
+    return make_callback()
+
+
+@pytest.fixture
 def bot() -> MagicMock:
     """Stand-in for the injected Bot. Every API method is awaitable."""
     return MagicMock(

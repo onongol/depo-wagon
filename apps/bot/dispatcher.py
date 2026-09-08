@@ -57,6 +57,7 @@ def _routers() -> list:
       the AI chat reaches that flow's fallback rather than help_command;
     - stale is last, and only sees what nothing else claimed.
     """
+    from apps.bot.handlers.ai_chat.router import get_ai_chat_router
     from apps.bot.handlers.common.router import (
         get_stale_router,
         get_start_router,
@@ -69,6 +70,7 @@ def _routers() -> list:
         get_start_router(),
         get_tasks_router(),
         get_support_router(),
+        get_ai_chat_router(),
         get_utility_router(),
         get_stale_router(),
     ]

@@ -32,7 +32,13 @@ class TestRouterOrder:
         """The Help button inside a flow must reach that flow, not help_command."""
         names = [r.name for r in dispatcher.sub_routers]
 
-        assert names.index("utility") > names.index("tasks")
+        assert names.index("utility") > names.index("ai_chat")
+
+    def test_ai_chat_comes_before_utility_so_its_fallback_wins(self, dispatcher):
+        """The Help button pressed mid-session cancels, it does not show help."""
+        names = [r.name for r in dispatcher.sub_routers]
+
+        assert names.index("ai_chat") < names.index("utility")
 
     def test_tasks_comes_after_start(self, dispatcher):
         """/start mid-list is answered by start, leaving the list on screen."""
