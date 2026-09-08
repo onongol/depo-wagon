@@ -32,7 +32,7 @@ async def confirm_defect(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return ConversationHandler.END
 
     defect_data: DefectData = context.user_data.get(UD_DEFECT)
-    employee = await get_employee(update, context)
+    employee = await get_employee(update.effective_user.id)
     if not employee:
         await query.edit_message_text(str(M.NOT_REGISTERED))
         return ConversationHandler.END

@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 async def ai_chat_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     try:
-        employee = await get_employee(update, context)
+        employee = await get_employee(update.effective_user.id)
     except Exception:
         logger.exception(
             "Failed to fetch employee for user %s", update.effective_user.id

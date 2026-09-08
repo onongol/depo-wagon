@@ -43,7 +43,7 @@ async def support_receive(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     user = update.effective_user
 
     try:
-        employee = await get_employee(update, context)
+        employee = await get_employee(update.effective_user.id)
     except Exception:
         logger.exception("Failed to resolve employee for support request")
         employee = None

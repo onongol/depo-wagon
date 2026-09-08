@@ -39,7 +39,7 @@ async def set_defect_status(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     await services.update_defect_status(defect_id, status)
 
-    employee = await get_employee(update, context)
+    employee = await get_employee(update.effective_user.id)
     employee_id = employee.id if employee else None
     offset = page * PAGE_SIZE
     total = await services.get_open_defects_count(employee_id=employee_id)

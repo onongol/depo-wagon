@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 async def my_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Show paginated list of open defects for the current employee."""
-    employee = await get_employee(update, context)
+    employee = await get_employee(update.effective_user.id)
 
     if update.callback_query:
         query = update.callback_query

@@ -156,25 +156,23 @@ class TestAttachTelegram:
 class TestEmployeeIsReadFresh:
     """What the web revokes, the bot must stop honouring on the next update."""
 
-    async def test_disconnecting_reaches_the_bot(self, mock_context):
+    async def test_disconnecting_reaches_the_bot(self):
         employee = await make("core.Employee", telegram_id=777, is_active=True)
-        update = _make_update(user_id=777)
-        assert await get_employee(update, mock_context) is not None
+        assert await get_employee(777) is not None
 
         employee.telegram_id = None
         await sync_to_async(employee.save)(update_fields=["telegram_id"])
 
-        assert await get_employee(update, mock_context) is None
+        assert await get_employee(777) is None
 
-    async def test_deactivation_reaches_the_bot(self, mock_context):
+    async def test_deactivation_reaches_the_bot(self):
         employee = await make("core.Employee", telegram_id=777, is_active=True)
-        update = _make_update(user_id=777)
-        assert await get_employee(update, mock_context) is not None
+        assert await get_employee(777) is not None
 
         employee.is_active = False
         await sync_to_async(employee.save)(update_fields=["is_active"])
 
-        assert await get_employee(update, mock_context) is None
+        assert await get_employee(777) is None
 
 
 class TestStartHandler:

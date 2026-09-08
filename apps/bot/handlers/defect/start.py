@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 async def new_defect_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Entry point: /new_defect or menu button."""
     try:
-        employee = await get_employee(update, context)
+        employee = await get_employee(update.effective_user.id)
     except Exception:
         logger.exception("Failed to fetch employee in new_defect_start")
         await update.message.reply_text(str(M.SESSION_ERROR))
