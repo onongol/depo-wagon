@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from apps.bot.callbacks import PhotoSkipCB
+from apps.bot.callback_data import CB_PHOTO_SKIP
 from apps.bot.constants import SEVERITY_LABELS, UD_DEFECT, UD_EDITING
 from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.messages import BotMessages as M
@@ -33,6 +33,6 @@ async def receive_severity(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     await query.edit_message_text(
         str(M.SEVERITY_CONFIRMED).format(label=sev_label),
         parse_mode=M.PARSE_MODE,
-        reply_markup=skip_keyboard(PhotoSkipCB()),
+        reply_markup=skip_keyboard(CB_PHOTO_SKIP),
     )
     return PHOTO

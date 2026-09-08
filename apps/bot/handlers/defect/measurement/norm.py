@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from apps.bot.callbacks import NormSkipCB, UnitSkipCB
+from apps.bot.callback_data import CB_NORM_SKIP, CB_UNIT_SKIP
 from apps.bot.constants import UD_DEFECT
 from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.messages import BotMessages as M
@@ -24,7 +24,7 @@ async def receive_norm_value(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await update.message.reply_text(
             str(M.NORM_INVALID),
             parse_mode=M.PARSE_MODE,
-            reply_markup=skip_keyboard(NormSkipCB()),
+            reply_markup=skip_keyboard(CB_NORM_SKIP),
         )
         return MEASUREMENT_NORM
 
@@ -33,7 +33,7 @@ async def receive_norm_value(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await update.message.reply_text(
         str(M.ASK_UNIT),
         parse_mode=M.PARSE_MODE,
-        reply_markup=skip_keyboard(UnitSkipCB()),
+        reply_markup=skip_keyboard(CB_UNIT_SKIP),
     )
     return MEASUREMENT_UNIT
 
@@ -49,6 +49,6 @@ async def skip_norm_value(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await query.edit_message_text(
         str(M.ASK_UNIT),
         parse_mode=M.PARSE_MODE,
-        reply_markup=skip_keyboard(UnitSkipCB()),
+        reply_markup=skip_keyboard(CB_UNIT_SKIP),
     )
     return MEASUREMENT_UNIT

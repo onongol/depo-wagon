@@ -2,7 +2,10 @@ import uuid
 from unittest.mock import MagicMock
 
 import pytest
-from telegram import InlineKeyboardMarkup, ReplyKeyboardMarkup
+from aiogram.types import ReplyKeyboardMarkup
+
+# The defect and tasks keyboards are still PTB until their routers convert.
+from telegram import InlineKeyboardMarkup
 
 from apps.bot.callbacks import (
     DepartmentCB,

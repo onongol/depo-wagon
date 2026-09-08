@@ -39,6 +39,7 @@ from apps.bot.states import (
     RESPONSIBLE_EMPLOYEE,
     SEVERITY,
 )
+from apps.bot.tests.builders import make_message as _make_message
 from apps.bot.user_data import DefectData
 from apps.defects.constants import DefectType
 
@@ -73,34 +74,37 @@ def _make_employee(pk=1, first="Bat", last="Erdene"):
 
 
 class TestCancelHandler:
-    async def test_clears_reg_and_defect_data(self, mock_update, mock_context):
-        mock_context.user_data[UD_DEFECT] = {"node": "wheel"}
+    async def test_clears_everything_the_conversation_stored(self, state):
+        await state.set_state("DefectSG:node")
+        await state.update_data({UD_DEFECT: {"node": "wheel"}})
 
-        await cancel(mock_update, mock_context)
+        await cancel(_make_message(), state)
 
-        assert UD_DEFECT not in mock_context.user_data
+        assert await state.get_data() == {}
+        assert await state.get_state() is None
 
-    async def test_replies_with_cancelled_message(self, mock_update, mock_context):
-        await cancel(mock_update, mock_context)
+    async def test_replies_with_cancelled_message(self, state):
+        message = _make_message()
 
-        mock_update.message.reply_text.assert_called_once_with(
+        await cancel(message, state)
+
+        message.answer.assert_awaited_once_with(
             str(M.CANCELLED), parse_mode=M.PARSE_MODE
         )
 
-    async def test_returns_conversation_end(self, mock_update, mock_context):
-        result = await cancel(mock_update, mock_context)
-        assert result == ConversationHandler.END
+    async def test_tolerates_an_idle_conversation(self, state):
+        await cancel(_make_message(), state)
 
-    async def test_tolerates_empty_user_data(self, mock_update, mock_context):
-        await cancel(mock_update, mock_context)
-        assert UD_DEFECT not in mock_context.user_data
+        assert await state.get_state() is None
 
 
 class TestHelpHandler:
-    async def test_replies_with_help_text(self, mock_update, mock_context):
-        await help_command(mock_update, mock_context)
+    async def test_replies_with_help_text(self):
+        message = _make_message()
 
-        mock_update.message.reply_text.assert_called_once_with(
+        await help_command(message)
+
+        message.answer.assert_awaited_once_with(
             str(M.HELP_TEXT), parse_mode=M.PARSE_MODE
         )
 

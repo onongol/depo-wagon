@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from apps.bot.callbacks import DescSkipCB
+from apps.bot.callback_data import CB_DESC_SKIP
 from apps.bot.constants import UD_DEFECT
 from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.keyboards.defect import dimension_keyboard
@@ -35,6 +35,6 @@ async def measurement_done(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     await query.edit_message_text(
         str(M.ASK_DESCRIPTION),
-        reply_markup=skip_keyboard(DescSkipCB()),
+        reply_markup=skip_keyboard(CB_DESC_SKIP),
     )
     return DESC

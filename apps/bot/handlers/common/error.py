@@ -2,11 +2,13 @@ import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from telegram.ext import ContextTypes
+    from aiogram.types import ErrorEvent
 
 logger = logging.getLogger(__name__)
 
 
-# PTB awaits error handlers, so this stays async with nothing to await.
-async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
-    logger.error("Unhandled exception in update %s", update, exc_info=context.error)
+async def error_handler(event: ErrorEvent) -> None:
+    """Log and swallow. Returning anything but UNHANDLED stops the propagation."""
+    logger.error(
+        "Unhandled exception in update %s", event.update, exc_info=event.exception
+    )

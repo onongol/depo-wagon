@@ -1,19 +1,17 @@
 from typing import TYPE_CHECKING
 
-from telegram.ext import ContextTypes, ConversationHandler
-
 from apps.bot.messages import BotMessages as M
 
 if TYPE_CHECKING:
-    from telegram import Update
+    from aiogram.fsm.context import FSMContext
+    from aiogram.types import Message
 
 
-async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Cancel any active conversation and clear user data."""
-    context.user_data.clear()
+async def cancel(message: Message, state: FSMContext) -> None:
+    """Cancel any active conversation and drop everything it stored.
 
-    if update.message:
-        await update.message.reply_text(str(M.CANCELLED), parse_mode=M.PARSE_MODE)
-    elif update.callback_query:
-        await update.callback_query.answer(str(M.CANCELLED))
-    return ConversationHandler.END
+    state.clear() rather than clearing selected keys: this is the blanket
+    cancel, and PTB's version called user_data.clear() outright.
+    """
+    await state.clear()
+    await message.answer(str(M.CANCELLED), parse_mode=M.PARSE_MODE)

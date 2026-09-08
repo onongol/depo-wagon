@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from apps.bot.callbacks import PhotoSkipCB
+from apps.bot.callback_data import CB_PHOTO_SKIP
 from apps.bot.constants import PHOTO_MG_JOB_PREFIX, UD_DEFECT, UD_LAST_PHOTO_MSG
 from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.messages import BotMessages as M
@@ -43,7 +43,7 @@ async def receive_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         await clear_last_photo_keyboard(context.bot, context.user_data)
         msg = await update.message.reply_text(
             str(M.PHOTO_RECEIVED).format(count=len(defect.photo_file_ids)),
-            reply_markup=skip_keyboard(PhotoSkipCB()),
+            reply_markup=skip_keyboard(CB_PHOTO_SKIP),
         )
         context.user_data[UD_LAST_PHOTO_MSG] = [msg.chat_id, msg.message_id]
 

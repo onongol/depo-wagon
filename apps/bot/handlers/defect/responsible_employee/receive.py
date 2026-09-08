@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from apps.bot.callbacks import DescSkipCB
+from apps.bot.callback_data import CB_DESC_SKIP
 from apps.bot.constants import UD_DEFECT, UD_RESP_EMPLOYEES, UD_RESP_SEARCH
 from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.messages import BotMessages as M
@@ -35,7 +35,7 @@ async def skip_responsible_employee(
     await query.edit_message_text(
         str(M.ASK_DESCRIPTION),
         parse_mode=M.PARSE_MODE,
-        reply_markup=skip_keyboard(DescSkipCB()),
+        reply_markup=skip_keyboard(CB_DESC_SKIP),
     )
     return DESC
 
@@ -75,6 +75,6 @@ async def select_responsible_employee(
     await query.edit_message_text(
         str(M.RESPONSIBLE_EMPLOYEE_CONFIRMED).format(label=label),
         parse_mode=M.PARSE_MODE,
-        reply_markup=skip_keyboard(DescSkipCB()),
+        reply_markup=skip_keyboard(CB_DESC_SKIP),
     )
     return DESC

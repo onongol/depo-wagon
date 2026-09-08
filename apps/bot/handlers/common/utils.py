@@ -4,12 +4,12 @@ from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.messages import BotMessages as M
 
 if TYPE_CHECKING:
-    from telegram import Message
+    from aiogram.types import Message
 
 
 async def show_welcome_menu(message: Message, employee) -> None:
     """Send the main menu greeting to the user."""
-    await message.reply_text(
+    await message.answer(
         str(M.WELCOME_MENU).format(
             full_name=employee.full_name,
             role=employee.get_role_display(),

@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from apps.bot.callbacks import NormSkipCB
+from apps.bot.callback_data import CB_NORM_SKIP
 from apps.bot.constants import UD_DEFECT
 from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.messages import BotMessages as M
@@ -33,6 +33,6 @@ async def receive_measurement_value(
 
     await update.message.reply_text(
         str(M.ASK_NORM),
-        reply_markup=skip_keyboard(NormSkipCB()),
+        reply_markup=skip_keyboard(CB_NORM_SKIP),
     )
     return MEASUREMENT_NORM

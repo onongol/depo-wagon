@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 from telegram.ext import ContextTypes, ConversationHandler
 
-from apps.bot.callbacks import DescSkipCB, PartNumberSkipCB
+from apps.bot.callback_data import CB_DESC_SKIP, CB_PART_NUMBER_SKIP
 from apps.bot.constants import UD_DEFECT, UD_EDITING
 from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.keyboards.defect import (
@@ -38,12 +38,12 @@ _EDIT_STEPS = {
     ),
     "part_number": (
         M.EDIT_PART_NUMBER,
-        lambda _: skip_keyboard(PartNumberSkipCB()),
+        lambda _: skip_keyboard(CB_PART_NUMBER_SKIP),
         PART_NUMBER,
     ),
     "defect_type": (M.EDIT_DEFECT_TYPE, lambda _: defect_type_keyboard(), DEFECT_TYPE),
     "severity": (M.EDIT_SEVERITY, lambda _: severity_keyboard(), SEVERITY),
-    "description": (M.EDIT_DESCRIPTION, lambda _: skip_keyboard(DescSkipCB()), DESC),
+    "description": (M.EDIT_DESCRIPTION, lambda _: skip_keyboard(CB_DESC_SKIP), DESC),
 }
 
 

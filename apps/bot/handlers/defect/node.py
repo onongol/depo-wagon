@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from apps.bot.callbacks import PartNumberSkipCB
+from apps.bot.callback_data import CB_PART_NUMBER_SKIP
 from apps.bot.constants import UD_DEFECT, UD_EDITING
 from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.messages import BotMessages as M
@@ -36,6 +36,6 @@ async def receive_node(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     await query.edit_message_text(
         str(M.NODE_CONFIRMED).format(label=node_label),
         parse_mode=M.PARSE_MODE,
-        reply_markup=skip_keyboard(PartNumberSkipCB()),
+        reply_markup=skip_keyboard(CB_PART_NUMBER_SKIP),
     )
     return PART_NUMBER

@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 
 from telegram.error import TelegramError
 
-from apps.bot.callbacks import PhotoSkipCB
+from apps.bot.callback_data import CB_PHOTO_SKIP
 from apps.bot.constants import UD_DEFECT, UD_LAST_PHOTO_MSG
 from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.messages import BotMessages as M
@@ -44,6 +44,6 @@ async def flush_media_group(context: ContextTypes.DEFAULT_TYPE) -> None:
     msg = await context.bot.send_message(
         chat_id=chat_id,
         text=str(M.PHOTO_RECEIVED).format(count=count),
-        reply_markup=skip_keyboard(PhotoSkipCB()),
+        reply_markup=skip_keyboard(CB_PHOTO_SKIP),
     )
     user_data[UD_LAST_PHOTO_MSG] = [msg.chat_id, msg.message_id]
