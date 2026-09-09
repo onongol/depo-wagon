@@ -40,10 +40,6 @@ class DefectMessages:
 
     DEFECT_TYPE_CONFIRMED = _("✅ Defect type: <b>{label}</b>\n\nSelect severity:")
 
-    DEFECT_TYPE_HUMAN_FACTOR = _(
-        "✅ Defect type: <b>{label}</b>\n\n📸 Send a photo (or skip):"
-    )
-
     ASK_RESPONSIBLE_EMPLOYEE = _(
         "👤 Select the responsible employee:\n"
         "📄 Page {page}/{total} • {count} employees\n"
