@@ -8,7 +8,13 @@ from model_bakery import baker
 
 from apps.bot.callback_data import CB_LINK_CANCEL, LinkConfirmCB
 from apps.bot.constants import LinkStatus
-from apps.bot.handlers.common.start import cancel_link, confirm_link, start
+from apps.bot.handlers.common.start import (
+    _ATTACH_ERROR_TEXT,
+    _RESOLVE_ERROR_TEXT,
+    cancel_link,
+    confirm_link,
+    start,
+)
 from apps.bot.handlers.employee import get_employee
 from apps.bot.services.telegram_link import attach_telegram, resolve_link_token
 from apps.bot.tests.builders import make_callback, make_command, make_message
@@ -218,10 +224,7 @@ class TestStartHandler:
             await start(message, command)
         svc.attach_telegram.assert_not_called()
 
-    @pytest.mark.parametrize(
-        "status",
-        [LinkStatus.INVALID_TOKEN, LinkStatus.NO_EMPLOYEE],
-    )
+    @pytest.mark.parametrize("status", sorted(_RESOLVE_ERROR_TEXT))
     async def test_unresolvable_token_offers_nothing(self, status):
         message = make_message()
         command = make_command("sometoken")
@@ -269,10 +272,7 @@ class TestConfirmLink:
             await confirm_link(callback, callback_data)
         assert menu.await_args.args[1] is employee
 
-    @pytest.mark.parametrize(
-        "status",
-        [LinkStatus.NO_EMPLOYEE, LinkStatus.ALREADY_LINKED],
-    )
+    @pytest.mark.parametrize("status", sorted(_ATTACH_ERROR_TEXT))
     async def test_failed_attach_shows_no_menu(self, status):
         callback = make_callback(user_id=12345)
         callback_data = LinkConfirmCB(employee_id=42)
@@ -294,6 +294,23 @@ class TestConfirmLink:
             svc.attach_telegram = AsyncMock(side_effect=Exception("db down"))
             await confirm_link(callback, callback_data)
         callback.message.edit_text.assert_awaited_once()
+
+
+class TestLinkStatusRouting:
+    def test_every_failure_status_reaches_a_message(self):
+        routed = _RESOLVE_ERROR_TEXT.keys() | _ATTACH_ERROR_TEXT.keys()
+        assert routed == set(LinkStatus) - {LinkStatus.OK}
+
+    async def test_an_unrouted_status_still_answers(self, caplog):
+        callback = make_callback(user_id=12345)
+        callback_data = LinkConfirmCB(employee_id=42)
+        with patch("apps.bot.handlers.common.start.services") as svc:
+            svc.attach_telegram = AsyncMock(
+                return_value=(None, LinkStatus.INVALID_TOKEN)
+            )
+            await confirm_link(callback, callback_data)
+        callback.message.edit_text.assert_awaited_once()
+        assert "no message on this path" in caplog.text
 
 
 class TestCancelLink:

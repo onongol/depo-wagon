@@ -17,6 +17,25 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+_RESOLVE_ERROR_TEXT = {
+    LinkStatus.INVALID_TOKEN: M.LINK_TOKEN_INVALID,
+    LinkStatus.NO_EMPLOYEE: M.LINK_NO_EMPLOYEE,
+}
+
+_ATTACH_ERROR_TEXT = {
+    LinkStatus.NO_EMPLOYEE: M.LINK_NO_EMPLOYEE,
+    LinkStatus.ALREADY_LINKED: M.LINK_ALREADY_TAKEN,
+}
+
+
+def _error_text(texts: dict, status: LinkStatus):
+    """Never leave the chat without an answer, and say so in the log."""
+    text = texts.get(status)
+    if text is None:
+        logger.error("Link status %s has no message on this path", status)
+        return M.SESSION_ERROR
+    return text
+
 
 async def start(message: Message, command: CommandObject) -> None:
     """Entry point, and the only place a Telegram account gets attached.
@@ -67,10 +86,7 @@ async def _handle_link_token(message: Message, token: str) -> None:
         return
 
     if status is not LinkStatus.OK:
-        text = {
-            LinkStatus.INVALID_TOKEN: M.LINK_TOKEN_INVALID,
-            LinkStatus.NO_EMPLOYEE: M.LINK_NO_EMPLOYEE,
-        }[status]
+        text = _error_text(_RESOLVE_ERROR_TEXT, status)
         await message.answer(str(text), parse_mode=M.PARSE_MODE)
         return
 
@@ -96,10 +112,7 @@ async def confirm_link(callback: CallbackQuery, callback_data: LinkConfirmCB) ->
         return
 
     if status is not LinkStatus.OK:
-        text = {
-            LinkStatus.NO_EMPLOYEE: M.LINK_NO_EMPLOYEE,
-            LinkStatus.ALREADY_LINKED: M.LINK_ALREADY_TAKEN,
-        }[status]
+        text = _error_text(_ATTACH_ERROR_TEXT, status)
         await callback.message.edit_text(str(text), parse_mode=M.PARSE_MODE)
         return
 
