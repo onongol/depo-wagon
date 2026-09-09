@@ -21,7 +21,7 @@ async def receive_dimension(
     await callback.answer()
 
     dim_value = callback_data.value
-    dim_label = _DIM_LABELS.get(dim_value, dim_value)
+    dim_label = str(_DIM_LABELS.get(dim_value, dim_value))
 
     defect = await load_defect(state)
     defect.current_measurement.dimension = dim_value

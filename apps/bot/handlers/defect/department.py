@@ -22,7 +22,7 @@ async def receive_department(
     await callback.answer()
 
     dept_value = callback_data.value
-    dept_label = _DEPT_LABELS.get(dept_value, dept_value)
+    dept_label = str(_DEPT_LABELS.get(dept_value, dept_value))
 
     defect = await load_defect(state)
     defect.department = dept_value

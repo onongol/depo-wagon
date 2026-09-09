@@ -23,7 +23,7 @@ async def receive_severity(
     await callback.answer()
 
     sev_value = callback_data.value
-    sev_label = SEVERITY_LABELS.get(sev_value, sev_value)
+    sev_label = str(SEVERITY_LABELS.get(sev_value, sev_value))
 
     defect = await load_defect(state)
     defect.severity = sev_value

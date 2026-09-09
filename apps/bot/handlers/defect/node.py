@@ -26,7 +26,7 @@ async def receive_node(
     await callback.answer()
 
     node_value = callback_data.value
-    node_label = _NODE_LABELS.get(node_value, node_value)
+    node_label = str(_NODE_LABELS.get(node_value, node_value))
 
     defect = await load_defect(state)
     defect.node = node_value

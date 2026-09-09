@@ -25,7 +25,7 @@ async def receive_defect_type(
     await callback.answer()
 
     dtype_value = callback_data.value
-    dtype_label = _DEFECT_TYPE_LABELS.get(dtype_value, dtype_value)
+    dtype_label = str(_DEFECT_TYPE_LABELS.get(dtype_value, dtype_value))
 
     defect = await load_defect(state)
     defect.defect_type = dtype_value
