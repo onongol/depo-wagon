@@ -278,6 +278,14 @@ LOGGING = {
             "level": "INFO",
             "propagate": False,
         },
+        # "Run polling for bot @x" is the only positive confirmation the bot
+        # came up, and it is INFO — at the root WARNING level a healthy start
+        # is indistinguishable from a silent failure.
+        "aiogram": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
         "apps": {
             "handlers": ["console"],
             "level": "DEBUG",
