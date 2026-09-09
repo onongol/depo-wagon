@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 from apps.bot import services
 from apps.bot.handlers.employee import get_employee
 from apps.bot.keyboards.tasks import status_picker_keyboard
+from apps.bot.messages import BotMessages as M
 
 from .list import render_page
 
@@ -32,7 +33,21 @@ async def set_defect_status(
     """Save new status and refresh the defect list."""
     await callback.answer()
 
-    await services.update_defect_status(callback_data.defect_id, callback_data.status)
+    try:
+        saved = await services.update_defect_status(
+            callback_data.defect_id, callback_data.status
+        )
+    except Exception:
+        logger.exception("Failed to set status on defect %s", callback_data.defect_id)
+        await callback.message.answer(
+            str(M.STATUS_CHANGE_FAILED), parse_mode=M.PARSE_MODE
+        )
+        return
+
+    if not saved:
+        await callback.message.answer(
+            str(M.STATUS_DEFECT_MISSING), parse_mode=M.PARSE_MODE
+        )
 
     employee = await get_employee(callback.from_user.id)
     await render_page(callback.message.edit_text, employee, page=callback_data.page)

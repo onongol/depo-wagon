@@ -50,7 +50,7 @@ def _services(defects, total=None):
     svc.get_open_defects_count = AsyncMock(
         return_value=len(defects) if total is None else total
     )
-    svc.update_defect_status = AsyncMock()
+    svc.update_defect_status = AsyncMock(return_value=True)
     return svc
 
 
@@ -250,3 +250,41 @@ class TestSetDefectStatus:
             )
 
         assert callback.message.edit_text.await_args.args[0] == str(M.NO_TASKS)
+
+    async def test_warns_when_the_defect_is_already_gone(self, employee):
+        svc = _services([])
+        svc.update_defect_status = AsyncMock(return_value=False)
+        callback = make_callback()
+
+        with (
+            patch(f"{STATUS}.services", svc),
+            patch(f"{STATUS}.get_employee", AsyncMock(return_value=employee)),
+            patch(f"{LIST}.services", _services([_make_defect()])),
+        ):
+            await set_defect_status(
+                callback,
+                StatusSetCB(defect_id=uuid.uuid4(), status=DefectStatus.CLOSED, page=0),
+            )
+
+        assert callback.message.answer.await_args.args[0] == str(
+            M.STATUS_DEFECT_MISSING
+        )
+        callback.message.edit_text.assert_awaited_once()
+
+    async def test_reports_a_failed_save_and_leaves_the_list_alone(self, employee):
+        svc = _services([])
+        svc.update_defect_status = AsyncMock(side_effect=RuntimeError("db is down"))
+        callback = make_callback()
+
+        with (
+            patch(f"{STATUS}.services", svc),
+            patch(f"{STATUS}.get_employee", AsyncMock(return_value=employee)),
+            patch(f"{LIST}.services", _services([_make_defect()])),
+        ):
+            await set_defect_status(
+                callback,
+                StatusSetCB(defect_id=uuid.uuid4(), status=DefectStatus.CLOSED, page=0),
+            )
+
+        assert callback.message.answer.await_args.args[0] == str(M.STATUS_CHANGE_FAILED)
+        callback.message.edit_text.assert_not_awaited()

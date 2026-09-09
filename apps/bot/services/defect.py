@@ -74,14 +74,17 @@ def update_defect_ai_result(
 
 
 @sync_to_async
-def update_defect_status(defect_id, status: str) -> None:
-    """Update a Defect's status, setting repaired_at when it closes."""
+def update_defect_status(defect_id, status: str) -> bool:
+    """Update a Defect's status, setting repaired_at when it closes.
+
+    Returns False when the defect is gone, True when the new status is saved.
+    """
     from apps.defects.constants import DefectStatus
 
     defect = _load_defect(defect_id, "update_defect_status")
 
     if defect is None:
-        return
+        return False
 
     defect.status = status
     fields = ["status"]
@@ -91,6 +94,7 @@ def update_defect_status(defect_id, status: str) -> None:
         fields.append("repaired_at")
 
     defect.save(update_fields=fields)
+    return True
 
 
 @sync_to_async

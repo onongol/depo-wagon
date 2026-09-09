@@ -8,4 +8,8 @@ class TaskMessages:
 
     NO_TASKS = _("✅ You have no open defects.")
 
+    STATUS_DEFECT_MISSING = _(
+        "⚠️ This defect no longer exists. The list has been refreshed."
+    )
+
     STATUS_CHANGE_FAILED = _("❌ Failed to update status. Please try again.")
