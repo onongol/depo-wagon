@@ -20,6 +20,7 @@ for _name in (
     "AWS_STORAGE_BUCKET_NAME",
     "AWS_S3_ENDPOINT_URL",
     "TELEGRAM_BOT_TOKEN",
+    "TELEGRAM_FSM_REDIS_URL",
     "GOOGLE_AI_KEY",
 ):
     if not env(_name, default=""):

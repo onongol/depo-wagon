@@ -12,8 +12,6 @@ aiohappyeyeballs==2.7.1
     # via aiohttp
 aiohttp==3.14.3
     # via aiogram
-aiolimiter==1.2.1
-    # via python-telegram-bot
 aiosignal==1.4.0
     # via aiohttp
 amqp==5.3.1
@@ -26,8 +24,6 @@ anyio==4.14.0
     # via
     #   google-genai
     #   httpx
-apscheduler==3.11.2
-    # via python-telegram-bot
 argon2-cffi==25.1.0
     # via -r requirements.in
 argon2-cffi-bindings==26.1.0
@@ -50,8 +46,6 @@ botocore==1.43.30
     # via
     #   boto3
     #   s3transfer
-cachetools==7.1.4
-    # via python-telegram-bot
 celery==5.6.3
     # via -r requirements.in
 certifi==2026.5.20
@@ -65,7 +59,6 @@ cffi==2.0.0
     # via
     #   argon2-cffi-bindings
     #   cryptography
-    #   python-telegram-bot
 charset-normalizer==3.4.7
     # via
     #   reportlab
@@ -89,7 +82,6 @@ cryptography==49.0.0
     #   fido2
     #   google-auth
     #   pyjwt
-    #   python-telegram-bot
 diff-match-patch==20241021
     # via django-import-export
 distro==1.9.0
@@ -188,27 +180,18 @@ gunicorn==26.0.0
     # via -r requirements.in
 h11==0.16.0
     # via httpcore
-h2==4.3.0
-    # via httpx
 hf-xet==1.5.1
     # via huggingface-hub
-hpack==4.1.0
-    # via h2
 httpcore==1.0.9
-    # via
-    #   httpx
-    #   python-telegram-bot
-httpx[http2,socks]==0.28.1
+    # via httpx
+httpx==0.28.1
     # via
     #   google-genai
     #   huggingface-hub
     #   langsmith
     #   pwned-passwords-django
-    #   python-telegram-bot
 huggingface-hub==1.19.0
     # via tokenizers
-hyperframe==6.1.0
-    # via h2
 idna==3.18
     # via
     #   anyio
@@ -327,8 +310,6 @@ python-dateutil==2.9.0.post0
     #   pandas
 python-slugify==8.0.4
     # via -r requirements.in
-python-telegram-bot[all]==22.8
-    # via -r requirements.in
 pytz==2026.2
     # via -r requirements.in
 pyyaml==6.0.3
@@ -375,8 +356,6 @@ six==1.17.0
     # via python-dateutil
 sniffio==1.3.1
     # via google-genai
-socksio==1.0.0
-    # via httpx
 sqlparse==0.5.5
     # via django
 tablib==3.9.0
@@ -391,8 +370,6 @@ text-unidecode==1.3
     # via python-slugify
 tokenizers==0.23.1
     # via flashrank
-tornado==6.5.7
-    # via python-telegram-bot
 tqdm==4.68.2
     # via
     #   flashrank
@@ -418,9 +395,7 @@ tzdata==2026.2
     #   -r requirements.in
     #   kombu
 tzlocal==5.4
-    # via
-    #   apscheduler
-    #   celery
+    # via celery
 uritemplate==4.2.0
     # via drf-spectacular
 urllib3==2.7.0

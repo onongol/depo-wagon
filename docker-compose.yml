@@ -10,6 +10,10 @@ x-app: &app
     REDIS_URL: redis://redis_cache:6379/0
     CELERY_BROKER_URL: redis://redis_broker:6379/0
     CELERY_RESULT_BACKEND: redis://redis_broker:6379/1
+    # Conversation state, on the durable instance rather than redis_cache:
+    # allkeys-lru would drop a half-filled defect form mid-flow. Keys carry a
+    # one-day TTL so abandoned forms cannot crowd out the queue.
+    TELEGRAM_FSM_REDIS_URL: redis://redis_broker:6379/2
   restart: unless-stopped
   logging:
     driver: json-file

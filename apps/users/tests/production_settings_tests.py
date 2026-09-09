@@ -15,6 +15,7 @@ def load_production(monkeypatch, **env):
     env.setdefault("DEFAULT_FROM_EMAIL", "noreply@example.com")
     env.setdefault("CELERY_BROKER_URL", "redis://localhost:6379/1")
     env.setdefault("CELERY_RESULT_BACKEND", "redis://localhost:6379/2")
+    env.setdefault("TELEGRAM_FSM_REDIS_URL", "redis://localhost:6379/3")
     for key, value in env.items():
         monkeypatch.setenv(key, value)
 

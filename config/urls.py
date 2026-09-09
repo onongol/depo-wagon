@@ -15,9 +15,8 @@ urlpatterns = [
     path("accounts/", include("allauth.urls")),
     path("_allauth/", include("allauth.headless.urls")),
     path("", include("apps.web.urls")),
-    # apps.bot.urls is unrouted until the aiogram webhook handler lands: the
-    # view drives a PTB Application that no longer exists, and answers 200 on
-    # any failure, so a stray POST would tell Telegram it was delivered.
+    # The bot has no HTTP surface: it polls. A webhook route returns here with
+    # the aiogram webhook handler.
     path("api/v1/", include("config.api_router")),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
