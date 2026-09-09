@@ -37,7 +37,7 @@ from apps.bot.tests.builders import make_callback, make_message
 from apps.bot.user_data import DefectData, EmployeeRef
 from apps.defects.constants import DefectType
 
-RESP_EMP_PAGE_SIZE = 5
+EMPLOYEE_PAGE_SIZE = 5
 
 
 def _make_employee(pk=1, first="Bat", last="Erdene"):
@@ -224,7 +224,7 @@ class TestFilterAndPage:
 
         page, total, pages, _no = _filter_and_page(emps, "", 0)
 
-        assert len(page) == RESP_EMP_PAGE_SIZE
+        assert len(page) == EMPLOYEE_PAGE_SIZE
         assert total == 12
         assert pages == 3
 
@@ -234,7 +234,7 @@ class TestFilterAndPage:
         page, _total, _pages, page_no = _filter_and_page(emps, "", 1)
 
         assert page_no == 1
-        assert len(page) == RESP_EMP_PAGE_SIZE
+        assert len(page) == EMPLOYEE_PAGE_SIZE
 
     def test_page_clamped_to_max(self):
         emps = self._employees(*[f"N{i} L{i}" for i in range(6)])

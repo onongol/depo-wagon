@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
     from aiogram.fsm.context import FSMContext
 
-RESP_EMP_PAGE_SIZE = 5
+EMPLOYEE_PAGE_SIZE = 5
 
 
 def _filter_and_page(all_employees: list, search: str, page: int) -> tuple:
@@ -27,10 +27,10 @@ def _filter_and_page(all_employees: list, search: str, page: int) -> tuple:
         filtered = all_employees
 
     total = len(filtered)
-    total_pages = max(1, (total + RESP_EMP_PAGE_SIZE - 1) // RESP_EMP_PAGE_SIZE)
+    total_pages = max(1, (total + EMPLOYEE_PAGE_SIZE - 1) // EMPLOYEE_PAGE_SIZE)
     page = max(0, min(page, total_pages - 1))
     page_employees = filtered[
-        page * RESP_EMP_PAGE_SIZE : (page + 1) * RESP_EMP_PAGE_SIZE
+        page * EMPLOYEE_PAGE_SIZE : (page + 1) * EMPLOYEE_PAGE_SIZE
     ]
 
     return page_employees, total, total_pages, page
