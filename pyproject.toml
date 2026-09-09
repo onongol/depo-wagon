@@ -57,11 +57,17 @@ known-first-party = ["apps", "config"]
 # Decisions, not debt. In an assertion the literal is the documentation, and
 # naming it hides what is checked. Test credentials are fixtures. pytest.raises
 # on a broad exception is the point of the test in these cases.
-"**/tests/*.py" = [
+"**/tests/**/*.py" = [
   "B011", "B017", "DTZ011", "N806", "PLC1901", "PLR2004", "PT011", "PT015",
   "PT018", "PT022", "RET504", "RUF059", "S101", "S105", "S106", "SIM117",
   "UP017", "UP041",
 ]
+# The whole point of the end-to-end walk is that it is one long sequence: each
+# assertion also checks that the previous step persisted its work. Splitting it
+# into shorter tests would lose exactly that.
+"apps/bot/tests/integration/defect_flow_tests.py" = ["PLR0915"]
+# The session signatures come from aiogram's BaseSession, which this implements.
+"apps/bot/tests/integration/mocked_bot.py" = ["ASYNC109", "FBT001", "FBT002"]
 "conftest.py" = ["S105", "S106"]
 # django-components discovers component directories by path, not by import, so
 # they deliberately have no __init__.py.
