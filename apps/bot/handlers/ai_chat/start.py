@@ -28,7 +28,7 @@ async def ai_chat_start(message: Message, state: FSMContext) -> None:
 
     if not employee:
         with contextlib.suppress(TelegramAPIError):
-            await message.answer(str(M.AI_CHAT_NOT_AUTHENTICATED))
+            await message.answer(str(M.NOT_REGISTERED))
         return
 
     await state.update_data({UD_AI_CHAT_HISTORY: [], UD_AI_CHAT_LAST: time.time()})

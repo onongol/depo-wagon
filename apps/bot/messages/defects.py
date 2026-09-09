@@ -4,8 +4,6 @@ from django.utils.translation import gettext_lazy as _
 class DefectMessages:
     """The whole step-by-step defect registration flow and AI results."""
 
-    NOT_REGISTERED = _("❌ Please register first using /start.")
-
     NEW_DEFECT_START = _(
         "🔍 <b>New Defect Registration</b>\n\nEnter the wagon number:\n"
         "<i>(e.g. 12345678)</i>"

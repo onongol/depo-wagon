@@ -36,15 +36,13 @@ class TestAiChatStart:
 
         assert await state.get_state() is None
 
-    async def test_unauthenticated_sends_not_authenticated_message(
-        self, message, state
-    ):
+    async def test_unauthenticated_sends_not_registered_message(self, message, state):
         with patch(
             "apps.bot.handlers.ai_chat.start.get_employee", AsyncMock(return_value=None)
         ):
             await ai_chat_start(message, state)
 
-        message.answer.assert_called_once_with(str(M.AI_CHAT_NOT_AUTHENTICATED))
+        message.answer.assert_called_once_with(str(M.NOT_REGISTERED))
 
     async def test_authenticated_returns_ai_chat_state(self, message, state):
         with patch(

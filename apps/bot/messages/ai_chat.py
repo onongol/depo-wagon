@@ -20,5 +20,3 @@ class AiChatMessages:
     AI_CHAT_BLOCKED = _(
         "⚠️ The response was blocked by safety filters. Please rephrase your question."
     )
-
-    AI_CHAT_NOT_AUTHENTICATED = _("⚠️ You are not registered. Please use /start.")

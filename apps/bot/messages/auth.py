@@ -2,13 +2,9 @@ from django.utils.translation import gettext_lazy as _
 
 
 class AuthMessages:
-    """Attaching a Telegram account to an existing web account.
+    """Attaching a Telegram account to an existing web account."""
 
-    There are no messages for entering an email or a verification code: this
-    bot never establishes anybody's identity. That happens on the web, and the
-    only thing carried here is a one-time token from an already-signed-in
-    session.
-    """
+    NOT_REGISTERED = _("⚠️ Please register first using /start.")
 
     NOT_CONNECTED = _(
         "👋 <b>Welcome!</b>\n\n"
