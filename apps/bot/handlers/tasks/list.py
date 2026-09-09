@@ -2,7 +2,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from apps.bot import services
-from apps.bot.constants import PAGE_SIZE
+from apps.bot.constants import TASKS_PAGE_SIZE
 from apps.bot.handlers.employee import get_employee
 from apps.bot.keyboards.tasks import tasks_keyboard
 from apps.bot.messages import BotMessages as M
@@ -29,7 +29,7 @@ async def render_page(send: Callable[..., Awaitable], employee, page: int) -> No
     employee_id = employee.id if employee else None
     total = await services.get_open_defects_count(employee_id=employee_id)
     defects = await services.get_open_defects(
-        limit=PAGE_SIZE, offset=page * PAGE_SIZE, employee_id=employee_id
+        limit=TASKS_PAGE_SIZE, offset=page * TASKS_PAGE_SIZE, employee_id=employee_id
     )
 
     if not defects:

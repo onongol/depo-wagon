@@ -7,8 +7,8 @@ from apps.bot.constants import (
     BTN_BACK,
     BTN_NEXT,
     BTN_PREV,
-    PAGE_SIZE,
     STATUS_OPTIONS,
+    TASKS_PAGE_SIZE,
 )
 
 if TYPE_CHECKING:
@@ -34,7 +34,7 @@ def tasks_keyboard(defects: list, page: int, total: int) -> InlineKeyboardMarkup
                 text=str(BTN_PREV), callback_data=TasksPageCB(page=page - 1).pack()
             )
         )
-    if (page + 1) * PAGE_SIZE < total:
+    if (page + 1) * TASKS_PAGE_SIZE < total:
         nav.append(
             InlineKeyboardButton(
                 text=str(BTN_NEXT), callback_data=TasksPageCB(page=page + 1).pack()

@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
-from apps.bot.constants import PAGE_SIZE
+from apps.bot.constants import TASKS_PAGE_SIZE
 from apps.bot.handlers.tasks.text import build_text
 
 
@@ -47,7 +47,7 @@ class TestBuildText:
         assert "&lt;b&gt;x&lt;/b&gt;" in text
 
     def test_header_counts_the_current_page(self):
-        defects = [_make_defect() for _ in range(PAGE_SIZE)]
+        defects = [_make_defect() for _ in range(TASKS_PAGE_SIZE)]
 
         text = build_text(defects, page=1, total=12)
 

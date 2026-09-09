@@ -1,13 +1,13 @@
 import html
 
-from apps.bot.constants import PAGE_SIZE, SEVERITY_EMOJI, STATUS_LABEL
+from apps.bot.constants import SEVERITY_EMOJI, STATUS_LABEL, TASKS_PAGE_SIZE
 from apps.bot.messages import BotMessages as M
 
 
 def build_text(defects: list, page: int, total: int) -> str:
     """Build the defect list message text."""
-    start = page * PAGE_SIZE + 1
-    end = min((page + 1) * PAGE_SIZE, total)
+    start = page * TASKS_PAGE_SIZE + 1
+    end = min((page + 1) * TASKS_PAGE_SIZE, total)
     lines = [
         str(M.TASKS_HEADER).format(total=total, start=start, end=end),
     ]

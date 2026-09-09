@@ -18,7 +18,7 @@ from apps.bot.constants import (
     BTN_OPEN_DEFECTS,
     BTN_PREV,
     BTN_SKIP,
-    PAGE_SIZE,
+    TASKS_PAGE_SIZE,
 )
 from apps.bot.keyboards.defect import (
     department_keyboard,
@@ -111,23 +111,23 @@ class TestTasksKeyboard:
         assert len(defect_rows) == 2
 
     def test_no_nav_when_single_page(self):
-        kb = tasks_keyboard(defects=[], page=0, total=PAGE_SIZE - 1)
+        kb = tasks_keyboard(defects=[], page=0, total=TASKS_PAGE_SIZE - 1)
         assert _nav_texts(kb) == []
 
     def test_next_only_on_first_page_with_more(self):
-        kb = tasks_keyboard(defects=[], page=0, total=PAGE_SIZE + 1)
+        kb = tasks_keyboard(defects=[], page=0, total=TASKS_PAGE_SIZE + 1)
         nav = _nav_texts(kb)
         assert str(BTN_NEXT) in nav
         assert str(BTN_PREV) not in nav
 
     def test_prev_only_on_last_page(self):
-        kb = tasks_keyboard(defects=[], page=1, total=PAGE_SIZE + 1)
+        kb = tasks_keyboard(defects=[], page=1, total=TASKS_PAGE_SIZE + 1)
         nav = _nav_texts(kb)
         assert str(BTN_PREV) in nav
         assert str(BTN_NEXT) not in nav
 
     def test_both_nav_on_middle_page(self):
-        total = PAGE_SIZE * 3
+        total = TASKS_PAGE_SIZE * 3
         kb = tasks_keyboard(defects=[], page=1, total=total)
         nav = _nav_texts(kb)
         assert str(BTN_PREV) in nav
