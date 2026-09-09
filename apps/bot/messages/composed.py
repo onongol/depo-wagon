@@ -5,10 +5,16 @@ from .auth import AuthMessages
 from .common import CommonMessages
 from .defects import DefectMessages
 from .support import SupportMessages
+from .tasks import TaskMessages
 
 
 class BotMessages(
-    CommonMessages, AuthMessages, DefectMessages, SupportMessages, AiChatMessages
+    CommonMessages,
+    AuthMessages,
+    DefectMessages,
+    TaskMessages,
+    SupportMessages,
+    AiChatMessages,
 ):
     """All Telegram bot strings, composed from per-domain message mixins."""
 

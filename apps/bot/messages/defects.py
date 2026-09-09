@@ -2,7 +2,7 @@ from django.utils.translation import gettext_lazy as _
 
 
 class DefectMessages:
-    """The whole step-by-step defect registration flow, AI results and tasks."""
+    """The whole step-by-step defect registration flow and AI results."""
 
     NOT_REGISTERED = _("❌ Please register first using /start.")
 
@@ -149,13 +149,3 @@ class DefectMessages:
         "This wagon is recommended for decommission.\n"
         "Please review in App."
     )
-
-    # ── Tasks (my_tasks) ─────────────────────────────────────────────────────
-
-    TASKS_HEADER = _("📋 <b>Open Defects</b> ({total} total, {start}–{end})\n")
-
-    NO_TASKS = _("✅ You have no open defects.")
-
-    STATUS_CHANGED = _("✅ Status updated to <b>{status}</b>.")
-
-    STATUS_CHANGE_FAILED = _("❌ Failed to update status: <code>{error}</code>")
