@@ -4,10 +4,10 @@ Two sets live here during the migration. `state` and the aiogram builders are
 for converted handlers; `mock_update`/`mock_context` serve the flows still on
 PTB and go with the last of them.
 
-`state` is a real FSMContext over MemoryStorage rather than a mock, so
+`state` is a real FSMContext over JSONMemoryStorage rather than a mock, so
 get_state and get_data behave exactly as they will against Redis — including
 the part that catches missed saves, where a loaded DefectData is a detached
-copy.
+copy, and the JSON round-trip that rejects a lazy translation proxy.
 """
 
 from unittest.mock import AsyncMock, MagicMock
@@ -15,7 +15,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.base import StorageKey
-from aiogram.fsm.storage.memory import MemoryStorage
+
+from apps.bot.tests.storage import JSONMemoryStorage
 
 USER_ID = 12345
 CHAT_ID = 12345
@@ -24,7 +25,7 @@ CHAT_ID = 12345
 @pytest.fixture
 def state() -> FSMContext:
     return FSMContext(
-        storage=MemoryStorage(),
+        storage=JSONMemoryStorage(),
         key=StorageKey(bot_id=42, chat_id=CHAT_ID, user_id=USER_ID),
     )
 

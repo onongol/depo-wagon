@@ -5,7 +5,6 @@ from itertools import count
 import pytest
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.base import StorageKey
-from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import (
     CallbackQuery,
     Chat,
@@ -17,6 +16,7 @@ from aiogram.types import (
 )
 
 from apps.bot.dispatcher import make_dispatcher
+from apps.bot.tests.storage import JSONMemoryStorage
 
 from .mocked_bot import BOT_ID, make_mocked_bot
 
@@ -39,7 +39,7 @@ def session(bot):
 
 @pytest.fixture
 def storage():
-    return MemoryStorage()
+    return JSONMemoryStorage()
 
 
 @pytest.fixture
