@@ -2,7 +2,7 @@ from django.utils.translation import gettext_lazy as _
 
 from apps.defects.constants import DefectSeverity, DefectStatus
 
-PAGE_SIZE = 5
+TASKS_PAGE_SIZE = 5
 
 SEVERITY_EMOJI = {
     DefectSeverity.LOW: "🟢",
