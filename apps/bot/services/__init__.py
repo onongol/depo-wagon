@@ -28,15 +28,24 @@ from .employee import (
 )
 from .measurement import create_measurement, create_measurements_bulk
 from .photo import create_photo_from_bytes
-from .telegram_link import attach_telegram, get_connect_url, resolve_link_token
+from .telegram_link import (
+    attach_telegram,
+    claim_pending_link,
+    forget_pending_link,
+    get_connect_url,
+    remember_pending_link,
+    resolve_link_token,
+)
 from .wagon import get_wagon_by_number
 
 __all__ = [
     "attach_telegram",
+    "claim_pending_link",
     "create_defect",
     "create_measurement",
     "create_measurements_bulk",
     "create_photo_from_bytes",
+    "forget_pending_link",
     "get_connect_url",
     "get_employee_by_telegram_id",
     "get_employees_by_department",
@@ -44,6 +53,7 @@ __all__ = [
     "get_open_defects",
     "get_open_defects_count",
     "get_wagon_by_number",
+    "remember_pending_link",
     "resolve_link_token",
     "save_employee_verdict",
     "update_defect_ai_result",

@@ -27,6 +27,12 @@ class AuthMessages:
 
     LINK_CANCEL_BUTTON = _("✖️ Cancel")
 
+    LINK_CONFIRM_EXPIRED = _(
+        "⚠️ This confirmation is no longer valid — it expired or has already "
+        "been answered.\n\n"
+        "Open <b>Connect Telegram</b> in the web app to start again."
+    )
+
     LINK_CANCELLED = _(
         "Cancelled. Nothing was connected.\n"
         "Open <b>Connect Telegram</b> in the web app for a new link."

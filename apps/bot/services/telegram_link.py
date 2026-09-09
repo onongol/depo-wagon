@@ -2,11 +2,16 @@ import logging
 
 from asgiref.sync import sync_to_async
 from django.conf import settings
+from django.core.cache import cache
 from django.urls import reverse
 
 from apps.bot.constants import LinkStatus
 
 logger = logging.getLogger(__name__)
+
+# Redis key: chat that followed a deep link -> employee it was offered.
+_PENDING_PREFIX = "tg_link_pending:"
+PENDING_TTL = 300  # 5 minutes
 
 
 def get_connect_url() -> str:
@@ -46,6 +51,31 @@ def resolve_link_token(token: str):
         return None, LinkStatus.NO_EMPLOYEE
 
     return employee, LinkStatus.OK
+
+
+def _pending_key(telegram_id: int) -> str:
+    return f"{_PENDING_PREFIX}{telegram_id}"
+
+
+async def remember_pending_link(telegram_id: int, employee_id: int) -> None:
+    """Record which employee this chat has just been offered."""
+    await sync_to_async(cache.set)(
+        _pending_key(telegram_id), employee_id, timeout=PENDING_TTL
+    )
+
+
+async def claim_pending_link(telegram_id: int, employee_id: int) -> bool:
+    """Consume this chat's offer, but only if it names this employee."""
+    key = _pending_key(telegram_id)
+    if await sync_to_async(cache.get)(key) != employee_id:
+        return False
+    # delete reports whether the key was still there: of two racing taps, one.
+    return bool(await sync_to_async(cache.delete)(key))
+
+
+async def forget_pending_link(telegram_id: int) -> None:
+    """Drop this chat's offer, declined or superseded."""
+    await sync_to_async(cache.delete)(_pending_key(telegram_id))
 
 
 @sync_to_async

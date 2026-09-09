@@ -73,7 +73,7 @@ async def start(message: Message, command: CommandObject) -> None:
 async def _handle_link_token(message: Message, token: str) -> None:
     """Spend the token, then ask before attaching anything.
 
-    Nothing is written here. A deep link can be forwarded, so the chat that
+    Nothing is attached here. A deep link can be forwarded, so the chat that
     followed it is asked to confirm out loud which account it is about to take
     over. Spending the token first keeps it single-use while that question
     waits for an answer.
@@ -90,6 +90,13 @@ async def _handle_link_token(message: Message, token: str) -> None:
         await message.answer(str(text), parse_mode=M.PARSE_MODE)
         return
 
+    try:
+        await services.remember_pending_link(message.from_user.id, employee.pk)
+    except Exception:
+        logger.exception("Recording the pending link failed")
+        await message.answer(str(M.SESSION_ERROR))
+        return
+
     await message.answer(
         str(M.LINK_CONFIRM).format(full_name=html.escape(employee.full_name)),
         parse_mode=M.PARSE_MODE,
@@ -98,10 +105,28 @@ async def _handle_link_token(message: Message, token: str) -> None:
 
 
 async def confirm_link(callback: CallbackQuery, callback_data: LinkConfirmCB) -> None:
-    """Attach the chat now that the person has agreed to it."""
+    """Attach the chat, if it still holds the offer that named this employee."""
     await callback.answer()
 
     employee_id = callback_data.employee_id
+    try:
+        claimed = await services.claim_pending_link(callback.from_user.id, employee_id)
+    except Exception:
+        logger.exception("Claiming the offer for employee %s failed", employee_id)
+        await callback.message.edit_text(str(M.SESSION_ERROR))
+        return
+
+    if not claimed:
+        logger.warning(
+            "Chat %s confirmed employee %s while holding no such offer",
+            callback.from_user.id,
+            employee_id,
+        )
+        await callback.message.edit_text(
+            str(M.LINK_CONFIRM_EXPIRED), parse_mode=M.PARSE_MODE
+        )
+        return
+
     try:
         employee, status = await services.attach_telegram(
             employee_id, callback.from_user.id
@@ -123,4 +148,8 @@ async def confirm_link(callback: CallbackQuery, callback_data: LinkConfirmCB) ->
 async def cancel_link(callback: CallbackQuery) -> None:
     """Drop a link the person declined."""
     await callback.answer()
+    try:
+        await services.forget_pending_link(callback.from_user.id)
+    except Exception:
+        logger.exception("Dropping the pending link failed")
     await callback.message.edit_text(str(M.LINK_CANCELLED), parse_mode=M.PARSE_MODE)

@@ -16,7 +16,13 @@ from apps.bot.handlers.common.start import (
     start,
 )
 from apps.bot.handlers.employee import get_employee
-from apps.bot.services.telegram_link import attach_telegram, resolve_link_token
+from apps.bot.services.telegram_link import (
+    attach_telegram,
+    claim_pending_link,
+    forget_pending_link,
+    remember_pending_link,
+    resolve_link_token,
+)
 from apps.bot.tests.builders import make_callback, make_command, make_message
 from apps.users import telegram_tokens
 
@@ -143,6 +149,43 @@ class TestAttachTelegram:
         assert status is LinkStatus.NO_EMPLOYEE
 
 
+class TestPendingLink:
+    async def test_the_offer_is_single_use(self):
+        await remember_pending_link(777, 42)
+
+        assert await claim_pending_link(777, 42) is True
+        assert await claim_pending_link(777, 42) is False
+
+    async def test_an_offer_naming_another_employee_is_refused(self):
+        await remember_pending_link(777, 42)
+
+        assert await claim_pending_link(777, 43) is False
+
+    async def test_a_refused_claim_leaves_the_offer_standing(self):
+        await remember_pending_link(777, 42)
+        await claim_pending_link(777, 43)
+
+        assert await claim_pending_link(777, 42) is True
+
+    async def test_a_new_offer_replaces_the_one_before_it(self):
+        await remember_pending_link(777, 42)
+        await remember_pending_link(777, 43)
+
+        assert await claim_pending_link(777, 42) is False
+        assert await claim_pending_link(777, 43) is True
+
+    async def test_one_chat_cannot_claim_another_chats_offer(self):
+        await remember_pending_link(777, 42)
+
+        assert await claim_pending_link(778, 42) is False
+
+    async def test_a_dropped_offer_is_gone(self):
+        await remember_pending_link(777, 42)
+        await forget_pending_link(777)
+
+        assert await claim_pending_link(777, 42) is False
+
+
 @pytest.mark.django_db(transaction=True)
 class TestEmployeeIsReadFresh:
     """What the web revokes, the bot must stop honouring on the next update."""
@@ -198,6 +241,7 @@ class TestStartHandler:
             svc.resolve_link_token = AsyncMock(
                 return_value=(_make_employee_mock(), LinkStatus.OK)
             )
+            svc.remember_pending_link = AsyncMock()
             await start(message, command)
         assert svc.resolve_link_token.await_args.args[0] == "sometoken"
 
@@ -208,11 +252,45 @@ class TestStartHandler:
             svc.resolve_link_token = AsyncMock(
                 return_value=(_make_employee_mock(pk=42), LinkStatus.OK)
             )
+            svc.remember_pending_link = AsyncMock()
             await start(message, command)
 
         kwargs = message.answer.await_args.kwargs
         button = kwargs["reply_markup"].inline_keyboard[0][0]
         assert LinkConfirmCB.unpack(button.callback_data).employee_id == 42
+
+    async def test_the_offer_is_recorded_against_this_chat(self):
+        message = make_message(user_id=777)
+        command = make_command("sometoken")
+        with patch("apps.bot.handlers.common.start.services") as svc:
+            svc.resolve_link_token = AsyncMock(
+                return_value=(_make_employee_mock(pk=42), LinkStatus.OK)
+            )
+            svc.remember_pending_link = AsyncMock()
+            await start(message, command)
+        assert svc.remember_pending_link.await_args.args == (777, 42)
+
+    async def test_no_offer_is_recorded_without_a_button(self):
+        message = make_message()
+        command = make_command("sometoken")
+        with patch("apps.bot.handlers.common.start.services") as svc:
+            svc.resolve_link_token = AsyncMock(
+                return_value=(None, LinkStatus.INVALID_TOKEN)
+            )
+            svc.remember_pending_link = AsyncMock()
+            await start(message, command)
+        svc.remember_pending_link.assert_not_awaited()
+
+    async def test_an_unrecordable_offer_shows_no_button(self):
+        message = make_message()
+        command = make_command("sometoken")
+        with patch("apps.bot.handlers.common.start.services") as svc:
+            svc.resolve_link_token = AsyncMock(
+                return_value=(_make_employee_mock(), LinkStatus.OK)
+            )
+            svc.remember_pending_link = AsyncMock(side_effect=Exception("redis down"))
+            await start(message, command)
+        assert "reply_markup" not in message.answer.await_args.kwargs
 
     async def test_token_attaches_nothing_on_its_own(self):
         message = make_message()
@@ -221,6 +299,7 @@ class TestStartHandler:
             svc.resolve_link_token = AsyncMock(
                 return_value=(_make_employee_mock(), LinkStatus.OK)
             )
+            svc.remember_pending_link = AsyncMock()
             await start(message, command)
         svc.attach_telegram.assert_not_called()
 
@@ -253,8 +332,10 @@ class TestConfirmLink:
                 new_callable=AsyncMock,
             ),
         ):
+            svc.claim_pending_link = AsyncMock(return_value=True)
             svc.attach_telegram = AsyncMock(return_value=(MagicMock(), LinkStatus.OK))
             await confirm_link(callback, callback_data)
+        assert svc.claim_pending_link.await_args.args == (777, 42)
         assert svc.attach_telegram.await_args.args == (42, 777)
 
     async def test_shows_the_menu_for_the_employee_attached(self):
@@ -268,6 +349,7 @@ class TestConfirmLink:
                 new_callable=AsyncMock,
             ) as menu,
         ):
+            svc.claim_pending_link = AsyncMock(return_value=True)
             svc.attach_telegram = AsyncMock(return_value=(employee, LinkStatus.OK))
             await confirm_link(callback, callback_data)
         assert menu.await_args.args[1] is employee
@@ -283,6 +365,7 @@ class TestConfirmLink:
                 new_callable=AsyncMock,
             ) as menu,
         ):
+            svc.claim_pending_link = AsyncMock(return_value=True)
             svc.attach_telegram = AsyncMock(return_value=(None, status))
             await confirm_link(callback, callback_data)
         menu.assert_not_awaited()
@@ -291,8 +374,27 @@ class TestConfirmLink:
         callback = make_callback(user_id=12345)
         callback_data = LinkConfirmCB(employee_id=42)
         with patch("apps.bot.handlers.common.start.services") as svc:
+            svc.claim_pending_link = AsyncMock(return_value=True)
             svc.attach_telegram = AsyncMock(side_effect=Exception("db down"))
             await confirm_link(callback, callback_data)
+        callback.message.edit_text.assert_awaited_once()
+
+    async def test_an_unclaimed_offer_attaches_nothing(self):
+        callback = make_callback(user_id=12345)
+        callback_data = LinkConfirmCB(employee_id=42)
+        with patch("apps.bot.handlers.common.start.services") as svc:
+            svc.claim_pending_link = AsyncMock(return_value=False)
+            await confirm_link(callback, callback_data)
+        svc.attach_telegram.assert_not_called()
+        callback.message.edit_text.assert_awaited_once()
+
+    async def test_an_unreadable_offer_attaches_nothing(self):
+        callback = make_callback(user_id=12345)
+        callback_data = LinkConfirmCB(employee_id=42)
+        with patch("apps.bot.handlers.common.start.services") as svc:
+            svc.claim_pending_link = AsyncMock(side_effect=Exception("redis down"))
+            await confirm_link(callback, callback_data)
+        svc.attach_telegram.assert_not_called()
         callback.message.edit_text.assert_awaited_once()
 
 
@@ -305,6 +407,7 @@ class TestLinkStatusRouting:
         callback = make_callback(user_id=12345)
         callback_data = LinkConfirmCB(employee_id=42)
         with patch("apps.bot.handlers.common.start.services") as svc:
+            svc.claim_pending_link = AsyncMock(return_value=True)
             svc.attach_telegram = AsyncMock(
                 return_value=(None, LinkStatus.INVALID_TOKEN)
             )
@@ -313,10 +416,70 @@ class TestLinkStatusRouting:
         assert "no message on this path" in caplog.text
 
 
+@pytest.mark.django_db(transaction=True)
+class TestForwardedDeepLink:
+    """The button in a chat that was never meant to have it."""
+
+    async def _offer_to(self, telegram_id: int):
+        user = await make("users.CustomUser")
+        employee = await make(
+            "core.Employee", user=user, telegram_id=None, is_active=True
+        )
+        token = await sync_to_async(telegram_tokens.issue)(user.pk)
+        await start(make_message(user_id=telegram_id), make_command(token))
+        return employee
+
+    async def test_the_chat_that_followed_the_link_can_confirm(self):
+        employee = await self._offer_to(999)
+
+        with patch("apps.users.notifications.notify_telegram_link_change"):
+            await confirm_link(
+                make_callback(user_id=999), LinkConfirmCB(employee_id=employee.pk)
+            )
+
+        await sync_to_async(employee.refresh_from_db)()
+        assert employee.telegram_id == 999
+
+    async def test_a_button_outliving_its_offer_attaches_nothing(self):
+        employee = await self._offer_to(999)
+        await forget_pending_link(999)
+
+        await confirm_link(
+            make_callback(user_id=999), LinkConfirmCB(employee_id=employee.pk)
+        )
+
+        await sync_to_async(employee.refresh_from_db)()
+        assert employee.telegram_id is None
+
+    async def test_a_stale_button_cannot_move_a_chat_already_linked(self):
+        employee = await self._offer_to(999)
+        await forget_pending_link(999)
+        employee.telegram_id = 777
+        await sync_to_async(employee.save)(update_fields=["telegram_id"])
+
+        await confirm_link(
+            make_callback(user_id=999), LinkConfirmCB(employee_id=employee.pk)
+        )
+
+        await sync_to_async(employee.refresh_from_db)()
+        assert employee.telegram_id == 777
+
+    async def test_the_button_works_once(self):
+        employee = await self._offer_to(999)
+        callback_data = LinkConfirmCB(employee_id=employee.pk)
+
+        with patch("apps.users.notifications.notify_telegram_link_change") as notify:
+            await confirm_link(make_callback(user_id=999), callback_data)
+            await confirm_link(make_callback(user_id=999), callback_data)
+
+        notify.assert_called_once()
+
+
 class TestCancelLink:
     async def test_attaches_nothing(self):
         callback = make_callback(CB_LINK_CANCEL)
         with patch("apps.bot.handlers.common.start.services") as svc:
+            svc.forget_pending_link = AsyncMock()
             await cancel_link(callback)
         svc.attach_telegram.assert_not_called()
 
@@ -324,3 +487,11 @@ class TestCancelLink:
         callback = make_callback(CB_LINK_CANCEL)
         await cancel_link(callback)
         callback.message.edit_text.assert_awaited_once()
+
+    async def test_drops_the_offer(self):
+        callback = make_callback(CB_LINK_CANCEL, user_id=777)
+        await remember_pending_link(777, 42)
+
+        await cancel_link(callback)
+
+        assert await claim_pending_link(777, 42) is False
