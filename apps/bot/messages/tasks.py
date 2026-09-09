@@ -8,4 +8,4 @@ class TaskMessages:
 
     NO_TASKS = _("✅ You have no open defects.")
 
-    STATUS_CHANGE_FAILED = _("❌ Failed to update status: <code>{error}</code>")
+    STATUS_CHANGE_FAILED = _("❌ Failed to update status. Please try again.")

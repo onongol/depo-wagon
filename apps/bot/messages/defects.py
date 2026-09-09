@@ -132,7 +132,7 @@ class DefectMessages:
 
     ASK_EMPLOYEE_VERDICT = _("\n\n👨‍🔧 <b>Your verdict:</b>")
 
-    SAVE_FAILED = _("❌ An error occurred. Please try again.\n<code>{error}</code>")
+    SAVE_FAILED = _("❌ An error occurred. Please try again.")
 
     DEFECT_CANCELLED = _("❌ Defect registration cancelled.")
 
