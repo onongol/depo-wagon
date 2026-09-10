@@ -1,16 +1,9 @@
-"""Inline button payloads.
+"""Inline button payloads. The payload *is* the string on the wire, so a button
+survives a restart and is not worker-local.
 
-Replaces the frozen dataclasses in callbacks.py, which relied on PTB's
-arbitrary_callback_data — an in-process cache that put a UUID on the wire and
-handed the object back. aiogram has no such thing: the payload *is* the string,
-which is why buttons here survive a restart and are not worker-local.
-
-Budget. Telegram caps callback_data at 64 bytes and CallbackData.pack() raises
-ValueError above it. The cost is len(prefix), then 1 + len(encoded) per field.
-A UUID field costs 33 (aiogram encodes it as 32 hex characters, no dashes); an
-int costs 1 + its digits; a bool costs 2. A prefix may not contain ":".
-StatusSetCB is the tight one at 52 of 64 — it has no room for another string
-field. The budget is asserted in callback_data_tests.py rather than trusted.
+Prefixes must be unique: aiogram does not check, and a duplicate silently sends
+both classes' buttons to whichever router was included first. Asserted in
+callback_data_tests.py rather than trusted.
 """
 
 import uuid
@@ -19,8 +12,6 @@ from aiogram.filters.callback_data import CallbackData
 
 from apps.defects.constants import DefectStatus
 
-# Markers carrying nothing. A CallbackData factory for these would only add a
-# parse step, so they are plain literals matched with F.data == ...
 CB_NOOP = "noop"
 CB_CANCEL = "cancel"
 CB_PART_NUMBER_SKIP = "pn_skip"
@@ -93,6 +84,12 @@ class StatusPickCB(CallbackData, prefix="dpick"):
 
 
 class StatusSetCB(CallbackData, prefix="dset"):
+    """The tight one: 52 of Telegram's 64 bytes, no room for another field.
+
+    Cost is len(prefix), then 1 + len(encoded) per field — UUID 33 (32 hex, no
+    dashes), int 1 + digits, bool 2. pack() raises above 64.
+    """
+
     defect_id: uuid.UUID
     status: DefectStatus
     page: int
