@@ -203,8 +203,55 @@ class TestAiChatPrecedence:
 
 
 class TestUnroutedUpdates:
-    async def test_a_stray_text_outside_every_flow_is_ignored(self, dp, bot, session):
-        """No global text handler exists, and none should be introduced."""
+    """The stale router now answers messages too.
+
+    It used to assert the opposite — that a stray text is met with silence and
+    no global handler should be introduced. That held while every silence had a
+    prompt still on screen behind it. It stopped holding once the FSM took a
+    TTL: the key expires under a user who is mid-form, and from then on the
+    step that asked the question no longer exists to answer them.
+    """
+
+    async def test_a_stray_text_outside_every_flow_is_answered(self, dp, bot, session):
         await dp.feed_update(bot, make_message_update("just talking"))
 
+        sent = [m.text for m in session.calls("sendMessage")]
+        assert sent == [str(M.UNHANDLED_MESSAGE)]
+
+    async def test_an_unknown_command_is_answered_too(self, dp, bot, session):
+        await dp.feed_update(bot, make_message_update("/nope", command=True))
+
+        sent = [m.text for m in session.calls("sendMessage")]
+        assert sent == [str(M.UNHANDLED_MESSAGE)]
+
+    async def test_a_known_command_still_wins(self, dp, bot, session):
+        """The fallback is last, so /help must never reach it."""
+        await dp.feed_update(bot, make_message_update("/help", command=True))
+
+        sent = [m.text for m in session.calls("sendMessage")]
+        assert sent == [str(M.HELP_TEXT)]
+
+    async def test_a_group_chat_is_left_alone(self, dp, bot, session):
+        """The support group carries traffic this bot must not answer."""
+        await dp.feed_update(
+            bot, make_message_update("chatter", chat_type="supergroup")
+        )
+
         assert session.requests == []
+
+    async def test_the_wrong_content_type_mid_form_stays_silent(
+        self, dp, bot, session, state, employee
+    ):
+        """The photo step asks for a photo. Typing at it must not end the form."""
+        with patch(
+            "apps.bot.handlers.defect.start.get_employee",
+            AsyncMock(return_value=employee),
+        ):
+            await dp.feed_update(bot, make_message_update(str(BTN_NEW_DEFECT)))
+        await state.set_state(DefectSG.photo)
+        session.clear()
+
+        await dp.feed_update(bot, make_message_update("not a photo"))
+
+        assert session.requests == []
+        assert await state.get_state() == DefectSG.photo.state

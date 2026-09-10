@@ -60,11 +60,13 @@ def _user() -> User:
     return User(id=USER_ID, is_bot=False, first_name="Bat", username="bat")
 
 
-def _chat() -> Chat:
-    return Chat(id=CHAT_ID, type="private")
+def _chat(chat_type: str = "private") -> Chat:
+    return Chat(id=CHAT_ID, type=chat_type)
 
 
-def make_message_update(text: str, *, command: bool = False) -> Update:
+def make_message_update(
+    text: str, *, command: bool = False, chat_type: str = "private"
+) -> Update:
     entities = None
     if command:
         length = len(text.split(" ", 1)[0])
@@ -75,7 +77,7 @@ def make_message_update(text: str, *, command: bool = False) -> Update:
         message=Message(
             message_id=next(_message_ids),
             date=0,
-            chat=_chat(),
+            chat=_chat(chat_type),
             from_user=_user(),
             text=text,
             entities=entities,

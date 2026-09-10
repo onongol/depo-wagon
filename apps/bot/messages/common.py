@@ -23,6 +23,12 @@ class CommonMessages:
         "sent.\n\nSend /start to begin again."
     )
 
+    UNHANDLED_MESSAGE = _(
+        "⚠️ There is no step waiting for this message.\n\n"
+        "An unfinished form expires after a while — tap <b>Menu</b> or send "
+        "/help to start again."
+    )
+
     WELCOME_MENU = _(
         "👋 Hello, <b>{full_name}</b>!\n\n"
         "👷 Role: {role}\n\n"
