@@ -96,38 +96,3 @@ class StatusSetCB(CallbackData, prefix="dset"):
     defect_id: uuid.UUID
     status: DefectStatus
     page: int
-
-
-LITERALS = frozenset(
-    {
-        CB_NOOP,
-        CB_CANCEL,
-        CB_PART_NUMBER_SKIP,
-        CB_RESP_EMP_SKIP,
-        CB_PHOTO_SKIP,
-        CB_MEAS_ADD,
-        CB_MEAS_SKIP,
-        CB_MEAS_DONE,
-        CB_NORM_SKIP,
-        CB_UNIT_SKIP,
-        CB_DESC_SKIP,
-        CB_LINK_CANCEL,
-    }
-)
-
-FACTORIES = (
-    DepartmentCB,
-    NodeCB,
-    DefectTypeCB,
-    SeverityCB,
-    DimensionCB,
-    VerdictCB,
-    EditCB,
-    ConfirmCB,
-    ResponsibleEmployeeCB,
-    ResponsibleEmployeePageCB,
-    TasksPageCB,
-    LinkConfirmCB,
-    StatusPickCB,
-    StatusSetCB,
-)

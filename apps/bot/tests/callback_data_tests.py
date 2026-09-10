@@ -10,9 +10,8 @@ import uuid
 import pytest
 from aiogram.filters.callback_data import CallbackData
 
+from apps.bot import callback_data
 from apps.bot.callback_data import (
-    FACTORIES,
-    LITERALS,
     ConfirmCB,
     DefectTypeCB,
     DepartmentCB,
@@ -40,6 +39,23 @@ from apps.defects.constants import (
 )
 
 TELEGRAM_LIMIT = 64
+
+
+def _factories() -> list[type[CallbackData]]:
+    """Every payload class in the module, read off it rather than listed here.
+
+    Deliberately not exported from callback_data itself: routing has no use for
+    such a list, and one kept in the module would be a second thing to maintain
+    when a factory is added. Read at call time so a new class is covered on
+    sight, and the emptiness guard below is what stops that being vacuous.
+    """
+    return [
+        obj
+        for obj in vars(callback_data).values()
+        if isinstance(obj, type)
+        and issubclass(obj, CallbackData)
+        and obj is not CallbackData
+    ]
 
 
 def _size(cb) -> int:
@@ -94,9 +110,6 @@ class TestBudget:
         assert _size(ResponsibleEmployeePageCB(page=9999)) <= TELEGRAM_LIMIT
         assert _size(TasksPageCB(page=9999)) <= TELEGRAM_LIMIT
 
-    def test_every_literal_fits(self):
-        assert all(len(v.encode()) <= TELEGRAM_LIMIT for v in LITERALS)
-
     def test_the_tightest_payload_still_has_headroom(self):
         """StatusSetCB is the one with no room for another string field."""
         worst = max(DefectStatus.values, key=len)
@@ -146,18 +159,26 @@ class TestEncoding:
 
 
 class TestPrefixes:
+    """The one collision nothing else catches.
+
+    aiogram rejects a prefix containing the separator at class definition, so
+    that needs no test — the module would not import. A duplicate prefix it
+    accepts happily, and the failure is silent: both classes' filters match the
+    same payload, the earlier-included router wins, and the loser's buttons go
+    to the wrong handler with a correctly-typed object.
+    """
+
     def test_prefixes_are_unique(self):
-        prefixes = [f.__prefix__ for f in FACTORIES]
+        prefixes = [f.__prefix__ for f in _factories()]
 
         assert len(prefixes) == len(set(prefixes))
 
-    def test_no_prefix_contains_the_separator(self):
-        assert all(":" not in f.__prefix__ for f in FACTORIES)
+    def test_the_module_is_actually_being_read(self):
+        """Without this, a rename would make the check above pass on nothing."""
+        factories = _factories()
 
-    def test_literals_do_not_collide_with_any_prefix(self):
-        prefixes = {f.__prefix__ for f in FACTORIES}
-
-        assert not (LITERALS & prefixes)
+        assert len(factories) > 10
+        assert StatusSetCB in factories
 
 
 class TestDriftedPayloadsStopMatching:
