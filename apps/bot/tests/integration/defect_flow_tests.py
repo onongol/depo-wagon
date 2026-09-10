@@ -257,6 +257,63 @@ class TestTheWholeFlow:
         assert await load_defect(state) is None
 
 
+class TestAFormLeftOverFromAnEarlierBuild:
+    """A deploy lands mid-flow and the stored form no longer matches the code.
+
+    Only six of the flow's steps check the None load_defect returns for it; the
+    rest assign onto the form. Without the middleware this walk ends in an
+    AttributeError that error_handler logs and swallows, leaving the user with
+    a dead keyboard and no reply — which is what the assertions below pin.
+    """
+
+    async def _mid_flow_with_a_foreign_schema(self, dp, bot, state):
+        from apps.bot.constants import UD_DEFECT
+        from apps.bot.user_data import STATE_SCHEMA_VERSION
+
+        await dp.feed_update(bot, make_message_update("/new_defect", command=True))
+        await dp.feed_update(bot, make_message_update(WAGON_NUMBER))
+        await dp.feed_update(
+            bot, make_callback_update(DepartmentCB(value=Department.BOGIE).pack())
+        )
+        assert await state.get_state() == DefectSG.node.state
+
+        stored = (await state.get_data())[UD_DEFECT]
+        stored["_schema"] = STATE_SCHEMA_VERSION + 1
+        await state.update_data({UD_DEFECT: stored})
+
+    async def test_the_next_tap_resets_the_flow_instead_of_raising(
+        self, dp, bot, state, session, flow
+    ):
+        from apps.bot.messages import BotMessages as M
+
+        await self._mid_flow_with_a_foreign_schema(dp, bot, state)
+        session.clear()
+
+        await dp.feed_update(
+            bot, make_callback_update(NodeCB(value=DefectNode.WHEEL).pack())
+        )
+
+        assert await state.get_state() is None
+        assert await load_defect(state) is None
+        edits = session.calls("editMessageText")
+        assert [e.text for e in edits] == [str(M.FORM_OUTDATED)]
+
+    async def test_the_user_can_start_a_fresh_form_straight_after(
+        self, dp, bot, state, session, flow
+    ):
+        await self._mid_flow_with_a_foreign_schema(dp, bot, state)
+        await dp.feed_update(
+            bot, make_callback_update(NodeCB(value=DefectNode.WHEEL).pack())
+        )
+        session.clear()
+
+        await dp.feed_update(bot, make_message_update("/new_defect", command=True))
+        await dp.feed_update(bot, make_message_update(WAGON_NUMBER))
+
+        assert await state.get_state() == DefectSG.department.state
+        assert (await load_defect(state)).wagon_number == WAGON_NUMBER
+
+
 class TestHumanFactorBranch:
     async def test_routes_to_the_employee_picker(self, dp, bot, state, flow):
         roster = [MagicMock(id=i, first_name=f"U{i}", last_name="L") for i in range(3)]

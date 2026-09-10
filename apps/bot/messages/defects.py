@@ -134,6 +134,11 @@ class DefectMessages:
 
     DEFECT_CANCELLED = _("❌ Defect registration cancelled.")
 
+    FORM_OUTDATED = _(
+        "♻️ The bot was updated while you were filling this in, so the form "
+        "could not be carried over.\n\nSorry — please start it again."
+    )
+
     # ── Employee verdict ─────────────────────────────────────────────────────
 
     VERDICT_DONE = _("<b>Your verdict:</b> {label}\n\n📋 Registration complete.")

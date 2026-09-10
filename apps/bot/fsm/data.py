@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 async def load_defect(state: FSMContext) -> DefectData | None:
-    """Return the defect form, or None if the flow is not in progress."""
+    """Return the defect form, or None if it is gone or from another schema."""
     stored = (await state.get_data()).get(UD_DEFECT)
     return DefectData.from_dict(stored) if stored else None
 
@@ -28,7 +28,8 @@ async def save_defect(state: FSMContext, defect: DefectData) -> None:
 async def load_employees(state: FSMContext) -> list[EmployeeRef]:
     """The department roster cached for the responsible-employee picker."""
     stored = (await state.get_data()).get(UD_RESP_EMPLOYEES) or []
-    return [EmployeeRef.from_dict(ref) for ref in stored]
+    refs = (EmployeeRef.from_dict(ref) for ref in stored)
+    return [ref for ref in refs if ref is not None]
 
 
 async def save_employees(state: FSMContext, employees: list[EmployeeRef]) -> None:

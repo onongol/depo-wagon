@@ -1,11 +1,26 @@
 from dataclasses import asdict, dataclass, field, fields
 from typing import Any, Self
 
+# Bump on a renamed field or a changed type. Adding or removing an optional one
+# needs no bump: _known_fields and the defaults absorb both.
+STATE_SCHEMA_VERSION = 1
+
+_SCHEMA_KEY = "_schema"
+
 
 def _known_fields(cls: type, data: dict[str, Any]) -> dict[str, Any]:
     """Drop keys the dataclass no longer declares, so stored state survives a deploy."""
     declared = {f.name for f in fields(cls)}
     return {k: v for k, v in data.items() if k in declared}
+
+
+def _stamped(data: dict[str, Any]) -> dict[str, Any]:
+    return data | {_SCHEMA_KEY: STATE_SCHEMA_VERSION}
+
+
+def is_current_schema(data: dict[str, Any]) -> bool:
+    """Whether a stored blob was written by this build's dataclasses."""
+    return data.get(_SCHEMA_KEY) == STATE_SCHEMA_VERSION
 
 
 @dataclass(frozen=True)
@@ -25,10 +40,13 @@ class EmployeeRef:
         )
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        return _stamped(asdict(self))
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> Self:
+    def from_dict(cls, data: dict[str, Any]) -> Self | None:
+        """None for a blob another schema wrote: it is discarded, not migrated."""
+        if not is_current_schema(data):
+            return None
         return cls(**_known_fields(cls, data))
 
 
@@ -54,6 +72,7 @@ class MeasurementEntry:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Self:
+        """Unstamped: only ever nested in DefectData, whose stamp covers it."""
         return cls(**_known_fields(cls, data))
 
 
@@ -79,10 +98,14 @@ class DefectData:
     responsible_employee_label: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        return _stamped(asdict(self))
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> Self:
+    def from_dict(cls, data: dict[str, Any]) -> Self | None:
+        """None for a blob another schema wrote: it is discarded, not migrated."""
+        if not is_current_schema(data):
+            return None
+
         raw = _known_fields(cls, data)
         raw["measurements"] = [
             MeasurementEntry.from_dict(m) for m in raw.get("measurements") or []

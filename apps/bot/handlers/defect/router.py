@@ -34,6 +34,7 @@ from apps.bot.callback_data import (
 )
 from apps.bot.constants import BTN_NEW_DEFECT
 from apps.bot.filters import NotACommand
+from apps.bot.middlewares import StaleSchemaMiddleware
 from apps.bot.states import DefectSG
 
 from .cancel import cancel_defect_button, cancel_defect_command, stale_callback
@@ -74,6 +75,11 @@ def get_defect_flow_router() -> Router:
     router = Router(name="defect_flow")
     msg = router.message.register
     cb = router.callback_query.register
+
+    # Outer, so a form from an older schema never reaches a step that would
+    # dereference the None load_defect returns for it.
+    router.message.outer_middleware(StaleSchemaMiddleware())
+    router.callback_query.outer_middleware(StaleSchemaMiddleware())
 
     msg(receive_wagon_number, StateFilter(DefectSG.wagon_num), *_TEXT)
     cb(receive_department, StateFilter(DefectSG.department), DepartmentCB.filter())

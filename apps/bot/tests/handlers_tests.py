@@ -466,7 +466,9 @@ class TestAfterPhotosStoresSerializableEmployees:
             await after_photos(AsyncMock(), defect, state)
 
         stored = (await state.get_data())[UD_RESP_EMPLOYEES]
-        assert stored == [{"id": 7, "first_name": "Ivan", "last_name": "Petrov"}]
+        assert [EmployeeRef.from_dict(ref) for ref in stored] == [
+            EmployeeRef(id=7, first_name="Ivan", last_name="Petrov")
+        ]
         assert json.dumps(stored)
         assert await state.get_state() == DefectSG.responsible_employee.state
 

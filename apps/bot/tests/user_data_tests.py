@@ -6,11 +6,21 @@ between steps has to survive to_dict -> json -> from_dict unchanged.
 
 import json
 
-from apps.bot.user_data import DefectData, EmployeeRef, MeasurementEntry
+from apps.bot.user_data import (
+    STATE_SCHEMA_VERSION,
+    DefectData,
+    EmployeeRef,
+    MeasurementEntry,
+    is_current_schema,
+)
 
 
 def _json_round_trip(payload: dict) -> dict:
     return json.loads(json.dumps(payload))
+
+
+def _from_another_deploy(payload: dict) -> dict:
+    return payload | {"_schema": STATE_SCHEMA_VERSION + 1}
 
 
 class TestEmployeeRef:
@@ -149,3 +159,47 @@ class TestDefectData:
         defect.to_dict()["photo_file_ids"].append("b")
 
         assert defect.photo_file_ids == ["a"]
+
+
+class TestSchemaVersion:
+    """A field that changes type is not caught by _known_fields.
+
+    Dropping a key is absorbed, and so is adding one, because every field has a
+    default. A type change is not: from_dict validates nothing, so a str would
+    land in an int field and reach the ORM. The stamp is what makes that case
+    fail closed, at the cost of discarding a form the deploy interrupted.
+    """
+
+    def test_a_defect_from_another_deploy_is_discarded(self):
+        stored = _from_another_deploy(DefectData(wagon_number="60123456").to_dict())
+
+        assert DefectData.from_dict(stored) is None
+
+    def test_an_employee_ref_from_another_deploy_is_discarded(self):
+        stored = _from_another_deploy(EmployeeRef(id=7).to_dict())
+
+        assert EmployeeRef.from_dict(stored) is None
+
+    def test_an_unstamped_blob_predates_the_stamp_and_is_discarded(self):
+        stored = DefectData(wagon_number="60123456").to_dict()
+        del stored["_schema"]
+
+        assert DefectData.from_dict(stored) is None
+
+    def test_this_builds_own_output_survives_the_check(self):
+        assert is_current_schema(DefectData().to_dict())
+        assert is_current_schema(EmployeeRef(id=1).to_dict())
+
+    def test_the_stamp_is_not_mistaken_for_a_field(self):
+        """_known_fields drops it, so it never reaches the constructor."""
+        restored = DefectData.from_dict(DefectData(wagon_number="1").to_dict())
+
+        assert restored == DefectData(wagon_number="1")
+
+    def test_nested_measurements_are_covered_by_the_parent_stamp(self):
+        defect = DefectData(measurements=[MeasurementEntry(dimension="width")])
+
+        stored = _json_round_trip(defect.to_dict())
+
+        assert "_schema" not in stored["measurements"][0]
+        assert DefectData.from_dict(stored) == defect
