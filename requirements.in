@@ -19,6 +19,8 @@ pypdf
 # Not aiogram[redis]: that extra pins redis<8 and the project is on redis 8.
 # RedisStorage only needs redis.asyncio, which is already here.
 aiogram
+# Already under aiogram, but user_data.py imports it directly for the FSM payloads.
+pydantic
 
 # === Async Tasks ===
 celery

@@ -70,7 +70,9 @@ class TestMeasurementEntry:
             unit="mm",
         )
 
-        restored = MeasurementEntry.from_dict(_json_round_trip(entry.to_dict()))
+        restored = MeasurementEntry.model_validate(
+            _json_round_trip(entry.model_dump(mode="json"))
+        )
 
         assert restored == entry
         assert isinstance(restored.value, float)
@@ -78,7 +80,9 @@ class TestMeasurementEntry:
     def test_keeps_none_apart_from_zero(self):
         entry = MeasurementEntry(value=0.0, norm_value=None)
 
-        restored = MeasurementEntry.from_dict(_json_round_trip(entry.to_dict()))
+        restored = MeasurementEntry.model_validate(
+            _json_round_trip(entry.model_dump(mode="json"))
+        )
 
         assert restored.value == 0.0
         assert restored.norm_value is None
@@ -119,7 +123,7 @@ class TestDefectData:
 
         assert restored == defect
 
-    def test_rebuilds_nested_entries_as_dataclasses_not_dicts(self):
+    def test_rebuilds_nested_entries_as_models_not_dicts(self):
         defect = DefectData(
             measurements=[MeasurementEntry(dimension="thickness", value=1.0)],
             current_measurement=MeasurementEntry(dimension="width"),
@@ -137,7 +141,7 @@ class TestDefectData:
         assert restored.current_measurement is None
         assert restored.measurements == []
 
-    def test_ignores_keys_the_dataclass_no_longer_declares(self):
+    def test_ignores_keys_the_model_no_longer_declares(self):
         stored = DefectData(wagon_number="60123456").to_dict()
         stored["removed_in_a_later_deploy"] = "stale"
 
@@ -162,7 +166,7 @@ class TestDefectData:
 
 
 class TestSchemaVersion:
-    """A field that changes type is not caught by _known_fields.
+    """A field that changes type is not caught by extra="ignore".
 
     Dropping a key is absorbed, and so is adding one, because every field has a
     default. A type change is not: from_dict validates nothing, so a str would
@@ -191,7 +195,7 @@ class TestSchemaVersion:
         assert is_current_schema(EmployeeRef(id=1).to_dict())
 
     def test_the_stamp_is_not_mistaken_for_a_field(self):
-        """_known_fields drops it, so it never reaches the constructor."""
+        """extra="ignore" drops it, so it never reaches a field."""
         restored = DefectData.from_dict(DefectData(wagon_number="1").to_dict())
 
         assert restored == DefectData(wagon_number="1")

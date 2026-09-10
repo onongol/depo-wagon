@@ -47,7 +47,7 @@ class TestLoadAndSaveDefect:
 
         assert await load_defect(state) == defect
 
-    async def test_rebuilds_nested_entries_as_dataclasses(self, state):
+    async def test_rebuilds_nested_entries_as_models(self, state):
         await save_defect(
             state,
             DefectData(current_measurement=MeasurementEntry(dimension="width")),

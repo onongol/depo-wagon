@@ -1,4 +1,4 @@
-"""Reset a defect form that an earlier build's dataclasses wrote.
+"""Reset a defect form that an earlier build's models wrote.
 
 Stored state is discarded rather than migrated, so DefectData.from_dict returns
 None for a foreign schema. Only six of the flow's twenty-odd steps check that
