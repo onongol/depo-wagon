@@ -27,7 +27,6 @@ from apps.bot.callback_data import (
     StatusSetCB,
     TasksPageCB,
     VerdictCB,
-    is_known_callback,
 )
 from apps.bot.constants import EDIT_FIELDS
 from apps.core.constants import Department
@@ -161,32 +160,29 @@ class TestPrefixes:
         assert not (LITERALS & prefixes)
 
 
-class TestIsKnownCallback:
-    @pytest.mark.parametrize("literal", sorted(LITERALS))
-    def test_recognises_every_literal(self, literal):
-        assert is_known_callback(literal)
+class TestDriftedPayloadsStopMatching:
+    """The assumption the whole fallback rests on, pinned at the definitions.
 
-    def test_recognises_a_packed_factory_payload(self):
-        assert is_known_callback(DepartmentCB(value="bogie").pack())
-        assert is_known_callback(
-            StatusSetCB(defect_id=uuid.uuid4(), status="open", page=0).pack()
-        )
+    Routing no longer asks whether a payload is known — it lets every factory's
+    own filter decline and treats the leftovers as dead. That only separates a
+    live button from a stale one because unpack is strict about arity and field
+    types, so these are the cases a deploy actually produces.
+    """
 
-    def test_rejects_a_pre_migration_ptb_payload(self):
-        """PTB put a bare UUID on the wire; those must reach the loud handler."""
-        assert not is_known_callback(uuid.uuid4().hex)
+    @pytest.mark.parametrize(
+        ("factory", "data"),
+        [
+            (StatusSetCB, "dset:" + uuid.uuid4().hex),
+            (ResponsibleEmployeePageCB, "emppg:1:2:3"),
+            (TasksPageCB, "tpg:not_a_number"),
+            (StatusPickCB, f"dpick:{'z' * 32}:0"),
+        ],
+    )
+    def test_a_shape_change_fails_to_unpack(self, factory, data):
+        with pytest.raises((TypeError, ValueError)):
+            factory.unpack(data)
 
-    def test_rejects_an_empty_payload(self):
-        assert not is_known_callback("")
+    def test_a_current_payload_still_unpacks(self):
+        packed = StatusSetCB(defect_id=uuid.uuid4(), status="open", page=0).pack()
 
-    def test_rejects_a_known_prefix_with_the_wrong_field_count(self):
-        """Schema drift after a deploy — must not be silently swallowed."""
-        assert not is_known_callback("dset:" + uuid.uuid4().hex)
-        assert not is_known_callback("emppg:1:2:3")
-
-    def test_rejects_a_known_prefix_with_an_unparsable_field(self):
-        assert not is_known_callback("tpg:not_a_number")
-        assert not is_known_callback(f"dpick:{'z' * 32}:0")
-
-    def test_rejects_an_unknown_prefix(self):
-        assert not is_known_callback("nope:1")
+        assert StatusSetCB.unpack(packed).page == 0

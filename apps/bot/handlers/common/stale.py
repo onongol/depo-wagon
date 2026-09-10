@@ -1,21 +1,17 @@
-"""Updates that no state handler claimed.
+"""Updates that no handler claimed.
 
-PTB had two behaviours and they must both survive. A pattern-less fallback
-inside the defect conversation absorbed any unmatched tap silently, and a
-top-level InvalidCallbackData handler replaced the message with "this button
-expired". The silent one won while a defect was in progress, because the
-conversation was consulted first.
+A tap only reaches here once every registered filter has declined it, which is
+the whole test: a payload whose shape changed across a deploy no longer matches
+its own factory's filter, so it arrives alongside the buttons the PTB build
+sent before cutover. Both are dead in the same way and both get told so rather
+than left spinning.
 
-aiogram has no InvalidCallbackData — the payload is the string, so nothing is
-ever unresolvable. What takes its place is three tiers, in this order:
-
-1. a layout spacer, which must stay silent or tapping a blank button would
-   wipe out the employee list;
-2. a payload this build can still parse but no handler wanted — the old silent
-   fallback, for out-of-order taps;
-3. anything else. Two populations land here: buttons sent by the PTB build
-   before cutover, whose payload was a bare UUID, and payloads whose shape
-   changed across a deploy.
+Two things stay silent, and both are scoped rather than global. The layout
+spacer is registered ahead of this one, or tapping a blank button would wipe
+out the employee list. And a stray tap while a defect form is open never gets
+this far — defect.cancel.stale_callback is registered last inside the flow
+router under StateFilter(DefectSG), which is what keeps a mid-form misfire from
+replacing the form with an expired-button notice.
 """
 
 import inspect
@@ -46,11 +42,6 @@ KNOWN_STATES = frozenset(
 
 async def noop_button(callback: CallbackQuery) -> None:
     """Absorb a spacer tap. Answering is what stops the client spinner."""
-    await callback.answer()
-
-
-async def unroutable_button(callback: CallbackQuery) -> None:
-    """Absorb a valid payload that no handler in the current state wanted."""
     await callback.answer()
 
 

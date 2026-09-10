@@ -131,25 +131,3 @@ FACTORIES = (
     StatusPickCB,
     StatusSetCB,
 )
-
-
-def is_known_callback(data: str) -> bool:
-    """Whether this payload is one this build can still route.
-
-    A full unpack attempt, not a prefix check, and that is the point. aiogram's
-    own filter swallows TypeError and ValueError and simply declines to match,
-    so a payload whose shape changed between deploys — right prefix, wrong
-    field count — would otherwise be absorbed silently. Failing the check here
-    routes it to the loud "this button has expired" reply instead.
-    """
-    if data in LITERALS:
-        return True
-
-    for factory in FACTORIES:
-        try:
-            factory.unpack(data)
-        except TypeError, ValueError:
-            continue
-        else:
-            return True
-    return False

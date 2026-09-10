@@ -1,9 +1,10 @@
 """Tests for the callbacks nothing else claimed.
 
-PTB had two behaviours — silent inside the defect conversation, loud outside —
-and the split into three tiers has to preserve both. The spacer tier is the one
-with a user-visible regression behind it: a blank layout button that fell
-through to the loud tier would replace the employee list with "button expired".
+Two handlers, and the order between them is the whole design. The spacer is a
+blank layout button on a live keyboard and has to stay silent — the regression
+behind it is a tap on one replacing the employee list with "button expired".
+Everything else reaching the unfiltered fallback is genuinely dead, so it is
+told so rather than left spinning.
 """
 
 import uuid
@@ -11,12 +12,8 @@ import uuid
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.methods import EditMessageText
 
-from apps.bot.callback_data import CB_NOOP, DepartmentCB, is_known_callback
-from apps.bot.handlers.common.stale import (
-    noop_button,
-    stale_button,
-    unroutable_button,
-)
+from apps.bot.callback_data import CB_NOOP
+from apps.bot.handlers.common.stale import noop_button, stale_button
 from apps.bot.messages import BotMessages as M
 from apps.bot.tests.builders import make_callback
 
@@ -41,16 +38,6 @@ class TestNoopButton:
 
         await noop_button(callback)
 
-        callback.message.edit_text.assert_not_called()
-
-
-class TestUnroutableButton:
-    async def test_absorbs_a_valid_payload_silently(self):
-        callback = make_callback(DepartmentCB(value="bogie").pack())
-
-        await unroutable_button(callback)
-
-        callback.answer.assert_awaited_once()
         callback.message.edit_text.assert_not_called()
 
 
@@ -102,19 +89,3 @@ class TestStaleButton:
 
         callback.answer.assert_awaited_once()
         bot.edit_message_text.assert_not_called()
-
-
-class TestTheThreeTiersDoNotOverlap:
-    def test_a_spacer_is_a_known_payload_so_order_matters(self):
-        """CB_NOOP would be absorbed by the unroutable tier too — but silently.
-
-        Both are silent, so the ordering between them is not user-visible; what
-        matters is that neither lets a spacer reach the loud tier.
-        """
-        assert is_known_callback(CB_NOOP)
-
-    def test_a_pre_migration_ptb_payload_reaches_the_loud_tier(self):
-        assert not is_known_callback(uuid.uuid4().hex)
-
-    def test_schema_drift_reaches_the_loud_tier(self):
-        assert not is_known_callback("dset:" + uuid.uuid4().hex)

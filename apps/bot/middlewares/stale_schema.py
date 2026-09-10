@@ -7,8 +7,9 @@ of the handler, not inside it — an outer middleware on the flow router, the
 same shape AiChatTimeoutMiddleware uses.
 
 Swallowing the update rather than returning UNHANDLED: the fall-through for a
-callback is unroutable_button, which is deliberately silent, and silence is the
-wrong answer to a form that just vanished.
+callback is stale_button, which would replace the message with "this button has
+expired" — true of the button, wrong about the form, which is what the user
+needs told.
 """
 
 import logging

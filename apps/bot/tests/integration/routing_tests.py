@@ -35,28 +35,19 @@ def employee():
     return emp
 
 
-class TestStaleTiers:
+class TestTheUnfilteredFallback:
+    """One catch-all at the end of the dispatcher, with the spacer ahead of it.
+
+    Nothing asks whether a payload is one this build knows. A tap arrives here
+    only after every registered filter declined it, and that is taken as proof
+    the button is dead.
+    """
+
     async def test_a_spacer_is_answered_without_touching_the_message(
         self, dp, bot, session
     ):
         """A blank nav button must never wipe the list it sits in."""
         await dp.feed_update(bot, make_callback_update(CB_NOOP))
-
-        assert session.calls("answerCallbackQuery")
-        assert session.calls("editMessageText") == []
-
-    async def test_a_spacer_stays_silent_even_if_it_stops_being_a_known_payload(
-        self, dp, bot, session
-    ):
-        """Why the spacer gets its own handler rather than relying on tier two.
-
-        CB_NOOP is in LITERALS today, so the silent unroutable tier would catch
-        it anyway. Drop it from that set — a refactor easily could — and without
-        the dedicated handler the tap would fall through to the loud tier and
-        replace the employee list with "this button expired".
-        """
-        with patch("apps.bot.filters.callback.is_known_callback", return_value=False):
-            await dp.feed_update(bot, make_callback_update(CB_NOOP))
 
         assert session.calls("answerCallbackQuery")
         assert session.calls("editMessageText") == []
@@ -72,20 +63,28 @@ class TestStaleTiers:
         assert edits[0].text == str(M.BUTTON_EXPIRED)
 
     async def test_schema_drift_gets_the_expired_reply(self, dp, bot, session):
-        """Known prefix, wrong arity — must not vanish into a silent answer."""
+        """Known prefix, wrong arity — no filter matches, so the fallback does."""
         await dp.feed_update(bot, make_callback_update("dset:" + uuid.uuid4().hex))
 
         assert len(session.calls("editMessageText")) == 1
 
-    async def test_a_known_payload_in_the_wrong_state_is_absorbed_silently(
+    async def test_a_current_payload_outside_its_flow_also_gets_it(
         self, dp, bot, session
     ):
+        """The behaviour the old middle tier existed to avoid, now accepted.
+
+        DepartmentCB is a shape this build still packs, but with no defect flow
+        running its handler's state filter declines and nothing else wants it.
+        A silent answer here would leave the user tapping a button that will
+        never do anything, so the fallback speaks instead.
+        """
         await dp.feed_update(
             bot, make_callback_update(DepartmentCB(value="bogie").pack())
         )
 
-        assert session.calls("answerCallbackQuery")
-        assert session.calls("editMessageText") == []
+        edits = session.calls("editMessageText")
+        assert len(edits) == 1
+        assert edits[0].text == str(M.BUTTON_EXPIRED)
 
 
 class TestPrecedenceDuringTheDefectFlow:
