@@ -8,6 +8,8 @@ from apps.bot import services
 from apps.defects.validators import MAX_PHOTO_BYTES
 
 if TYPE_CHECKING:
+    import uuid
+
     from aiogram import Bot
 
     from apps.bot.user_data import DefectData
@@ -82,7 +84,7 @@ async def register_defect(
 
 
 async def run_ai_analysis(
-    defect_data: DefectData, defect_id: str | int, photo_bytes: list[bytes]
+    defect_data: DefectData, defect_id: uuid.UUID, photo_bytes: list[bytes]
 ):
     """Run AI analysis and persist its result.
     Returns the AI result, or None if analysis failed. Never raises — a failure
