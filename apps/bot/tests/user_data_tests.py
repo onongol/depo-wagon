@@ -9,7 +9,6 @@ import json
 from apps.bot.user_data import (
     STATE_SCHEMA_VERSION,
     DefectData,
-    EmployeeRef,
     MeasurementEntry,
     is_current_schema,
 )
@@ -21,43 +20,6 @@ def _json_round_trip(payload: dict) -> dict:
 
 def _from_another_deploy(payload: dict) -> dict:
     return payload | {"_schema": STATE_SCHEMA_VERSION + 1}
-
-
-class TestEmployeeRef:
-    def test_carries_the_three_attributes_the_flow_reads(self):
-        ref = EmployeeRef(id=7, first_name="Ivan", last_name="Petrov")
-
-        assert ref.id == 7
-        assert f"{ref.first_name} {ref.last_name}" == "Ivan Petrov"
-
-    def test_builds_from_an_employee_like_object(self):
-        class Employee:
-            id = 3
-            first_name = "Anna"
-            last_name = "Sidorova"
-
-        ref = EmployeeRef.from_employee(Employee())
-
-        assert ref == EmployeeRef(id=3, first_name="Anna", last_name="Sidorova")
-
-    def test_treats_missing_names_as_empty(self):
-        class Employee:
-            id = 4
-            first_name = None
-            last_name = None
-
-        ref = EmployeeRef.from_employee(Employee())
-
-        assert ref.first_name == ""
-        assert ref.last_name == ""
-
-    def test_survives_a_json_round_trip(self):
-        ref = EmployeeRef(id=7, first_name="Ivan", last_name="Petrov")
-
-        assert EmployeeRef.from_dict(_json_round_trip(ref.to_dict())) == ref
-
-    def test_is_hashable_so_it_can_live_in_a_set(self):
-        assert len({EmployeeRef(id=1), EmployeeRef(id=1)}) == 1
 
 
 class TestMeasurementEntry:
@@ -179,11 +141,6 @@ class TestSchemaVersion:
 
         assert DefectData.from_dict(stored) is None
 
-    def test_an_employee_ref_from_another_deploy_is_discarded(self):
-        stored = _from_another_deploy(EmployeeRef(id=7).to_dict())
-
-        assert EmployeeRef.from_dict(stored) is None
-
     def test_an_unstamped_blob_predates_the_stamp_and_is_discarded(self):
         stored = DefectData(wagon_number="60123456").to_dict()
         del stored["_schema"]
@@ -192,7 +149,6 @@ class TestSchemaVersion:
 
     def test_this_builds_own_output_survives_the_check(self):
         assert is_current_schema(DefectData().to_dict())
-        assert is_current_schema(EmployeeRef(id=1).to_dict())
 
     def test_the_stamp_is_not_mistaken_for_a_field(self):
         """extra="ignore" drops it, so it never reaches a field."""

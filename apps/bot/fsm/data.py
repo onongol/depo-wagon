@@ -6,8 +6,8 @@ on exit would restore the form the verdict and decline paths just dropped.
 
 from typing import TYPE_CHECKING
 
-from apps.bot.constants import DEFECT_USER_DATA_KEYS, UD_DEFECT, UD_RESP_EMPLOYEES
-from apps.bot.user_data import DefectData, EmployeeRef
+from apps.bot.constants import DEFECT_USER_DATA_KEYS, UD_DEFECT
+from apps.bot.user_data import DefectData
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
@@ -21,17 +21,6 @@ async def load_defect(state: FSMContext) -> DefectData | None:
 
 async def save_defect(state: FSMContext, defect: DefectData) -> None:
     await state.update_data({UD_DEFECT: defect.to_dict()})
-
-
-async def load_employees(state: FSMContext) -> list[EmployeeRef]:
-    """The department roster cached for the responsible-employee picker."""
-    stored = (await state.get_data()).get(UD_RESP_EMPLOYEES) or []
-    refs = (EmployeeRef.from_dict(ref) for ref in stored)
-    return [ref for ref in refs if ref is not None]
-
-
-async def save_employees(state: FSMContext, employees: list[EmployeeRef]) -> None:
-    await state.update_data({UD_RESP_EMPLOYEES: [e.to_dict() for e in employees]})
 
 
 async def clear_defect_keys(state: FSMContext) -> None:

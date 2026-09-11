@@ -6,6 +6,8 @@ a detached copy — the assertions read it back rather than holding a reference.
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 from apps.bot.callback_data import (
     DefectTypeCB,
     DepartmentCB,
@@ -15,8 +17,8 @@ from apps.bot.callback_data import (
     ResponsibleEmployeePageCB,
     SeverityCB,
 )
-from apps.bot.constants import UD_DEFECT, UD_EDITING, UD_RESP_EMPLOYEES, UD_RESP_SEARCH
-from apps.bot.fsm import load_defect, save_defect, save_employees
+from apps.bot.constants import UD_DEFECT, UD_EDITING, UD_RESP_SEARCH
+from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.common.cancel import cancel
 from apps.bot.handlers.common.help import help_command
 from apps.bot.handlers.defect.defect_type import receive_defect_type
@@ -30,18 +32,36 @@ from apps.bot.handlers.defect.responsible_employee import (
     select_responsible_employee,
     skip_responsible_employee,
 )
-from apps.bot.handlers.defect.responsible_employee.list import _filter_and_page
+from apps.bot.handlers.defect.responsible_employee.list import (
+    EMPLOYEE_PAGE_SIZE,
+    _clamp_page,
+)
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.bot.tests.builders import make_callback, make_message
-from apps.bot.user_data import DefectData, EmployeeRef
+from apps.bot.user_data import DefectData
 from apps.defects.constants import DefectType
-
-EMPLOYEE_PAGE_SIZE = 5
 
 
 def _make_employee(pk=1, first="Bat", last="Erdene"):
-    return EmployeeRef(id=pk, first_name=first, last_name=last)
+    return MagicMock(id=pk, first_name=first, last_name=last)
+
+
+@pytest.fixture
+def picker():
+    """The picker's three queries, answered without a database."""
+    with (
+        patch(
+            "apps.bot.services.count_department_employees", AsyncMock(return_value=0)
+        ) as count,
+        patch(
+            "apps.bot.services.get_department_employees", AsyncMock(return_value=[])
+        ) as page,
+        patch(
+            "apps.bot.services.get_department_employee", AsyncMock(return_value=None)
+        ) as one,
+    ):
+        yield MagicMock(count=count, page=page, one=one)
 
 
 class TestCancelHandler:
@@ -192,70 +212,27 @@ class TestReceiveDefectType:
             assert await state.get_state() == DefectSG.severity.state
 
 
-class TestFilterAndPage:
-    def _employees(self, *names):
-        return [_make_employee(i, *n.split()) for i, n in enumerate(names, 1)]
+class TestClampPage:
+    def test_a_partial_last_page_still_counts(self):
+        assert _clamp_page(2 * EMPLOYEE_PAGE_SIZE + 1, 0) == (3, 0)
 
-    def test_returns_all_when_no_search(self):
-        emps = self._employees("Bat Erdene", "Bold Bat")
+    def test_a_page_in_range_is_kept(self):
+        assert _clamp_page(2 * EMPLOYEE_PAGE_SIZE + 1, 1) == (3, 1)
 
-        page, total, _pages, _no = _filter_and_page(emps, "", 0)
+    def test_a_page_past_the_end_becomes_the_last(self):
+        assert _clamp_page(EMPLOYEE_PAGE_SIZE + 1, 99) == (2, 1)
 
-        assert total == 2
-        assert len(page) == 2
+    def test_a_negative_page_becomes_the_first(self):
+        assert _clamp_page(EMPLOYEE_PAGE_SIZE + 1, -1) == (2, 0)
 
-    def test_filters_by_first_name(self):
-        emps = self._employees("Bat Erdene", "Bold Bat")
-
-        page, total, _pages, _no = _filter_and_page(emps, "Bold", 0)
-
-        assert total == 1
-        assert page[0].first_name == "Bold"
-
-    def test_filters_case_insensitive(self):
-        emps = self._employees("Bat Erdene")
-
-        _page, total, _pages, _no = _filter_and_page(emps, "bAt", 0)
-
-        assert total == 1
-
-    def test_pagination_returns_correct_page_size(self):
-        emps = self._employees(*[f"N{i} L{i}" for i in range(12)])
-
-        page, total, pages, _no = _filter_and_page(emps, "", 0)
-
-        assert len(page) == EMPLOYEE_PAGE_SIZE
-        assert total == 12
-        assert pages == 3
-
-    def test_second_page(self):
-        emps = self._employees(*[f"N{i} L{i}" for i in range(12)])
-
-        page, _total, _pages, page_no = _filter_and_page(emps, "", 1)
-
-        assert page_no == 1
-        assert len(page) == EMPLOYEE_PAGE_SIZE
-
-    def test_page_clamped_to_max(self):
-        emps = self._employees(*[f"N{i} L{i}" for i in range(6)])
-
-        _page, _total, _pages, page_no = _filter_and_page(emps, "", 99)
-
-        assert page_no == 1
-
-    def test_empty_list_returns_one_page(self):
-        _page, total, pages, page_no = _filter_and_page([], "", 0)
-
-        assert total == 0
-        assert pages == 1
-        assert page_no == 0
+    def test_an_empty_list_still_has_one_page(self):
+        assert _clamp_page(0, 0) == (1, 0)
 
 
 class TestResponsibleEmployee:
-    async def _seed(self, state, employees=()):
-        await save_defect(state, DefectData())
-        await save_employees(state, list(employees))
-        await state.update_data({UD_RESP_SEARCH: ""})
+    async def _seed(self, state, search=""):
+        await save_defect(state, DefectData(department="bogie"))
+        await state.update_data({UD_RESP_SEARCH: search})
 
     async def test_skip_moves_to_the_description(self, state):
         await self._seed(state)
@@ -276,18 +253,38 @@ class TestResponsibleEmployee:
         assert defect.responsible_employee_id is None
         assert defect.responsible_employee_label is None
 
-    async def test_skip_drops_the_cached_roster(self, state):
-        await self._seed(state, [_make_employee()])
-        await state.update_data({UD_RESP_SEARCH: "foo"})
+    async def test_skip_drops_the_search(self, state):
+        await self._seed(state, search="foo")
 
         await skip_responsible_employee(make_callback(), state)
 
-        data = await state.get_data()
-        assert UD_RESP_EMPLOYEES not in data
-        assert UD_RESP_SEARCH not in data
+        assert UD_RESP_SEARCH not in await state.get_data()
 
-    async def test_paging_leaves_the_step_where_it_is(self, state):
-        await self._seed(state, [_make_employee(i, f"U{i}", "L") for i in range(10)])
+    async def test_paging_asks_for_that_page_of_the_department(self, state, picker):
+        picker.count.return_value = 3 * EMPLOYEE_PAGE_SIZE
+        await self._seed(state, search="bo")
+
+        await page_responsible_employee(
+            make_callback(), ResponsibleEmployeePageCB(page=1), state
+        )
+
+        picker.count.assert_awaited_once_with("bogie", "bo")
+        picker.page.assert_awaited_once_with(
+            "bogie", "bo", limit=EMPLOYEE_PAGE_SIZE, offset=EMPLOYEE_PAGE_SIZE
+        )
+
+    async def test_paging_past_the_end_serves_the_last_page(self, state, picker):
+        picker.count.return_value = EMPLOYEE_PAGE_SIZE + 1
+        await self._seed(state)
+
+        await page_responsible_employee(
+            make_callback(), ResponsibleEmployeePageCB(page=99), state
+        )
+
+        assert picker.page.await_args.kwargs["offset"] == EMPLOYEE_PAGE_SIZE
+
+    async def test_paging_leaves_the_step_where_it_is(self, state, picker):
+        await self._seed(state)
         await state.set_state(DefectSG.responsible_employee)
 
         await page_responsible_employee(
@@ -296,63 +293,109 @@ class TestResponsibleEmployee:
 
         assert await state.get_state() == DefectSG.responsible_employee.state
 
-    async def test_select_records_the_employee(self, state):
-        await self._seed(state, [_make_employee(7, "Bold", "Bat")])
+    async def test_paging_an_abandoned_form_ends_the_flow(self, state, picker):
+        callback = make_callback()
 
-        await select_responsible_employee(
-            make_callback(), ResponsibleEmployeeCB(employee_id=7), state
+        await page_responsible_employee(
+            callback, ResponsibleEmployeePageCB(page=1), state
         )
 
-        defect = await load_defect(state)
-        assert defect.responsible_employee_id == 7
-        assert defect.responsible_employee_label == "Bold Bat"
-        assert await state.get_state() == DefectSG.desc.state
+        callback.message.edit_text.assert_awaited_once_with(str(M.DEFECT_CANCELLED))
+        assert await state.get_state() is None
 
-    async def test_select_falls_back_to_the_id_when_the_roster_is_gone(self, state):
+    async def test_select_records_the_employee(self, state, picker):
+        picker.one.return_value = _make_employee(7, "Bold", "Bat")
         await self._seed(state)
 
         await select_responsible_employee(
             make_callback(), ResponsibleEmployeeCB(employee_id=7), state
         )
 
-        assert (await load_defect(state)).responsible_employee_label == "7"
+        picker.one.assert_awaited_once_with(7, "bogie")
+        defect = await load_defect(state)
+        assert defect.responsible_employee_id == 7
+        assert defect.responsible_employee_label == "Bold Bat"
+        assert await state.get_state() == DefectSG.desc.state
 
-    async def test_select_drops_the_cached_roster(self, state):
-        await self._seed(state, [_make_employee()])
-        await state.update_data({UD_RESP_SEARCH: "query"})
+    async def test_select_redraws_the_list_when_the_employee_is_gone(
+        self, state, picker
+    ):
+        await self._seed(state)
+        await state.set_state(DefectSG.responsible_employee)
+        callback = make_callback()
+
+        await select_responsible_employee(
+            callback, ResponsibleEmployeeCB(employee_id=7), state
+        )
+
+        assert (await load_defect(state)).responsible_employee_id is None
+        assert await state.get_state() == DefectSG.responsible_employee.state
+        picker.page.assert_awaited_once()
+        callback.message.edit_text.assert_awaited_once()
+
+    async def test_select_drops_the_search(self, state, picker):
+        picker.one.return_value = _make_employee()
+        await self._seed(state, search="query")
 
         await select_responsible_employee(
             make_callback(), ResponsibleEmployeeCB(employee_id=1), state
         )
 
-        data = await state.get_data()
-        assert UD_RESP_EMPLOYEES not in data
-        assert UD_RESP_SEARCH not in data
+        assert UD_RESP_SEARCH not in await state.get_data()
+
+    async def test_select_on_an_abandoned_form_ends_the_flow(self, state, picker):
+        callback = make_callback()
+
+        await select_responsible_employee(
+            callback, ResponsibleEmployeeCB(employee_id=7), state
+        )
+
+        picker.one.assert_not_called()
+        callback.message.edit_text.assert_awaited_once_with(str(M.DEFECT_CANCELLED))
+        assert await state.get_state() is None
 
 
 class TestSearchResponsibleEmployee:
-    async def test_stores_the_query(self, state):
-        await save_employees(state, [_make_employee(1, "Bold", "Bindariya")])
+    async def _seed(self, state):
+        await save_defect(state, DefectData(department="bogie"))
+
+    async def test_stores_the_query(self, state, picker):
+        await self._seed(state)
 
         await search_responsible_employee(make_message("Bold"), state)
 
         assert (await state.get_data())[UD_RESP_SEARCH] == "Bold"
 
-    async def test_leaves_the_step_where_it_is(self, state):
-        await save_employees(state, [])
+    async def test_searches_the_department_on_the_form(self, state, picker):
+        await self._seed(state)
+
+        await search_responsible_employee(make_message("  Bold "), state)
+
+        picker.count.assert_awaited_once_with("bogie", "Bold")
+
+    async def test_leaves_the_step_where_it_is(self, state, picker):
+        await self._seed(state)
         await state.set_state(DefectSG.responsible_employee)
 
         await search_responsible_employee(make_message("test"), state)
 
         assert await state.get_state() == DefectSG.responsible_employee.state
 
-    async def test_re_renders_as_a_new_message(self, state):
-        await save_employees(state, [])
+    async def test_re_renders_as_a_new_message(self, state, picker):
+        await self._seed(state)
         message = make_message("test")
 
         await search_responsible_employee(message, state)
 
         message.answer.assert_awaited_once()
+
+    async def test_an_abandoned_form_ends_the_flow(self, state, picker):
+        message = make_message("Bold")
+
+        await search_responsible_employee(message, state)
+
+        message.answer.assert_awaited_once_with(str(M.DEFECT_CANCELLED))
+        assert await state.get_state() is None
 
 
 class TestEditFromSummary:
@@ -439,19 +482,10 @@ class TestUnlinkedEmployeeIsRefused:
         assert await state.get_state() is None
 
 
-class TestAfterPhotosStoresSerializableEmployees:
-    """The roster is parked in state, so it must not hold live ORM objects."""
-
-    def _orm_employee(self, pk=7, first="Ivan", last="Petrov"):
-        emp = MagicMock()
-        emp.id = pk
-        emp.first_name = first
-        emp.last_name = last
-        return emp
-
-    async def test_stores_employee_refs_not_model_instances(self, state):
-        import json
-
+class TestAfterPhotos:
+    async def test_human_factor_opens_the_list_for_the_form_department(
+        self, state, picker
+    ):
         from apps.bot.handlers.defect.photo.routing import after_photos
 
         defect = DefectData(
@@ -459,18 +493,23 @@ class TestAfterPhotosStoresSerializableEmployees:
         )
         await save_defect(state, defect)
 
-        with patch(
-            "apps.bot.services.get_employees_by_department",
-            AsyncMock(return_value=[self._orm_employee()]),
-        ):
-            await after_photos(AsyncMock(), defect, state)
+        await after_photos(AsyncMock(), defect, state)
 
-        stored = (await state.get_data())[UD_RESP_EMPLOYEES]
-        assert [EmployeeRef.from_dict(ref) for ref in stored] == [
-            EmployeeRef(id=7, first_name="Ivan", last_name="Petrov")
-        ]
-        assert json.dumps(stored)
+        picker.count.assert_awaited_once_with("coupler_brake", "")
         assert await state.get_state() == DefectSG.responsible_employee.state
+
+    async def test_a_failed_lookup_ends_the_flow(self, state, picker):
+        from apps.bot.handlers.defect.photo.routing import after_photos
+
+        picker.count.side_effect = RuntimeError("db down")
+        defect = DefectData(defect_type=DefectType.HUMAN_FACTOR, department="bogie")
+        await save_defect(state, defect)
+        send = AsyncMock()
+
+        await after_photos(send, defect, state)
+
+        send.assert_awaited_once_with(str(M.SESSION_ERROR))
+        assert await state.get_state() is None
 
     async def test_other_defect_types_go_to_the_measurement_step(self, state):
         from apps.bot.handlers.defect.photo.routing import after_photos

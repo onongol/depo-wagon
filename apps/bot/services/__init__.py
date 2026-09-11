@@ -22,8 +22,10 @@ from .defect import (
     update_defect_status,
 )
 from .employee import (
+    count_department_employees,
+    get_department_employee,
+    get_department_employees,
     get_employee_by_telegram_id,
-    get_employees_by_department,
     get_managers_and_engineers,
 )
 from .measurement import create_measurement, create_measurements_bulk
@@ -41,14 +43,16 @@ from .wagon import get_wagon_by_number
 __all__ = [
     "attach_telegram",
     "claim_pending_link",
+    "count_department_employees",
     "create_defect",
     "create_measurement",
     "create_measurements_bulk",
     "create_photo_from_bytes",
     "forget_pending_link",
     "get_connect_url",
+    "get_department_employee",
+    "get_department_employees",
     "get_employee_by_telegram_id",
-    "get_employees_by_department",
     "get_managers_and_engineers",
     "get_open_defects",
     "get_open_defects_count",

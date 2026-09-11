@@ -27,27 +27,6 @@ class _StampedModel(BaseModel):
         return cls.model_validate(data)
 
 
-class EmployeeRef(_StampedModel):
-    """The three Employee attributes the responsible-employee flow reads."""
-
-    model_config = ConfigDict(
-        extra="ignore", strict=True, validate_assignment=True, frozen=True
-    )
-
-    id: int
-    first_name: str = ""
-    last_name: str = ""
-
-    @classmethod
-    def from_employee(cls, employee: Any) -> Self:
-        """Build from an ORM Employee or any object with the same attributes."""
-        return cls(
-            id=employee.id,
-            first_name=employee.first_name or "",
-            last_name=employee.last_name or "",
-        )
-
-
 class AIResult(BaseModel):
     model_config = ConfigDict(extra="ignore", strict=True, validate_assignment=True)
 

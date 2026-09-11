@@ -1,8 +1,9 @@
 from typing import TYPE_CHECKING
 
+from apps.bot import services
 from apps.bot.callback_data import CB_DESC_SKIP
-from apps.bot.constants import UD_RESP_EMPLOYEES, UD_RESP_SEARCH
-from apps.bot.fsm import load_defect, load_employees, save_defect
+from apps.bot.constants import UD_RESP_SEARCH
+from apps.bot.fsm import load_defect, save_defect
 from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
@@ -19,9 +20,8 @@ if TYPE_CHECKING:
     )
 
 
-async def _clear_roster(state: FSMContext) -> None:
+async def _clear_search(state: FSMContext) -> None:
     data = await state.get_data()
-    data.pop(UD_RESP_EMPLOYEES, None)
     data.pop(UD_RESP_SEARCH, None)
     await state.set_data(data)
 
@@ -34,7 +34,7 @@ async def skip_responsible_employee(callback: CallbackQuery, state: FSMContext) 
     defect.responsible_employee_id = None
     defect.responsible_employee_label = None
     await save_defect(state, defect)
-    await _clear_roster(state)
+    await _clear_search(state)
 
     await callback.message.edit_text(
         str(M.ASK_DESCRIPTION),
@@ -50,29 +50,51 @@ async def page_responsible_employee(
     """Re-render the employee list at another page."""
     await callback.answer()
 
+    defect = await load_defect(state)
+    if defect is None:
+        await callback.message.edit_text(str(M.DEFECT_CANCELLED))
+        await state.set_state(None)
+        return
+
     await show_responsible_employee_list(
-        callback.message.edit_text, state, page=callback_data.page, edit=True
+        callback.message.edit_text,
+        state,
+        defect.department,
+        page=callback_data.page,
+        edit=True,
     )
 
 
 async def select_responsible_employee(
     callback: CallbackQuery, callback_data: ResponsibleEmployeeCB, state: FSMContext
 ) -> None:
-    """Record the chosen employee and move on to the description."""
+    """Record the chosen employee and move on to the description.
+
+    Someone deactivated or moved out since the page was drawn is not recorded:
+    the list is drawn again without them.
+    """
     await callback.answer()
 
-    employee_id = callback_data.employee_id
-    employees = await load_employees(state)
-    employee = next((emp for emp in employees if emp.id == employee_id), None)
-    label = (
-        f"{employee.first_name} {employee.last_name}" if employee else str(employee_id)
-    )
-
     defect = await load_defect(state)
-    defect.responsible_employee_id = employee_id
+    if defect is None:
+        await callback.message.edit_text(str(M.DEFECT_CANCELLED))
+        await state.set_state(None)
+        return
+
+    employee = await services.get_department_employee(
+        callback_data.employee_id, defect.department
+    )
+    if employee is None:
+        await show_responsible_employee_list(
+            callback.message.edit_text, state, defect.department, edit=True
+        )
+        return
+
+    label = f"{employee.first_name} {employee.last_name}"
+    defect.responsible_employee_id = employee.id
     defect.responsible_employee_label = label
     await save_defect(state, defect)
-    await _clear_roster(state)
+    await _clear_search(state)
 
     await callback.message.edit_text(
         str(M.RESPONSIBLE_EMPLOYEE_CONFIRMED).format(label=label),

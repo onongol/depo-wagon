@@ -326,9 +326,15 @@ class TestHumanFactorBranch:
             bot, make_callback_update(SeverityCB(value="critical").pack())
         )
 
-        with patch(
-            "apps.bot.services.get_employees_by_department",
-            AsyncMock(return_value=roster),
+        with (
+            patch(
+                "apps.bot.services.count_department_employees",
+                AsyncMock(return_value=len(roster)),
+            ),
+            patch(
+                "apps.bot.services.get_department_employees",
+                AsyncMock(return_value=roster),
+            ),
         ):
             await dp.feed_update(bot, make_callback_update(CB_PHOTO_SKIP))
 

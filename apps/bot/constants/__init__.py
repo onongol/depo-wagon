@@ -17,7 +17,6 @@ from .common import (
     UD_EDITING,
     UD_LAST_MEDIA_GROUP,
     UD_LAST_PHOTO_MSG,
-    UD_RESP_EMPLOYEES,
     UD_RESP_SEARCH,
 )
 from .defect import (
@@ -65,7 +64,6 @@ __all__ = [
     "UD_EDITING",
     "UD_LAST_MEDIA_GROUP",
     "UD_LAST_PHOTO_MSG",
-    "UD_RESP_EMPLOYEES",
     "UD_RESP_SEARCH",
     "VERDICT_CHOICES",
     "VERDICT_EMOJI",

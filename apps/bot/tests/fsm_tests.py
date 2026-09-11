@@ -18,7 +18,6 @@ from apps.bot.constants import (
     UD_AI_CHAT_HISTORY,
     UD_DEFECT,
     UD_EDITING,
-    UD_RESP_EMPLOYEES,
     UD_RESP_SEARCH,
 )
 from apps.bot.fsm import clear_defect_keys, load_defect, save_defect
@@ -30,7 +29,7 @@ from apps.bot.fsm.storage import (
 )
 from apps.bot.handlers.ai_chat.receive import _ANSWER_TIMEOUT
 from apps.bot.handlers.defect.confirm.pipeline import _ANALYSIS_TIMEOUT
-from apps.bot.user_data import DefectData, EmployeeRef, MeasurementEntry
+from apps.bot.user_data import DefectData, MeasurementEntry
 
 
 @pytest.fixture
@@ -94,7 +93,6 @@ class TestClearDefectKeys:
         await state.update_data(
             {
                 UD_DEFECT: DefectData().to_dict(),
-                UD_RESP_EMPLOYEES: [EmployeeRef(id=1).to_dict()],
                 UD_RESP_SEARCH: "query",
                 UD_EDITING: True,
             }
