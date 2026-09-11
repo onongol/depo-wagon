@@ -43,9 +43,7 @@ def resolve_link_token(token: str):
         return None, LinkStatus.INVALID_TOKEN
 
     try:
-        employee = Employee.objects.select_related("user").get(
-            user_id=user_id, is_active=True
-        )
+        employee = Employee.objects.get(user_id=user_id, is_active=True)
     except Employee.DoesNotExist:
         logger.warning("resolve_link_token: no active employee for user %s", user_id)
         return None, LinkStatus.NO_EMPLOYEE
