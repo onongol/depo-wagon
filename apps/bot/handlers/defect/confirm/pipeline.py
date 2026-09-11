@@ -17,6 +17,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+_ANALYSIS_TIMEOUT = 60.0
+
 
 @dataclass
 class PersistResult:
@@ -91,13 +93,23 @@ async def run_ai_analysis(
     must not undo the already-saved defect.
     """
     try:
-        ai_result = await analyze_defect(
-            node=defect_data.node_label or "",
-            defect_type=defect_data.defect_type_label or "",
-            severity=defect_data.severity_label or "",
-            description=defect_data.description,
-            photos_bytes=photo_bytes or None,
+        ai_result = await asyncio.wait_for(
+            analyze_defect(
+                node=defect_data.node_label or "",
+                defect_type=defect_data.defect_type_label or "",
+                severity=defect_data.severity_label or "",
+                description=defect_data.description,
+                photos_bytes=photo_bytes or None,
+            ),
+            timeout=_ANALYSIS_TIMEOUT,
         )
+    except TimeoutError:
+        logger.warning(
+            "AI analysis timed out after %.0fs for defect %s",
+            _ANALYSIS_TIMEOUT,
+            defect_id,
+        )
+        return None
     except Exception:
         logger.exception("AI analysis failed for defect %s", defect_id)
         return None

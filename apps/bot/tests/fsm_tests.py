@@ -29,6 +29,7 @@ from apps.bot.fsm.storage import (
     FSM_TTL,
 )
 from apps.bot.handlers.ai_chat.receive import _ANSWER_TIMEOUT
+from apps.bot.handlers.defect.confirm.pipeline import _ANALYSIS_TIMEOUT
 from apps.bot.user_data import DefectData, EmployeeRef, MeasurementEntry
 
 
@@ -197,9 +198,9 @@ class TestMakeIsolation:
         assert isolation.key_builder is storage.key_builder
         assert isolation.lock_kwargs == {"timeout": FSM_LOCK_TIMEOUT}
 
-    def test_a_lock_outlives_the_ai_chat_answer(self):
-        """The whole handler runs under it, generator call included."""
-        assert FSM_LOCK_TIMEOUT > _ANSWER_TIMEOUT
+    def test_a_lock_outlives_the_slowest_ai_call(self):
+        """Whole handlers run under it, AI calls included."""
+        assert max(_ANSWER_TIMEOUT, _ANALYSIS_TIMEOUT) < FSM_LOCK_TIMEOUT
 
 
 class TestRedisOutage:

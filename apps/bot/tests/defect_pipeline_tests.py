@@ -1,3 +1,4 @@
+import asyncio
 import io
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -207,6 +208,22 @@ class TestRunAiAnalysis:
             AsyncMock(side_effect=RuntimeError("crash")),
         ):
             await run_ai_analysis(_make_defect_data(), defect_id="id-1", photo_bytes=[])
+
+    async def test_a_hung_analysis_times_out_to_none(self):
+        """The confirm handler holds the user's lock for the whole call."""
+
+        async def hang(**_):
+            await asyncio.Event().wait()
+
+        with (
+            patch("apps.bot.handlers.defect.confirm.pipeline.analyze_defect", hang),
+            patch("apps.bot.handlers.defect.confirm.pipeline._ANALYSIS_TIMEOUT", 0.01),
+        ):
+            result = await run_ai_analysis(
+                _make_defect_data(), defect_id="id-1", photo_bytes=[]
+            )
+
+        assert result is None
 
     async def test_persist_failure_still_returns_ai_result(self):
         ai_result = MagicMock()
