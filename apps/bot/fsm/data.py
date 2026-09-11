@@ -1,9 +1,7 @@
 """Typed access to the defect form held in FSM state.
 
-Deliberately a load/save pair rather than a context manager: about eight
-handlers return early when the form is gone, and a yield-based wrapper makes
-that path awkward. The safety net for a missed save is the full-flow
-integration test, not an abstraction.
+A load/save pair, not a context manager: confirm saves mid-handler, and a save
+on exit would restore the form the verdict and decline paths just dropped.
 """
 
 from typing import TYPE_CHECKING
