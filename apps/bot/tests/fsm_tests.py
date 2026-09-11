@@ -5,11 +5,14 @@ get_state and get_data behave exactly as they will against Redis.
 """
 
 from datetime import timedelta
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.base import StorageKey
 from aiogram.fsm.storage.memory import MemoryStorage
+from redis.asyncio.connection import Connection
+from redis.exceptions import ConnectionError as RedisConnectionError
 
 from apps.bot.constants import (
     UD_AI_CHAT_HISTORY,
@@ -19,7 +22,7 @@ from apps.bot.constants import (
     UD_RESP_SEARCH,
 )
 from apps.bot.fsm import clear_defect_keys, load_defect, save_defect, user_lock
-from apps.bot.fsm.storage import FSM_TTL
+from apps.bot.fsm.storage import FSM_RETRIES, FSM_SOCKET_TIMEOUT, FSM_TTL
 from apps.bot.user_data import DefectData, EmployeeRef, MeasurementEntry
 
 
@@ -170,6 +173,25 @@ class TestMakeStorage:
         assert storage.state_ttl == FSM_TTL
         assert storage.data_ttl == FSM_TTL
 
+    def test_sets_the_socket_timeouts_explicitly(self, settings):
+        from apps.bot.fsm.storage import make_storage
+
+        settings.TELEGRAM_FSM_REDIS_URL = "redis://localhost:6379/9"
+
+        kwargs = make_storage().redis.connection_pool.connection_kwargs
+
+        assert kwargs["socket_timeout"] == FSM_SOCKET_TIMEOUT
+        assert kwargs["socket_connect_timeout"] == FSM_SOCKET_TIMEOUT
+
+    def test_the_retry_reaches_the_pool_connections(self, settings):
+        from apps.bot.fsm.storage import make_storage
+
+        settings.TELEGRAM_FSM_REDIS_URL = "redis://localhost:6379/9"
+
+        conn = make_storage().redis.connection_pool.make_connection()
+
+        assert conn.retry.get_retries() == FSM_RETRIES
+
     def test_keys_include_the_bot_id_so_staging_cannot_collide(self, settings):
         from apps.bot.fsm.storage import make_storage
 
@@ -179,3 +201,20 @@ class TestMakeStorage:
         key = StorageKey(bot_id=42, chat_id=1, user_id=1)
 
         assert "42" in storage.key_builder.build(key, "state")
+
+
+class TestRedisOutage:
+    async def test_a_refused_connection_is_retried_before_giving_up(self, settings):
+        from apps.bot.fsm.storage import make_storage
+
+        settings.TELEGRAM_FSM_REDIS_URL = "redis://localhost:6379/9"
+        storage = make_storage()
+        refused = AsyncMock(side_effect=ConnectionRefusedError(61, "refused"))
+
+        with (
+            patch.object(Connection, "_connect", refused),
+            pytest.raises(RedisConnectionError),
+        ):
+            await storage.get_state(StorageKey(bot_id=42, chat_id=1, user_id=1))
+
+        assert refused.await_count == FSM_RETRIES + 1
