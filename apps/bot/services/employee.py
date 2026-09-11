@@ -24,11 +24,7 @@ def get_employee_by_telegram_id(telegram_id: int) -> Employee | None:
 def _department_employees(
     department: str | None, search: str = ""
 ) -> QuerySet[Employee]:
-    """Active employees of a department whose "first last" name contains search.
-
-    An unset department matches nobody rather than everyone without one.
-    Sync helper — called from inside the @sync_to_async service functions.
-    """
+    """Active department employees whose "first last" contains search; none if unset."""
     from apps.core.models import Employee
 
     if not department:
