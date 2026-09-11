@@ -1,3 +1,4 @@
+import html
 from typing import TYPE_CHECKING
 
 from apps.bot import services
@@ -97,7 +98,7 @@ async def select_responsible_employee(
     await _clear_search(state)
 
     await callback.message.edit_text(
-        str(M.RESPONSIBLE_EMPLOYEE_CONFIRMED).format(label=label),
+        str(M.RESPONSIBLE_EMPLOYEE_CONFIRMED).format(label=html.escape(label)),
         parse_mode=M.PARSE_MODE,
         reply_markup=skip_keyboard(CB_DESC_SKIP),
     )

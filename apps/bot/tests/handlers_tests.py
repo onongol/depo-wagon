@@ -551,3 +551,66 @@ class TestMeasurementChoice:
         await measurement_done(make_callback(), state)
 
         assert await state.get_state() == DefectSG.desc.state
+
+
+class TestUserTextIsEscaped:
+    """Replies go out as HTML: text the bot did not write must not parse as tags."""
+
+    async def test_the_search_query(self, state, picker):
+        await save_defect(state, DefectData(department="bogie"))
+        message = make_message("<b")
+
+        await search_responsible_employee(message, state)
+
+        assert "&lt;b" in message.answer.await_args.args[0]
+
+    async def test_the_part_number_is_escaped_but_stored_as_typed(self, state):
+        await save_defect(state, DefectData())
+        message = make_message("<A&B>")
+
+        await receive_part_number(message, state)
+
+        assert "&lt;A&amp;B&gt;" in message.answer.await_args.args[0]
+        assert (await load_defect(state)).part_number == "<A&B>"
+
+    async def test_the_unit_is_escaped_but_stored_as_typed(self, state):
+        from apps.bot.handlers.defect.measurement import receive_unit
+        from apps.bot.user_data import MeasurementEntry
+
+        await save_defect(
+            state,
+            DefectData(
+                current_measurement=MeasurementEntry(dimension_label="Width", value=1.0)
+            ),
+        )
+        message = make_message("<mm>")
+
+        await receive_unit(message, state)
+
+        assert "&lt;mm&gt;" in message.answer.await_args.args[0]
+        assert (await load_defect(state)).measurements[0].unit == "<mm>"
+
+    async def test_the_responsible_employee_is_escaped_but_stored_as_is(
+        self, state, picker
+    ):
+        picker.one.return_value = _make_employee(7, "<b>Bold", "Bat")
+        await save_defect(state, DefectData(department="bogie"))
+        callback = make_callback()
+
+        await select_responsible_employee(
+            callback, ResponsibleEmployeeCB(employee_id=7), state
+        )
+
+        assert "&lt;b&gt;Bold Bat" in callback.message.edit_text.await_args.args[0]
+        assert (await load_defect(state)).responsible_employee_label == "<b>Bold Bat"
+
+    async def test_the_employee_name_in_the_greeting(self):
+        from apps.bot.handlers.common.utils import show_welcome_menu
+
+        employee = MagicMock(full_name="A & <B>", role="inspector")
+        employee.get_role_display.return_value = "Inspector"
+        message = make_message()
+
+        await show_welcome_menu(message, employee)
+
+        assert "A &amp; &lt;B&gt;" in message.answer.await_args.args[0]

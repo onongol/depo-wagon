@@ -1,3 +1,4 @@
+import html
 from typing import TYPE_CHECKING
 
 from apps.bot.fsm import load_defect, save_defect
@@ -16,7 +17,7 @@ def _save_measurement(defect: DefectData) -> str:
     current = defect.current_measurement
     defect.measurements.append(current)
     defect.current_measurement = None
-    unit = f" {current.unit}" if current.unit else ""
+    unit = f" {html.escape(current.unit)}" if current.unit else ""
 
     return str(M.MEASUREMENT_SAVED).format(
         count=len(defect.measurements),

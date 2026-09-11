@@ -1,3 +1,4 @@
+import html
 from typing import TYPE_CHECKING
 
 from apps.bot.keyboards.menu import main_menu_keyboard
@@ -11,7 +12,7 @@ async def show_welcome_menu(message: Message, employee) -> None:
     """Send the main menu greeting to the user."""
     await message.answer(
         str(M.WELCOME_MENU).format(
-            full_name=employee.full_name,
+            full_name=html.escape(employee.full_name),
             role=employee.get_role_display(),
         ),
         parse_mode=M.PARSE_MODE,

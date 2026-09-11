@@ -1,3 +1,4 @@
+import html
 from typing import TYPE_CHECKING
 
 from apps.bot.constants import UD_EDITING
@@ -29,7 +30,9 @@ async def receive_part_number(message: Message, state: FSMContext) -> None:
         return
 
     await message.answer(
-        str(M.PART_NUMBER_CONFIRMED).format(part_number=defect.part_number),
+        str(M.PART_NUMBER_CONFIRMED).format(
+            part_number=html.escape(defect.part_number)
+        ),
         parse_mode=M.PARSE_MODE,
         reply_markup=defect_type_keyboard(),
     )

@@ -1,3 +1,4 @@
+import html
 from typing import TYPE_CHECKING
 
 from aiogram.exceptions import TelegramBadRequest
@@ -23,7 +24,9 @@ def _clamp_page(total: int, page: int) -> tuple[int, int]:
 
 def _build_text(search: str, page: int, total: int, total_pages: int) -> str:
     if search:
-        return str(M.ASK_RESPONSIBLE_EMPLOYEE_SEARCH).format(query=search, count=total)
+        return str(M.ASK_RESPONSIBLE_EMPLOYEE_SEARCH).format(
+            query=html.escape(search), count=total
+        )
     return str(M.ASK_RESPONSIBLE_EMPLOYEE).format(
         page=page + 1, total=total_pages, count=total
     )
