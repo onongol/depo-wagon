@@ -11,7 +11,7 @@ from apps.bot.messages import BotMessages as M
 from apps.bot.middlewares import CloseOldConnectionsMiddleware
 
 if TYPE_CHECKING:
-    from aiogram.fsm.storage.base import BaseStorage
+    from aiogram.fsm.storage.base import BaseEventIsolation, BaseStorage
 
 logger = logging.getLogger(__name__)
 
@@ -82,10 +82,12 @@ def _routers() -> list:
     ]
 
 
-def make_dispatcher(storage: BaseStorage) -> Dispatcher:
+def make_dispatcher(
+    storage: BaseStorage, events_isolation: BaseEventIsolation
+) -> Dispatcher:
     from apps.bot.handlers.common.error import error_handler
 
-    dp = Dispatcher(storage=storage)
+    dp = Dispatcher(storage=storage, events_isolation=events_isolation)
 
     # dp.update is the only observer that fires exactly once per Update and
     # ahead of every filter — where PTB closed connections by overriding

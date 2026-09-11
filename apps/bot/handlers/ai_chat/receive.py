@@ -10,7 +10,6 @@ from google.genai.errors import ServerError
 
 from apps.ai_service.rag.chat import ContentBlockedError, answer_question
 from apps.bot.constants import UD_AI_CHAT_HISTORY, UD_AI_CHAT_LAST
-from apps.bot.fsm import user_lock
 from apps.bot.messages import BotMessages as M
 
 if TYPE_CHECKING:
@@ -44,42 +43,41 @@ async def ai_chat_receive(message: Message, state: FSMContext) -> None:
         logger.warning("Could not send thinking message for user %s", user_id)
         return
 
-    async with user_lock(user_id):
-        await state.update_data({UD_AI_CHAT_LAST: time.time()})
-        history: list[dict] = (await state.get_data()).get(UD_AI_CHAT_HISTORY, [])
+    await state.update_data({UD_AI_CHAT_LAST: time.time()})
+    history: list[dict] = (await state.get_data()).get(UD_AI_CHAT_HISTORY, [])
 
-        try:
-            answer = await asyncio.wait_for(
-                answer_question(question, history), timeout=_ANSWER_TIMEOUT
-            )
-        except TimeoutError:
-            logger.warning(
-                "AI chat timed out after %.0fs for user %s", _ANSWER_TIMEOUT, user_id
-            )
+    try:
+        answer = await asyncio.wait_for(
+            answer_question(question, history), timeout=_ANSWER_TIMEOUT
+        )
+    except TimeoutError:
+        logger.warning(
+            "AI chat timed out after %.0fs for user %s", _ANSWER_TIMEOUT, user_id
+        )
+        await _safe_edit(thinking_msg, str(M.AI_CHAT_OVERLOADED))
+        return
+    except ContentBlockedError:
+        await _safe_edit(thinking_msg, str(M.AI_CHAT_BLOCKED))
+        return
+    except ServerError as e:
+        if e.code == HTTPStatus.SERVICE_UNAVAILABLE:
+            logger.warning("AI chat 503 overloaded for user %s", user_id)
             await _safe_edit(thinking_msg, str(M.AI_CHAT_OVERLOADED))
-            return
-        except ContentBlockedError:
-            await _safe_edit(thinking_msg, str(M.AI_CHAT_BLOCKED))
-            return
-        except ServerError as e:
-            if e.code == HTTPStatus.SERVICE_UNAVAILABLE:
-                logger.warning("AI chat 503 overloaded for user %s", user_id)
-                await _safe_edit(thinking_msg, str(M.AI_CHAT_OVERLOADED))
-            else:
-                logger.exception("AI chat server error for user %s", user_id)
-                await _safe_edit(thinking_msg, str(M.AI_CHAT_ERROR))
-            return
-        except Exception:
-            logger.exception("AI chat failed for user %s", user_id)
+        else:
+            logger.exception("AI chat server error for user %s", user_id)
             await _safe_edit(thinking_msg, str(M.AI_CHAT_ERROR))
-            return
+        return
+    except Exception:
+        logger.exception("AI chat failed for user %s", user_id)
+        await _safe_edit(thinking_msg, str(M.AI_CHAT_ERROR))
+        return
 
-        if len(answer) > _MAX_MESSAGE_LEN:
-            answer = answer[: _MAX_MESSAGE_LEN - 1] + "…"
+    if len(answer) > _MAX_MESSAGE_LEN:
+        answer = answer[: _MAX_MESSAGE_LEN - 1] + "…"
 
-        history = history[-_HISTORY_KEEP:]
-        history.append({"role": "user", "content": question})
-        history.append({"role": "model", "content": answer})
-        await state.update_data({UD_AI_CHAT_HISTORY: history})
+    history = history[-_HISTORY_KEEP:]
+    history.append({"role": "user", "content": question})
+    history.append({"role": "model", "content": answer})
+    await state.update_data({UD_AI_CHAT_HISTORY: history})
 
-        await _safe_edit(thinking_msg, answer)
+    await _safe_edit(thinking_msg, answer)

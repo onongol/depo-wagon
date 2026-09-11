@@ -21,8 +21,14 @@ from apps.bot.constants import (
     UD_RESP_EMPLOYEES,
     UD_RESP_SEARCH,
 )
-from apps.bot.fsm import clear_defect_keys, load_defect, save_defect, user_lock
-from apps.bot.fsm.storage import FSM_RETRIES, FSM_SOCKET_TIMEOUT, FSM_TTL
+from apps.bot.fsm import clear_defect_keys, load_defect, save_defect
+from apps.bot.fsm.storage import (
+    FSM_LOCK_TIMEOUT,
+    FSM_RETRIES,
+    FSM_SOCKET_TIMEOUT,
+    FSM_TTL,
+)
+from apps.bot.handlers.ai_chat.receive import _ANSWER_TIMEOUT
 from apps.bot.user_data import DefectData, EmployeeRef, MeasurementEntry
 
 
@@ -120,31 +126,6 @@ class TestClearDefectKeys:
         assert await state.get_state() == "DefectSG:photo"
 
 
-class TestUserLock:
-    def test_returns_the_same_lock_for_the_same_user(self):
-        assert user_lock(1) is user_lock(1)
-
-    def test_returns_a_different_lock_per_user(self):
-        assert user_lock(1) is not user_lock(2)
-
-    async def test_actually_serializes(self):
-        order = []
-
-        async def critical(tag):
-            async with user_lock(999):
-                order.append(f"{tag}-in")
-                order.append(f"{tag}-out")
-
-        import asyncio
-
-        await asyncio.gather(critical("a"), critical("b"))
-
-        assert order in (
-            ["a-in", "a-out", "b-in", "b-out"],
-            ["b-in", "b-out", "a-in", "a-out"],
-        )
-
-
 class TestStorageTtl:
     def test_expiry_is_set_so_abandoned_forms_do_not_accumulate(self):
         assert timedelta(days=1) == FSM_TTL
@@ -201,6 +182,24 @@ class TestMakeStorage:
         key = StorageKey(bot_id=42, chat_id=1, user_id=1)
 
         assert "42" in storage.key_builder.build(key, "state")
+
+
+class TestMakeIsolation:
+    def test_locks_over_the_storage_connection_and_keys(self, settings):
+        from apps.bot.fsm.storage import make_isolation, make_storage
+
+        settings.TELEGRAM_FSM_REDIS_URL = "redis://localhost:6379/9"
+        storage = make_storage()
+
+        isolation = make_isolation(storage)
+
+        assert isolation.redis is storage.redis
+        assert isolation.key_builder is storage.key_builder
+        assert isolation.lock_kwargs == {"timeout": FSM_LOCK_TIMEOUT}
+
+    def test_a_lock_outlives_the_ai_chat_answer(self):
+        """The whole handler runs under it, generator call included."""
+        assert FSM_LOCK_TIMEOUT > _ANSWER_TIMEOUT
 
 
 class TestRedisOutage:

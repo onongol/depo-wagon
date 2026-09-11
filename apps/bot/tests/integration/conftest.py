@@ -5,6 +5,7 @@ from itertools import count
 import pytest
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.base import StorageKey
+from aiogram.fsm.storage.memory import SimpleEventIsolation
 from aiogram.types import (
     CallbackQuery,
     Chat,
@@ -44,7 +45,7 @@ def storage():
 
 @pytest.fixture
 def dp(storage):
-    return make_dispatcher(storage)
+    return make_dispatcher(storage, SimpleEventIsolation())
 
 
 @pytest.fixture

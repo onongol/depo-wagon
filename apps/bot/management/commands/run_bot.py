@@ -32,11 +32,11 @@ class Command(BaseCommand):
     async def _run(self, *, drop_pending: bool) -> None:
         from apps.bot.bot import make_bot
         from apps.bot.dispatcher import make_dispatcher
-        from apps.bot.fsm import make_storage
+        from apps.bot.fsm import make_isolation, make_storage
 
         bot = make_bot()
         storage = make_storage()
-        dp = make_dispatcher(storage)
+        dp = make_dispatcher(storage, make_isolation(storage))
 
         try:
             # Also clears a webhook registration left over from an earlier run;
@@ -44,11 +44,9 @@ class Command(BaseCommand):
             await bot.delete_webhook(drop_pending_updates=drop_pending)
             await dp.start_polling(
                 bot,
-                # PTB ran with max_concurrent_updates=1, so the bot has always
-                # handled one update at a time. aiogram defaults to a task per
-                # update, which would turn every FSM write into a
-                # read-modify-write race. Do not flip this without the locking
-                # that a concurrent bot needs.
+                # Events isolation serializes a user's updates but a Redis lock
+                # is not a queue: concurrent tasks could take an album's photos
+                # out of order.
                 handle_as_tasks=False,
                 allowed_updates=["message", "callback_query"],
             )

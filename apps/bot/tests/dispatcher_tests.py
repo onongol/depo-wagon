@@ -9,7 +9,7 @@ import logging
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.fsm.storage.memory import MemoryStorage, SimpleEventIsolation
 
 from apps.bot.dispatcher import _BOT_COMMANDS, make_dispatcher, on_startup
 from apps.bot.handlers.common.error import error_handler
@@ -18,7 +18,17 @@ from apps.bot.messages import BotMessages as M
 
 @pytest.fixture
 def dispatcher():
-    return make_dispatcher(MemoryStorage())
+    return make_dispatcher(MemoryStorage(), SimpleEventIsolation())
+
+
+class TestEventsIsolation:
+    def test_uses_the_isolation_it_is_given(self):
+        """aiogram silently falls back to no isolation at all."""
+        isolation = SimpleEventIsolation()
+
+        dispatcher = make_dispatcher(MemoryStorage(), isolation)
+
+        assert dispatcher.fsm.events_isolation is isolation
 
 
 class TestRouterOrder:

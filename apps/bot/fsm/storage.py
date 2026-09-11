@@ -1,6 +1,10 @@
 from datetime import timedelta
 
-from aiogram.fsm.storage.redis import DefaultKeyBuilder, RedisStorage
+from aiogram.fsm.storage.redis import (
+    DefaultKeyBuilder,
+    RedisEventIsolation,
+    RedisStorage,
+)
 from django.conf import settings
 from redis.asyncio import Redis
 from redis.asyncio.retry import Retry
@@ -9,6 +13,7 @@ from redis.backoff import ExponentialWithJitterBackoff
 FSM_TTL = timedelta(days=1)
 FSM_SOCKET_TIMEOUT = 2.0
 FSM_RETRIES = 2
+FSM_LOCK_TIMEOUT = 90.0
 
 
 def make_storage() -> RedisStorage:
@@ -24,3 +29,8 @@ def make_storage() -> RedisStorage:
         state_ttl=FSM_TTL,
         data_ttl=FSM_TTL,
     )
+
+
+def make_isolation(storage: RedisStorage) -> RedisEventIsolation:
+    """Build the per-user event lock over the storage's own connection and keys."""
+    return storage.create_isolation(lock_kwargs={"timeout": FSM_LOCK_TIMEOUT})
