@@ -6,7 +6,6 @@ correct in isolation — only a full walk catches it, because the next step read
 the form back.
 """
 
-import asyncio
 import uuid
 from contextlib import ExitStack
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -27,7 +26,7 @@ from apps.bot.callback_data import (
     VerdictCB,
 )
 from apps.bot.fsm import load_defect
-from apps.bot.handlers.defect.photo.jobs import FLUSH_DELAY, cancel_pending_flushes
+from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.bot.tests.integration.conftest import (
     make_callback_update,
@@ -38,12 +37,6 @@ from apps.core.constants import Department
 from apps.defects.constants import DefectNode, DefectType, DefectVerdict
 
 WAGON_NUMBER = "60123456"
-
-
-@pytest.fixture(autouse=True)
-async def _no_pending_flushes():
-    yield
-    await cancel_pending_flushes()
 
 
 @pytest.fixture
@@ -284,8 +277,6 @@ class TestAFormLeftOverFromAnEarlierBuild:
     async def test_the_next_tap_resets_the_flow_instead_of_raising(
         self, dp, bot, state, session, flow
     ):
-        from apps.bot.messages import BotMessages as M
-
         await self._mid_flow_with_a_foreign_schema(dp, bot, state)
         session.clear()
 
@@ -348,7 +339,7 @@ class TestHumanFactorBranch:
 
 
 class TestAlbum:
-    async def test_three_photos_are_all_recorded_and_acknowledged_once(
+    async def test_three_photos_are_recorded_and_answered_once_then_counted(
         self, dp, bot, session, state, flow
     ):
         await dp.feed_update(bot, make_message_update("/new_defect", command=True))
@@ -374,17 +365,16 @@ class TestAlbum:
                 bot, make_photo_update(f"file{i}", media_group_id="mg-1")
             )
 
-        # Nothing is said until the album settles.
-        assert session.calls("sendMessage") == []
-
-        await asyncio.sleep(FLUSH_DELAY * 3)
-
         defect = await load_defect(state)
         assert defect.photo_file_ids == ["file0", "file1", "file2"]
+        answers = session.calls("sendMessage")
+        assert [a.text for a in answers] == [str(M.PHOTO_ALBUM_RECEIVING)]
 
-        acknowledgements = session.calls("sendMessage")
-        assert len(acknowledgements) == 1
-        assert "3" in acknowledgements[0].text
+        await dp.feed_update(bot, make_callback_update(CB_PHOTO_SKIP))
+
+        toast = session.calls("answerCallbackQuery")[-1]
+        assert toast.text == str(M.PHOTOS_ATTACHED).format(count=3)
+        assert await state.get_state() == DefectSG.measurement_choice.state
 
     async def test_a_lone_photo_is_acknowledged_immediately(
         self, dp, bot, session, state, flow

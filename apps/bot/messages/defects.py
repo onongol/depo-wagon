@@ -69,7 +69,15 @@ class DefectMessages:
 
     # ── Photo ────────────────────────────────────────────────────────────────
 
-    PHOTO_RECEIVED = _("✅ Photo {count} received.\n\n📸 Send another photo (or skip):")
+    PHOTO_RECEIVED = _(
+        "✅ Photo {count} received.\n\n📸 Send another photo or press Done:"
+    )
+
+    PHOTO_ALBUM_RECEIVING = _(
+        "📸 Receiving the album.\n\nSend more photos or press Done when finished:"
+    )
+
+    PHOTOS_ATTACHED = _("✅ Photos attached: {count}")
 
     PHOTO_TOO_LARGE = _(
         "⚠️ Photo is too large (max 10 MB). Please send a smaller photo:"

@@ -1,7 +1,7 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from apps.bot.callback_data import CB_LINK_CANCEL, LinkConfirmCB
-from apps.bot.constants import BTN_SKIP
+from apps.bot.constants import BTN_DONE, BTN_SKIP
 from apps.bot.messages import BotMessages as M
 
 
@@ -10,6 +10,15 @@ def skip_keyboard(callback_data: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text=str(BTN_SKIP), callback_data=callback_data)]
+        ]
+    )
+
+
+def done_keyboard(callback_data: str) -> InlineKeyboardMarkup:
+    """Single 'Done' button carrying an already-packed payload."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=str(BTN_DONE), callback_data=callback_data)]
         ]
     )
 

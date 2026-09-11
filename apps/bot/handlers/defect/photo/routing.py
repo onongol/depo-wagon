@@ -2,7 +2,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from apps.bot import services
-from apps.bot.constants import UD_LAST_PHOTO_MSG, UD_RESP_SEARCH
+from apps.bot.constants import UD_LAST_MEDIA_GROUP, UD_LAST_PHOTO_MSG, UD_RESP_SEARCH
 from apps.bot.fsm import save_employees
 from apps.bot.keyboards.defect import measurement_choice_keyboard
 from apps.bot.messages import BotMessages as M
@@ -30,6 +30,7 @@ async def after_photos(
 
     data = await state.get_data()
     data.pop(UD_LAST_PHOTO_MSG, None)
+    data.pop(UD_LAST_MEDIA_GROUP, None)
     await state.set_data(data)
 
     if defect.defect_type == DefectType.HUMAN_FACTOR:
