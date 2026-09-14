@@ -1,9 +1,10 @@
 from rest_framework import serializers
 
 from apps.defects.models import DefectPhoto
+from apps.defects.serializers.visible_defect import VisibleDefectMixin
 
 
-class DefectPhotoSerializer(serializers.ModelSerializer):
+class DefectPhotoSerializer(VisibleDefectMixin, serializers.ModelSerializer):
     class Meta:
         model = DefectPhoto
         fields = ["id", "defect", "image", "uploaded_at"]

@@ -19,9 +19,10 @@ def _clear_cache():
 
 def make_client_with_role(role):
     user = User.objects.create_user(email=f"{role}@depot.mn", password="pass123")
-    baker.make("core.Employee", user=user, role=role)
+    employee = baker.make("core.Employee", user=user, role=role)
     client = APIClient()
     client.force_authenticate(user=user)
+    client.employee = employee
     return client
 
 

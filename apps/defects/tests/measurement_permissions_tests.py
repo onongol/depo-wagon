@@ -68,11 +68,27 @@ class TestMeasurementCreatePermissions:
         )
         assert response.status_code == status.HTTP_201_CREATED
 
-    def test_inspector_can_create(self, inspector_client, measurement_data):
+    def test_inspector_can_create_on_their_own_defect(
+        self, inspector_client, measurement_data, wagon
+    ):
+        own = baker.make(
+            "defects.Defect", wagon=wagon, inspector=inspector_client.employee
+        )
+        response = inspector_client.post(
+            reverse("measurement-list"),
+            measurement_data | {"defect": str(own.pk)},
+            format="json",
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+
+    def test_inspector_cannot_create_on_another_inspectors_defect(
+        self, inspector_client, measurement_data
+    ):
         response = inspector_client.post(
             reverse("measurement-list"), measurement_data, format="json"
         )
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "defect" in response.data
 
     def test_engineer_can_create(self, engineer_client, measurement_data):
         response = engineer_client.post(

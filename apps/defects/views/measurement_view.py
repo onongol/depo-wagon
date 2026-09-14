@@ -1,7 +1,7 @@
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
 
-from apps.defects.models import DefectMeasurement
+from apps.defects.models import Defect, DefectMeasurement
 from apps.defects.serializers import DefectMeasurementSerializer
 from apps.users.permissions import (
     IsAnyEmployee,
@@ -24,3 +24,7 @@ class DefectMeasurementViewSet(viewsets.ModelViewSet):
         if self.action in {"update", "partial_update", "destroy"}:
             return [IsEngineerOrManager()]
         return [IsAnyEmployee()]
+
+    def get_queryset(self):
+        visible = Defect.objects.visible_to(self.request.user)
+        return super().get_queryset().filter(defect__in=visible)

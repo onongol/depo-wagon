@@ -34,7 +34,7 @@ class DefectViewSet(viewsets.ModelViewSet):
         return [IsAnyEmployee()]
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = super().get_queryset().visible_to(self.request.user)
         if self.action == "retrieve":
             qs = qs.prefetch_related("measurements", "photos")
         return qs

@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from simple_history.models import HistoricalRecords
 
-from apps.core.constants import Department
+from apps.core.constants import ROLES_WITH_ALL_DEFECTS, Department
 from apps.defects.constants import (
     DefectNode,
     DefectSeverity,
@@ -15,6 +15,20 @@ from apps.defects.constants import (
     DefectType,
     DefectVerdict,
 )
+
+
+class DefectQuerySet(models.QuerySet):
+    def visible_to(self, user):
+        """Every defect for superusers, engineers and managers; others get their own."""
+        if user.is_superuser:
+            return self
+
+        employee = getattr(user, "employee", None)
+        if employee is None:
+            return self.none()
+        if employee.role in ROLES_WITH_ALL_DEFECTS:
+            return self
+        return self.filter(inspector=employee)
 
 
 class Defect(models.Model):
@@ -110,6 +124,8 @@ class Defect(models.Model):
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_("Updated At"))
 
     history = HistoricalRecords()
+
+    objects = DefectQuerySet.as_manager()
 
     class Meta:
         verbose_name = _("Defect")

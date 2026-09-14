@@ -73,13 +73,27 @@ class TestPhotoCreatePermissions:
         )
         assert response.status_code == status.HTTP_201_CREATED
 
-    def test_inspector_can_create(self, inspector_client, defect):
+    def test_inspector_can_create_on_their_own_defect(self, inspector_client, wagon):
+        own = baker.make(
+            "defects.Defect", wagon=wagon, inspector=inspector_client.employee
+        )
+        response = inspector_client.post(
+            reverse("photo-list"),
+            {"defect": str(own.pk), "image": make_image_file()},
+            format="multipart",
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+
+    def test_inspector_cannot_create_on_another_inspectors_defect(
+        self, inspector_client, defect
+    ):
         response = inspector_client.post(
             reverse("photo-list"),
             {"defect": str(defect.pk), "image": make_image_file()},
             format="multipart",
         )
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "defect" in response.data
 
     def test_engineer_can_create(self, engineer_client, defect):
         response = engineer_client.post(
