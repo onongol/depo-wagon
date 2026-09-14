@@ -1,5 +1,4 @@
 import asyncio
-import io
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from aiogram.exceptions import TelegramForbiddenError
@@ -41,21 +40,6 @@ def _make_saved_defect(defect_id="uuid-001"):
     return defect
 
 
-def _make_bot_file(size=1000, file_path="photos/x.jpg"):
-    """aiogram returns a File; the bytes come from Bot.download_file."""
-    mock_file = MagicMock()
-    mock_file.file_size = size
-    mock_file.file_path = file_path
-    return mock_file
-
-
-def _make_bot(content=b"fake image"):
-    bot = AsyncMock()
-    bot.get_file = AsyncMock(return_value=_make_bot_file())
-    bot.download_file = AsyncMock(return_value=io.BytesIO(content))
-    return bot
-
-
 class TestRegisterDefect:
     async def test_saves_defect_and_returns_result(self):
         saved = _make_saved_defect()
@@ -76,63 +60,81 @@ class TestRegisterDefect:
                 _make_defect_data(photo_file_ids=[]), employee=MagicMock(), bot=bot
             )
         assert result.photo_bytes == []
+        svc.queue_defect_photos.assert_not_called()
+
+    async def test_photos_are_queued_in_order_under_the_saved_defect(self):
+        with patch("apps.bot.handlers.defect.confirm.pipeline.services") as svc:
+            svc.create_defect = AsyncMock(return_value=_make_saved_defect("id-7"))
+            svc.queue_defect_photos = AsyncMock()
+            svc.download_photo = AsyncMock(return_value=b"img")
+            await register_defect(
+                _make_defect_data(photo_file_ids=["a", "b", "c"]),
+                employee=MagicMock(),
+                bot=AsyncMock(),
+            )
+        svc.queue_defect_photos.assert_awaited_once_with("id-7", ["a", "b", "c"])
+
+    async def test_queueing_failure_is_non_critical(self):
+        with patch("apps.bot.handlers.defect.confirm.pipeline.services") as svc:
+            svc.create_defect = AsyncMock(return_value=_make_saved_defect())
+            svc.queue_defect_photos = AsyncMock(side_effect=Exception("broker down"))
+            svc.download_photo = AsyncMock(return_value=b"img")
+            result = await register_defect(
+                _make_defect_data(photo_file_ids=["file123"]),
+                employee=MagicMock(),
+                bot=AsyncMock(),
+            )
+        assert result.photo_bytes == [b"img"]
 
     async def test_photo_downloaded_and_returned(self):
-        bot = AsyncMock()
-        bot.get_file = AsyncMock(return_value=_make_bot_file())
-        bot.download_file = AsyncMock(return_value=io.BytesIO(b"img"))
         with patch("apps.bot.handlers.defect.confirm.pipeline.services") as svc:
             svc.create_defect = AsyncMock(return_value=_make_saved_defect())
-            svc.create_photo_from_bytes = AsyncMock()
+            svc.queue_defect_photos = AsyncMock()
+            svc.download_photo = AsyncMock(return_value=b"img")
             result = await register_defect(
                 _make_defect_data(photo_file_ids=["file123"]),
                 employee=MagicMock(),
-                bot=bot,
+                bot=AsyncMock(),
             )
-        assert len(result.photo_bytes) == 1
-        assert result.photo_bytes[0] == b"img"
+        assert result.photo_bytes == [b"img"]
 
     async def test_photo_download_failure_is_non_critical(self):
-        bot = AsyncMock()
-        bot.get_file = AsyncMock(side_effect=Exception("Telegram timeout"))
         with patch("apps.bot.handlers.defect.confirm.pipeline.services") as svc:
             svc.create_defect = AsyncMock(return_value=_make_saved_defect())
+            svc.queue_defect_photos = AsyncMock()
+            svc.download_photo = AsyncMock(side_effect=Exception("Telegram timeout"))
             result = await register_defect(
                 _make_defect_data(photo_file_ids=["file123"]),
                 employee=MagicMock(),
-                bot=bot,
+                bot=AsyncMock(),
             )
         assert result.photo_bytes == []
 
     async def test_oversized_photo_is_skipped(self):
-        bot = AsyncMock()
-        bot.get_file = AsyncMock(return_value=_make_bot_file(size=99_999_999))
-        bot.download_file = AsyncMock()
         with patch("apps.bot.handlers.defect.confirm.pipeline.services") as svc:
             svc.create_defect = AsyncMock(return_value=_make_saved_defect())
+            svc.queue_defect_photos = AsyncMock()
+            svc.download_photo = AsyncMock(return_value=None)
             result = await register_defect(
                 _make_defect_data(photo_file_ids=["big_file"]),
                 employee=MagicMock(),
-                bot=bot,
+                bot=AsyncMock(),
             )
         assert result.photo_bytes == []
 
     async def test_one_photo_fail_does_not_block_others(self):
-        bot = AsyncMock()
-        bot.get_file = AsyncMock(return_value=_make_bot_file())
-        bot.download_file = AsyncMock(
-            side_effect=[Exception("network error"), io.BytesIO(b"ok")]
-        )
-
         with patch("apps.bot.handlers.defect.confirm.pipeline.services") as svc:
             svc.create_defect = AsyncMock(return_value=_make_saved_defect())
-            svc.create_photo_from_bytes = AsyncMock()
+            svc.queue_defect_photos = AsyncMock()
+            svc.download_photo = AsyncMock(
+                side_effect=[Exception("network error"), b"ok"]
+            )
             result = await register_defect(
                 _make_defect_data(photo_file_ids=["bad", "good"]),
                 employee=MagicMock(),
-                bot=bot,
+                bot=AsyncMock(),
             )
-        assert len(result.photo_bytes) == 1
+        assert result.photo_bytes == [b"ok"]
 
     async def test_measurements_saved_when_present(self):
         measurements = [MeasurementEntry(dimension="width", value=5.0)]

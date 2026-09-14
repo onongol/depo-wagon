@@ -7,7 +7,7 @@ Modules:
   telegram_link        — resolve a web-issued deep-link token, then attach the chat
   wagon                — wagon lookup
   defect               — create/update defects, open defects list
-  photo                — save defect photos to storage
+  photo                — download defect photos, queue them for storage
   measurement          — create defect measurements
 
 There is no OTP or credentials-email module any more: identity is established
@@ -24,7 +24,7 @@ from .defect import (
 )
 from .employee import get_employee_by_telegram_id, get_managers_and_engineers
 from .measurement import create_measurements_bulk
-from .photo import create_photo_from_bytes
+from .photo import download_photo, queue_defect_photos
 from .responsible_employee import (
     count_department_employees,
     get_department_employee,
@@ -46,7 +46,7 @@ __all__ = [
     "count_department_employees",
     "create_defect",
     "create_measurements_bulk",
-    "create_photo_from_bytes",
+    "download_photo",
     "forget_pending_link",
     "get_connect_url",
     "get_department_employee",
@@ -56,6 +56,7 @@ __all__ = [
     "get_open_defects",
     "get_open_defects_count",
     "get_wagon_by_number",
+    "queue_defect_photos",
     "remember_pending_link",
     "resolve_link_token",
     "save_employee_verdict",
