@@ -31,16 +31,10 @@ async def render_page(send: Callable[..., Awaitable], employee, page: int) -> No
     """Fetch one page of open defects and hand it to send."""
     offset = page * TASKS_PAGE_SIZE
 
-    if employee.role in ROLES_WITH_ALL_DEFECTS:
-        total = await services.get_all_open_defects_count()
-        defects = await services.get_all_open_defects(
-            limit=TASKS_PAGE_SIZE, offset=offset
-        )
-    else:
-        total = await services.get_open_defects_count(employee_id=employee.id)
-        defects = await services.get_open_defects(
-            employee_id=employee.id, limit=TASKS_PAGE_SIZE, offset=offset
-        )
+    total = await services.get_open_defects_count(employee_id=employee.id)
+    defects = await services.get_open_defects(
+        employee_id=employee.id, limit=TASKS_PAGE_SIZE, offset=offset
+    )
 
     if not defects:
         await send(str(M.NO_TASKS), parse_mode=M.PARSE_MODE)

@@ -24,12 +24,7 @@ from .defect import (
 )
 from .employee import get_employee_by_telegram_id, get_managers_and_engineers
 from .measurement import create_measurements_bulk
-from .open_defects import (
-    get_all_open_defects,
-    get_all_open_defects_count,
-    get_open_defects,
-    get_open_defects_count,
-)
+from .open_defects import get_open_defects, get_open_defects_count
 from .photo import download_photo, queue_defect_photos
 from .responsible_employee import (
     count_department_employees,
@@ -54,8 +49,6 @@ __all__ = [
     "create_measurements_bulk",
     "download_photo",
     "forget_pending_link",
-    "get_all_open_defects",
-    "get_all_open_defects_count",
     "get_connect_url",
     "get_department_employee",
     "get_department_employees",

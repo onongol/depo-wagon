@@ -51,8 +51,6 @@ def _services(defects, total=None):
     count = len(defects) if total is None else total
     svc.get_open_defects = AsyncMock(return_value=defects)
     svc.get_open_defects_count = AsyncMock(return_value=count)
-    svc.get_all_open_defects = AsyncMock(return_value=defects)
-    svc.get_all_open_defects_count = AsyncMock(return_value=count)
     svc.update_defect_status = AsyncMock(return_value=True)
     svc.update_any_defect_status = AsyncMock(return_value=True)
     return svc
@@ -136,7 +134,11 @@ class TestMyTasks:
 
         assert svc.get_open_defects.await_args.kwargs["offset"] == 0
 
-    async def test_scopes_the_query_to_the_employee(self, employee):
+    @pytest.mark.parametrize("role", [*EmployeeRole.values, "unknown"])
+    async def test_leaves_the_scope_to_the_query_whatever_the_role(
+        self, employee, role
+    ):
+        employee.role = role
         svc = _services([])
 
         with (
@@ -147,40 +149,6 @@ class TestMyTasks:
 
         assert svc.get_open_defects.await_args.kwargs["employee_id"] == 7
         assert svc.get_open_defects_count.await_args.kwargs["employee_id"] == 7
-        svc.get_all_open_defects.assert_not_called()
-        svc.get_all_open_defects_count.assert_not_called()
-
-    @pytest.mark.parametrize("role", [EmployeeRole.ENGINEER, EmployeeRole.MANAGER])
-    async def test_engineers_and_managers_see_every_open_defect(self, employee, role):
-        employee.role = role
-        svc = _services([_make_defect()], total=99)
-
-        with (
-            patch(f"{LIST}.get_employee", AsyncMock(return_value=employee)),
-            patch(f"{LIST}.services", svc),
-        ):
-            await my_tasks(make_message())
-
-        assert svc.get_all_open_defects.await_args.kwargs["offset"] == 0
-        svc.get_all_open_defects_count.assert_awaited_once()
-        svc.get_open_defects.assert_not_called()
-        svc.get_open_defects_count.assert_not_called()
-
-    @pytest.mark.parametrize(
-        "role", [EmployeeRole.WORKER, EmployeeRole.INSPECTOR, EmployeeRole.MASTER]
-    )
-    async def test_other_roles_see_only_their_own(self, employee, role):
-        employee.role = role
-        svc = _services([])
-
-        with (
-            patch(f"{LIST}.get_employee", AsyncMock(return_value=employee)),
-            patch(f"{LIST}.services", svc),
-        ):
-            await my_tasks(make_message())
-
-        assert svc.get_open_defects.await_args.kwargs["employee_id"] == 7
-        svc.get_all_open_defects.assert_not_called()
 
 
 class TestMyTasksPage:
@@ -234,8 +202,6 @@ class TestMyTasksPage:
         )
         svc.get_open_defects.assert_not_called()
         svc.get_open_defects_count.assert_not_called()
-        svc.get_all_open_defects.assert_not_called()
-        svc.get_all_open_defects_count.assert_not_called()
 
 
 class TestShowStatusPicker:
@@ -296,7 +262,6 @@ class TestSetDefectStatus:
         svc.update_defect_status.assert_not_called()
         svc.update_any_defect_status.assert_not_called()
         list_svc.get_open_defects.assert_not_called()
-        list_svc.get_all_open_defects.assert_not_called()
         callback.message.edit_text.assert_awaited_once_with(
             str(M.NOT_REGISTERED), parse_mode=M.PARSE_MODE
         )

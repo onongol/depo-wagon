@@ -26,6 +26,10 @@ class DefectQuerySet(models.QuerySet):
         employee = getattr(user, "employee", None)
         if employee is None:
             return self.none()
+        return self.visible_to_employee(employee)
+
+    def visible_to_employee(self, employee):
+        """Every defect for engineers and managers; any other employee gets their own."""
         if employee.role in ROLES_WITH_ALL_DEFECTS:
             return self
         return self.filter(inspector=employee)
