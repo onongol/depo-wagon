@@ -4,7 +4,11 @@ from rest_framework.parsers import FormParser, MultiPartParser
 
 from apps.defects.models import DefectPhoto
 from apps.defects.serializers import DefectPhotoSerializer
-from apps.users.permissions import IsAnyEmployee, IsEngineer, IsInspectorOrEngineer
+from apps.users.permissions import (
+    IsAnyEmployee,
+    IsEngineerOrManager,
+    IsInspectorEngineerOrManager,
+)
 
 
 class DefectPhotoViewSet(viewsets.ModelViewSet):
@@ -19,7 +23,7 @@ class DefectPhotoViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action == "create":
-            return [IsInspectorOrEngineer()]
+            return [IsInspectorEngineerOrManager()]
         if self.action == "destroy":
-            return [IsEngineer()]
+            return [IsEngineerOrManager()]
         return [IsAnyEmployee()]
