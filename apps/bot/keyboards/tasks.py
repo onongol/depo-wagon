@@ -15,17 +15,23 @@ if TYPE_CHECKING:
     import uuid
 
 
-def tasks_keyboard(defects: list, page: int, total: int) -> InlineKeyboardMarkup:
-    """Pagination + one status-change button per defect."""
-    buttons = [
+def tasks_keyboard(
+    defects: list, page: int, total: int, *, can_change_status: bool = False
+) -> InlineKeyboardMarkup:
+    """Pagination, plus one status-change button per defect when allowed."""
+    buttons = (
         [
-            InlineKeyboardButton(
-                text=f"🔄 {defect.wagon.number} — {defect.get_node_display()}",
-                callback_data=StatusPickCB(defect_id=defect.id, page=page).pack(),
-            )
+            [
+                InlineKeyboardButton(
+                    text=f"🔄 {defect.wagon.number} — {defect.get_node_display()}",
+                    callback_data=StatusPickCB(defect_id=defect.id, page=page).pack(),
+                )
+            ]
+            for defect in defects
         ]
-        for defect in defects
-    ]
+        if can_change_status
+        else []
+    )
 
     nav = []
     if page > 0:

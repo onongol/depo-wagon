@@ -74,26 +74,43 @@ def update_defect_ai_result(
 
 
 @sync_to_async
-def update_defect_status(defect_id, status: str) -> bool:
-    """Update a Defect's status, setting repaired_at when it closes.
+def update_defect_status(defect_id, status: str, *, employee_id: int) -> bool:
+    """Update the status of a defect this employee inspected.
 
-    Returns False when the defect is gone, True when the new status is saved.
+    Returns False when they have no such defect, True when the status is saved.
     """
-    from apps.defects.constants import DefectStatus
+    from apps.defects.models import Defect
 
-    defect = _load_defect(defect_id, "update_defect_status")
+    if employee_id is None:
+        msg = "employee_id is required"
+        raise ValueError(msg)
+
+    defect = Defect.objects.filter(id=defect_id, inspector_id=employee_id).first()
+
+    if defect is None:
+        logger.warning(
+            "update_defect_status: defect %s not found for employee %s",
+            defect_id,
+            employee_id,
+        )
+        return False
+
+    defect.set_status(status)
+    return True
+
+
+@sync_to_async
+def update_any_defect_status(defect_id, status: str) -> bool:
+    """Update the status of any defect. Check the role first.
+
+    Returns False when the defect is gone, True when the status is saved.
+    """
+    defect = _load_defect(defect_id, "update_any_defect_status")
 
     if defect is None:
         return False
 
-    defect.status = status
-    fields = ["status"]
-
-    if status == DefectStatus.CLOSED:
-        defect.repaired_at = timezone.now()
-        fields.append("repaired_at")
-
-    defect.save(update_fields=fields)
+    defect.set_status(status)
     return True
 
 

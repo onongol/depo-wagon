@@ -102,13 +102,19 @@ class TestTasksKeyboard:
 
     def test_one_button_per_defect(self):
         defects = [_make_defect("11111"), _make_defect("22222")]
-        kb = tasks_keyboard(defects=defects, page=0, total=2)
+        kb = tasks_keyboard(defects=defects, page=0, total=2, can_change_status=True)
         defect_rows = [
             row
             for row in kb.inline_keyboard
             if not any(btn.text in {str(BTN_PREV), str(BTN_NEXT)} for btn in row)
         ]
         assert len(defect_rows) == 2
+
+    def test_no_status_buttons_unless_allowed(self):
+        defects = [_make_defect("11111"), _make_defect("22222")]
+        kb = tasks_keyboard(defects=defects, page=0, total=TASKS_PAGE_SIZE + 1)
+        assert _nav_texts(kb) == [str(BTN_NEXT)]
+        assert len(kb.inline_keyboard) == 1
 
     def test_no_nav_when_single_page(self):
         kb = tasks_keyboard(defects=[], page=0, total=TASKS_PAGE_SIZE - 1)
@@ -211,7 +217,7 @@ class TestTaskCallbackDataCarriesUuid:
     def test_tasks_keyboard_carries_the_uuid_itself(self):
         defect = _make_defect()
 
-        kb = tasks_keyboard([defect], page=0, total=1)
+        kb = tasks_keyboard([defect], page=0, total=1, can_change_status=True)
 
         picks = [
             StatusPickCB.unpack(btn.callback_data)

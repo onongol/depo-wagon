@@ -1,8 +1,12 @@
 from django.utils.translation import gettext_lazy as _
 
+from apps.core.constants import EmployeeRole
 from apps.defects.constants import DefectSeverity, DefectStatus
 
 TASKS_PAGE_SIZE = 5
+
+# Change the status of only the defects they inspected
+ROLES_CHANGING_OWN_STATUS = frozenset({EmployeeRole.INSPECTOR})
 
 SEVERITY_EMOJI = {
     DefectSeverity.LOW: "🟢",

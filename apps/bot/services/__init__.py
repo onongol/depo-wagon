@@ -18,6 +18,7 @@ on the web by allauth, and the bot only ever receives a token proving it.
 from .defect import (
     create_defect,
     save_employee_verdict,
+    update_any_defect_status,
     update_defect_ai_result,
     update_defect_status,
 )
@@ -67,6 +68,7 @@ __all__ = [
     "remember_pending_link",
     "resolve_link_token",
     "save_employee_verdict",
+    "update_any_defect_status",
     "update_defect_ai_result",
     "update_defect_status",
 ]

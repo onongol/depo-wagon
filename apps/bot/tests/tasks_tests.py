@@ -54,7 +54,17 @@ def _services(defects, total=None):
     svc.get_all_open_defects = AsyncMock(return_value=defects)
     svc.get_all_open_defects_count = AsyncMock(return_value=count)
     svc.update_defect_status = AsyncMock(return_value=True)
+    svc.update_any_defect_status = AsyncMock(return_value=True)
     return svc
+
+
+def _status_picks(kb):
+    return [
+        btn
+        for row in kb.inline_keyboard
+        for btn in row
+        if btn.callback_data.startswith(StatusPickCB.__prefix__ + ":")
+    ]
 
 
 class TestMyTasks:
@@ -89,6 +99,31 @@ class TestMyTasks:
             await my_tasks(message)
 
         assert message.answer.await_args.kwargs["reply_markup"] is not None
+
+    @pytest.mark.parametrize(
+        ("role", "offered"),
+        [
+            (EmployeeRole.INSPECTOR, True),
+            (EmployeeRole.ENGINEER, True),
+            (EmployeeRole.MANAGER, True),
+            (EmployeeRole.MASTER, False),
+            (EmployeeRole.WORKER, False),
+        ],
+    )
+    async def test_offers_status_buttons_only_to_roles_that_may_use_them(
+        self, employee, role, offered
+    ):
+        employee.role = role
+        message = make_message()
+
+        with (
+            patch(f"{LIST}.get_employee", AsyncMock(return_value=employee)),
+            patch(f"{LIST}.services", _services([_make_defect()])),
+        ):
+            await my_tasks(message)
+
+        kb = message.answer.await_args.kwargs["reply_markup"]
+        assert bool(_status_picks(kb)) is offered
 
     async def test_always_starts_at_the_first_page(self, employee):
         svc = _services([_make_defect()])
@@ -259,13 +294,15 @@ class TestSetDefectStatus:
             )
 
         svc.update_defect_status.assert_not_called()
+        svc.update_any_defect_status.assert_not_called()
         list_svc.get_open_defects.assert_not_called()
         list_svc.get_all_open_defects.assert_not_called()
         callback.message.edit_text.assert_awaited_once_with(
             str(M.NOT_REGISTERED), parse_mode=M.PARSE_MODE
         )
 
-    async def test_saves_the_status(self, employee):
+    async def test_inspectors_save_the_status_only_on_their_own_defect(self, employee):
+        employee.role = EmployeeRole.INSPECTOR
         svc = _services([])
         defect_id = uuid.uuid4()
 
@@ -280,8 +317,59 @@ class TestSetDefectStatus:
             )
 
         svc.update_defect_status.assert_awaited_once_with(
+            defect_id, DefectStatus.CLOSED, employee_id=7
+        )
+        svc.update_any_defect_status.assert_not_called()
+
+    @pytest.mark.parametrize("role", [EmployeeRole.ENGINEER, EmployeeRole.MANAGER])
+    async def test_engineers_and_managers_save_the_status_on_any_defect(
+        self, employee, role
+    ):
+        employee.role = role
+        svc = _services([])
+        defect_id = uuid.uuid4()
+
+        with (
+            patch(f"{STATUS}.services", svc),
+            patch(f"{STATUS}.get_employee", AsyncMock(return_value=employee)),
+            patch(f"{LIST}.services", _services([])),
+        ):
+            await set_defect_status(
+                make_callback(),
+                StatusSetCB(defect_id=defect_id, status=DefectStatus.CLOSED, page=0),
+            )
+
+        svc.update_any_defect_status.assert_awaited_once_with(
             defect_id, DefectStatus.CLOSED
         )
+        svc.update_defect_status.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "role", [EmployeeRole.MASTER, EmployeeRole.WORKER, "unknown"]
+    )
+    async def test_other_roles_are_refused_and_the_list_redrawn(self, employee, role):
+        employee.role = role
+        svc = _services([])
+        list_svc = _services([_make_defect()])
+        callback = make_callback()
+
+        with (
+            patch(f"{STATUS}.services", svc),
+            patch(f"{STATUS}.get_employee", AsyncMock(return_value=employee)),
+            patch(f"{LIST}.services", list_svc),
+        ):
+            await set_defect_status(
+                callback,
+                StatusSetCB(defect_id=uuid.uuid4(), status=DefectStatus.CLOSED, page=3),
+            )
+
+        svc.update_defect_status.assert_not_called()
+        svc.update_any_defect_status.assert_not_called()
+        assert callback.message.answer.await_args.args[0] == str(
+            M.STATUS_CHANGE_FORBIDDEN
+        )
+        kb = callback.message.edit_text.await_args.kwargs["reply_markup"]
+        assert _status_picks(kb) == []
 
     async def test_refreshes_the_list_at_the_same_page(self, employee):
         list_svc = _services([_make_defect()], total=99)

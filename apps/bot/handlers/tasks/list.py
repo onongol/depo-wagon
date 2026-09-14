@@ -2,11 +2,14 @@ import logging
 from typing import TYPE_CHECKING
 
 from apps.bot import services
-from apps.bot.constants import TASKS_PAGE_SIZE
+from apps.bot.constants import (
+    ROLES_CHANGING_OWN_STATUS,
+    TASKS_PAGE_SIZE,
+)
 from apps.bot.handlers.employee import get_employee
 from apps.bot.keyboards.tasks import tasks_keyboard
 from apps.bot.messages import BotMessages as M
-from apps.core.constants import EmployeeRole
+from apps.core.constants import ROLES_WITH_ALL_DEFECTS
 
 from .text import build_text
 
@@ -19,14 +22,16 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_ROLES_SEEING_ALL_DEFECTS = {EmployeeRole.ENGINEER, EmployeeRole.MANAGER}
+
+def can_change_status(employee) -> bool:
+    return employee.role in ROLES_WITH_ALL_DEFECTS | ROLES_CHANGING_OWN_STATUS
 
 
 async def render_page(send: Callable[..., Awaitable], employee, page: int) -> None:
     """Fetch one page of open defects and hand it to send."""
     offset = page * TASKS_PAGE_SIZE
 
-    if employee.role in _ROLES_SEEING_ALL_DEFECTS:
+    if employee.role in ROLES_WITH_ALL_DEFECTS:
         total = await services.get_all_open_defects_count()
         defects = await services.get_all_open_defects(
             limit=TASKS_PAGE_SIZE, offset=offset
@@ -44,7 +49,9 @@ async def render_page(send: Callable[..., Awaitable], employee, page: int) -> No
     await send(
         build_text(defects, page, total),
         parse_mode=M.PARSE_MODE,
-        reply_markup=tasks_keyboard(defects, page, total),
+        reply_markup=tasks_keyboard(
+            defects, page, total, can_change_status=can_change_status(employee)
+        ),
     )
 
 

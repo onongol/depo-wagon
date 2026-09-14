@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from simple_history.models import HistoricalRecords
 
@@ -130,3 +131,14 @@ class Defect(models.Model):
     @property
     def is_repaired(self) -> bool:
         return self.status == DefectStatus.CLOSED
+
+    def set_status(self, status: str) -> None:
+        """Save a new status, stamping repaired_at when it closes."""
+        self.status = status
+        fields = ["status"]
+
+        if status == DefectStatus.CLOSED:
+            self.repaired_at = timezone.now()
+            fields.append("repaired_at")
+
+        self.save(update_fields=fields)
