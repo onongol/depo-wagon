@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING
 from asgiref.sync import sync_to_async
 from django.utils import timezone
 
+from .employee import load_active_employee
+
 if TYPE_CHECKING:
     from apps.bot.user_data import DefectData
 
@@ -75,39 +77,27 @@ def update_defect_ai_result(
 
 @sync_to_async
 def update_defect_status(defect_id, status: str, *, employee_id: int) -> bool:
-    """Update the status of a defect this employee inspected.
+    """Update the status of a defect this employee may change.
 
-    Returns False when they have no such defect, True when the status is saved.
+    Returns False when they may not change it or it is gone, True when the
+    status is saved.
     """
     from apps.defects.models import Defect
 
-    if employee_id is None:
-        msg = "employee_id is required"
-        raise ValueError(msg)
+    employee = load_active_employee(employee_id)
 
-    defect = Defect.objects.filter(id=defect_id, inspector_id=employee_id).first()
+    defect = None
+    if employee is not None:
+        defect = (
+            Defect.objects.status_changeable_by(employee).filter(id=defect_id).first()
+        )
 
     if defect is None:
         logger.warning(
-            "update_defect_status: defect %s not found for employee %s",
+            "update_defect_status: defect %s not changeable by employee %s",
             defect_id,
             employee_id,
         )
-        return False
-
-    defect.set_status(status)
-    return True
-
-
-@sync_to_async
-def update_any_defect_status(defect_id, status: str) -> bool:
-    """Update the status of any defect. Check the role first.
-
-    Returns False when the defect is gone, True when the status is saved.
-    """
-    defect = _load_defect(defect_id, "update_any_defect_status")
-
-    if defect is None:
         return False
 
     defect.set_status(status)

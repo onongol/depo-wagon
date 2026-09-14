@@ -8,10 +8,8 @@ class TaskMessages:
 
     NO_TASKS = _("✅ You have no open defects.")
 
-    STATUS_DEFECT_MISSING = _(
-        "⚠️ This defect is no longer in your list. The list has been refreshed."
+    STATUS_CHANGE_REFUSED = _(
+        "⚠️ Could not change the status of this defect. The list has been refreshed."
     )
 
     STATUS_CHANGE_FAILED = _("❌ Failed to update status. Please try again.")
-
-    STATUS_CHANGE_FORBIDDEN = _("⛔ Your role cannot change the status of defects.")

@@ -129,6 +129,35 @@ class TestVisibleTo:
 
 
 @pytest.mark.django_db
+class TestStatusChangeableBy:
+    @pytest.mark.parametrize("role", ALL_ROLES)
+    def test_engineers_and_managers_change_every_defect(
+        self, role, others_defect, orphan_defect
+    ):
+        employee = baker.make("core.Employee", role=role)
+
+        assert set(Defect.objects.status_changeable_by(employee)) == {
+            others_defect,
+            orphan_defect,
+        }
+
+    def test_an_inspector_changes_only_their_own(
+        self, wagon, others_defect, orphan_defect
+    ):
+        inspector = baker.make("core.Employee", role=EmployeeRole.INSPECTOR)
+        own = baker.make("defects.Defect", wagon=wagon, inspector=inspector)
+
+        assert list(Defect.objects.status_changeable_by(inspector)) == [own]
+
+    @pytest.mark.parametrize("role", [EmployeeRole.MASTER, EmployeeRole.WORKER])
+    def test_other_roles_change_none_not_even_their_own(self, role, wagon):
+        employee = baker.make("core.Employee", role=role)
+        baker.make("defects.Defect", wagon=wagon, inspector=employee)
+
+        assert not Defect.objects.status_changeable_by(employee).exists()
+
+
+@pytest.mark.django_db
 class TestWebDefectList:
     def _defects(self, client):
         response = client.get(reverse("web:defect_list"))

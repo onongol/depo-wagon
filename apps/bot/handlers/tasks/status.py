@@ -2,11 +2,9 @@ import logging
 from typing import TYPE_CHECKING
 
 from apps.bot import services
-from apps.bot.constants import ROLES_CHANGING_OWN_STATUS
 from apps.bot.handlers.employee import get_employee
 from apps.bot.keyboards.tasks import status_picker_keyboard
 from apps.bot.messages import BotMessages as M
-from apps.core.constants import ROLES_WITH_ALL_DEFECTS
 
 from .list import render_page
 
@@ -40,23 +38,10 @@ async def set_defect_status(
         await callback.message.edit_text(str(M.NOT_REGISTERED), parse_mode=M.PARSE_MODE)
         return
 
-    if employee.role in ROLES_WITH_ALL_DEFECTS:
-        update = services.update_any_defect_status(
-            callback_data.defect_id, callback_data.status
-        )
-    elif employee.role in ROLES_CHANGING_OWN_STATUS:
-        update = services.update_defect_status(
+    try:
+        saved = await services.update_defect_status(
             callback_data.defect_id, callback_data.status, employee_id=employee.id
         )
-    else:
-        await callback.message.answer(
-            str(M.STATUS_CHANGE_FORBIDDEN), parse_mode=M.PARSE_MODE
-        )
-        await render_page(callback.message.edit_text, employee, page=callback_data.page)
-        return
-
-    try:
-        saved = await update
     except Exception:
         logger.exception("Failed to set status on defect %s", callback_data.defect_id)
         await callback.message.answer(
@@ -66,7 +51,7 @@ async def set_defect_status(
 
     if not saved:
         await callback.message.answer(
-            str(M.STATUS_DEFECT_MISSING), parse_mode=M.PARSE_MODE
+            str(M.STATUS_CHANGE_REFUSED), parse_mode=M.PARSE_MODE
         )
 
     await render_page(callback.message.edit_text, employee, page=callback_data.page)

@@ -7,7 +7,11 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from simple_history.models import HistoricalRecords
 
-from apps.core.constants import ROLES_WITH_ALL_DEFECTS, Department
+from apps.core.constants import (
+    ROLES_CHANGING_STATUS,
+    ROLES_WITH_ALL_DEFECTS,
+    Department,
+)
 from apps.defects.constants import (
     DefectNode,
     DefectSeverity,
@@ -33,6 +37,12 @@ class DefectQuerySet(models.QuerySet):
         if employee.role in ROLES_WITH_ALL_DEFECTS:
             return self
         return self.filter(inspector=employee)
+
+    def status_changeable_by(self, employee):
+        """The defects they see for roles that change statuses; none for the rest."""
+        if employee.role not in ROLES_CHANGING_STATUS:
+            return self.none()
+        return self.visible_to_employee(employee)
 
 
 class Defect(models.Model):

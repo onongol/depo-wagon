@@ -2,14 +2,11 @@ import logging
 from typing import TYPE_CHECKING
 
 from apps.bot import services
-from apps.bot.constants import (
-    ROLES_CHANGING_OWN_STATUS,
-    TASKS_PAGE_SIZE,
-)
+from apps.bot.constants import TASKS_PAGE_SIZE
 from apps.bot.handlers.employee import get_employee
 from apps.bot.keyboards.tasks import tasks_keyboard
 from apps.bot.messages import BotMessages as M
-from apps.core.constants import ROLES_WITH_ALL_DEFECTS
+from apps.core.constants import ROLES_CHANGING_STATUS
 
 from .text import build_text
 
@@ -21,10 +18,6 @@ if TYPE_CHECKING:
     from apps.bot.callback_data import TasksPageCB
 
 logger = logging.getLogger(__name__)
-
-
-def can_change_status(employee) -> bool:
-    return employee.role in ROLES_WITH_ALL_DEFECTS | ROLES_CHANGING_OWN_STATUS
 
 
 async def render_page(send: Callable[..., Awaitable], employee, page: int) -> None:
@@ -44,7 +37,10 @@ async def render_page(send: Callable[..., Awaitable], employee, page: int) -> No
         build_text(defects, page, total),
         parse_mode=M.PARSE_MODE,
         reply_markup=tasks_keyboard(
-            defects, page, total, can_change_status=can_change_status(employee)
+            defects,
+            page,
+            total,
+            can_change_status=employee.role in ROLES_CHANGING_STATUS,
         ),
     )
 

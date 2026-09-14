@@ -52,7 +52,6 @@ def _services(defects, total=None):
     svc.get_open_defects = AsyncMock(return_value=defects)
     svc.get_open_defects_count = AsyncMock(return_value=count)
     svc.update_defect_status = AsyncMock(return_value=True)
-    svc.update_any_defect_status = AsyncMock(return_value=True)
     return svc
 
 
@@ -260,34 +259,13 @@ class TestSetDefectStatus:
             )
 
         svc.update_defect_status.assert_not_called()
-        svc.update_any_defect_status.assert_not_called()
         list_svc.get_open_defects.assert_not_called()
         callback.message.edit_text.assert_awaited_once_with(
             str(M.NOT_REGISTERED), parse_mode=M.PARSE_MODE
         )
 
-    async def test_inspectors_save_the_status_only_on_their_own_defect(self, employee):
-        employee.role = EmployeeRole.INSPECTOR
-        svc = _services([])
-        defect_id = uuid.uuid4()
-
-        with (
-            patch(f"{STATUS}.services", svc),
-            patch(f"{STATUS}.get_employee", AsyncMock(return_value=employee)),
-            patch(f"{LIST}.services", _services([])),
-        ):
-            await set_defect_status(
-                make_callback(),
-                StatusSetCB(defect_id=defect_id, status=DefectStatus.CLOSED, page=0),
-            )
-
-        svc.update_defect_status.assert_awaited_once_with(
-            defect_id, DefectStatus.CLOSED, employee_id=7
-        )
-        svc.update_any_defect_status.assert_not_called()
-
-    @pytest.mark.parametrize("role", [EmployeeRole.ENGINEER, EmployeeRole.MANAGER])
-    async def test_engineers_and_managers_save_the_status_on_any_defect(
+    @pytest.mark.parametrize("role", [*EmployeeRole.values, "unknown"])
+    async def test_leaves_the_permission_check_to_the_query_whatever_the_role(
         self, employee, role
     ):
         employee.role = role
@@ -304,37 +282,9 @@ class TestSetDefectStatus:
                 StatusSetCB(defect_id=defect_id, status=DefectStatus.CLOSED, page=0),
             )
 
-        svc.update_any_defect_status.assert_awaited_once_with(
-            defect_id, DefectStatus.CLOSED
+        svc.update_defect_status.assert_awaited_once_with(
+            defect_id, DefectStatus.CLOSED, employee_id=7
         )
-        svc.update_defect_status.assert_not_called()
-
-    @pytest.mark.parametrize(
-        "role", [EmployeeRole.MASTER, EmployeeRole.WORKER, "unknown"]
-    )
-    async def test_other_roles_are_refused_and_the_list_redrawn(self, employee, role):
-        employee.role = role
-        svc = _services([])
-        list_svc = _services([_make_defect()])
-        callback = make_callback()
-
-        with (
-            patch(f"{STATUS}.services", svc),
-            patch(f"{STATUS}.get_employee", AsyncMock(return_value=employee)),
-            patch(f"{LIST}.services", list_svc),
-        ):
-            await set_defect_status(
-                callback,
-                StatusSetCB(defect_id=uuid.uuid4(), status=DefectStatus.CLOSED, page=3),
-            )
-
-        svc.update_defect_status.assert_not_called()
-        svc.update_any_defect_status.assert_not_called()
-        assert callback.message.answer.await_args.args[0] == str(
-            M.STATUS_CHANGE_FORBIDDEN
-        )
-        kb = callback.message.edit_text.await_args.kwargs["reply_markup"]
-        assert _status_picks(kb) == []
 
     async def test_refreshes_the_list_at_the_same_page(self, employee):
         list_svc = _services([_make_defect()], total=99)
@@ -370,7 +320,14 @@ class TestSetDefectStatus:
 
         assert callback.message.edit_text.await_args.args[0] == str(M.NO_TASKS)
 
-    async def test_warns_when_the_defect_is_already_gone(self, employee):
+    @pytest.mark.parametrize(
+        ("role", "offered"),
+        [(EmployeeRole.INSPECTOR, True), (EmployeeRole.MASTER, False)],
+    )
+    async def test_warns_and_redraws_the_list_when_refused(
+        self, employee, role, offered
+    ):
+        employee.role = role
         svc = _services([])
         svc.update_defect_status = AsyncMock(return_value=False)
         callback = make_callback()
@@ -386,9 +343,10 @@ class TestSetDefectStatus:
             )
 
         assert callback.message.answer.await_args.args[0] == str(
-            M.STATUS_DEFECT_MISSING
+            M.STATUS_CHANGE_REFUSED
         )
-        callback.message.edit_text.assert_awaited_once()
+        kb = callback.message.edit_text.await_args.kwargs["reply_markup"]
+        assert bool(_status_picks(kb)) is offered
 
     async def test_reports_a_failed_save_and_leaves_the_list_alone(self, employee):
         svc = _services([])
