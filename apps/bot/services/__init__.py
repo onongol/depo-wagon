@@ -6,7 +6,8 @@ Modules:
   responsible_employee — department employees to pick a defect's responsible from
   telegram_link        — resolve a web-issued deep-link token, then attach the chat
   wagon                — wagon lookup
-  defect               — create/update defects, open defects list
+  defect               — create/update defects
+  open_defects         — open defects list and count
   photo                — download defect photos, queue them for storage
   measurement          — create defect measurements
 
@@ -16,14 +17,13 @@ on the web by allauth, and the bot only ever receives a token proving it.
 
 from .defect import (
     create_defect,
-    get_open_defects,
-    get_open_defects_count,
     save_employee_verdict,
     update_defect_ai_result,
     update_defect_status,
 )
 from .employee import get_employee_by_telegram_id, get_managers_and_engineers
 from .measurement import create_measurements_bulk
+from .open_defects import get_open_defects, get_open_defects_count
 from .photo import download_photo, queue_defect_photos
 from .responsible_employee import (
     count_department_employees,
