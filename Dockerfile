@@ -15,7 +15,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Prebake the reranker model into the image layer so containers start instantly.
 # This layer is only rebuilt when requirements.txt changes, not on code changes.
-RUN python -c "from flashrank import Ranker; Ranker(model_name='ms-marco-MultiBERT-L-12')"
+# cache_dir must match get_ranker() in apps/ai_service/rag/retrieval/config.py.
+RUN python -c "from flashrank import Ranker; Ranker(model_name='ms-marco-MultiBERT-L-12', cache_dir='/app/.cache/flashrank')"
 
 COPY . .
 
