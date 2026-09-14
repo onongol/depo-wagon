@@ -199,6 +199,27 @@ class TestShowStatusPicker:
 
 
 class TestSetDefectStatus:
+    async def test_refuses_a_chat_that_lost_its_employee(self):
+        svc = _services([])
+        list_svc = _services([_make_defect()])
+        callback = make_callback()
+
+        with (
+            patch(f"{STATUS}.services", svc),
+            patch(f"{STATUS}.get_employee", AsyncMock(return_value=None)),
+            patch(f"{LIST}.services", list_svc),
+        ):
+            await set_defect_status(
+                callback,
+                StatusSetCB(defect_id=uuid.uuid4(), status=DefectStatus.CLOSED, page=0),
+            )
+
+        svc.update_defect_status.assert_not_called()
+        list_svc.get_open_defects.assert_not_called()
+        callback.message.edit_text.assert_awaited_once_with(
+            str(M.NOT_REGISTERED), parse_mode=M.PARSE_MODE
+        )
+
     async def test_saves_the_status(self, employee):
         svc = _services([])
         defect_id = uuid.uuid4()

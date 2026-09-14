@@ -33,6 +33,11 @@ async def set_defect_status(
     """Save new status and refresh the defect list."""
     await callback.answer()
 
+    employee = await get_employee(callback.from_user.id)
+    if not employee:
+        await callback.message.edit_text(str(M.NOT_REGISTERED), parse_mode=M.PARSE_MODE)
+        return
+
     try:
         saved = await services.update_defect_status(
             callback_data.defect_id, callback_data.status
@@ -49,5 +54,4 @@ async def set_defect_status(
             str(M.STATUS_DEFECT_MISSING), parse_mode=M.PARSE_MODE
         )
 
-    employee = await get_employee(callback.from_user.id)
     await render_page(callback.message.edit_text, employee, page=callback_data.page)
