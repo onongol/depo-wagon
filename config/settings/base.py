@@ -2,6 +2,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import environ
+from botocore.config import Config
 from django.utils.translation import gettext_lazy as _
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -186,7 +187,13 @@ AWS_ACCESS_KEY_ID = env("AWS_ACCESS_KEY_ID", default="")
 AWS_SECRET_ACCESS_KEY = env("AWS_SECRET_ACCESS_KEY", default="")
 AWS_STORAGE_BUCKET_NAME = env("AWS_STORAGE_BUCKET_NAME", default="")
 AWS_S3_ENDPOINT_URL = env("AWS_S3_ENDPOINT_URL", default="")
-AWS_S3_SIGNATURE_VERSION = "s3v4"
+# Replaces django-storages' own Config, which is where AWS_S3_SIGNATURE_VERSION went.
+AWS_S3_CLIENT_CONFIG = Config(
+    signature_version="s3v4",
+    connect_timeout=5,
+    read_timeout=10,
+    retries={"mode": "standard", "total_max_attempts": 2},
+)
 
 # TEMPLATES
 # ------------------------------------------------------------------------------
