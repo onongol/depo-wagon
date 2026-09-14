@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _ANALYSIS_TIMEOUT = 60.0
+_PHOTO_FETCH_TIMEOUT = 15.0
 
 
 @dataclass
@@ -44,9 +45,18 @@ async def register_defect(
             logger.warning("Queueing photos failed: %s", exc, exc_info=True)
 
     async def _fetch_photo(idx: int, file_id: str) -> bytes | None:
-        """Download a photo for the analysis; None if it failed."""
+        """Download a photo for the analysis; None if it failed or was too slow."""
         try:
-            return await services.download_photo(bot, file_id)
+            return await asyncio.wait_for(
+                services.download_photo(bot, file_id), timeout=_PHOTO_FETCH_TIMEOUT
+            )
+        except TimeoutError:
+            logger.warning(
+                "Photo download for analysis timed out after %.0fs (idx=%d)",
+                _PHOTO_FETCH_TIMEOUT,
+                idx,
+            )
+            return None
         except Exception as exc:
             logger.warning(
                 "Photo download failed (idx=%d): %s", idx, exc, exc_info=True

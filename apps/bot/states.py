@@ -26,6 +26,7 @@ class DefectSG(StatesGroup):
     measurement_unit = State()
     desc = State()
     confirm = State()
+    saving = State()
     employee_verdict = State()
 
 

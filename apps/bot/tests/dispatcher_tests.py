@@ -179,5 +179,7 @@ class TestDefectRouterOrder:
                             for s in flt.callback.states
                         }
 
-        missing = {s.state for s in DefectSG.__states__} - covered
+        # saving has no step of its own: the flow's catch-alls absorb what arrives.
+        waiting = {DefectSG.saving.state}
+        missing = {s.state for s in DefectSG.__states__} - covered - waiting
         assert not missing

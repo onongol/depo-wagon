@@ -41,6 +41,8 @@ async def confirm_defect(
 
     # Critical: a failure here means nothing was saved
     await callback.message.edit_text(str(M.SAVING))
+    # Out of confirm before the save, so a queued second tap cannot save twice.
+    await state.set_state(DefectSG.saving)
     try:
         registered = await register_defect(defect_data, employee, bot)
     except Exception:

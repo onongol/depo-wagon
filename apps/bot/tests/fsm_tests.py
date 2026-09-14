@@ -28,7 +28,10 @@ from apps.bot.fsm.storage import (
     FSM_TTL,
 )
 from apps.bot.handlers.ai_chat.receive import _ANSWER_TIMEOUT
-from apps.bot.handlers.defect.confirm.pipeline import _ANALYSIS_TIMEOUT
+from apps.bot.handlers.defect.confirm.pipeline import (
+    _ANALYSIS_TIMEOUT,
+    _PHOTO_FETCH_TIMEOUT,
+)
 from apps.bot.user_data import DefectData, MeasurementEntry, PhotoEntry
 
 
@@ -203,6 +206,9 @@ class TestMakeIsolation:
     def test_a_lock_outlives_the_slowest_ai_call(self):
         """Whole handlers run under it, AI calls included."""
         assert max(_ANSWER_TIMEOUT, _ANALYSIS_TIMEOUT) < FSM_LOCK_TIMEOUT
+
+    def test_a_lock_outlives_the_photo_fetch_and_the_analysis_after_it(self):
+        assert _PHOTO_FETCH_TIMEOUT + _ANALYSIS_TIMEOUT < FSM_LOCK_TIMEOUT
 
 
 class TestRedisOutage:

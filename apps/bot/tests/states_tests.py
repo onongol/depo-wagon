@@ -32,6 +32,7 @@ class TestStateStringsArePinned:
             "DefectSG:measurement_unit",
             "DefectSG:desc",
             "DefectSG:confirm",
+            "DefectSG:saving",
             "DefectSG:employee_verdict",
         }
 

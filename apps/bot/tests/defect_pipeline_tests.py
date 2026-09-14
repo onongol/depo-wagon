@@ -136,6 +136,29 @@ class TestRegisterDefect:
             )
         assert result.photo_bytes == [b"ok"]
 
+    async def test_a_photo_slower_than_the_budget_is_left_out_of_the_analysis(self):
+        async def download(bot, file_id):
+            if file_id == "slow":
+                await asyncio.sleep(1)
+            return file_id.encode()
+
+        with (
+            patch("apps.bot.handlers.defect.confirm.pipeline.services") as svc,
+            patch(
+                "apps.bot.handlers.defect.confirm.pipeline._PHOTO_FETCH_TIMEOUT", 0.05
+            ),
+        ):
+            svc.create_defect = AsyncMock(return_value=_make_saved_defect())
+            svc.queue_defect_photos = AsyncMock()
+            svc.download_photo = download
+            result = await register_defect(
+                _make_defect_data(photo_file_ids=["slow", "fast"]),
+                employee=MagicMock(),
+                bot=AsyncMock(),
+            )
+        assert result.photo_bytes == [b"fast"]
+        svc.queue_defect_photos.assert_awaited_once_with("uuid-001", ["slow", "fast"])
+
     async def test_measurements_saved_when_present(self):
         measurements = [MeasurementEntry(dimension="width", value=5.0)]
         bot = AsyncMock()

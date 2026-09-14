@@ -25,7 +25,7 @@ from apps.bot.callback_data import (
     SeverityCB,
     VerdictCB,
 )
-from apps.bot.fsm import load_defect
+from apps.bot.fsm import load_defect, save_defect
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.bot.tests.integration.conftest import (
@@ -33,6 +33,7 @@ from apps.bot.tests.integration.conftest import (
     make_message_update,
     make_photo_update,
 )
+from apps.bot.user_data import DefectData
 from apps.core.constants import Department
 from apps.defects.constants import DefectNode, DefectType, DefectVerdict
 
@@ -248,6 +249,45 @@ class TestTheWholeFlow:
 
         assert await state.get_state() is None
         assert await load_defect(state) is None
+
+
+class TestConfirmingTwice:
+    """A second tap queued behind the first must not save the defect again."""
+
+    async def test_the_form_leaves_confirm_before_it_is_saved(
+        self, dp, bot, state, flow
+    ):
+        await save_defect(state, DefectData(wagon_id=3))
+        await state.set_state(DefectSG.confirm)
+        seen = []
+
+        async def register(*args):
+            seen.append(await state.get_state())
+            return flow.saved
+
+        flow.register.side_effect = register
+
+        await dp.feed_update(
+            bot, make_callback_update(ConfirmCB(confirmed=True).pack())
+        )
+
+        assert seen == [DefectSG.saving.state]
+        assert await state.get_state() == DefectSG.employee_verdict.state
+
+    async def test_a_confirm_tap_while_saving_is_absorbed(
+        self, dp, bot, session, state, flow
+    ):
+        await save_defect(state, DefectData(wagon_id=3))
+        await state.set_state(DefectSG.saving)
+        session.clear()
+
+        await dp.feed_update(
+            bot, make_callback_update(ConfirmCB(confirmed=True).pack())
+        )
+
+        flow.register.assert_not_called()
+        assert session.method_names() == ["answerCallbackQuery"]
+        assert await state.get_state() == DefectSG.saving.state
 
 
 class TestAFormLeftOverFromAnEarlierBuild:

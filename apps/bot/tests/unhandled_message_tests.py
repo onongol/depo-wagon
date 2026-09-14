@@ -36,7 +36,7 @@ class TestKnownStates:
 
     def test_it_is_not_empty(self):
         """The silent branch would never fire if the scan came back empty."""
-        assert len(KNOWN_STATES) == 18
+        assert len(KNOWN_STATES) == 19
 
 
 class TestInsideALiveFlow:
