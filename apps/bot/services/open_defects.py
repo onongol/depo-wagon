@@ -1,33 +1,46 @@
 from asgiref.sync import sync_to_async
 
 
-@sync_to_async
-def get_open_defects(
-    limit: int = 5, offset: int = 0, employee_id: int | None = None
-) -> list:
-    """Return open/in-progress defects. Filtered by employee if provided."""
+def _open_defects():
     from apps.defects.constants import DefectStatus
     from apps.defects.models import Defect
 
-    qs = Defect.objects.select_related("wagon", "inspector").filter(
+    return Defect.objects.filter(
         status__in=[DefectStatus.OPEN, DefectStatus.IN_PROGRESS]
     )
 
-    if employee_id is not None:
-        qs = qs.filter(inspector_id=employee_id)
 
-    return list(qs.order_by("-inspected_at")[offset : offset + limit])
+def _own_open_defects(employee_id: int):
+    if employee_id is None:
+        msg = "employee_id is required"
+        raise ValueError(msg)
+    return _open_defects().filter(inspector_id=employee_id)
+
+
+def _page(qs, limit: int, offset: int) -> list:
+    qs = qs.select_related("wagon", "inspector").order_by("-inspected_at")
+    return list(qs[offset : offset + limit])
 
 
 @sync_to_async
-def get_open_defects_count(employee_id: int | None = None) -> int:
-    """Count open and in-progress defects, optionally for one employee."""
-    from apps.defects.constants import DefectStatus
-    from apps.defects.models import Defect
+def get_open_defects(*, employee_id: int, limit: int = 5, offset: int = 0) -> list:
+    """Return one page of this employee's open and in-progress defects."""
+    return _page(_own_open_defects(employee_id), limit, offset)
 
-    qs = Defect.objects.filter(status__in=[DefectStatus.OPEN, DefectStatus.IN_PROGRESS])
 
-    if employee_id is not None:
-        qs = qs.filter(inspector_id=employee_id)
+@sync_to_async
+def get_open_defects_count(*, employee_id: int) -> int:
+    """Count this employee's open and in-progress defects."""
+    return _own_open_defects(employee_id).count()
 
-    return qs.count()
+
+@sync_to_async
+def get_all_open_defects(*, limit: int = 5, offset: int = 0) -> list:
+    """Return one page of every employee's open defects. Check the role first."""
+    return _page(_open_defects(), limit, offset)
+
+
+@sync_to_async
+def get_all_open_defects_count() -> int:
+    """Count every employee's open defects. Check the role first."""
+    return _open_defects().count()

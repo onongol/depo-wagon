@@ -18,6 +18,7 @@ from apps.bot.handlers.tasks import (
 )
 from apps.bot.messages import BotMessages as M
 from apps.bot.tests.builders import make_callback, make_message
+from apps.core.constants import EmployeeRole
 from apps.defects.constants import DefectStatus
 
 LIST = "apps.bot.handlers.tasks.list"
@@ -41,15 +42,17 @@ def _make_defect(number="60123456"):
 def employee():
     emp = MagicMock()
     emp.id = 7
+    emp.role = EmployeeRole.INSPECTOR
     return emp
 
 
 def _services(defects, total=None):
     svc = MagicMock()
+    count = len(defects) if total is None else total
     svc.get_open_defects = AsyncMock(return_value=defects)
-    svc.get_open_defects_count = AsyncMock(
-        return_value=len(defects) if total is None else total
-    )
+    svc.get_open_defects_count = AsyncMock(return_value=count)
+    svc.get_all_open_defects = AsyncMock(return_value=defects)
+    svc.get_all_open_defects_count = AsyncMock(return_value=count)
     svc.update_defect_status = AsyncMock(return_value=True)
     return svc
 
@@ -108,6 +111,41 @@ class TestMyTasks:
             await my_tasks(make_message())
 
         assert svc.get_open_defects.await_args.kwargs["employee_id"] == 7
+        assert svc.get_open_defects_count.await_args.kwargs["employee_id"] == 7
+        svc.get_all_open_defects.assert_not_called()
+        svc.get_all_open_defects_count.assert_not_called()
+
+    @pytest.mark.parametrize("role", [EmployeeRole.ENGINEER, EmployeeRole.MANAGER])
+    async def test_engineers_and_managers_see_every_open_defect(self, employee, role):
+        employee.role = role
+        svc = _services([_make_defect()], total=99)
+
+        with (
+            patch(f"{LIST}.get_employee", AsyncMock(return_value=employee)),
+            patch(f"{LIST}.services", svc),
+        ):
+            await my_tasks(make_message())
+
+        assert svc.get_all_open_defects.await_args.kwargs["offset"] == 0
+        svc.get_all_open_defects_count.assert_awaited_once()
+        svc.get_open_defects.assert_not_called()
+        svc.get_open_defects_count.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "role", [EmployeeRole.WORKER, EmployeeRole.INSPECTOR, EmployeeRole.MASTER]
+    )
+    async def test_other_roles_see_only_their_own(self, employee, role):
+        employee.role = role
+        svc = _services([])
+
+        with (
+            patch(f"{LIST}.get_employee", AsyncMock(return_value=employee)),
+            patch(f"{LIST}.services", svc),
+        ):
+            await my_tasks(make_message())
+
+        assert svc.get_open_defects.await_args.kwargs["employee_id"] == 7
+        svc.get_all_open_defects.assert_not_called()
 
 
 class TestMyTasksPage:
@@ -145,9 +183,9 @@ class TestMyTasksPage:
 
         assert svc.get_open_defects.await_args.kwargs["offset"] == 3 * 5
 
-    async def test_does_not_refuse_an_unregistered_chat(self):
-        """1:1 with PTB: reaching a page button needs a list rendered first."""
-        svc = _services([])
+    async def test_refuses_a_chat_that_lost_its_employee(self):
+        """A stale keyboard outlives deactivation; it must not list anyone's defects."""
+        svc = _services([_make_defect()])
         callback = make_callback()
 
         with (
@@ -156,7 +194,13 @@ class TestMyTasksPage:
         ):
             await my_tasks_page(callback, TasksPageCB(page=1))
 
-        assert svc.get_open_defects.await_args.kwargs["employee_id"] is None
+        callback.message.edit_text.assert_awaited_once_with(
+            str(M.NOT_REGISTERED), parse_mode=M.PARSE_MODE
+        )
+        svc.get_open_defects.assert_not_called()
+        svc.get_open_defects_count.assert_not_called()
+        svc.get_all_open_defects.assert_not_called()
+        svc.get_all_open_defects_count.assert_not_called()
 
 
 class TestShowStatusPicker:
@@ -216,6 +260,7 @@ class TestSetDefectStatus:
 
         svc.update_defect_status.assert_not_called()
         list_svc.get_open_defects.assert_not_called()
+        list_svc.get_all_open_defects.assert_not_called()
         callback.message.edit_text.assert_awaited_once_with(
             str(M.NOT_REGISTERED), parse_mode=M.PARSE_MODE
         )
