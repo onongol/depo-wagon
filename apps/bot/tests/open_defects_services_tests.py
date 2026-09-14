@@ -33,10 +33,10 @@ class TestOpenDefects:
         await _defect(inspector=await _employee())
         await _defect(inspector=None)
 
-        defects = await get_open_defects(employee_id=mine.pk)
+        defects = await get_open_defects(employee=mine)
 
         assert [d.pk for d in defects] == [own.pk]
-        assert await get_open_defects_count(employee_id=mine.pk) == 1
+        assert await get_open_defects_count(employee=mine) == 1
 
     @pytest.mark.parametrize("role", ALL_ROLES)
     async def test_engineers_and_managers_list_every_open_defect(self, role):
@@ -46,38 +46,24 @@ class TestOpenDefects:
         await _defect(inspector=None, status=DefectStatus.IN_PROGRESS)
         await _defect(status=DefectStatus.CLOSED)
 
-        assert len(await get_open_defects(employee_id=employee.pk, limit=10)) == 3
-        assert await get_open_defects_count(employee_id=employee.pk) == 3
+        assert len(await get_open_defects(employee=employee, limit=10)) == 3
+        assert await get_open_defects_count(employee=employee) == 3
 
     async def test_skips_closed_defects(self):
         mine = await _employee()
         await _defect(inspector=mine, status=DefectStatus.IN_PROGRESS)
         await _defect(inspector=mine, status=DefectStatus.CLOSED)
 
-        assert await get_open_defects_count(employee_id=mine.pk) == 1
-
-    async def test_an_inactive_employee_sees_nothing(self):
-        engineer = await _employee(EmployeeRole.ENGINEER, is_active=False)
-        await _defect(inspector=engineer)
-        await _defect(inspector=None)
-
-        assert await get_open_defects(employee_id=engineer.pk) == []
-        assert await get_open_defects_count(employee_id=engineer.pk) == 0
-
-    async def test_an_unknown_employee_sees_nothing(self):
-        await _defect(inspector=None)
-
-        assert await get_open_defects(employee_id=999_999) == []
-        assert await get_open_defects_count(employee_id=999_999) == 0
+        assert await get_open_defects_count(employee=mine) == 1
 
     async def test_a_missing_employee_is_refused_rather_than_widened(self):
         await _defect(inspector=None)
         await _defect(inspector=await _employee())
 
-        with pytest.raises(ValueError, match="employee_id"):
-            await get_open_defects(employee_id=None)
-        with pytest.raises(ValueError, match="employee_id"):
-            await get_open_defects_count(employee_id=None)
+        with pytest.raises(ValueError, match="employee"):
+            await get_open_defects(employee=None)
+        with pytest.raises(ValueError, match="employee"):
+            await get_open_defects_count(employee=None)
 
     async def test_the_employee_cannot_be_left_out(self):
         with pytest.raises(TypeError):

@@ -38,7 +38,7 @@ class TestInspectors:
         defect = await _defect(inspector=mine)
 
         saved = await update_defect_status(
-            defect.pk, DefectStatus.IN_PROGRESS, employee_id=mine.pk
+            defect.pk, DefectStatus.IN_PROGRESS, employee=mine
         )
 
         assert saved is True
@@ -48,7 +48,7 @@ class TestInspectors:
         mine = await _employee()
         defect = await _defect(inspector=mine)
 
-        await update_defect_status(defect.pk, DefectStatus.CLOSED, employee_id=mine.pk)
+        await update_defect_status(defect.pk, DefectStatus.CLOSED, employee=mine)
 
         await sync_to_async(defect.refresh_from_db)()
         assert defect.repaired_at is not None
@@ -58,7 +58,7 @@ class TestInspectors:
         defect = await _defect(inspector=await _employee())
 
         saved = await update_defect_status(
-            defect.pk, DefectStatus.CLOSED, employee_id=mine.pk
+            defect.pk, DefectStatus.CLOSED, employee=mine
         )
 
         assert saved is False
@@ -69,7 +69,7 @@ class TestInspectors:
         defect = await _defect(inspector=None)
 
         saved = await update_defect_status(
-            defect.pk, DefectStatus.CLOSED, employee_id=mine.pk
+            defect.pk, DefectStatus.CLOSED, employee=mine
         )
 
         assert saved is False
@@ -84,7 +84,7 @@ class TestEngineersAndManagers:
         defect = await _defect(inspector=await _employee())
 
         saved = await update_defect_status(
-            defect.pk, DefectStatus.CLOSED, employee_id=employee.pk
+            defect.pk, DefectStatus.CLOSED, employee=employee
         )
 
         assert saved is True
@@ -97,7 +97,7 @@ class TestEngineersAndManagers:
 
         assert (
             await update_defect_status(
-                defect.pk, DefectStatus.CLOSED, employee_id=employee.pk
+                defect.pk, DefectStatus.CLOSED, employee=employee
             )
             is True
         )
@@ -108,7 +108,7 @@ class TestEngineersAndManagers:
 
         assert (
             await update_defect_status(
-                uuid.uuid4(), DefectStatus.CLOSED, employee_id=employee.pk
+                uuid.uuid4(), DefectStatus.CLOSED, employee=employee
             )
             is False
         )
@@ -122,28 +122,7 @@ class TestRefused:
         defect = await _defect(inspector=employee)
 
         saved = await update_defect_status(
-            defect.pk, DefectStatus.CLOSED, employee_id=employee.pk
-        )
-
-        assert saved is False
-        assert await _status(defect) == DefectStatus.OPEN
-
-    async def test_an_inactive_employee_is_refused(self):
-        engineer = await _employee(EmployeeRole.ENGINEER, is_active=False)
-        defect = await _defect(inspector=None)
-
-        saved = await update_defect_status(
-            defect.pk, DefectStatus.CLOSED, employee_id=engineer.pk
-        )
-
-        assert saved is False
-        assert await _status(defect) == DefectStatus.OPEN
-
-    async def test_an_unknown_employee_is_refused(self):
-        defect = await _defect(inspector=None)
-
-        saved = await update_defect_status(
-            defect.pk, DefectStatus.CLOSED, employee_id=999_999
+            defect.pk, DefectStatus.CLOSED, employee=employee
         )
 
         assert saved is False
@@ -152,8 +131,8 @@ class TestRefused:
     async def test_a_missing_employee_is_refused_rather_than_widened(self):
         defect = await _defect(inspector=None)
 
-        with pytest.raises(ValueError, match="employee_id"):
-            await update_defect_status(defect.pk, DefectStatus.CLOSED, employee_id=None)
+        with pytest.raises(ValueError, match="employee"):
+            await update_defect_status(defect.pk, DefectStatus.CLOSED, employee=None)
 
         assert await _status(defect) == DefectStatus.OPEN
 

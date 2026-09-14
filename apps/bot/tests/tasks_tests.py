@@ -146,8 +146,8 @@ class TestMyTasks:
         ):
             await my_tasks(make_message())
 
-        assert svc.get_open_defects.await_args.kwargs["employee_id"] == 7
-        assert svc.get_open_defects_count.await_args.kwargs["employee_id"] == 7
+        assert svc.get_open_defects.await_args.kwargs["employee"] is employee
+        assert svc.get_open_defects_count.await_args.kwargs["employee"] is employee
 
 
 class TestMyTasksPage:
@@ -283,7 +283,7 @@ class TestSetDefectStatus:
             )
 
         svc.update_defect_status.assert_awaited_once_with(
-            defect_id, DefectStatus.CLOSED, employee_id=7
+            defect_id, DefectStatus.CLOSED, employee=employee
         )
 
     async def test_refreshes_the_list_at_the_same_page(self, employee):

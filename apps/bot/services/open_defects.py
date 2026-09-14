@@ -1,15 +1,18 @@
+from typing import TYPE_CHECKING
+
 from asgiref.sync import sync_to_async
 
-from .employee import load_active_employee
+if TYPE_CHECKING:
+    from apps.core.models import Employee
 
 
-def _visible_open_defects(employee_id: int):
+def _visible_open_defects(employee: Employee):
     from apps.defects.constants import DefectStatus
     from apps.defects.models import Defect
 
-    employee = load_active_employee(employee_id)
     if employee is None:
-        return Defect.objects.none()
+        msg = "employee is required"
+        raise ValueError(msg)
     return Defect.objects.visible_to_employee(employee).filter(
         status__in=[DefectStatus.OPEN, DefectStatus.IN_PROGRESS]
     )
@@ -21,12 +24,12 @@ def _page(qs, limit: int, offset: int) -> list:
 
 
 @sync_to_async
-def get_open_defects(*, employee_id: int, limit: int = 5, offset: int = 0) -> list:
+def get_open_defects(*, employee: Employee, limit: int = 5, offset: int = 0) -> list:
     """Return one page of the open and in-progress defects this employee sees."""
-    return _page(_visible_open_defects(employee_id), limit, offset)
+    return _page(_visible_open_defects(employee), limit, offset)
 
 
 @sync_to_async
-def get_open_defects_count(*, employee_id: int) -> int:
+def get_open_defects_count(*, employee: Employee) -> int:
     """Count the open and in-progress defects this employee sees."""
-    return _visible_open_defects(employee_id).count()
+    return _visible_open_defects(employee).count()

@@ -6,19 +6,6 @@ if TYPE_CHECKING:
     from apps.core.models import Employee
 
 
-def load_active_employee(employee_id: int) -> Employee | None:
-    """Return the active Employee with this id, or None; None as the id raises.
-
-    Sync helper — called from inside the @sync_to_async service functions.
-    """
-    from apps.core.models import Employee
-
-    if employee_id is None:
-        msg = "employee_id is required"
-        raise ValueError(msg)
-    return Employee.objects.filter(id=employee_id, is_active=True).first()
-
-
 @sync_to_async
 def get_employee_by_telegram_id(telegram_id: int) -> Employee | None:
     """Return active Employee linked to this Telegram account, or None."""

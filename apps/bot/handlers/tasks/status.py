@@ -40,7 +40,7 @@ async def set_defect_status(
 
     try:
         saved = await services.update_defect_status(
-            callback_data.defect_id, callback_data.status, employee_id=employee.id
+            callback_data.defect_id, callback_data.status, employee=employee
         )
     except Exception:
         logger.exception("Failed to set status on defect %s", callback_data.defect_id)

@@ -4,10 +4,9 @@ from typing import TYPE_CHECKING
 from asgiref.sync import sync_to_async
 from django.utils import timezone
 
-from .employee import load_active_employee
-
 if TYPE_CHECKING:
     from apps.bot.user_data import DefectData
+    from apps.core.models import Employee
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +75,7 @@ def update_defect_ai_result(
 
 
 @sync_to_async
-def update_defect_status(defect_id, status: str, *, employee_id: int) -> bool:
+def update_defect_status(defect_id, status: str, *, employee: Employee) -> bool:
     """Update the status of a defect this employee may change.
 
     Returns False when they may not change it or it is gone, True when the
@@ -84,19 +83,17 @@ def update_defect_status(defect_id, status: str, *, employee_id: int) -> bool:
     """
     from apps.defects.models import Defect
 
-    employee = load_active_employee(employee_id)
+    if employee is None:
+        msg = "employee is required"
+        raise ValueError(msg)
 
-    defect = None
-    if employee is not None:
-        defect = (
-            Defect.objects.status_changeable_by(employee).filter(id=defect_id).first()
-        )
+    defect = Defect.objects.status_changeable_by(employee).filter(id=defect_id).first()
 
     if defect is None:
         logger.warning(
             "update_defect_status: defect %s not changeable by employee %s",
             defect_id,
-            employee_id,
+            employee.pk,
         )
         return False
 
