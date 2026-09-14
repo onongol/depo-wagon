@@ -553,6 +553,50 @@ class TestMeasurementChoice:
         assert await state.get_state() == DefectSG.desc.state
 
 
+class TestMeasurementUnit:
+    async def _receive(self, state, text):
+        from apps.bot.handlers.defect.measurement import receive_unit
+        from apps.bot.user_data import MeasurementEntry
+
+        await save_defect(
+            state,
+            DefectData(
+                current_measurement=MeasurementEntry(dimension_label="Width", value=1.0)
+            ),
+        )
+        await state.set_state(DefectSG.measurement_unit)
+        message = make_message(text)
+        await receive_unit(message, state)
+        return message
+
+    async def test_a_unit_at_the_column_limit_is_saved(self, state):
+        from apps.bot.handlers.defect.measurement.unit import MAX_UNIT_LENGTH
+
+        await self._receive(state, "x" * MAX_UNIT_LENGTH)
+
+        assert (await load_defect(state)).measurements[0].unit == "x" * MAX_UNIT_LENGTH
+        assert await state.get_state() == DefectSG.measurement_choice.state
+
+    async def test_a_longer_unit_is_asked_for_again(self, state):
+        from apps.bot.handlers.defect.measurement.unit import MAX_UNIT_LENGTH
+
+        message = await self._receive(state, "x" * (MAX_UNIT_LENGTH + 1))
+
+        defect = await load_defect(state)
+        assert defect.measurements == []
+        assert defect.current_measurement is not None
+        assert await state.get_state() == DefectSG.measurement_unit.state
+        reply = message.answer.await_args.args[0]
+        assert f"{MAX_UNIT_LENGTH + 1}/{MAX_UNIT_LENGTH}" in reply
+
+    async def test_surrounding_whitespace_does_not_count(self, state):
+        from apps.bot.handlers.defect.measurement.unit import MAX_UNIT_LENGTH
+
+        await self._receive(state, f"  {'x' * MAX_UNIT_LENGTH}  ")
+
+        assert (await load_defect(state)).measurements[0].unit == "x" * MAX_UNIT_LENGTH
+
+
 class TestUserTextIsEscaped:
     """Replies go out as HTML: text the bot did not write must not parse as tags."""
 

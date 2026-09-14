@@ -101,6 +101,10 @@ class DefectMessages:
 
     ASK_UNIT = _("📌 Enter the measurement unit <i>(e.g. mm, cm, °)</i> (or skip):")
 
+    UNIT_TOO_LONG = _(
+        "❌ Unit is too long ({length}/{max} characters).\n\nPlease shorten it (or skip):"
+    )
+
     MEASUREMENT_SAVED = _(
         "✅ Measurement {count} saved: <b>{label}</b> = {value}{unit}\n\nAdd another?"
     )
