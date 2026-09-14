@@ -100,10 +100,8 @@ def build_summary(defect: DefectData) -> str:
 
             lines.append(entry)
 
-    if defect.photo_file_ids:
-        lines.append(
-            format_lazy(_("📸 Photos: {count}"), count=len(defect.photo_file_ids))
-        )
+    if defect.photos:
+        lines.append(format_lazy(_("📸 Photos: {count}"), count=len(defect.photos)))
 
     if defect.description:
         lines.append(

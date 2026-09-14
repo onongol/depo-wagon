@@ -1,4 +1,6 @@
 import logging
+from bisect import insort
+from operator import attrgetter
 from typing import TYPE_CHECKING
 
 from aiogram.exceptions import TelegramAPIError
@@ -8,6 +10,7 @@ from apps.bot.constants import UD_LAST_MEDIA_GROUP, UD_LAST_PHOTO_MSG
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.keyboards.common import done_keyboard
 from apps.bot.messages import BotMessages as M
+from apps.bot.user_data import PhotoEntry
 from apps.defects.validators import MAX_PHOTO_BYTES
 
 from .routing import after_photos
@@ -41,7 +44,8 @@ async def receive_photo(message: Message, state: FSMContext, bot: Bot) -> None:
     """Record a photo, answering a lone one and only the first of an album.
 
     Telegram sends an album as separate updates with no end marker, so the rest
-    of it is recorded silently and the total is shown on Done.
+    of it is recorded silently and the total is shown on Done. Album updates
+    can be handled out of order, so photos are kept sorted by message_id.
     """
     photo = message.photo[-1]
 
@@ -50,7 +54,11 @@ async def receive_photo(message: Message, state: FSMContext, bot: Bot) -> None:
         return
 
     defect = await load_defect(state)
-    defect.photo_file_ids.append(photo.file_id)
+    insort(
+        defect.photos,
+        PhotoEntry(file_id=photo.file_id, message_id=message.message_id),
+        key=attrgetter("message_id"),
+    )
     await save_defect(state, defect)
 
     group = message.media_group_id
@@ -60,7 +68,7 @@ async def receive_photo(message: Message, state: FSMContext, bot: Bot) -> None:
     if group:
         text = str(M.PHOTO_ALBUM_RECEIVING)
     else:
-        text = str(M.PHOTO_RECEIVED).format(count=len(defect.photo_file_ids))
+        text = str(M.PHOTO_RECEIVED).format(count=len(defect.photos))
 
     await clear_last_photo_keyboard(bot, state)
     sent = await message.answer(text, reply_markup=done_keyboard(CB_PHOTO_SKIP))
@@ -75,7 +83,7 @@ async def receive_photo(message: Message, state: FSMContext, bot: Bot) -> None:
 async def skip_photo(callback: CallbackQuery, state: FSMContext) -> None:
     """Leave the photo step, reporting how many photos were attached."""
     defect = await load_defect(state)
-    count = len(defect.photo_file_ids) if defect else 0
+    count = len(defect.photos) if defect else 0
 
     await callback.answer(str(M.PHOTOS_ATTACHED).format(count=count) if count else None)
     await after_photos(callback.message.edit_text, defect, state)

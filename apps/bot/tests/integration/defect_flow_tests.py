@@ -366,13 +366,17 @@ class TestAlbum:
         assert await state.get_state() == DefectSG.photo.state
 
         session.clear()
-        for i in range(3):
+        # Concurrent handling can reach the album in any order.
+        for i in (2, 0, 1):
             await dp.feed_update(
-                bot, make_photo_update(f"file{i}", media_group_id="mg-1")
+                bot,
+                make_photo_update(
+                    f"file{i}", media_group_id="mg-1", message_id=10_000 + i
+                ),
             )
 
         defect = await load_defect(state)
-        assert defect.photo_file_ids == ["file0", "file1", "file2"]
+        assert [p.file_id for p in defect.photos] == ["file0", "file1", "file2"]
         answers = session.calls("sendMessage")
         assert [a.text for a in answers] == [str(M.PHOTO_ALBUM_RECEIVING)]
 

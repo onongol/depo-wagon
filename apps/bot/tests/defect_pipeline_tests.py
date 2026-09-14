@@ -10,7 +10,7 @@ from apps.bot.handlers.defect.confirm.pipeline import (
     run_ai_analysis,
 )
 from apps.bot.handlers.defect.notifications import notify_decommission
-from apps.bot.user_data import DefectData, MeasurementEntry
+from apps.bot.user_data import DefectData, MeasurementEntry, PhotoEntry
 
 
 def _make_defect_data(**kwargs):
@@ -26,7 +26,10 @@ def _make_defect_data(**kwargs):
         description=kwargs.get("description", "Defect description"),
         department=kwargs.get("department", "bogie"),
         part_number=kwargs.get("part_number", ""),
-        photo_file_ids=kwargs.get("photo_file_ids", []),
+        photos=[
+            PhotoEntry(file_id=file_id, message_id=i)
+            for i, file_id in enumerate(kwargs.get("photo_file_ids", []))
+        ],
         measurements=kwargs.get("measurements", []),
     )
     return data

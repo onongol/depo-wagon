@@ -18,13 +18,16 @@ from apps.bot.handlers.defect.photo.receive import (
     skip_photo,
 )
 from apps.bot.messages import BotMessages as M
-from apps.bot.tests.builders import CHAT_ID, make_message
-from apps.bot.user_data import DefectData
+from apps.bot.tests.builders import CHAT_ID, MESSAGE_ID, make_message
+from apps.bot.user_data import DefectData, PhotoEntry
 from apps.defects.validators import MAX_PHOTO_BYTES
 
 
-def _make_photo_message(file_id="AgACAgIAAx", size=1024, media_group_id=None):
+def _make_photo_message(
+    file_id="AgACAgIAAx", size=1024, media_group_id=None, message_id=MESSAGE_ID
+):
     message = make_message()
+    message.message_id = message_id
     photo = MagicMock()
     photo.file_id = file_id
     photo.file_size = size
@@ -39,6 +42,14 @@ def _make_photo_message(file_id="AgACAgIAAx", size=1024, media_group_id=None):
 
 def _make_bot():
     return MagicMock(edit_message_reply_markup=AsyncMock())
+
+
+def _photos(*file_ids):
+    return [PhotoEntry(file_id=f, message_id=i) for i, f in enumerate(file_ids)]
+
+
+async def _file_ids(state):
+    return [p.file_id for p in (await load_defect(state)).photos]
 
 
 def _bad_request(text: str) -> TelegramBadRequest:
@@ -80,9 +91,13 @@ class TestReceivePhoto:
     async def test_records_the_file_id_immediately(self, state):
         await save_defect(state, DefectData())
 
-        await receive_photo(_make_photo_message(file_id="first"), state, _make_bot())
+        await receive_photo(
+            _make_photo_message(file_id="first", message_id=7), state, _make_bot()
+        )
 
-        assert (await load_defect(state)).photo_file_ids == ["first"]
+        assert (await load_defect(state)).photos == [
+            PhotoEntry(file_id="first", message_id=7)
+        ]
 
     async def test_records_a_serializable_message_reference(self, state):
         await save_defect(state, DefectData())
@@ -97,11 +112,11 @@ class TestReceivePhoto:
 
         await receive_photo(message, state, _make_bot())
 
-        assert (await load_defect(state)).photo_file_ids == []
+        assert await _file_ids(state) == []
         assert UD_LAST_PHOTO_MSG not in await state.get_data()
 
     async def test_a_lone_photo_is_answered_with_the_running_count(self, state):
-        await save_defect(state, DefectData(photo_file_ids=["a"]))
+        await save_defect(state, DefectData(photos=_photos("a")))
         message = _make_photo_message()
 
         await receive_photo(message, state, _make_bot())
@@ -123,16 +138,27 @@ class TestAlbum:
     async def test_every_photo_is_recorded_but_only_the_first_answered(self, state):
         await save_defect(state, DefectData())
         messages = [
-            _make_photo_message(file_id=f"p{i}", media_group_id="mg-1")
+            _make_photo_message(file_id=f"p{i}", media_group_id="mg-1", message_id=i)
             for i in range(3)
         ]
 
         for message in messages:
             await receive_photo(message, state, _make_bot())
 
-        assert (await load_defect(state)).photo_file_ids == ["p0", "p1", "p2"]
+        assert await _file_ids(state) == ["p0", "p1", "p2"]
         assert [m.answer.await_count for m in messages] == [1, 0, 0]
         assert messages[0].answer.await_args.args[0] == str(M.PHOTO_ALBUM_RECEIVING)
+
+    async def test_photos_handled_out_of_order_are_kept_in_message_order(self, state):
+        await save_defect(state, DefectData())
+
+        for i in (2, 0, 1):
+            message = _make_photo_message(
+                file_id=f"p{i}", media_group_id="mg-1", message_id=i
+            )
+            await receive_photo(message, state, _make_bot())
+
+        assert await _file_ids(state) == ["p0", "p1", "p2"]
 
     async def test_a_second_album_is_answered_again(self, state):
         await save_defect(state, DefectData())
@@ -159,7 +185,7 @@ class TestAlbum:
 
 class TestSkipPhoto:
     async def test_reports_how_many_photos_were_attached(self, state, callback):
-        await save_defect(state, DefectData(photo_file_ids=["a", "b", "c"]))
+        await save_defect(state, DefectData(photos=_photos("a", "b", "c")))
 
         await skip_photo(callback, state)
 
@@ -173,7 +199,7 @@ class TestSkipPhoto:
         callback.answer.assert_awaited_once_with(None)
 
     async def test_forgets_the_album_on_leaving_the_step(self, state, callback):
-        await save_defect(state, DefectData(photo_file_ids=["a"]))
+        await save_defect(state, DefectData(photos=_photos("a")))
         await state.update_data({UD_LAST_MEDIA_GROUP: "mg-1"})
 
         await skip_photo(callback, state)

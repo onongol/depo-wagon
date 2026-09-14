@@ -43,12 +43,7 @@ class Command(BaseCommand):
             # polling and a webhook cannot both be active on one token.
             await bot.delete_webhook(drop_pending_updates=drop_pending)
             await dp.start_polling(
-                bot,
-                # Events isolation serializes a user's updates but a Redis lock
-                # is not a queue: concurrent tasks could take an album's photos
-                # out of order.
-                handle_as_tasks=False,
-                allowed_updates=["message", "callback_query"],
+                bot, handle_as_tasks=True, allowed_updates=["message", "callback_query"]
             )
         finally:
             await bot.session.close()

@@ -69,7 +69,7 @@ async def register_defect(
             return file_bytes
 
     photo_results = await asyncio.gather(
-        *[_fetch_photo(i, fid) for i, fid in enumerate(defect_data.photo_file_ids)]
+        *[_fetch_photo(i, p.file_id) for i, p in enumerate(defect_data.photos)]
     )
     all_photo_bytes: list[bytes] = [b for b in photo_results if b is not None]
 

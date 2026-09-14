@@ -86,11 +86,13 @@ def make_message_update(
     )
 
 
-def make_photo_update(file_id: str, *, media_group_id: str | None = None) -> Update:
+def make_photo_update(
+    file_id: str, *, media_group_id: str | None = None, message_id: int | None = None
+) -> Update:
     return Update(
         update_id=next(_update_ids),
         message=Message(
-            message_id=next(_message_ids),
+            message_id=next(_message_ids) if message_id is None else message_id,
             date=0,
             chat=_chat(),
             from_user=_user(),

@@ -3,7 +3,7 @@ from typing import Any, Self
 from pydantic import BaseModel, ConfigDict, Field
 
 # Bump on a renamed field or a changed type.
-STATE_SCHEMA_VERSION = 1
+STATE_SCHEMA_VERSION = 2
 
 _SCHEMA_KEY = "_schema"
 
@@ -49,6 +49,15 @@ class MeasurementEntry(BaseModel):
     unit: str = ""
 
 
+class PhotoEntry(BaseModel):
+    """Unstamped: only ever nested in DefectData, whose stamp covers it."""
+
+    model_config = ConfigDict(extra="ignore", strict=True, validate_assignment=True)
+
+    file_id: str
+    message_id: int
+
+
 class DefectData(_StampedModel):
     model_config = ConfigDict(extra="ignore", strict=True, validate_assignment=True)
 
@@ -65,7 +74,7 @@ class DefectData(_StampedModel):
     severity_label: str | None = None
     description: str = ""
     measurements: list[MeasurementEntry] = Field(default_factory=list)
-    photo_file_ids: list[str] = Field(default_factory=list)
+    photos: list[PhotoEntry] = Field(default_factory=list)
     defect_id: str | None = None
     current_measurement: MeasurementEntry | None = None
     responsible_employee_id: int | None = None

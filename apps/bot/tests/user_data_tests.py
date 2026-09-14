@@ -10,6 +10,7 @@ from apps.bot.user_data import (
     STATE_SCHEMA_VERSION,
     DefectData,
     MeasurementEntry,
+    PhotoEntry,
     is_current_schema,
 )
 
@@ -74,7 +75,10 @@ class TestDefectData:
                 MeasurementEntry(dimension="thickness", value=12.5, norm_value=14.0),
                 MeasurementEntry(dimension="length", value=3.0, unit="mm"),
             ],
-            photo_file_ids=["AgACAgIAAx", "AgACAgIAAy"],
+            photos=[
+                PhotoEntry(file_id="AgACAgIAAx", message_id=10),
+                PhotoEntry(file_id="AgACAgIAAy", message_id=11),
+            ],
             defect_id="d1",
             current_measurement=MeasurementEntry(dimension="width", value=1.25),
             responsible_employee_id=7,
@@ -120,11 +124,11 @@ class TestDefectData:
         assert restored.severity is None
 
     def test_to_dict_does_not_alias_the_original_lists(self):
-        defect = DefectData(photo_file_ids=["a"])
+        defect = DefectData(photos=[PhotoEntry(file_id="a", message_id=1)])
 
-        defect.to_dict()["photo_file_ids"].append("b")
+        defect.to_dict()["photos"].append({"file_id": "b", "message_id": 2})
 
-        assert defect.photo_file_ids == ["a"]
+        assert [p.file_id for p in defect.photos] == ["a"]
 
 
 class TestSchemaVersion:

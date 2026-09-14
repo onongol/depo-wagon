@@ -29,7 +29,7 @@ from apps.bot.fsm.storage import (
 )
 from apps.bot.handlers.ai_chat.receive import _ANSWER_TIMEOUT
 from apps.bot.handlers.defect.confirm.pipeline import _ANALYSIS_TIMEOUT
-from apps.bot.user_data import DefectData, MeasurementEntry
+from apps.bot.user_data import DefectData, MeasurementEntry, PhotoEntry
 
 
 @pytest.fixture
@@ -49,7 +49,10 @@ class TestLoadAndSaveDefect:
             wagon_number="60123456",
             department="coupler_brake",
             measurements=[MeasurementEntry(dimension="thickness", value=12.5)],
-            photo_file_ids=["a", "b"],
+            photos=[
+                PhotoEntry(file_id="a", message_id=1),
+                PhotoEntry(file_id="b", message_id=2),
+            ],
         )
 
         await save_defect(state, defect)
@@ -67,10 +70,11 @@ class TestLoadAndSaveDefect:
         assert isinstance(restored.current_measurement, MeasurementEntry)
 
     async def test_saving_replaces_rather_than_merges(self, state):
-        await save_defect(state, DefectData(photo_file_ids=["a", "b"]))
-        await save_defect(state, DefectData(photo_file_ids=["c"]))
+        a, b, c = (PhotoEntry(file_id=f, message_id=i) for i, f in enumerate("abc"))
+        await save_defect(state, DefectData(photos=[a, b]))
+        await save_defect(state, DefectData(photos=[c]))
 
-        assert (await load_defect(state)).photo_file_ids == ["c"]
+        assert (await load_defect(state)).photos == [c]
 
     async def test_a_loaded_copy_is_detached_until_saved(self, state):
         await save_defect(state, DefectData(wagon_number="1"))
