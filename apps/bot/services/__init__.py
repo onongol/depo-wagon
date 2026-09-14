@@ -23,7 +23,7 @@ from .defect import (
     update_defect_status,
 )
 from .employee import get_employee_by_telegram_id, get_managers_and_engineers
-from .measurement import create_measurement, create_measurements_bulk
+from .measurement import create_measurements_bulk
 from .photo import create_photo_from_bytes
 from .responsible_employee import (
     count_department_employees,
@@ -45,7 +45,6 @@ __all__ = [
     "claim_pending_link",
     "count_department_employees",
     "create_defect",
-    "create_measurement",
     "create_measurements_bulk",
     "create_photo_from_bytes",
     "forget_pending_link",
