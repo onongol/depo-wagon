@@ -29,27 +29,17 @@ def _make_server_error(code: int) -> ServerError:
 
 class TestAiChatStart:
     async def test_unauthenticated_returns_end(self, message, state):
-        with patch(
-            "apps.bot.handlers.ai_chat.start.get_employee", AsyncMock(return_value=None)
-        ):
-            await ai_chat_start(message, state)
+        await ai_chat_start(message, state, None)
 
         assert await state.get_state() is None
 
     async def test_unauthenticated_sends_not_registered_message(self, message, state):
-        with patch(
-            "apps.bot.handlers.ai_chat.start.get_employee", AsyncMock(return_value=None)
-        ):
-            await ai_chat_start(message, state)
+        await ai_chat_start(message, state, None)
 
         message.answer.assert_called_once_with(str(M.NOT_REGISTERED))
 
     async def test_authenticated_returns_ai_chat_state(self, message, state):
-        with patch(
-            "apps.bot.handlers.ai_chat.start.get_employee",
-            AsyncMock(return_value=_make_employee()),
-        ):
-            await ai_chat_start(message, state)
+        await ai_chat_start(message, state, _make_employee())
 
         assert await state.get_state() == AiChatSG.chatting.state
 
@@ -57,62 +47,27 @@ class TestAiChatStart:
         await state.update_data(
             {UD_AI_CHAT_HISTORY: [{"role": "user", "content": "old"}]}
         )
-        with patch(
-            "apps.bot.handlers.ai_chat.start.get_employee",
-            AsyncMock(return_value=_make_employee()),
-        ):
-            await ai_chat_start(message, state)
+        await ai_chat_start(message, state, _make_employee())
 
         assert (await state.get_data())[UD_AI_CHAT_HISTORY] == []
 
     async def test_sends_greeting_with_html_parse_mode(self, message, state):
-        with patch(
-            "apps.bot.handlers.ai_chat.start.get_employee",
-            AsyncMock(return_value=_make_employee()),
-        ):
-            await ai_chat_start(message, state)
+        await ai_chat_start(message, state, _make_employee())
 
         message.answer.assert_called_once_with(
             str(M.AI_CHAT_GREETING), parse_mode=M.PARSE_MODE
         )
 
     async def test_caches_employee_in_user_data(self, message, state):
-        employee = _make_employee()
-        with patch(
-            "apps.bot.handlers.ai_chat.start.get_employee",
-            AsyncMock(return_value=employee),
-        ):
-            await ai_chat_start(message, state)
+        await ai_chat_start(message, state, _make_employee())
 
         assert UD_AI_CHAT_HISTORY in await state.get_data()
-
-    async def test_get_employee_exception_returns_end(self, message, state):
-        with patch(
-            "apps.bot.handlers.ai_chat.start.get_employee",
-            AsyncMock(side_effect=RuntimeError("db down")),
-        ):
-            await ai_chat_start(message, state)
-
-        assert await state.get_state() is None
-
-    async def test_get_employee_exception_sends_no_message(self, message, state):
-        with patch(
-            "apps.bot.handlers.ai_chat.start.get_employee",
-            AsyncMock(side_effect=RuntimeError("db down")),
-        ):
-            await ai_chat_start(message, state)
-
-        message.answer.assert_not_called()
 
     async def test_greeting_send_failure_returns_end(self, message, state):
         message.answer = AsyncMock(
             side_effect=TelegramNetworkError(method=None, message="network")
         )
-        with patch(
-            "apps.bot.handlers.ai_chat.start.get_employee",
-            AsyncMock(return_value=_make_employee()),
-        ):
-            await ai_chat_start(message, state)
+        await ai_chat_start(message, state, _make_employee())
 
         assert await state.get_state() is None
 
@@ -122,11 +77,7 @@ class TestAiChatStart:
         message.answer = AsyncMock(
             side_effect=TelegramNetworkError(method=None, message="network")
         )
-        with patch(
-            "apps.bot.handlers.ai_chat.start.get_employee",
-            AsyncMock(return_value=None),
-        ):
-            await ai_chat_start(message, state)
+        await ai_chat_start(message, state, None)
 
         assert await state.get_state() is None
 

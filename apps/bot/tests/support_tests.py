@@ -146,10 +146,9 @@ class TestSupportReceive:
 
         with (
             patch.object(user_handlers, "support_chat_id", return_value=-100),
-            patch.object(user_handlers, "get_employee", AsyncMock(return_value=None)),
             patch.object(user_handlers, "remember_request", AsyncMock()) as remember,
         ):
-            await user_handlers.support_receive(message, state, bot)
+            await user_handlers.support_receive(message, state, bot, None)
 
         assert await state.get_state() is None
         # relayed to the support chat
@@ -165,7 +164,7 @@ class TestSupportReceive:
         bot = _make_bot()
 
         with patch.object(user_handlers, "support_chat_id", return_value=None):
-            await user_handlers.support_receive(message, state, bot)
+            await user_handlers.support_receive(message, state, bot, None)
 
         assert await state.get_state() is None
         message.answer.assert_awaited_once_with(

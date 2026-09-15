@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 from aiogram.exceptions import TelegramAPIError
 
 from apps.bot.constants import UD_AI_CHAT_HISTORY, UD_AI_CHAT_LAST
-from apps.bot.handlers.employee import get_employee
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import AiChatSG
 
@@ -14,17 +13,15 @@ if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
     from aiogram.types import Message
 
+    from apps.core.models import Employee
+
 logger = logging.getLogger(__name__)
 
 
-async def ai_chat_start(message: Message, state: FSMContext) -> None:
+async def ai_chat_start(
+    message: Message, state: FSMContext, employee: Employee | None
+) -> None:
     user_id = message.from_user.id
-
-    try:
-        employee = await get_employee(user_id)
-    except Exception:
-        logger.exception("Failed to fetch employee for user %s", user_id)
-        return
 
     if not employee:
         with contextlib.suppress(TelegramAPIError):

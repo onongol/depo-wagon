@@ -2,7 +2,6 @@ import logging
 from typing import TYPE_CHECKING
 
 from apps.bot import services
-from apps.bot.handlers.employee import get_employee
 from apps.bot.keyboards.tasks import status_picker_keyboard
 from apps.bot.messages import BotMessages as M
 
@@ -12,6 +11,7 @@ if TYPE_CHECKING:
     from aiogram.types import CallbackQuery
 
     from apps.bot.callback_data import StatusPickCB, StatusSetCB
+    from apps.core.models import Employee
 
 logger = logging.getLogger(__name__)
 
@@ -28,12 +28,11 @@ async def show_status_picker(
 
 
 async def set_defect_status(
-    callback: CallbackQuery, callback_data: StatusSetCB
+    callback: CallbackQuery, callback_data: StatusSetCB, employee: Employee | None
 ) -> None:
     """Save new status and refresh the defect list."""
     await callback.answer()
 
-    employee = await get_employee(callback.from_user.id)
     if not employee:
         await callback.message.edit_text(str(M.NOT_REGISTERED), parse_mode=M.PARSE_MODE)
         return

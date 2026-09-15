@@ -74,6 +74,16 @@ class TestMiddlewareAndHooks:
 
         assert any(isinstance(m, CloseOldConnectionsMiddleware) for m in registered)
 
+    @pytest.mark.parametrize("observer", ["message", "callback_query"])
+    def test_the_employee_is_loaded_for_messages_and_callbacks(
+        self, dispatcher, observer
+    ):
+        from apps.bot.middlewares import EmployeeMiddleware
+
+        registered = getattr(dispatcher, observer).middleware[:]
+
+        assert any(isinstance(m, EmployeeMiddleware) for m in registered)
+
     def test_the_error_handler_is_registered(self, dispatcher):
         assert dispatcher.errors.handlers
 

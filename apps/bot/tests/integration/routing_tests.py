@@ -6,7 +6,7 @@ which handler an update reaches, and whether it reaches one at all.
 
 import time
 import uuid
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -20,6 +20,7 @@ from apps.bot.messages import BotMessages as M
 from apps.bot.middlewares import AI_CHAT_TIMEOUT
 from apps.bot.states import AiChatSG, DefectSG
 from apps.bot.tests.integration.conftest import (
+    as_employee,
     make_callback_update,
     make_message_update,
 )
@@ -89,10 +90,7 @@ class TestTheUnfilteredFallback:
 
 class TestPrecedenceDuringTheDefectFlow:
     async def _enter_photo_step(self, dp, bot, state, employee):
-        with patch(
-            "apps.bot.handlers.defect.start.get_employee",
-            AsyncMock(return_value=employee),
-        ):
+        with as_employee(employee):
             await dp.feed_update(bot, make_message_update("/new_defect", command=True))
         await state.set_state(DefectSG.photo)
 
@@ -113,10 +111,7 @@ class TestPrecedenceDuringTheDefectFlow:
         self, dp, bot, state, employee
     ):
         """The flow router precedes the entry router, so the guard re-prompts."""
-        with patch(
-            "apps.bot.handlers.defect.start.get_employee",
-            AsyncMock(return_value=employee),
-        ):
+        with as_employee(employee):
             await dp.feed_update(bot, make_message_update("/new_defect", command=True))
         await dp.feed_update(bot, make_message_update(str(BTN_NEW_DEFECT)))
 
@@ -128,8 +123,10 @@ class TestPrecedenceDuringTheDefectFlow:
         """start_router precedes the flow, matching PTB's registration order."""
         await self._enter_photo_step(dp, bot, state, employee)
 
-        with patch("apps.bot.handlers.common.start.services") as svc:
-            svc.get_employee_by_telegram_id = AsyncMock(return_value=None)
+        with (
+            as_employee(None),
+            patch("apps.bot.handlers.common.start.services") as svc,
+        ):
             svc.get_connect_url = MagicMock(return_value="https://x/telegram/")
             await dp.feed_update(bot, make_message_update("/start", command=True))
 
@@ -140,17 +137,11 @@ class TestAiChatPrecedence:
     async def test_the_new_defect_button_leaves_the_ai_chat(
         self, dp, bot, state, employee
     ):
-        with patch(
-            "apps.bot.handlers.ai_chat.start.get_employee",
-            AsyncMock(return_value=employee),
-        ):
+        with as_employee(employee):
             await dp.feed_update(bot, make_message_update("/ask", command=True))
         assert await state.get_state() == AiChatSG.chatting.state
 
-        with patch(
-            "apps.bot.handlers.defect.start.get_employee",
-            AsyncMock(return_value=employee),
-        ):
+        with as_employee(employee):
             await dp.feed_update(bot, make_message_update(str(BTN_NEW_DEFECT)))
 
         assert await state.get_state() == DefectSG.wagon_num.state
@@ -159,10 +150,7 @@ class TestAiChatPrecedence:
         self, dp, bot, session, state, employee
     ):
         """utility_router comes after ai_chat, so the flow's fallback wins."""
-        with patch(
-            "apps.bot.handlers.ai_chat.start.get_employee",
-            AsyncMock(return_value=employee),
-        ):
+        with as_employee(employee):
             await dp.feed_update(bot, make_message_update("/ask", command=True))
         session.clear()
 
@@ -176,10 +164,7 @@ class TestAiChatPrecedence:
         self, dp, bot, session, state, employee
     ):
         """The lazy timeout must clear the state *and* release the update."""
-        with patch(
-            "apps.bot.handlers.ai_chat.start.get_employee",
-            AsyncMock(return_value=employee),
-        ):
+        with as_employee(employee):
             await dp.feed_update(bot, make_message_update("/ask", command=True))
 
         await state.update_data({UD_AI_CHAT_LAST: time.time() - AI_CHAT_TIMEOUT - 1})
@@ -192,10 +177,7 @@ class TestAiChatPrecedence:
         assert await state.get_state() is None
 
     async def test_the_ask_button_starts_a_session(self, dp, bot, state, employee):
-        with patch(
-            "apps.bot.handlers.ai_chat.start.get_employee",
-            AsyncMock(return_value=employee),
-        ):
+        with as_employee(employee):
             await dp.feed_update(bot, make_message_update(str(BTN_ASK)))
 
         assert await state.get_state() == AiChatSG.chatting.state
@@ -242,10 +224,7 @@ class TestUnroutedUpdates:
         self, dp, bot, session, state, employee
     ):
         """The photo step asks for a photo. Typing at it must not end the form."""
-        with patch(
-            "apps.bot.handlers.defect.start.get_employee",
-            AsyncMock(return_value=employee),
-        ):
+        with as_employee(employee):
             await dp.feed_update(bot, make_message_update(str(BTN_NEW_DEFECT)))
         await state.set_state(DefectSG.photo)
         session.clear()

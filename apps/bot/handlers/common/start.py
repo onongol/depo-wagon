@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from aiogram.types import CallbackQuery, Message
 
     from apps.bot.callback_data import LinkConfirmCB
+    from apps.core.models import Employee
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,9 @@ def _error_text(texts: dict, status: LinkStatus):
     return text
 
 
-async def start(message: Message, command: CommandObject) -> None:
+async def start(
+    message: Message, command: CommandObject, employee: Employee | None
+) -> None:
     """Entry point, and the only place a Telegram account gets attached.
 
     Telegram passes the payload of a ``t.me/<bot>?start=<token>`` deep link as
@@ -51,13 +54,6 @@ async def start(message: Message, command: CommandObject) -> None:
     """
     if command.args:
         await _handle_link_token(message, command.args)
-        return
-
-    try:
-        employee = await services.get_employee_by_telegram_id(message.from_user.id)
-    except Exception:
-        logger.exception("Employee lookup failed for the incoming chat")
-        await message.answer(str(M.SESSION_ERROR))
         return
 
     if employee:

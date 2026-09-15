@@ -6,7 +6,6 @@ from aiogram.exceptions import TelegramAPIError
 from apps.bot import services
 from apps.bot.constants import UD_DEFECT, VERDICT_LABELS
 from apps.bot.fsm import load_defect
-from apps.bot.handlers.employee import get_employee
 from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.defects.constants import DefectVerdict
@@ -19,12 +18,17 @@ if TYPE_CHECKING:
     from aiogram.types import CallbackQuery
 
     from apps.bot.callback_data import VerdictCB
+    from apps.core.models import Employee
 
 logger = logging.getLogger(__name__)
 
 
 async def receive_employee_verdict(
-    callback: CallbackQuery, callback_data: VerdictCB, state: FSMContext, bot: Bot
+    callback: CallbackQuery,
+    callback_data: VerdictCB,
+    state: FSMContext,
+    bot: Bot,
+    employee: Employee | None,
 ) -> None:
     """Handle incoming verdict selection from inline keyboard."""
     await callback.answer()
@@ -32,7 +36,6 @@ async def receive_employee_verdict(
     verdict_value = callback_data.value
 
     defect = await load_defect(state)
-    employee = await get_employee(callback.from_user.id)
     if not employee:
         await callback.message.edit_text(str(M.NOT_REGISTERED))
         await state.set_state(None)

@@ -248,3 +248,112 @@ class TestStaleSchemaMiddleware:
         await self._call(state)
 
         assert (await state.get_data())[UD_AI_CHAT_HISTORY] == [{"q": "a"}]
+
+
+async def _takes_employee(message, employee):
+    pass
+
+
+async def _takes_no_employee(message):
+    pass
+
+
+class TestEmployeeMiddleware:
+    LOOKUP = "apps.bot.middlewares.employee.services.get_employee_by_telegram_id"
+
+    async def _call(self, callback, *, event=None, lookup=None, user_id=777):
+        from aiogram.dispatcher.event.handler import HandlerObject
+
+        from apps.bot.middlewares import EmployeeMiddleware
+
+        handler = AsyncMock(return_value="handled")
+        data = {
+            "handler": HandlerObject(callback=callback),
+            "event_from_user": MagicMock(id=user_id) if user_id else None,
+        }
+        lookup = lookup or AsyncMock(return_value=None)
+        with patch(self.LOOKUP, lookup):
+            result = await EmployeeMiddleware()(handler, event or _spec_message(), data)
+        return result, handler, data, lookup
+
+    async def test_hands_the_employee_to_a_handler_that_takes_one(self):
+        employee = MagicMock()
+
+        result, handler, data, lookup = await self._call(
+            _takes_employee, lookup=AsyncMock(return_value=employee)
+        )
+
+        assert result == "handled"
+        assert data["employee"] is employee
+        lookup.assert_awaited_once_with(777)
+        handler.assert_awaited_once()
+
+    async def test_a_chat_without_an_employee_gets_none(self):
+        result, handler, data, _ = await self._call(_takes_employee)
+
+        assert result == "handled"
+        assert data["employee"] is None
+        handler.assert_awaited_once()
+
+    async def test_reads_the_employee_on_every_update(self):
+        from aiogram.dispatcher.event.handler import HandlerObject
+
+        from apps.bot.middlewares import EmployeeMiddleware
+
+        middleware = EmployeeMiddleware()
+        lookup = AsyncMock(return_value=MagicMock())
+
+        with patch(self.LOOKUP, lookup):
+            for _ in range(2):
+                data = {
+                    "handler": HandlerObject(callback=_takes_employee),
+                    "event_from_user": MagicMock(id=777),
+                }
+                await middleware(AsyncMock(), _spec_message(), data)
+
+        assert lookup.await_count == 2
+
+    async def test_skips_the_lookup_for_a_handler_that_takes_no_employee(self):
+        result, handler, data, lookup = await self._call(_takes_no_employee)
+
+        assert result == "handled"
+        assert "employee" not in data
+        lookup.assert_not_awaited()
+        handler.assert_awaited_once()
+
+    async def test_an_update_without_a_user_gets_none_without_a_lookup(self):
+        _, handler, data, lookup = await self._call(_takes_employee, user_id=None)
+
+        assert data["employee"] is None
+        lookup.assert_not_awaited()
+        handler.assert_awaited_once()
+
+    async def test_a_failed_lookup_never_reaches_the_handler(self):
+        from apps.bot.messages import BotMessages as M
+
+        message = _spec_message()
+
+        result, handler, _, _ = await self._call(
+            _takes_employee,
+            event=message,
+            lookup=AsyncMock(side_effect=RuntimeError("db down")),
+        )
+
+        assert result is None
+        handler.assert_not_awaited()
+        message.answer.assert_awaited_once_with(str(M.SESSION_ERROR))
+
+    async def test_a_failed_lookup_on_a_callback_is_answered(self):
+        from apps.bot.messages import BotMessages as M
+
+        callback = _spec_callback()
+
+        _, handler, _, _ = await self._call(
+            _takes_employee,
+            event=callback,
+            lookup=AsyncMock(side_effect=RuntimeError("db down")),
+        )
+
+        handler.assert_not_awaited()
+        callback.answer.assert_awaited_once_with()
+        callback.message.answer.assert_awaited_once_with(str(M.SESSION_ERROR))

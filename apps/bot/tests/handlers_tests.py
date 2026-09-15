@@ -442,17 +442,13 @@ class TestUnlinkedEmployeeIsRefused:
 
         await save_defect(state, DefectData(wagon_id=1))
 
-        with (
-            patch(
-                "apps.bot.handlers.defect.confirm.handler.get_employee",
-                AsyncMock(return_value=None),
-            ),
-            patch(
-                "apps.bot.handlers.defect.confirm.handler.register_defect",
-                AsyncMock(),
-            ) as register,
-        ):
-            await confirm_defect(make_callback(), ConfirmCB(confirmed=True), state, bot)
+        with patch(
+            "apps.bot.handlers.defect.confirm.handler.register_defect",
+            AsyncMock(),
+        ) as register:
+            await confirm_defect(
+                make_callback(), ConfirmCB(confirmed=True), state, bot, None
+            )
 
         register.assert_not_called()
         assert await state.get_state() is None
@@ -464,18 +460,13 @@ class TestUnlinkedEmployeeIsRefused:
 
         await save_defect(state, DefectData(defect_id="1"))
 
-        with (
-            patch(
-                "apps.bot.handlers.defect.verdict.get_employee",
-                AsyncMock(return_value=None),
-            ),
-            patch("apps.bot.handlers.defect.verdict.services") as svc,
-        ):
+        with patch("apps.bot.handlers.defect.verdict.services") as svc:
             await receive_employee_verdict(
                 make_callback(),
                 VerdictCB(value=DefectVerdict.DECOMMISSION),
                 state,
                 bot,
+                None,
             )
 
         svc.save_employee_verdict.assert_not_called()

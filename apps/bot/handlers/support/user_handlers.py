@@ -4,7 +4,6 @@ import html
 import logging
 from typing import TYPE_CHECKING
 
-from apps.bot.handlers.employee import get_employee
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import SupportSG
 
@@ -14,6 +13,8 @@ if TYPE_CHECKING:
     from aiogram import Bot
     from aiogram.fsm.context import FSMContext
     from aiogram.types import Message
+
+    from apps.core.models import Employee
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,9 @@ async def support_start(message: Message, state: FSMContext) -> None:
     await state.set_state(SupportSG.message)
 
 
-async def support_receive(message: Message, state: FSMContext, bot: Bot) -> None:
+async def support_receive(
+    message: Message, state: FSMContext, bot: Bot, employee: Employee | None
+) -> None:
     """Relay the user's question to the support chat with their identity."""
     chat_id = support_chat_id()
     if chat_id is None:
@@ -38,12 +41,6 @@ async def support_receive(message: Message, state: FSMContext, bot: Bot) -> None
 
     question = message.text.strip()
     user = message.from_user
-
-    try:
-        employee = await get_employee(user.id)
-    except Exception:
-        logger.exception("Failed to resolve employee for support request")
-        employee = None
 
     if employee:
         identity = (

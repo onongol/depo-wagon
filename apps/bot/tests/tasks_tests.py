@@ -68,8 +68,7 @@ class TestMyTasks:
     async def test_refuses_an_unregistered_chat(self):
         message = make_message()
 
-        with patch(f"{LIST}.get_employee", AsyncMock(return_value=None)):
-            await my_tasks(message)
+        await my_tasks(message, None)
 
         message.answer.assert_awaited_once_with(
             str(M.NOT_REGISTERED), parse_mode=M.PARSE_MODE
@@ -78,22 +77,16 @@ class TestMyTasks:
     async def test_says_so_when_there_is_nothing_open(self, employee):
         message = make_message()
 
-        with (
-            patch(f"{LIST}.get_employee", AsyncMock(return_value=employee)),
-            patch(f"{LIST}.services", _services([])),
-        ):
-            await my_tasks(message)
+        with patch(f"{LIST}.services", _services([])):
+            await my_tasks(message, employee)
 
         assert message.answer.await_args.args[0] == str(M.NO_TASKS)
 
     async def test_sends_a_new_message_with_a_keyboard(self, employee):
         message = make_message()
 
-        with (
-            patch(f"{LIST}.get_employee", AsyncMock(return_value=employee)),
-            patch(f"{LIST}.services", _services([_make_defect()])),
-        ):
-            await my_tasks(message)
+        with patch(f"{LIST}.services", _services([_make_defect()])):
+            await my_tasks(message, employee)
 
         assert message.answer.await_args.kwargs["reply_markup"] is not None
 
@@ -113,11 +106,8 @@ class TestMyTasks:
         employee.role = role
         message = make_message()
 
-        with (
-            patch(f"{LIST}.get_employee", AsyncMock(return_value=employee)),
-            patch(f"{LIST}.services", _services([_make_defect()])),
-        ):
-            await my_tasks(message)
+        with patch(f"{LIST}.services", _services([_make_defect()])):
+            await my_tasks(message, employee)
 
         kb = message.answer.await_args.kwargs["reply_markup"]
         assert bool(_status_picks(kb)) is offered
@@ -125,11 +115,8 @@ class TestMyTasks:
     async def test_always_starts_at_the_first_page(self, employee):
         svc = _services([_make_defect()])
 
-        with (
-            patch(f"{LIST}.get_employee", AsyncMock(return_value=employee)),
-            patch(f"{LIST}.services", svc),
-        ):
-            await my_tasks(make_message())
+        with patch(f"{LIST}.services", svc):
+            await my_tasks(make_message(), employee)
 
         assert svc.get_open_defects.await_args.kwargs["offset"] == 0
 
@@ -140,11 +127,8 @@ class TestMyTasks:
         employee.role = role
         svc = _services([])
 
-        with (
-            patch(f"{LIST}.get_employee", AsyncMock(return_value=employee)),
-            patch(f"{LIST}.services", svc),
-        ):
-            await my_tasks(make_message())
+        with patch(f"{LIST}.services", svc):
+            await my_tasks(make_message(), employee)
 
         assert svc.get_open_defects.await_args.kwargs["employee"] is employee
         assert svc.get_open_defects_count.await_args.kwargs["employee"] is employee
@@ -154,11 +138,8 @@ class TestMyTasksPage:
     async def test_edits_in_place_rather_than_sending_a_new_message(self, employee):
         callback = make_callback()
 
-        with (
-            patch(f"{LIST}.get_employee", AsyncMock(return_value=employee)),
-            patch(f"{LIST}.services", _services([_make_defect()])),
-        ):
-            await my_tasks_page(callback, TasksPageCB(page=1))
+        with patch(f"{LIST}.services", _services([_make_defect()])):
+            await my_tasks_page(callback, TasksPageCB(page=1), employee)
 
         callback.message.edit_text.assert_awaited_once()
         callback.message.answer.assert_not_called()
@@ -166,22 +147,16 @@ class TestMyTasksPage:
     async def test_answers_the_query(self, employee):
         callback = make_callback()
 
-        with (
-            patch(f"{LIST}.get_employee", AsyncMock(return_value=employee)),
-            patch(f"{LIST}.services", _services([])),
-        ):
-            await my_tasks_page(callback, TasksPageCB(page=1))
+        with patch(f"{LIST}.services", _services([])):
+            await my_tasks_page(callback, TasksPageCB(page=1), employee)
 
         callback.answer.assert_awaited_once()
 
     async def test_offsets_the_query_by_the_requested_page(self, employee):
         svc = _services([_make_defect()], total=99)
 
-        with (
-            patch(f"{LIST}.get_employee", AsyncMock(return_value=employee)),
-            patch(f"{LIST}.services", svc),
-        ):
-            await my_tasks_page(make_callback(), TasksPageCB(page=3))
+        with patch(f"{LIST}.services", svc):
+            await my_tasks_page(make_callback(), TasksPageCB(page=3), employee)
 
         assert svc.get_open_defects.await_args.kwargs["offset"] == 3 * 5
 
@@ -190,11 +165,8 @@ class TestMyTasksPage:
         svc = _services([_make_defect()])
         callback = make_callback()
 
-        with (
-            patch(f"{LIST}.get_employee", AsyncMock(return_value=None)),
-            patch(f"{LIST}.services", svc),
-        ):
-            await my_tasks_page(callback, TasksPageCB(page=1))
+        with patch(f"{LIST}.services", svc):
+            await my_tasks_page(callback, TasksPageCB(page=1), None)
 
         callback.message.edit_text.assert_awaited_once_with(
             str(M.NOT_REGISTERED), parse_mode=M.PARSE_MODE
@@ -250,12 +222,12 @@ class TestSetDefectStatus:
 
         with (
             patch(f"{STATUS}.services", svc),
-            patch(f"{STATUS}.get_employee", AsyncMock(return_value=None)),
             patch(f"{LIST}.services", list_svc),
         ):
             await set_defect_status(
                 callback,
                 StatusSetCB(defect_id=uuid.uuid4(), status=DefectStatus.CLOSED, page=0),
+                None,
             )
 
         svc.update_defect_status.assert_not_called()
@@ -274,12 +246,12 @@ class TestSetDefectStatus:
 
         with (
             patch(f"{STATUS}.services", svc),
-            patch(f"{STATUS}.get_employee", AsyncMock(return_value=employee)),
             patch(f"{LIST}.services", _services([])),
         ):
             await set_defect_status(
                 make_callback(),
                 StatusSetCB(defect_id=defect_id, status=DefectStatus.CLOSED, page=0),
+                employee,
             )
 
         svc.update_defect_status.assert_awaited_once_with(
@@ -292,7 +264,6 @@ class TestSetDefectStatus:
 
         with (
             patch(f"{STATUS}.services", _services([])),
-            patch(f"{STATUS}.get_employee", AsyncMock(return_value=employee)),
             patch(f"{LIST}.services", list_svc),
         ):
             await set_defect_status(
@@ -300,6 +271,7 @@ class TestSetDefectStatus:
                 StatusSetCB(
                     defect_id=uuid.uuid4(), status=DefectStatus.IN_PROGRESS, page=2
                 ),
+                employee,
             )
 
         assert list_svc.get_open_defects.await_args.kwargs["offset"] == 2 * 5
@@ -310,12 +282,12 @@ class TestSetDefectStatus:
 
         with (
             patch(f"{STATUS}.services", _services([])),
-            patch(f"{STATUS}.get_employee", AsyncMock(return_value=employee)),
             patch(f"{LIST}.services", _services([])),
         ):
             await set_defect_status(
                 callback,
                 StatusSetCB(defect_id=uuid.uuid4(), status=DefectStatus.CLOSED, page=0),
+                employee,
             )
 
         assert callback.message.edit_text.await_args.args[0] == str(M.NO_TASKS)
@@ -334,12 +306,12 @@ class TestSetDefectStatus:
 
         with (
             patch(f"{STATUS}.services", svc),
-            patch(f"{STATUS}.get_employee", AsyncMock(return_value=employee)),
             patch(f"{LIST}.services", _services([_make_defect()])),
         ):
             await set_defect_status(
                 callback,
                 StatusSetCB(defect_id=uuid.uuid4(), status=DefectStatus.CLOSED, page=0),
+                employee,
             )
 
         assert callback.message.answer.await_args.args[0] == str(
@@ -355,12 +327,12 @@ class TestSetDefectStatus:
 
         with (
             patch(f"{STATUS}.services", svc),
-            patch(f"{STATUS}.get_employee", AsyncMock(return_value=employee)),
             patch(f"{LIST}.services", _services([_make_defect()])),
         ):
             await set_defect_status(
                 callback,
                 StatusSetCB(defect_id=uuid.uuid4(), status=DefectStatus.CLOSED, page=0),
+                employee,
             )
 
         assert callback.message.answer.await_args.args[0] == str(M.STATUS_CHANGE_FAILED)

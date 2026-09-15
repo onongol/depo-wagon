@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING
 
 from apps.bot import services
 from apps.bot.constants import TASKS_PAGE_SIZE
-from apps.bot.handlers.employee import get_employee
 from apps.bot.keyboards.tasks import tasks_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.core.constants import ROLES_CHANGING_STATUS
@@ -16,6 +15,7 @@ if TYPE_CHECKING:
     from aiogram.types import CallbackQuery, Message
 
     from apps.bot.callback_data import TasksPageCB
+    from apps.core.models import Employee
 
 logger = logging.getLogger(__name__)
 
@@ -45,10 +45,8 @@ async def render_page(send: Callable[..., Awaitable], employee, page: int) -> No
     )
 
 
-async def my_tasks(message: Message) -> None:
+async def my_tasks(message: Message, employee: Employee | None) -> None:
     """Show the first page of open defects."""
-    employee = await get_employee(message.from_user.id)
-
     if not employee:
         await message.answer(str(M.NOT_REGISTERED), parse_mode=M.PARSE_MODE)
         return
@@ -56,11 +54,12 @@ async def my_tasks(message: Message) -> None:
     await render_page(message.answer, employee, page=0)
 
 
-async def my_tasks_page(callback: CallbackQuery, callback_data: TasksPageCB) -> None:
+async def my_tasks_page(
+    callback: CallbackQuery, callback_data: TasksPageCB, employee: Employee | None
+) -> None:
     """Turn to another page of the list."""
     await callback.answer()
 
-    employee = await get_employee(callback.from_user.id)
     if not employee:
         await callback.message.edit_text(str(M.NOT_REGISTERED), parse_mode=M.PARSE_MODE)
         return

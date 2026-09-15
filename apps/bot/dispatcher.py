@@ -8,7 +8,7 @@ from aiogram.types import BotCommand, MenuButtonCommands
 from django.utils.translation import gettext_lazy as _
 
 from apps.bot.messages import BotMessages as M
-from apps.bot.middlewares import CloseOldConnectionsMiddleware
+from apps.bot.middlewares import CloseOldConnectionsMiddleware, EmployeeMiddleware
 
 if TYPE_CHECKING:
     from aiogram.fsm.storage.base import BaseEventIsolation, BaseStorage
@@ -93,6 +93,11 @@ def make_dispatcher(
     # ahead of every filter — where PTB closed connections by overriding
     # Application.process_update.
     dp.update.outer_middleware(CloseOldConnectionsMiddleware())
+
+    # Inner, so it reaches the handlers of every included router
+    employee = EmployeeMiddleware()
+    dp.message.middleware(employee)
+    dp.callback_query.middleware(employee)
 
     dp.startup.register(on_startup)
     dp.errors.register(error_handler)

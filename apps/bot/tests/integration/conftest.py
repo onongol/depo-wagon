@@ -1,6 +1,7 @@
 """Fixtures for driving real Updates through a real Dispatcher."""
 
 from itertools import count
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from aiogram.fsm.context import FSMContext
@@ -54,6 +55,14 @@ def state(storage) -> FSMContext:
     return FSMContext(
         storage=storage,
         key=StorageKey(bot_id=BOT_ID, chat_id=CHAT_ID, user_id=USER_ID),
+    )
+
+
+def as_employee(employee):
+    """Answer the dispatcher's employee lookup with this employee."""
+    return patch(
+        "apps.bot.middlewares.employee.services.get_employee_by_telegram_id",
+        AsyncMock(return_value=employee),
     )
 
 

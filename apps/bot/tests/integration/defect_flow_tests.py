@@ -29,6 +29,7 @@ from apps.bot.fsm import load_defect, save_defect
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.bot.tests.integration.conftest import (
+    as_employee,
     make_callback_update,
     make_message_update,
     make_photo_update,
@@ -68,24 +69,7 @@ def flow(employee, wagon):
 
     with ExitStack() as stack:
         p = stack.enter_context
-        p(
-            patch(
-                "apps.bot.handlers.defect.start.get_employee",
-                AsyncMock(return_value=employee),
-            )
-        )
-        p(
-            patch(
-                "apps.bot.handlers.defect.confirm.handler.get_employee",
-                AsyncMock(return_value=employee),
-            )
-        )
-        p(
-            patch(
-                "apps.bot.handlers.defect.verdict.get_employee",
-                AsyncMock(return_value=employee),
-            )
-        )
+        lookup = p(as_employee(employee))
         wagon_services = MagicMock()
         wagon_services.get_wagon_by_number = AsyncMock(return_value=wagon)
         p(patch("apps.bot.handlers.defect.wagon.services", wagon_services))
@@ -106,6 +90,7 @@ def flow(employee, wagon):
         p(patch("apps.bot.handlers.defect.verdict.services", verdict_services))
 
         yield MagicMock(
+            lookup=lookup,
             register=register,
             saved=saved,
             verdict_services=verdict_services,
@@ -190,6 +175,9 @@ class TestTheWholeFlow:
         await tap(VerdictCB(value=DefectVerdict.REPAIR_NOW).pack())
         assert await state.get_state() is None
         flow.verdict_services.save_employee_verdict.assert_awaited_once()
+
+        # Only start, confirm and verdict take the employee
+        assert flow.lookup.await_count == 3
 
     async def test_the_saved_form_reaches_the_persistence_call(
         self, dp, bot, state, flow
