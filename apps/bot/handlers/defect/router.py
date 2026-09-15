@@ -127,7 +127,13 @@ def get_defect_flow_router() -> Router:
     cb(skip_description, StateFilter(DefectSG.desc), F.data == CB_DESC_SKIP)
 
     cb(start_edit, StateFilter(DefectSG.confirm), EditCB.filter())
-    cb(confirm_defect, StateFilter(DefectSG.confirm), ConfirmCB.filter())
+    # Split so that cancelling never loads the employee
+    cb(
+        cancel_defect_button,
+        StateFilter(DefectSG.confirm),
+        ConfirmCB.filter(~F.confirmed),
+    )
+    cb(confirm_defect, StateFilter(DefectSG.confirm), ConfirmCB.filter(F.confirmed))
 
     cb(
         receive_employee_verdict,

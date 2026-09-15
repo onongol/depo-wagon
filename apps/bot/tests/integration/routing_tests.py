@@ -6,16 +6,24 @@ which handler an update reaches, and whether it reaches one at all.
 
 import time
 import uuid
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from apps.bot.callback_data import (
     CB_NOOP,
+    ConfirmCB,
     DepartmentCB,
     TasksPageCB,
 )
-from apps.bot.constants import BTN_ASK, BTN_HELP, BTN_NEW_DEFECT, UD_AI_CHAT_LAST
+from apps.bot.constants import (
+    BTN_ASK,
+    BTN_HELP,
+    BTN_NEW_DEFECT,
+    UD_AI_CHAT_LAST,
+    LinkStatus,
+)
+from apps.bot.fsm import save_defect
 from apps.bot.messages import BotMessages as M
 from apps.bot.middlewares import AI_CHAT_TIMEOUT
 from apps.bot.states import AiChatSG, DefectSG
@@ -24,6 +32,7 @@ from apps.bot.tests.integration.conftest import (
     make_callback_update,
     make_message_update,
 )
+from apps.bot.user_data import DefectData
 
 
 @pytest.fixture
@@ -233,3 +242,39 @@ class TestUnroutedUpdates:
 
         assert session.requests == []
         assert await state.get_state() == DefectSG.photo.state
+
+
+class TestHandlersThatNeedNoEmployee:
+    """The lookup follows the handler's signature, so these must not trigger it."""
+
+    async def test_cancelling_at_confirm_does_not_look_up_the_employee(
+        self, dp, bot, session, state
+    ):
+        await save_defect(state, DefectData(wagon_id=3))
+        await state.set_state(DefectSG.confirm)
+
+        with as_employee(None) as lookup:
+            await dp.feed_update(
+                bot, make_callback_update(ConfirmCB(confirmed=False).pack())
+            )
+
+        lookup.assert_not_awaited()
+        assert await state.get_state() is None
+        assert session.calls("editMessageText")[0].text == str(M.DEFECT_CANCELLED)
+
+    async def test_a_deep_link_does_not_look_up_the_employee(self, dp, bot, session):
+        with (
+            as_employee(None) as lookup,
+            patch("apps.bot.handlers.common.start.services") as svc,
+        ):
+            svc.resolve_link_token = AsyncMock(
+                return_value=(None, LinkStatus.INVALID_TOKEN)
+            )
+            await dp.feed_update(
+                bot, make_message_update("/start sometoken", command=True)
+            )
+
+        lookup.assert_not_awaited()
+        assert svc.resolve_link_token.await_args.args == ("sometoken",)
+        sent = [m.text for m in session.calls("sendMessage")]
+        assert sent == [str(M.LINK_TOKEN_INVALID)]

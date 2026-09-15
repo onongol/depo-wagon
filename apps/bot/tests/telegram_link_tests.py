@@ -14,6 +14,7 @@ from apps.bot.handlers.common.start import (
     cancel_link,
     confirm_link,
     start,
+    start_with_link,
 )
 from apps.bot.services.employee import get_employee_by_telegram_id
 from apps.bot.services.telegram_link import (
@@ -212,21 +213,19 @@ class TestEmployeeIsReadFresh:
 class TestStartHandler:
     async def test_bare_start_when_unlinked_points_at_the_web_app(self):
         message = make_message()
-        command = make_command()
         with patch("apps.bot.handlers.common.start.services") as svc:
             svc.get_connect_url = MagicMock(return_value="https://x/telegram/")
-            await start(message, command, None)
+            await start(message, None)
         assert "https://x/telegram/" in message.answer.await_args.args[0]
 
     async def test_bare_start_when_linked_shows_menu(self):
         message = make_message()
-        command = make_command()
         employee = MagicMock()
         with patch(
             "apps.bot.handlers.common.start.show_welcome_menu",
             new_callable=AsyncMock,
         ) as menu:
-            await start(message, command, employee)
+            await start(message, employee)
         menu.assert_awaited_once()
 
     async def test_token_is_passed_through_to_the_service(self):
@@ -237,7 +236,7 @@ class TestStartHandler:
                 return_value=(_make_employee_mock(), LinkStatus.OK)
             )
             svc.remember_pending_link = AsyncMock()
-            await start(message, command, None)
+            await start_with_link(message, command)
         assert svc.resolve_link_token.await_args.args[0] == "sometoken"
 
     async def test_token_offers_the_employee_it_resolved(self):
@@ -248,7 +247,7 @@ class TestStartHandler:
                 return_value=(_make_employee_mock(pk=42), LinkStatus.OK)
             )
             svc.remember_pending_link = AsyncMock()
-            await start(message, command, None)
+            await start_with_link(message, command)
 
         kwargs = message.answer.await_args.kwargs
         button = kwargs["reply_markup"].inline_keyboard[0][0]
@@ -262,7 +261,7 @@ class TestStartHandler:
                 return_value=(_make_employee_mock(pk=42), LinkStatus.OK)
             )
             svc.remember_pending_link = AsyncMock()
-            await start(message, command, None)
+            await start_with_link(message, command)
         assert svc.remember_pending_link.await_args.args == (777, 42)
 
     async def test_no_offer_is_recorded_without_a_button(self):
@@ -273,7 +272,7 @@ class TestStartHandler:
                 return_value=(None, LinkStatus.INVALID_TOKEN)
             )
             svc.remember_pending_link = AsyncMock()
-            await start(message, command, None)
+            await start_with_link(message, command)
         svc.remember_pending_link.assert_not_awaited()
 
     async def test_an_unrecordable_offer_shows_no_button(self):
@@ -284,7 +283,7 @@ class TestStartHandler:
                 return_value=(_make_employee_mock(), LinkStatus.OK)
             )
             svc.remember_pending_link = AsyncMock(side_effect=Exception("redis down"))
-            await start(message, command, None)
+            await start_with_link(message, command)
         assert "reply_markup" not in message.answer.await_args.kwargs
 
     async def test_token_attaches_nothing_on_its_own(self):
@@ -295,7 +294,7 @@ class TestStartHandler:
                 return_value=(_make_employee_mock(), LinkStatus.OK)
             )
             svc.remember_pending_link = AsyncMock()
-            await start(message, command, None)
+            await start_with_link(message, command)
         svc.attach_telegram.assert_not_called()
 
     @pytest.mark.parametrize("status", sorted(_RESOLVE_ERROR_TEXT))
@@ -304,7 +303,7 @@ class TestStartHandler:
         command = make_command("sometoken")
         with patch("apps.bot.handlers.common.start.services") as svc:
             svc.resolve_link_token = AsyncMock(return_value=(None, status))
-            await start(message, command, None)
+            await start_with_link(message, command)
         assert "reply_markup" not in message.answer.await_args.kwargs
 
     async def test_service_failure_is_reported_not_raised(self):
@@ -312,7 +311,7 @@ class TestStartHandler:
         command = make_command("sometoken")
         with patch("apps.bot.handlers.common.start.services") as svc:
             svc.resolve_link_token = AsyncMock(side_effect=Exception("redis down"))
-            await start(message, command, None)
+            await start_with_link(message, command)
         message.answer.assert_awaited_once()
 
 
@@ -421,7 +420,7 @@ class TestForwardedDeepLink:
             "core.Employee", user=user, telegram_id=None, is_active=True
         )
         token = await sync_to_async(telegram_tokens.issue)(user.pk)
-        await start(make_message(user_id=telegram_id), make_command(token), None)
+        await start_with_link(make_message(user_id=telegram_id), make_command(token))
         return employee
 
     async def test_the_chat_that_followed_the_link_can_confirm(self):

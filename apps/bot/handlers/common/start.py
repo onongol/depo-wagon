@@ -38,24 +38,12 @@ def _error_text(texts: dict, status: LinkStatus):
     return text
 
 
-async def start(
-    message: Message, command: CommandObject, employee: Employee | None
-) -> None:
-    """Entry point, and the only place a Telegram account gets attached.
+async def start(message: Message, employee: Employee | None) -> None:
+    """A bare /start with no token, which is just "who am I".
 
-    Telegram passes the payload of a ``t.me/<bot>?start=<token>`` deep link as
-    the argument to /start, which is how the web app hands this chat a token it
-    issued for an already-authenticated employee. There is nothing to verify
-    here: the web session established who they are before the token existed.
-
-    A bare /start with no token is just "who am I" — an unattached chat is told
-    to go and connect from the web app, because this bot cannot establish
-    anybody's identity on its own.
+    An unattached chat is told to go and connect from the web app, because this
+    bot cannot establish anybody's identity on its own.
     """
-    if command.args:
-        await _handle_link_token(message, command.args)
-        return
-
     if employee:
         await show_welcome_menu(message, employee)
         return
@@ -66,8 +54,13 @@ async def start(
     )
 
 
-async def _handle_link_token(message: Message, token: str) -> None:
-    """Spend the token, then ask before attaching anything.
+async def start_with_link(message: Message, command: CommandObject) -> None:
+    """/start from a deep link: spend the token, then ask before attaching.
+
+    Telegram passes the payload of a ``t.me/<bot>?start=<token>`` deep link as
+    the argument to /start, which is how the web app hands this chat a token it
+    issued for an already-authenticated employee. There is nothing to verify
+    here: the web session established who they are before the token existed.
 
     Nothing is attached here. A deep link can be forwarded, so the chat that
     followed it is asked to confirm out loud which account it is about to take
@@ -75,7 +68,7 @@ async def _handle_link_token(message: Message, token: str) -> None:
     waits for an answer.
     """
     try:
-        employee, status = await services.resolve_link_token(token)
+        employee, status = await services.resolve_link_token(command.args)
     except Exception:
         logger.exception("Resolving a link token failed")
         await message.answer(str(M.SESSION_ERROR))

@@ -1,7 +1,7 @@
 import logging
 from typing import TYPE_CHECKING
 
-from apps.bot.fsm import clear_defect_keys, load_defect, save_defect
+from apps.bot.fsm import load_defect, save_defect
 from apps.bot.keyboards.defect import employee_verdict_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
@@ -14,27 +14,16 @@ if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
     from aiogram.types import CallbackQuery
 
-    from apps.bot.callback_data import ConfirmCB
     from apps.core.models import Employee
 
 logger = logging.getLogger(__name__)
 
 
 async def confirm_defect(
-    callback: CallbackQuery,
-    callback_data: ConfirmCB,
-    state: FSMContext,
-    bot: Bot,
-    employee: Employee | None,
+    callback: CallbackQuery, state: FSMContext, bot: Bot, employee: Employee | None
 ) -> None:
     """Drive the save pipeline, switch progress messages, and show the result."""
     await callback.answer()
-
-    if not callback_data.confirmed:
-        await clear_defect_keys(state)
-        await state.set_state(None)
-        await callback.message.edit_text(str(M.DEFECT_CANCELLED))
-        return
 
     defect_data = await load_defect(state)
     if not employee:

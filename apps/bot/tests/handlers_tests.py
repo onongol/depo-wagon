@@ -437,7 +437,6 @@ class TestUnlinkedEmployeeIsRefused:
     """What the web revokes, the bot stops honouring — including mid-flow."""
 
     async def test_confirm_saves_nothing_without_an_employee(self, state, bot):
-        from apps.bot.callback_data import ConfirmCB
         from apps.bot.handlers.defect.confirm import confirm_defect
 
         await save_defect(state, DefectData(wagon_id=1))
@@ -446,9 +445,7 @@ class TestUnlinkedEmployeeIsRefused:
             "apps.bot.handlers.defect.confirm.handler.register_defect",
             AsyncMock(),
         ) as register:
-            await confirm_defect(
-                make_callback(), ConfirmCB(confirmed=True), state, bot, None
-            )
+            await confirm_defect(make_callback(), state, bot, None)
 
         register.assert_not_called()
         assert await state.get_state() is None
