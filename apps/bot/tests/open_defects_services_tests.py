@@ -2,6 +2,7 @@
 
 import pytest
 from asgiref.sync import async_to_sync, sync_to_async
+from django.utils import timezone
 from model_bakery import baker
 
 from apps.bot.handlers.tasks.text import build_text
@@ -56,6 +57,21 @@ class TestOpenDefects:
         await _defect(inspector=mine, status=DefectStatus.CLOSED)
 
         assert await get_open_defects_count(employee=mine) == 1
+
+    async def test_pages_through_a_shared_inspection_time_in_a_fixed_order(self):
+        mine = await _employee()
+        inspected_at = timezone.now()
+        created = [
+            await _defect(inspector=mine, inspected_at=inspected_at) for _ in range(5)
+        ]
+
+        pages = [
+            await get_open_defects(employee=mine, limit=2, offset=offset)
+            for offset in (0, 2, 4)
+        ]
+
+        paged = [d.pk for page in pages for d in page]
+        assert paged == sorted((d.pk for d in created), reverse=True)
 
     async def test_a_missing_employee_is_refused_rather_than_widened(self):
         await _defect(inspector=None)

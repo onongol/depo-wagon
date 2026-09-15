@@ -19,7 +19,7 @@ def _visible_open_defects(employee: Employee):
 
 
 def _page(qs, limit: int, offset: int) -> list:
-    qs = qs.select_related("wagon", "inspector").order_by("-inspected_at")
+    qs = qs.select_related("wagon", "inspector").order_by("-inspected_at", "-pk")
     return list(qs[offset : offset + limit])
 
 
