@@ -12,6 +12,7 @@ from apps.core.constants import (
     ROLES_WITH_ALL_DEFECTS,
     Department,
 )
+from apps.core.mixins import UpdatedAtMixin
 from apps.defects.constants import (
     DefectNode,
     DefectSeverity,
@@ -45,7 +46,7 @@ class DefectQuerySet(models.QuerySet):
         return self.visible_to_employee(employee)
 
 
-class Defect(models.Model):
+class Defect(UpdatedAtMixin, models.Model):
     """Model representing a defect detected on a wagon."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

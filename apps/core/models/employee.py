@@ -4,9 +4,10 @@ from django.utils.translation import gettext_lazy as _
 from simple_history.models import HistoricalRecords
 
 from apps.core.constants import Department, EmployeeRole
+from apps.core.mixins import UpdatedAtMixin
 
 
-class Employee(models.Model):
+class Employee(UpdatedAtMixin, models.Model):
     """Model representing an employee."""
 
     employee_id = models.CharField(

@@ -1,10 +1,11 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+from apps.core.mixins import UpdatedAtMixin
 from apps.defects.constants import MeasurementDimension
 
 
-class DefectMeasurement(models.Model):
+class DefectMeasurement(UpdatedAtMixin, models.Model):
     """Model representing a measurement associated with a defect."""
 
     defect = models.ForeignKey(
