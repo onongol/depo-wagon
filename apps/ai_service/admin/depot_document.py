@@ -45,7 +45,7 @@ class DepotDocumentAdmin(
         if not change or (old_file and old_file != obj.file.name):
             obj.status = DocumentStatus.PENDING
             obj.error_message = ""
-            obj.save(update_fields=["status", "error_message", "updated_at"])
+            obj.save(update_fields=["status", "error_message"])
             process_document_task.delay(obj.pk)
 
     @admin.action(description=_("Process selected documents (extract & embedding)"))

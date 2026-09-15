@@ -37,7 +37,7 @@ def _extract_and_embed(doc) -> tuple[list[dict[str, str | int]], list[list[float
 def _set_status(doc, status: str, error_message: str = "") -> None:
     doc.status = status
     doc.error_message = error_message
-    doc.save(update_fields=["status", "error_message", "updated_at"])
+    doc.save(update_fields=["status", "error_message"])
 
 
 def _rebuild_chunks(doc) -> int:
