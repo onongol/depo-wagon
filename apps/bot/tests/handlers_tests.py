@@ -25,7 +25,11 @@ from apps.bot.handlers.defect.defect_type import receive_defect_type
 from apps.bot.handlers.defect.department import receive_department
 from apps.bot.handlers.defect.edit import start_edit
 from apps.bot.handlers.defect.node import receive_node
-from apps.bot.handlers.defect.part_number import receive_part_number, skip_part_number
+from apps.bot.handlers.defect.part_number import (
+    PART_NUMBER_MAX_LENGTH,
+    receive_part_number,
+    skip_part_number,
+)
 from apps.bot.handlers.defect.responsible_employee import (
     page_responsible_employee,
     search_responsible_employee,
@@ -158,6 +162,26 @@ class TestReceivePartNumber:
         await receive_part_number(make_message("P-001"), state)
 
         assert await state.get_state() == DefectSG.defect_type.state
+
+    async def test_a_part_number_at_the_column_limit_is_saved(self, state):
+        await save_defect(state, DefectData())
+
+        await receive_part_number(make_message("x" * PART_NUMBER_MAX_LENGTH), state)
+
+        assert (await load_defect(state)).part_number == "x" * PART_NUMBER_MAX_LENGTH
+        assert await state.get_state() == DefectSG.defect_type.state
+
+    async def test_a_longer_part_number_is_asked_for_again(self, state):
+        await save_defect(state, DefectData())
+        await state.set_state(DefectSG.part_number)
+        message = make_message("x" * (PART_NUMBER_MAX_LENGTH + 1))
+
+        await receive_part_number(message, state)
+
+        assert (await load_defect(state)).part_number == ""
+        assert await state.get_state() == DefectSG.part_number.state
+        reply = message.answer.await_args.args[0]
+        assert f"{PART_NUMBER_MAX_LENGTH + 1}/{PART_NUMBER_MAX_LENGTH}" in reply
 
     async def test_skip_clears_the_part_number(self, state):
         await save_defect(state, DefectData(part_number="old"))

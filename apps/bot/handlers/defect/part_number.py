@@ -1,8 +1,10 @@
 import html
 from typing import TYPE_CHECKING
 
+from apps.bot.callback_data import CB_PART_NUMBER_SKIP
 from apps.bot.constants import UD_EDITING
 from apps.bot.fsm import load_defect, save_defect
+from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.keyboards.defect import defect_type_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
@@ -13,6 +15,8 @@ if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
     from aiogram.types import CallbackQuery, Message
 
+PART_NUMBER_MAX_LENGTH = 100
+
 
 async def receive_part_number(message: Message, state: FSMContext) -> None:
     """Handle part number text input."""
@@ -22,7 +26,18 @@ async def receive_part_number(message: Message, state: FSMContext) -> None:
         await state.set_state(None)
         return
 
-    defect.part_number = message.text.strip()
+    part_number = message.text.strip()
+    if len(part_number) > PART_NUMBER_MAX_LENGTH:
+        await message.answer(
+            str(M.PART_NUMBER_TOO_LONG).format(
+                length=len(part_number), max=PART_NUMBER_MAX_LENGTH
+            ),
+            parse_mode=M.PARSE_MODE,
+            reply_markup=skip_keyboard(CB_PART_NUMBER_SKIP),
+        )
+        return
+
+    defect.part_number = part_number
     await save_defect(state, defect)
 
     if (await state.get_data()).get(UD_EDITING):

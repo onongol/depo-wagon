@@ -34,6 +34,11 @@ class DefectMessages:
         "✅ Part number: <b>{part_number}</b>\n\nSelect the defect type:"
     )
 
+    PART_NUMBER_TOO_LONG = _(
+        "❌ Part number is too long ({length}/{max} characters).\n\n"
+        "Please shorten it (or skip):"
+    )
+
     PART_NUMBER_SKIPPED = _("⏭ Part number skipped.\n\nSelect the defect type:")
 
     DEFECT_TYPE_CONFIRMED = _("✅ Defect type: <b>{label}</b>\n\nSelect severity:")
