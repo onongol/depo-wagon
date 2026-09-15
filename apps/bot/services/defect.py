@@ -12,10 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 def _load_defect(defect_id, op: str):
-    """Fetch a Defect by id; log a warning and return None if it's missing.
-
-    Sync helper — called from inside the @sync_to_async service functions.
-    """
+    """Return the defect with this id, or log a warning and return None."""
     from apps.defects.models import Defect
 
     defect = Defect.objects.filter(id=defect_id).first()
@@ -51,7 +48,7 @@ def update_defect_ai_result(
     ai_recommendation: str,
     ai_verdict: str,
 ) -> None:
-    """Write AI analysis results back to the Defect record."""
+    """Write the AI result with save() so the history and updated_at record it."""
     defect = _load_defect(defect_id, "update_defect_ai_result")
 
     if defect is None:
@@ -62,8 +59,6 @@ def update_defect_ai_result(
     defect.ai_recommendation = ai_recommendation
     defect.ai_verdict = ai_verdict
 
-    # save() — not filter().update() — so auto_now (updated_at) and
-    # simple_history fire. update() bypasses both and loses the audit trail.
     defect.save(
         update_fields=[
             "ai_defect_class",
@@ -76,11 +71,7 @@ def update_defect_ai_result(
 
 @sync_to_async
 def update_defect_status(defect_id, status: str, *, employee: Employee) -> bool:
-    """Update the status of a defect this employee may change.
-
-    Returns False when they may not change it or it is gone, True when the
-    status is saved.
-    """
+    """Save the status if this employee may change the defect; True if saved."""
     from apps.defects.models import Defect
 
     if employee is None:
@@ -103,7 +94,6 @@ def update_defect_status(defect_id, status: str, *, employee: Employee) -> bool:
 
 @sync_to_async
 def save_employee_verdict(defect_id, verdict: str) -> None:
-    """Save the employee's own verdict to the Defect record."""
     defect = _load_defect(defect_id, "save_employee_verdict")
 
     if defect is None:
