@@ -1,20 +1,3 @@
-"""
-Async service layer: wraps Django ORM calls for use in async PTB handlers.
-
-Modules:
-  employee             — employee lookup
-  responsible_employee — department employees to pick a defect's responsible from
-  telegram_link        — resolve a web-issued deep-link token, then attach the chat
-  wagon                — wagon lookup
-  defect               — create/update defects
-  open_defects         — open defects list and count
-  photo                — download defect photos, queue them for storage
-  measurement          — create defect measurements
-
-There is no OTP or credentials-email module any more: identity is established
-on the web by allauth, and the bot only ever receives a token proving it.
-"""
-
 from .defect import (
     create_defect,
     save_employee_verdict,
