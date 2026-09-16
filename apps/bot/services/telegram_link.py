@@ -3,37 +3,29 @@ import logging
 from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.core.cache import cache
+from django.db import IntegrityError, transaction
 from django.urls import reverse
 
 from apps.bot.constants import LinkStatus
 
 logger = logging.getLogger(__name__)
 
-# Redis key: chat that followed a deep link -> employee it was offered.
-_PENDING_PREFIX = "tg_link_pending:"
+_PENDING_PREFIX = "tg_link_pending:"  # Redis key
 PENDING_TTL = 300  # 5 minutes
 
 
 def get_connect_url() -> str:
-    """Absolute URL of the page where an employee attaches their Telegram.
-
-    Synchronous and cheap — it touches neither the database nor the cache — so
-    handlers can call it inline without awaiting.
-    """
+    """Absolute URL of the page where an employee attaches their Telegram."""
     return f"{settings.SITE_URL.rstrip('/')}{reverse('web:telegram_connect')}"
 
 
 @sync_to_async
 def resolve_link_token(token: str):
-    """Spend a deep-link token and return the employee it was issued for.
+    """Spend a deep-link token, returning ``(employee, OK)``.
 
-    The token is redeemed here, before the chat is asked to confirm, so that it
-    stays single-use while the question waits for an answer.
-
-    Returns:
-        (employee, LinkStatus.OK)         — token spent, employee found
-        (None, LinkStatus.INVALID_TOKEN)  — unknown, used or expired token
-        (None, LinkStatus.NO_EMPLOYEE)    — user has no active Employee row
+    Spent before the chat is asked to confirm, so it stays single-use while the
+    question waits. Otherwise ``(None, INVALID_TOKEN)`` — unknown, used or
+    expired alike — or ``(None, NO_EMPLOYEE)``.
     """
     from apps.core.models import Employee
     from apps.users import telegram_tokens
@@ -78,15 +70,11 @@ async def forget_pending_link(telegram_id: int) -> None:
 
 @sync_to_async
 def attach_telegram(employee_id: int, telegram_id: int):
-    """Record this chat against the employee a token resolved to.
+    """Record this chat against the resolved employee, returning ``(employee, OK)``.
 
-    The employee is read again rather than carried over: whoever was
-    deactivated between the question and the answer must not be attached.
-
-    Returns:
-        (employee, LinkStatus.OK)         — attached
-        (None, LinkStatus.NO_EMPLOYEE)    — no active Employee row any more
-        (None, LinkStatus.ALREADY_LINKED) — chat belongs to someone else
+    The employee is read again rather than carried over, so a deactivation
+    between the question and the answer gives ``(None, NO_EMPLOYEE)``; a chat
+    belonging to somebody else gives ``(None, ALREADY_LINKED)``.
     """
     from apps.core.models import Employee
 
@@ -99,9 +87,6 @@ def attach_telegram(employee_id: int, telegram_id: int):
         return None, LinkStatus.NO_EMPLOYEE
 
     # Refuse to move a chat that already belongs to a different employee.
-    # Otherwise two people sharing a phone could silently steal each other's
-    # notifications, and the previous owner would never be told. Inactive
-    # holders count: telegram_id is unique across every row, active or not.
     taken_by = (
         Employee.objects.filter(telegram_id=telegram_id).exclude(pk=employee.pk).first()
     )
@@ -109,7 +94,13 @@ def attach_telegram(employee_id: int, telegram_id: int):
         return None, LinkStatus.ALREADY_LINKED
 
     employee.telegram_id = telegram_id
-    employee.save(update_fields=["telegram_id"])
+    try:
+        # atomic so a lost race leaves no broken transaction behind.
+        with transaction.atomic():
+            employee.save(update_fields=["telegram_id"])
+    except IntegrityError:
+        logger.warning("attach_telegram: chat %s was taken concurrently", telegram_id)
+        return None, LinkStatus.ALREADY_LINKED
 
     if employee.user_id:
         from apps.users.notifications import CONNECTED, notify_telegram_link_change

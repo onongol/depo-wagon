@@ -1,9 +1,13 @@
+import threading
+from contextlib import contextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from asgiref.sync import sync_to_async
+from asgiref.sync import async_to_sync, sync_to_async
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.db import connection, transaction
+from django.db.models.signals import pre_save
 from model_bakery import baker
 
 from apps.bot.callback_data import CB_LINK_CANCEL, LinkConfirmCB
@@ -35,6 +39,32 @@ User = get_user_model()
 def clear_cache():
     cache.clear()
     yield
+
+
+def _claim_the_chat(telegram_id):
+    """Take the chat the way another process would: own connection, own commit."""
+    try:
+        baker.make("core.Employee", telegram_id=telegram_id, is_active=True)
+    finally:
+        connection.close()
+
+
+@contextmanager
+def rival_claims_the_chat(telegram_id):
+    """Let a rival take the chat between attach_telegram's check and its save."""
+    from apps.core.models import Employee
+
+    def on_save(sender, instance, **kwargs):
+        pre_save.disconnect(on_save, sender=Employee)
+        rival = threading.Thread(target=_claim_the_chat, args=(telegram_id,))
+        rival.start()
+        rival.join()
+
+    pre_save.connect(on_save, sender=Employee)
+    try:
+        yield
+    finally:
+        pre_save.disconnect(on_save, sender=Employee)
 
 
 def _make_employee_mock(pk=7, full_name="Batbayar Bat"):
@@ -139,6 +169,30 @@ class TestAttachTelegram:
             await attach_telegram(employee.pk, telegram_id=777)
 
         notify.assert_not_called()
+
+    def test_a_chat_claimed_between_the_check_and_the_save_is_refused(self):
+        from apps.core.models import Employee
+
+        employee = baker.make("core.Employee", telegram_id=None, is_active=True)
+
+        with rival_claims_the_chat(777):
+            _, status = async_to_sync(attach_telegram)(employee.pk, telegram_id=777)
+
+        assert status is LinkStatus.ALREADY_LINKED
+        assert Employee.objects.get(pk=employee.pk).telegram_id is None
+
+    def test_a_lost_race_leaves_the_outer_transaction_usable(self):
+        """The savepoint, not just the except: callers may be mid-transaction."""
+        from apps.core.models import Employee
+
+        employee = baker.make("core.Employee", telegram_id=None, is_active=True)
+
+        with transaction.atomic():
+            with rival_claims_the_chat(777):
+                _, status = async_to_sync(attach_telegram)(employee.pk, telegram_id=777)
+            assert Employee.objects.filter(pk=employee.pk).exists()
+
+        assert status is LinkStatus.ALREADY_LINKED
 
     async def test_deactivation_between_question_and_answer_is_refused(self):
         employee = await make("core.Employee", telegram_id=None, is_active=True)

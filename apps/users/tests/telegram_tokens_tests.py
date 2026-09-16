@@ -30,6 +30,28 @@ class TestIssueAndRedeem:
         assert telegram_tokens.issue(1) != telegram_tokens.issue(1)
 
 
+class TestConcurrentRedemption:
+    """Two readers of one live token: only the one that removes it spends it."""
+
+    def test_the_loser_of_the_race_gets_nothing(self, monkeypatch):
+        token = telegram_tokens.issue(42)
+
+        class RivalFinishesFirst:
+            """A second process that redeems between our get and our delete."""
+
+            def __getattr__(self, name):
+                return getattr(cache, name)
+
+            def get(self, key, *args, **kwargs):
+                value = cache.get(key, *args, **kwargs)
+                cache.delete(key)
+                return value
+
+        monkeypatch.setattr(telegram_tokens, "cache", RivalFinishesFirst())
+
+        assert telegram_tokens.redeem(token) is None
+
+
 class TestTokensAreStoredHashed:
     """Reading the cache must not hand anybody a working token."""
 
@@ -43,6 +65,8 @@ class TestTokensAreStoredHashed:
 
 
 class TestOnlyOneLiveTokenPerUser:
+    """Holds for issues that follow one another; racing issues may leave both."""
+
     def test_issuing_again_revokes_the_previous_token(self):
         first = telegram_tokens.issue(42)
         telegram_tokens.issue(42)
