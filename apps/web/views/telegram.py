@@ -1,3 +1,4 @@
+from aiogram.utils.deep_linking import create_deep_link
 from django.conf import settings
 from django.contrib import messages
 from django.shortcuts import redirect, render
@@ -27,8 +28,9 @@ def telegram_connect(request):
 
     if not context["is_linked"] and settings.TELEGRAM_BOT_USERNAME:
         token = telegram_tokens.issue(request.user.pk)
-        context["deep_link"] = (
-            f"https://t.me/{settings.TELEGRAM_BOT_USERNAME}?start={token}"
+        # aiogram's builder, not an f-string: it refuses a payload Telegram would.
+        context["deep_link"] = create_deep_link(
+            settings.TELEGRAM_BOT_USERNAME, "start", token
         )
 
     return render(request, "web/telegram/connect.html", context)

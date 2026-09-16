@@ -21,6 +21,7 @@ import secrets
 
 from django.core.cache import cache
 
+# 43 characters once urlsafe-encoded; Telegram caps a ?start= payload at 64.
 _TOKEN_BYTES = 32
 _PREFIX = "tg_link_token:"
 _USER_PREFIX = "tg_link_user:"

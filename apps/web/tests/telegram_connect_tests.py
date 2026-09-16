@@ -1,4 +1,5 @@
 import pytest
+from aiogram.utils.deep_linking import BAD_PATTERN, DEEPLINK_PAYLOAD_LENGTH
 from allauth.account.models import EmailAddress
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
@@ -44,6 +45,17 @@ class TestTelegramConnectPage:
         client.force_login(user)
         r = client.get(reverse("web:telegram_connect"))
         assert "https://t.me/depo_bot?start=" in r.context["deep_link"]
+
+    def test_the_token_fits_a_telegram_deep_link(self, client, settings):
+        """Telegram caps ?start= at 64 chars from [A-Za-z0-9_-]."""
+        settings.TELEGRAM_BOT_USERNAME = "depo_bot"
+        user, _ = _make_employee_user()
+        client.force_login(user)
+        r = client.get(reverse("web:telegram_connect"))
+        token = r.context["deep_link"].split("start=")[1]
+
+        assert len(token) <= DEEPLINK_PAYLOAD_LENGTH
+        assert not BAD_PATTERN.search(token)
 
     def test_deep_link_token_is_redeemable_for_that_user(self, client, settings):
         settings.TELEGRAM_BOT_USERNAME = "depo_bot"
