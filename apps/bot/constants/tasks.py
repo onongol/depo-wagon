@@ -17,6 +17,9 @@ STATUS_LABEL = {
     DefectStatus.IN_PROGRESS: _("🟡 In Progress"),
 }
 
+# Prefix of the per-defect button that opens the status picker
+STATUS_CHANGE_EMOJI = "🔄"
+
 # Available options when changing status
 STATUS_OPTIONS = [
     (_("🔵 Open"), DefectStatus.OPEN),
