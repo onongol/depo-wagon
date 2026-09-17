@@ -1,7 +1,6 @@
 import uuid
 from unittest.mock import MagicMock
 
-import pytest
 from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
 
 from apps.bot.callback_data import (
@@ -12,6 +11,7 @@ from apps.bot.callback_data import (
     StatusSetCB,
 )
 from apps.bot.constants import (
+    BTN_ASK,
     BTN_HELP,
     BTN_NEW_DEFECT,
     BTN_NEXT,
@@ -25,9 +25,9 @@ from apps.bot.keyboards.defect import (
     node_keyboard_for_department,
     responsible_employee_keyboard,
 )
-from apps.bot.keyboards.menu import main_menu_keyboard
+from apps.bot.keyboards.menu import MENU_TEXTS, main_menu_keyboard
 from apps.bot.keyboards.tasks import status_picker_keyboard, tasks_keyboard
-from apps.core.constants import Department, EmployeeRole
+from apps.core.constants import Department
 from apps.defects.constants import DefectStatus
 
 
@@ -63,36 +63,19 @@ def _make_defect(wagon_number="12345", node_display="Wheelset"):
 
 class TestMainMenuKeyboard:
     def test_returns_reply_keyboard(self):
-        kb = main_menu_keyboard(EmployeeRole.INSPECTOR)
-        assert isinstance(kb, ReplyKeyboardMarkup)
+        assert isinstance(main_menu_keyboard(), ReplyKeyboardMarkup)
 
-    @pytest.mark.parametrize("role", list(EmployeeRole))
-    def test_all_roles_have_new_defect_button(self, role):
-        kb = main_menu_keyboard(role)
-        assert str(BTN_NEW_DEFECT) in _menu_texts(kb)
+    def test_has_every_entry_point(self):
+        assert _menu_texts(main_menu_keyboard()) == [
+            str(BTN_NEW_DEFECT),
+            str(BTN_OPEN_DEFECTS),
+            str(BTN_ASK),
+            str(BTN_HELP),
+        ]
 
-    @pytest.mark.parametrize("role", list(EmployeeRole))
-    def test_all_roles_have_help_button(self, role):
-        kb = main_menu_keyboard(role)
-        assert str(BTN_HELP) in _menu_texts(kb)
-
-    @pytest.mark.parametrize(
-        "role",
-        [
-            EmployeeRole.INSPECTOR,
-            EmployeeRole.MASTER,
-            EmployeeRole.ENGINEER,
-            EmployeeRole.MANAGER,
-        ],
-    )
-    def test_roles_with_tasks_have_open_defects_button(self, role):
-        kb = main_menu_keyboard(role)
-        assert str(BTN_OPEN_DEFECTS) in _menu_texts(kb)
-
-    @pytest.mark.parametrize("role", [EmployeeRole.WORKER, "unknown_role"])
-    def test_roles_without_tasks_have_no_open_defects_button(self, role):
-        kb = main_menu_keyboard(role)
-        assert str(BTN_OPEN_DEFECTS) not in _menu_texts(kb)
+    def test_menu_texts_are_exactly_the_labels_shown(self):
+        """Text steps guard against these; a missing label is read as input."""
+        assert set(_menu_texts(main_menu_keyboard())) == MENU_TEXTS
 
 
 class TestTasksKeyboard:

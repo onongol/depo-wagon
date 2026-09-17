@@ -1,23 +1,21 @@
-from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
+from typing import TYPE_CHECKING
+
+from aiogram.utils.keyboard import ReplyKeyboardBuilder
 
 from apps.bot.constants import BTN_ASK, BTN_HELP, BTN_NEW_DEFECT, BTN_OPEN_DEFECTS
-from apps.core.constants.constants import EmployeeRole
 
-_ROLES_WITH_TASKS = {
-    EmployeeRole.INSPECTOR,
-    EmployeeRole.MASTER,
-    EmployeeRole.ENGINEER,
-    EmployeeRole.MANAGER,
-}
+if TYPE_CHECKING:
+    from aiogram.types import ReplyKeyboardMarkup
+
+_MENU_BUTTONS = (BTN_NEW_DEFECT, BTN_OPEN_DEFECTS, BTN_ASK, BTN_HELP)
+
+MENU_TEXTS = frozenset(str(button) for button in _MENU_BUTTONS)
 
 
-def main_menu_keyboard(role: str) -> ReplyKeyboardMarkup:
-    buttons = [[KeyboardButton(text=str(BTN_NEW_DEFECT))]]
+def main_menu_keyboard() -> ReplyKeyboardMarkup:
+    builder = ReplyKeyboardBuilder()
+    for button in _MENU_BUTTONS:
+        builder.button(text=str(button))
 
-    if role in _ROLES_WITH_TASKS:
-        buttons.append([KeyboardButton(text=str(BTN_OPEN_DEFECTS))])
-
-    buttons.append([KeyboardButton(text=str(BTN_ASK))])
-    buttons.append([KeyboardButton(text=str(BTN_HELP))])
-
-    return ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
+    builder.adjust(1)
+    return builder.as_markup(resize_keyboard=True)

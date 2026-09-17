@@ -16,5 +16,5 @@ async def show_welcome_menu(message: Message, employee) -> None:
             role=employee.get_role_display(),
         ),
         parse_mode=M.PARSE_MODE,
-        reply_markup=main_menu_keyboard(employee.role),
+        reply_markup=main_menu_keyboard(),
     )

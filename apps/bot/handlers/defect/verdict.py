@@ -64,7 +64,7 @@ async def receive_employee_verdict(
     await callback.message.answer(
         str(M.VERDICT_DONE).format(label=verdict_label),
         parse_mode=M.PARSE_MODE,
-        reply_markup=main_menu_keyboard(employee.role),
+        reply_markup=main_menu_keyboard(),
     )
 
     data = await state.get_data()

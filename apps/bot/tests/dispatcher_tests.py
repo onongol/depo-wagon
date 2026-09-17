@@ -142,7 +142,7 @@ class TestDefectRouterOrder:
 
     That ordering is what stopped PTB's entry point from restarting a
     conversation already in progress: BTN_NEW_DEFECT typed mid-flow reaches
-    receive_wagon_number, whose MENU_BUTTONS guard re-prompts, rather than
+    receive_wagon_number, whose MENU_TEXTS guard re-prompts, rather than
     wiping the half-filled form.
     """
 

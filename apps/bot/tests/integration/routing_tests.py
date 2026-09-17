@@ -24,6 +24,7 @@ from apps.bot.constants import (
     LinkStatus,
 )
 from apps.bot.fsm import save_defect
+from apps.bot.keyboards.menu import MENU_TEXTS
 from apps.bot.messages import BotMessages as M
 from apps.bot.middlewares import AI_CHAT_TIMEOUT
 from apps.bot.states import AiChatSG, DefectSG
@@ -124,6 +125,23 @@ class TestPrecedenceDuringTheDefectFlow:
             await dp.feed_update(bot, make_message_update("/new_defect", command=True))
         await dp.feed_update(bot, make_message_update(str(BTN_NEW_DEFECT)))
 
+        assert await state.get_state() == DefectSG.wagon_num.state
+
+    @pytest.fixture
+    async def at_wagon_step(self, dp, bot, session, employee):
+        with as_employee(employee):
+            await dp.feed_update(bot, make_message_update("/new_defect", command=True))
+        session.clear()
+
+    @pytest.mark.usefixtures("at_wagon_step")
+    @pytest.mark.parametrize("label", sorted(MENU_TEXTS))
+    async def test_no_menu_label_is_read_as_a_wagon_number(
+        self, dp, bot, session, state, label
+    ):
+        await dp.feed_update(bot, make_message_update(label))
+
+        sent = [m.text for m in session.calls("sendMessage")]
+        assert sent == [str(M.WAGON_NUM_PROMPT)]
         assert await state.get_state() == DefectSG.wagon_num.state
 
     async def test_start_still_works_mid_flow_and_leaves_the_flow_standing(

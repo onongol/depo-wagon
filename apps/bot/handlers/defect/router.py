@@ -3,7 +3,7 @@
 Split in two on purpose. The flow router is state-filtered and is included
 before the entry router, which is how PTB stopped an entry point from
 restarting a conversation already in progress: BTN_NEW_DEFECT typed during the
-flow reaches receive_wagon_number, whose MENU_BUTTONS guard re-prompts, rather
+flow reaches receive_wagon_number, whose MENU_TEXTS guard re-prompts, rather
 than wiping the form and starting over.
 """
 

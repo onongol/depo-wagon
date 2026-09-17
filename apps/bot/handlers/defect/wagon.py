@@ -3,9 +3,10 @@ import logging
 from typing import TYPE_CHECKING
 
 from apps.bot import services
-from apps.bot.constants import BTN_HELP, BTN_NEW_DEFECT, BTN_OPEN_DEFECTS, UD_EDITING
+from apps.bot.constants import UD_EDITING
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.keyboards.defect import department_keyboard
+from apps.bot.keyboards.menu import MENU_TEXTS
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 
@@ -17,8 +18,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-MENU_BUTTONS = {str(BTN_NEW_DEFECT), str(BTN_OPEN_DEFECTS), str(BTN_HELP)}
-
 
 async def receive_wagon_number(message: Message, state: FSMContext) -> None:
     """Handle incoming wagon number text or menu buttons.
@@ -28,7 +27,7 @@ async def receive_wagon_number(message: Message, state: FSMContext) -> None:
     """
     number = message.text.strip()
 
-    if number in MENU_BUTTONS:
+    if number in MENU_TEXTS:
         await message.answer(str(M.WAGON_NUM_PROMPT), parse_mode=M.PARSE_MODE)
         return
 
