@@ -1,29 +1,29 @@
 from typing import TYPE_CHECKING
 
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable
+    from collections.abc import Iterable
+
+    from aiogram.filters.callback_data import CallbackData
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+    from django.utils.functional import Promise
 
 
 def build_grid_keyboard(
-    choices: Iterable[tuple],
-    callback_factory: Callable,
+    buttons: Iterable[tuple[str | Promise, CallbackData]],
     columns: int,
     footer: list[InlineKeyboardButton] | None = None,
 ) -> InlineKeyboardMarkup:
-    """Build an inline keyboard grid from (value, label) choices.
+    """Build an inline keyboard grid from (text, callback data) pairs."""
+    builder = InlineKeyboardBuilder()
 
-    Every factory passed here names its field `value`, so the call sites need
-    no lambda. An optional footer row (e.g. Cancel) is appended below the grid.
-    """
-    flat = [
-        InlineKeyboardButton(
-            text=str(label), callback_data=callback_factory(value=value).pack()
-        )
-        for value, label in choices
-    ]
-    rows = [flat[i : i + columns] for i in range(0, len(flat), columns)]
+    for text, callback_data in buttons:
+        builder.button(text=str(text), callback_data=callback_data)
+
+    builder.adjust(columns)
+
     if footer:
-        rows.append(footer)
-    return InlineKeyboardMarkup(inline_keyboard=rows)
+        builder.row(*footer)
+
+    return builder.as_markup()

@@ -5,7 +5,7 @@ from aiogram.exceptions import TelegramBadRequest
 
 from apps.bot import services
 from apps.bot.constants import UD_RESP_SEARCH
-from apps.bot.keyboards.defect import responsible_employee_keyboard
+from apps.bot.keyboards.responsible_employee import responsible_employee_keyboard
 from apps.bot.messages import BotMessages as M
 
 if TYPE_CHECKING:

@@ -31,3 +31,7 @@ SEVERITY_CHOICES = [
 ]
 
 SEVERITY_LABELS = {value: str(label) for label, value in SEVERITY_CHOICES}
+
+# Responsible employee picker pagination arrows
+BTN_PAGE_PREV = "◀️"
+BTN_PAGE_NEXT = "▶️"

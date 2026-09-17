@@ -20,6 +20,8 @@ from .common import (
     UD_RESP_SEARCH,
 )
 from .defect import (
+    BTN_PAGE_NEXT,
+    BTN_PAGE_PREV,
     SEVERITY_CHOICES,
     SEVERITY_LABELS,
     VERDICT_CHOICES,
@@ -47,6 +49,8 @@ __all__ = [
     "BTN_NEW_DEFECT",
     "BTN_NEXT",
     "BTN_OPEN_DEFECTS",
+    "BTN_PAGE_NEXT",
+    "BTN_PAGE_PREV",
     "BTN_PREV",
     "BTN_SAVE",
     "BTN_SKIP",

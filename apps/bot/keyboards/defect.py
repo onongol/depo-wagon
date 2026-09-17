@@ -1,20 +1,19 @@
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from typing import TYPE_CHECKING
+
+from aiogram.types import InlineKeyboardButton
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from apps.bot.callback_data import (
     CB_CANCEL,
     CB_MEAS_ADD,
     CB_MEAS_DONE,
     CB_MEAS_SKIP,
-    CB_NOOP,
-    CB_RESP_EMP_SKIP,
     ConfirmCB,
     DefectTypeCB,
     DepartmentCB,
     DimensionCB,
     EditCB,
     NodeCB,
-    ResponsibleEmployeeCB,
-    ResponsibleEmployeePageCB,
     SeverityCB,
     VerdictCB,
 )
@@ -37,6 +36,9 @@ from apps.defects.constants import (
     MeasurementDimension,
 )
 
+if TYPE_CHECKING:
+    from aiogram.types import InlineKeyboardMarkup
+
 
 def _cancel_row() -> list[InlineKeyboardButton]:
     """Bottom row with a Cancel button to exit the conversation from any step."""
@@ -48,91 +50,35 @@ def _cancel_row() -> list[InlineKeyboardButton]:
 
 def department_keyboard() -> InlineKeyboardMarkup:
     return build_grid_keyboard(
-        Department.choices, DepartmentCB, columns=2, footer=_cancel_row()
-    )
-
-
-def node_keyboard() -> InlineKeyboardMarkup:
-    return build_grid_keyboard(
-        DefectNode.choices, NodeCB, columns=2, footer=_cancel_row()
+        [(label, DepartmentCB(value=value)) for value, label in Department.choices],
+        columns=2,
+        footer=_cancel_row(),
     )
 
 
 def node_keyboard_for_department(department: str) -> InlineKeyboardMarkup:
     nodes = DEPARTMENT_NODES.get(department, list(DefectNode))
-    choices = [(n.value, n.label) for n in nodes]
-    return build_grid_keyboard(choices, NodeCB, columns=2, footer=_cancel_row())
+    return build_grid_keyboard(
+        [(node.label, NodeCB(value=node.value)) for node in nodes],
+        columns=2,
+        footer=_cancel_row(),
+    )
 
 
 def defect_type_keyboard() -> InlineKeyboardMarkup:
     return build_grid_keyboard(
-        DefectType.choices, DefectTypeCB, columns=3, footer=_cancel_row()
+        [(label, DefectTypeCB(value=value)) for value, label in DefectType.choices],
+        columns=3,
+        footer=_cancel_row(),
     )
 
 
 def severity_keyboard() -> InlineKeyboardMarkup:
-    buttons = [
-        [
-            InlineKeyboardButton(
-                text=str(label), callback_data=SeverityCB(value=value).pack()
-            )
-        ]
-        for label, value in SEVERITY_CHOICES
-    ]
-    buttons.append(_cancel_row())
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
-
-
-# --- PAGINATION AND RESPONSIBLE EMPLOYEE ---
-
-
-def responsible_employee_keyboard(
-    page_employees: list,
-    page: int,
-    total_pages: int,
-) -> InlineKeyboardMarkup:
-    """Build the inline keyboard for responsible employee selection with pagination."""
-    buttons = [
-        [
-            InlineKeyboardButton(
-                text=f"{emp.first_name} {emp.last_name}",
-                callback_data=ResponsibleEmployeeCB(employee_id=emp.id).pack(),
-            )
-        ]
-        for emp in page_employees
-    ]
-
-    if total_pages > 1:
-        # Fixed 3-slot nav row: absent arrows become spacers so button widths
-        # stay stable and the layout doesn't jump between pages. The spacers
-        # carry CB_NOOP, which has its own handler — falling through to the
-        # expired-button reply would destroy the list on a blank tap.
-        if page > 0:
-            prev_btn = InlineKeyboardButton(
-                text="◀️",
-                callback_data=ResponsibleEmployeePageCB(page=page - 1).pack(),
-            )
-        else:
-            prev_btn = InlineKeyboardButton(text=" ", callback_data=CB_NOOP)
-
-        page_btn = InlineKeyboardButton(
-            text=f"{page + 1}/{total_pages}", callback_data=CB_NOOP
-        )
-
-        if page < total_pages - 1:
-            next_btn = InlineKeyboardButton(
-                text="▶️",
-                callback_data=ResponsibleEmployeePageCB(page=page + 1).pack(),
-            )
-        else:
-            next_btn = InlineKeyboardButton(text=" ", callback_data=CB_NOOP)
-
-        buttons.append([prev_btn, page_btn, next_btn])
-
-    buttons.append(
-        [InlineKeyboardButton(text=str(BTN_SKIP), callback_data=CB_RESP_EMP_SKIP)]
+    return build_grid_keyboard(
+        [(label, SeverityCB(value=value)) for label, value in SEVERITY_CHOICES],
+        columns=1,
+        footer=_cancel_row(),
     )
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
 # --- MEASUREMENT AND DIMENSION ---
@@ -140,61 +86,49 @@ def responsible_employee_keyboard(
 
 def dimension_keyboard() -> InlineKeyboardMarkup:
     return build_grid_keyboard(
-        MeasurementDimension.choices, DimensionCB, columns=2, footer=_cancel_row()
+        [
+            (label, DimensionCB(value=value))
+            for value, label in MeasurementDimension.choices
+        ],
+        columns=2,
+        footer=_cancel_row(),
     )
 
 
 def measurement_choice_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(text=str(BTN_ADD), callback_data=CB_MEAS_ADD),
-                InlineKeyboardButton(text=str(BTN_SKIP), callback_data=CB_MEAS_SKIP),
-            ]
-        ]
-    )
+    builder = InlineKeyboardBuilder()
+    builder.button(text=str(BTN_ADD), callback_data=CB_MEAS_ADD)
+    builder.button(text=str(BTN_SKIP), callback_data=CB_MEAS_SKIP)
+    return builder.as_markup()
 
 
 def measurement_next_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(text=str(BTN_ADD), callback_data=CB_MEAS_ADD),
-                InlineKeyboardButton(text=str(BTN_DONE), callback_data=CB_MEAS_DONE),
-            ]
-        ]
-    )
+    builder = InlineKeyboardBuilder()
+    builder.button(text=str(BTN_ADD), callback_data=CB_MEAS_ADD)
+    builder.button(text=str(BTN_DONE), callback_data=CB_MEAS_DONE)
+    return builder.as_markup()
+
+
+# --- SUMMARY AND CONFIRM ---
 
 
 def confirm_keyboard() -> InlineKeyboardMarkup:
-    edit_buttons = [
-        InlineKeyboardButton(text=str(label), callback_data=EditCB(field=key).pack())
-        for key, label in EDIT_FIELDS
-    ]
-    rows = [edit_buttons[i : i + 2] for i in range(0, len(edit_buttons), 2)]
-    rows.append(
-        [
-            InlineKeyboardButton(
-                text=str(BTN_SAVE), callback_data=ConfirmCB(confirmed=True).pack()
-            ),
-            InlineKeyboardButton(
-                text=str(BTN_CANCEL), callback_data=ConfirmCB(confirmed=False).pack()
-            ),
-        ]
-    )
-    return InlineKeyboardMarkup(inline_keyboard=rows)
+    builder = InlineKeyboardBuilder()
+    for key, label in EDIT_FIELDS:
+        builder.button(text=str(label), callback_data=EditCB(field=key))
 
+    builder.adjust(2)
 
-# --- POST-EDIT: Added employee verdict keyboard ---
+    footer = InlineKeyboardBuilder()
+    footer.button(text=str(BTN_SAVE), callback_data=ConfirmCB(confirmed=True))
+    footer.button(text=str(BTN_CANCEL), callback_data=ConfirmCB(confirmed=False))
+    builder.attach(footer)
+
+    return builder.as_markup()
 
 
 def employee_verdict_keyboard() -> InlineKeyboardMarkup:
-    buttons = [
-        [
-            InlineKeyboardButton(
-                text=str(label), callback_data=VerdictCB(value=value).pack()
-            )
-        ]
-        for value, label in VERDICT_CHOICES
-    ]
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
+    return build_grid_keyboard(
+        [(label, VerdictCB(value=value)) for value, label in VERDICT_CHOICES],
+        columns=1,
+    )

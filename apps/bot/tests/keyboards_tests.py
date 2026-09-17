@@ -16,16 +16,15 @@ from apps.bot.constants import (
     BTN_NEW_DEFECT,
     BTN_NEXT,
     BTN_OPEN_DEFECTS,
+    BTN_PAGE_NEXT,
+    BTN_PAGE_PREV,
     BTN_PREV,
     BTN_SKIP,
     TASKS_PAGE_SIZE,
 )
-from apps.bot.keyboards.defect import (
-    department_keyboard,
-    node_keyboard_for_department,
-    responsible_employee_keyboard,
-)
+from apps.bot.keyboards.defect import department_keyboard, node_keyboard_for_department
 from apps.bot.keyboards.menu import MENU_TEXTS, main_menu_keyboard
+from apps.bot.keyboards.responsible_employee import responsible_employee_keyboard
 from apps.bot.keyboards.tasks import status_picker_keyboard, tasks_keyboard
 from apps.core.constants import Department
 from apps.defects.constants import DefectStatus
@@ -164,23 +163,23 @@ class TestNodeKeyboardForDepartment:
 class TestResponsibleEmployeeKeyboard:
     def test_single_page_has_no_nav_buttons(self):
         kb = responsible_employee_keyboard([_make_employee()], page=0, total_pages=1)
-        nav_texts = {"◀️", "▶️"}
+        nav_texts = {BTN_PAGE_PREV, BTN_PAGE_NEXT}
         assert not any(btn.text in nav_texts for btn in _kb_buttons(kb))
 
     def test_next_only_on_first_of_many_pages(self):
         kb = responsible_employee_keyboard([_make_employee()], page=0, total_pages=3)
         texts = [btn.text for btn in _kb_buttons(kb)]
-        assert "▶️" in texts and "◀️" not in texts
+        assert BTN_PAGE_NEXT in texts and BTN_PAGE_PREV not in texts
 
     def test_prev_only_on_last_page(self):
         kb = responsible_employee_keyboard([_make_employee()], page=2, total_pages=3)
         texts = [btn.text for btn in _kb_buttons(kb)]
-        assert "◀️" in texts and "▶️" not in texts
+        assert BTN_PAGE_PREV in texts and BTN_PAGE_NEXT not in texts
 
     def test_both_nav_on_middle_page(self):
         kb = responsible_employee_keyboard([_make_employee()], page=1, total_pages=3)
         texts = [btn.text for btn in _kb_buttons(kb)]
-        assert "◀️" in texts and "▶️" in texts
+        assert BTN_PAGE_PREV in texts and BTN_PAGE_NEXT in texts
 
     def test_skip_button_always_present(self):
         kb = responsible_employee_keyboard([], page=0, total_pages=1)
