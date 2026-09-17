@@ -9,13 +9,24 @@ from django.core.exceptions import ImproperlyConfigured
 
 
 def load_production(monkeypatch, **env):
+    # Every required variable, so a missing .env (as in CI) doesn't fail the import.
+    env.setdefault("SECRET_KEY", "test-secret-key")
+    env.setdefault("DATABASE_URL", "postgres://localhost:5432/depo_wagon")
+    env.setdefault("REDIS_URL", "redis://localhost:6379/0")
     env.setdefault("ALLOWED_HOSTS", "depowagon.mn")
     env.setdefault("CSRF_TRUSTED_ORIGINS", "https://depowagon.mn")
     env.setdefault("DJANGO_ADMIN_URL", "admin/")
+    env.setdefault("SITE_URL", "https://depowagon.mn")
     env.setdefault("DEFAULT_FROM_EMAIL", "noreply@example.com")
+    env.setdefault("AWS_ACCESS_KEY_ID", "test")
+    env.setdefault("AWS_SECRET_ACCESS_KEY", "test")
+    env.setdefault("AWS_STORAGE_BUCKET_NAME", "test")
+    env.setdefault("AWS_S3_ENDPOINT_URL", "https://s3.example.com")
     env.setdefault("CELERY_BROKER_URL", "redis://localhost:6379/1")
     env.setdefault("CELERY_RESULT_BACKEND", "redis://localhost:6379/2")
+    env.setdefault("TELEGRAM_BOT_TOKEN", "123:test")
     env.setdefault("TELEGRAM_FSM_REDIS_URL", "redis://localhost:6379/3")
+    env.setdefault("GOOGLE_AI_KEY", "test")
     for key, value in env.items():
         monkeypatch.setenv(key, value)
 
@@ -49,6 +60,12 @@ def test_an_empty_host_list_is_refused(monkeypatch, setting):
 def test_an_unset_sender_address_is_refused(monkeypatch):
     with pytest.raises(ImproperlyConfigured, match="DEFAULT_FROM_EMAIL"):
         load_production(monkeypatch, DEFAULT_FROM_EMAIL="")
+
+
+def test_an_unset_site_url_is_refused(monkeypatch):
+    # The base default would send bot users and emails to localhost.
+    with pytest.raises(ImproperlyConfigured, match="SITE_URL"):
+        load_production(monkeypatch, SITE_URL="")
 
 
 @pytest.mark.parametrize(
