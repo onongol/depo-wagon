@@ -315,6 +315,12 @@ CELERY_TASK_IGNORE_RESULT = True
 # The soft limit raises inside the task so it can retry; the hard one kills the worker.
 CELERY_TASK_SOFT_TIME_LIMIT = env.int("CELERY_TASK_SOFT_TIME_LIMIT", default=300)
 CELERY_TASK_TIME_LIMIT = env.int("CELERY_TASK_TIME_LIMIT", default=360)
+# A dead broker must fail a publish in seconds, not hang the bot's one sync thread.
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    "socket_connect_timeout": 2,
+    "socket_timeout": 5,
+    "max_retries": 0,
+}
 
 # django-allauth
 # ------------------------------------------------------------------------------
