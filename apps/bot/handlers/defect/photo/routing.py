@@ -2,7 +2,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from apps.bot.constants import UD_LAST_MEDIA_GROUP, UD_LAST_PHOTO_MSG, UD_RESP_SEARCH
-from apps.bot.keyboards.defect import measurement_choice_keyboard
+from apps.bot.keyboards.measurement import measurement_choice_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.defects.constants import DefectType

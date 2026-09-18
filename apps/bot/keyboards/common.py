@@ -1,13 +1,19 @@
 from typing import TYPE_CHECKING
 
+from aiogram.types import InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from apps.bot.callback_data import CB_LINK_CANCEL, LinkConfirmCB
-from apps.bot.constants import BTN_DONE, BTN_SKIP
+from apps.bot.callback_data import CB_CANCEL, CB_LINK_CANCEL, LinkConfirmCB
+from apps.bot.constants import BTN_CANCEL, BTN_DONE, BTN_SKIP
 from apps.bot.messages import BotMessages as M
 
 if TYPE_CHECKING:
     from aiogram.types import InlineKeyboardMarkup
+
+
+def cancel_row() -> list[InlineKeyboardButton]:
+    """Bottom row with a Cancel button to exit the conversation from any step."""
+    return [InlineKeyboardButton(text=str(BTN_CANCEL), callback_data=CB_CANCEL)]
 
 
 def skip_keyboard(callback_data: str) -> InlineKeyboardMarkup:

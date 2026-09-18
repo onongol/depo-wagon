@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from apps.bot.callback_data import CB_UNIT_SKIP
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.keyboards.common import skip_keyboard
-from apps.bot.keyboards.defect import measurement_next_keyboard
+from apps.bot.keyboards.measurement import measurement_next_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 
