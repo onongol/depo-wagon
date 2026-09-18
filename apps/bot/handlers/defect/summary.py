@@ -25,7 +25,7 @@ async def show_summary(
     some from a text message (a new message) and some from a button (an edit in
     place), which is what PTB expressed by branching on update.callback_query.
     """
-    from apps.bot.keyboards.defect import confirm_keyboard
+    from apps.bot.keyboards.confirm import confirm_keyboard
 
     data = await state.get_data()
     data.pop(UD_EDITING, None)

@@ -2,7 +2,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from apps.bot.fsm import load_defect, save_defect
-from apps.bot.keyboards.defect import employee_verdict_keyboard
+from apps.bot.keyboards.confirm import employee_verdict_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 

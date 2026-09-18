@@ -8,24 +8,18 @@ from apps.bot.callback_data import (
     CB_MEAS_ADD,
     CB_MEAS_DONE,
     CB_MEAS_SKIP,
-    ConfirmCB,
     DefectTypeCB,
     DepartmentCB,
     DimensionCB,
-    EditCB,
     NodeCB,
     SeverityCB,
-    VerdictCB,
 )
 from apps.bot.constants import (
     BTN_ADD,
     BTN_CANCEL,
     BTN_DONE,
-    BTN_SAVE,
     BTN_SKIP,
-    EDIT_FIELDS,
     SEVERITY_CHOICES,
-    VERDICT_CHOICES,
 )
 from apps.bot.keyboards.utils import build_grid_keyboard
 from apps.core.constants import Department
@@ -107,28 +101,3 @@ def measurement_next_keyboard() -> InlineKeyboardMarkup:
     builder.button(text=str(BTN_ADD), callback_data=CB_MEAS_ADD)
     builder.button(text=str(BTN_DONE), callback_data=CB_MEAS_DONE)
     return builder.as_markup()
-
-
-# --- SUMMARY AND CONFIRM ---
-
-
-def confirm_keyboard() -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-    for key, label in EDIT_FIELDS:
-        builder.button(text=str(label), callback_data=EditCB(field=key))
-
-    builder.adjust(2)
-
-    footer = InlineKeyboardBuilder()
-    footer.button(text=str(BTN_SAVE), callback_data=ConfirmCB(confirmed=True))
-    footer.button(text=str(BTN_CANCEL), callback_data=ConfirmCB(confirmed=False))
-    builder.attach(footer)
-
-    return builder.as_markup()
-
-
-def employee_verdict_keyboard() -> InlineKeyboardMarkup:
-    return build_grid_keyboard(
-        [(label, VerdictCB(value=value)) for value, label in VERDICT_CHOICES],
-        columns=1,
-    )
