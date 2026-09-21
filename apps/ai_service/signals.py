@@ -1,3 +1,6 @@
+from functools import partial
+
+from django.db import transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
@@ -12,4 +15,4 @@ def on_defect_closed(sender, instance, **kwargs) -> None:
 
     from apps.ai_service.tasks import embed_defect_task
 
-    embed_defect_task.delay(str(instance.id))
+    transaction.on_commit(partial(embed_defect_task.delay, str(instance.id)))
