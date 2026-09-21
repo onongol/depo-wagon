@@ -9,19 +9,10 @@ told so rather than left spinning.
 
 import uuid
 
-from aiogram.exceptions import TelegramBadRequest
-from aiogram.methods import EditMessageText
-
 from apps.bot.callback_data import CB_NOOP
 from apps.bot.handlers.common.stale import noop_button, stale_button
 from apps.bot.messages import BotMessages as M
-from apps.bot.tests.builders import make_callback
-
-
-def _bad_request(message: str) -> TelegramBadRequest:
-    return TelegramBadRequest(
-        method=EditMessageText(chat_id=1, message_id=1, text="x"), message=message
-    )
+from apps.bot.tests.builders import make_bad_request, make_callback
 
 
 class TestNoopButton:
@@ -69,12 +60,16 @@ class TestStaleButton:
         callback.message.edit_text.assert_not_called()
 
     async def test_an_uneditable_message_does_not_raise(self, bot):
-        bot.edit_message_text.side_effect = _bad_request("message to edit not found")
+        bot.edit_message_text.side_effect = make_bad_request(
+            "message to edit not found"
+        )
 
         await stale_button(make_callback(uuid.uuid4().hex), bot)
 
     async def test_still_answers_when_the_edit_fails(self, bot):
-        bot.edit_message_text.side_effect = _bad_request("message to edit not found")
+        bot.edit_message_text.side_effect = make_bad_request(
+            "message to edit not found"
+        )
         callback = make_callback(uuid.uuid4().hex)
 
         await stale_button(callback, bot)

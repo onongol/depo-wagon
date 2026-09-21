@@ -1,8 +1,7 @@
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from aiogram.exceptions import TelegramBadRequest, TelegramNetworkError
-from aiogram.methods import EditMessageText
+from aiogram.exceptions import TelegramNetworkError
 from google.genai.errors import ServerError
 
 from apps.bot.constants import UD_AI_CHAT_HISTORY
@@ -10,7 +9,7 @@ from apps.bot.handlers.ai_chat.receive import ai_chat_receive
 from apps.bot.handlers.ai_chat.start import ai_chat_start
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import AiChatSG
-from apps.bot.tests.builders import make_message
+from apps.bot.tests.builders import make_bad_request, make_message
 
 
 def _make_employee():
@@ -344,10 +343,7 @@ class TestAiChatReceive:
         await self._enter(state)
         message, thinking_msg = self._make_message()
         thinking_msg.edit_text = AsyncMock(
-            side_effect=TelegramBadRequest(
-                method=EditMessageText(chat_id=1, message_id=1, text="x"),
-                message="Bad Request: message to edit not found",
-            )
+            side_effect=make_bad_request("Bad Request: message to edit not found")
         )
 
         with patch(

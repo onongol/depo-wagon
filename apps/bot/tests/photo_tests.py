@@ -7,9 +7,6 @@ the total is reported when the user presses Done.
 
 from unittest.mock import AsyncMock, MagicMock
 
-from aiogram.exceptions import TelegramBadRequest
-from aiogram.methods import EditMessageText
-
 from apps.bot.constants import BTN_DONE, UD_LAST_MEDIA_GROUP, UD_LAST_PHOTO_MSG
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.defect.photo.receive import (
@@ -18,7 +15,12 @@ from apps.bot.handlers.defect.photo.receive import (
     skip_photo,
 )
 from apps.bot.messages import BotMessages as M
-from apps.bot.tests.builders import CHAT_ID, MESSAGE_ID, make_message
+from apps.bot.tests.builders import (
+    CHAT_ID,
+    MESSAGE_ID,
+    make_bad_request,
+    make_message,
+)
 from apps.bot.user_data import DefectData, PhotoEntry
 from apps.defects.validators import MAX_PHOTO_BYTES
 
@@ -52,12 +54,6 @@ async def _file_ids(state):
     return [p.file_id for p in (await load_defect(state)).photos]
 
 
-def _bad_request(text: str) -> TelegramBadRequest:
-    return TelegramBadRequest(
-        method=EditMessageText(chat_id=1, message_id=1, text="x"), message=text
-    )
-
-
 class TestClearLastPhotoKeyboard:
     async def test_does_nothing_when_no_message_was_recorded(self, state):
         bot = _make_bot()
@@ -79,7 +75,9 @@ class TestClearLastPhotoKeyboard:
 
     async def test_swallows_telegram_errors_on_deleted_messages(self, state):
         bot = _make_bot()
-        bot.edit_message_reply_markup.side_effect = _bad_request("message not found")
+        bot.edit_message_reply_markup.side_effect = make_bad_request(
+            "message not found"
+        )
         await state.update_data({UD_LAST_PHOTO_MSG: [CHAT_ID, 42]})
 
         await clear_last_photo_keyboard(bot, state)
