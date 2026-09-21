@@ -62,7 +62,6 @@ async def page_responsible_employee(
         state,
         defect.department,
         page=callback_data.page,
-        edit=True,
     )
 
 
@@ -87,7 +86,7 @@ async def select_responsible_employee(
     )
     if employee is None:
         await show_responsible_employee_list(
-            callback.message.edit_text, state, defect.department, edit=True
+            callback.message.edit_text, state, defect.department
         )
         return
 

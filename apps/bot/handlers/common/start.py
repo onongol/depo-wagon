@@ -5,9 +5,8 @@ from typing import TYPE_CHECKING
 from apps.bot import services
 from apps.bot.constants import LinkStatus
 from apps.bot.keyboards.common import link_confirm_keyboard
+from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.messages import BotMessages as M
-
-from .utils import show_welcome_menu
 
 if TYPE_CHECKING:
     from aiogram.filters import CommandObject
@@ -36,6 +35,18 @@ def _error_text(texts: dict, status: LinkStatus):
         logger.error("Link status %s has no message on this path", status)
         return M.SESSION_ERROR
     return text
+
+
+async def show_welcome_menu(message: Message, employee) -> None:
+    """Send the main menu greeting to the user."""
+    await message.answer(
+        str(M.WELCOME_MENU).format(
+            full_name=html.escape(employee.full_name),
+            role=employee.get_role_display(),
+        ),
+        parse_mode=M.PARSE_MODE,
+        reply_markup=main_menu_keyboard(),
+    )
 
 
 async def start(message: Message, employee: Employee | None) -> None:

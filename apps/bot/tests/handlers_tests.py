@@ -21,6 +21,7 @@ from apps.bot.constants import UD_DEFECT, UD_EDITING, UD_RESP_SEARCH
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.common.cancel import cancel
 from apps.bot.handlers.common.help import help_command
+from apps.bot.handlers.common.utils import clamp_page
 from apps.bot.handlers.defect.defect_type import receive_defect_type
 from apps.bot.handlers.defect.department import receive_department
 from apps.bot.handlers.defect.edit import start_edit
@@ -36,10 +37,7 @@ from apps.bot.handlers.defect.responsible_employee import (
     select_responsible_employee,
     skip_responsible_employee,
 )
-from apps.bot.handlers.defect.responsible_employee.list import (
-    EMPLOYEE_PAGE_SIZE,
-    _clamp_page,
-)
+from apps.bot.handlers.defect.responsible_employee.list import EMPLOYEE_PAGE_SIZE
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.bot.tests.builders import make_callback, make_message
@@ -238,19 +236,19 @@ class TestReceiveDefectType:
 
 class TestClampPage:
     def test_a_partial_last_page_still_counts(self):
-        assert _clamp_page(2 * EMPLOYEE_PAGE_SIZE + 1, 0) == (3, 0)
+        assert clamp_page(2 * EMPLOYEE_PAGE_SIZE + 1, 0, EMPLOYEE_PAGE_SIZE) == (3, 0)
 
     def test_a_page_in_range_is_kept(self):
-        assert _clamp_page(2 * EMPLOYEE_PAGE_SIZE + 1, 1) == (3, 1)
+        assert clamp_page(2 * EMPLOYEE_PAGE_SIZE + 1, 1, EMPLOYEE_PAGE_SIZE) == (3, 1)
 
     def test_a_page_past_the_end_becomes_the_last(self):
-        assert _clamp_page(EMPLOYEE_PAGE_SIZE + 1, 99) == (2, 1)
+        assert clamp_page(EMPLOYEE_PAGE_SIZE + 1, 99, EMPLOYEE_PAGE_SIZE) == (2, 1)
 
     def test_a_negative_page_becomes_the_first(self):
-        assert _clamp_page(EMPLOYEE_PAGE_SIZE + 1, -1) == (2, 0)
+        assert clamp_page(EMPLOYEE_PAGE_SIZE + 1, -1, EMPLOYEE_PAGE_SIZE) == (2, 0)
 
     def test_an_empty_list_still_has_one_page(self):
-        assert _clamp_page(0, 0) == (1, 0)
+        assert clamp_page(0, 0, EMPLOYEE_PAGE_SIZE) == (1, 0)
 
 
 class TestResponsibleEmployee:
@@ -661,7 +659,7 @@ class TestUserTextIsEscaped:
         assert (await load_defect(state)).responsible_employee_label == "<b>Bold Bat"
 
     async def test_the_employee_name_in_the_greeting(self):
-        from apps.bot.handlers.common.utils import show_welcome_menu
+        from apps.bot.handlers.common.start import show_welcome_menu
 
         employee = MagicMock(full_name="A & <B>", role="inspector")
         employee.get_role_display.return_value = "Inspector"

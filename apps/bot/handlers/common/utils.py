@@ -1,20 +1,21 @@
-import html
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from apps.bot.keyboards.menu import main_menu_keyboard
-from apps.bot.messages import BotMessages as M
+from aiogram.exceptions import TelegramBadRequest
 
 if TYPE_CHECKING:
-    from aiogram.types import Message
+    from collections.abc import Awaitable, Callable
 
 
-async def show_welcome_menu(message: Message, employee) -> None:
-    """Send the main menu greeting to the user."""
-    await message.answer(
-        str(M.WELCOME_MENU).format(
-            full_name=html.escape(employee.full_name),
-            role=employee.get_role_display(),
-        ),
-        parse_mode=M.PARSE_MODE,
-        reply_markup=main_menu_keyboard(),
-    )
+def clamp_page(total: int, page: int, page_size: int) -> tuple[int, int]:
+    """Number of pages, never less than one, and page pulled into range."""
+    total_pages = max(1, (total + page_size - 1) // page_size)
+    return total_pages, max(0, min(page, total_pages - 1))
+
+
+async def send_screen(send: Callable[..., Awaitable], text: str, **kwargs: Any) -> None:
+    """Send or edit in place; an edit that would change nothing is not an error."""
+    try:
+        await send(text, **kwargs)
+    except TelegramBadRequest as exc:
+        if "message is not modified" not in exc.message.lower():
+            raise

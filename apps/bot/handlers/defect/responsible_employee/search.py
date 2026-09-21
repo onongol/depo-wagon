@@ -24,5 +24,5 @@ async def search_responsible_employee(message: Message, state: FSMContext) -> No
 
     await state.update_data({UD_RESP_SEARCH: message.text.strip()})
     await show_responsible_employee_list(
-        message.answer, state, defect.department, page=0, edit=False
+        message.answer, state, defect.department, page=0
     )

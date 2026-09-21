@@ -34,9 +34,7 @@ async def after_photos(
         await state.update_data({UD_RESP_SEARCH: ""})
 
         try:
-            await show_responsible_employee_list(
-                send, state, defect.department, page=0, edit=True
-            )
+            await show_responsible_employee_list(send, state, defect.department, page=0)
         except Exception:
             logger.exception("Failed to show the employee list in after_photos")
             await send(str(M.SESSION_ERROR))
