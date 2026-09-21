@@ -12,7 +12,7 @@ def build_result_text(defect_id, ai_result) -> str:
         confidence_pct = int((ai_result.confidence or 0) * 100)
         verdict_tuple = VERDICT_TEXT.get(ai_result.verdict)
         verdict_emoji = verdict_tuple[0] if verdict_tuple else "ℹ️"
-        verdict_label = str(verdict_tuple[1]) if verdict_tuple else "—"
+        verdict_label = str(verdict_tuple[1]) if verdict_tuple else "-"
 
         result_text += str(M.AI_RESULT).format(
             defect_class=html.escape(ai_result.defect_class),
