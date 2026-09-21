@@ -2,55 +2,110 @@ import logging
 from typing import TYPE_CHECKING
 
 from apps.bot import services
-from apps.bot.keyboards.tasks import status_picker_keyboard
+from apps.bot.constants import STATUS_LABEL
+from apps.bot.handlers.common.utils import send_screen
+from apps.bot.keyboards.tasks import status_confirm_keyboard, status_picker_keyboard
 from apps.bot.messages import BotMessages as M
 
-from .list import render_page
+from .card import load_card, show_card
+from .render import render_page
+from .text import build_status_confirm_text, build_status_pick_text
+from .utils import refuse_unregistered
 
 if TYPE_CHECKING:
     from aiogram.types import CallbackQuery
 
-    from apps.bot.callback_data import StatusPickCB, StatusSetCB
+    from apps.bot.callback_data import StatusAskCB, StatusPickCB, StatusSetCB
     from apps.core.models import Employee
 
 logger = logging.getLogger(__name__)
 
 
 async def show_status_picker(
-    callback: CallbackQuery, callback_data: StatusPickCB
+    callback: CallbackQuery, callback_data: StatusPickCB, employee: Employee | None
 ) -> None:
-    """Replace keyboard with status options for a specific defect."""
+    """Offer the statuses this defect may move to."""
+    card = await load_card(callback, callback_data, employee)
+
+    if card is None:
+        return
+
+    send = callback.message.edit_text
+
+    if not card.targets:
+        await callback.answer(str(M.STATUS_CHANGE_REFUSED), show_alert=True)
+        await show_card(send, card, callback_data.page)
+        return
+
     await callback.answer()
 
-    await callback.message.edit_reply_markup(
-        reply_markup=status_picker_keyboard(callback_data.defect_id, callback_data.page)
+    await send_screen(
+        send,
+        **build_status_pick_text(card).as_kwargs(),
+        reply_markup=status_picker_keyboard(
+            card.defect.pk, card.targets, callback_data.page
+        ),
+    )
+
+
+async def ask_status_confirmation(
+    callback: CallbackQuery, callback_data: StatusAskCB, employee: Employee | None
+) -> None:
+    """Ask before moving the defect to the picked status."""
+    card = await load_card(callback, callback_data, employee)
+
+    if card is None:
+        return
+
+    send = callback.message.edit_text
+
+    if callback_data.status not in card.targets:
+        await callback.answer(str(M.STATUS_CHANGE_REFUSED), show_alert=True)
+        await show_card(send, card, callback_data.page)
+        return
+
+    await callback.answer()
+
+    await send_screen(
+        send,
+        **build_status_confirm_text(card.defect, callback_data.status).as_kwargs(),
+        reply_markup=status_confirm_keyboard(
+            card.defect.pk, callback_data.status, callback_data.page
+        ),
     )
 
 
 async def set_defect_status(
     callback: CallbackQuery, callback_data: StatusSetCB, employee: Employee | None
 ) -> None:
-    """Save new status and refresh the defect list."""
-    await callback.answer()
-
+    """Save the confirmed status and show the card again."""
     if not employee:
-        await callback.message.edit_text(str(M.NOT_REGISTERED), parse_mode=M.PARSE_MODE)
+        await refuse_unregistered(callback)
         return
 
     try:
-        saved = await services.update_defect_status(
+        card = await services.update_defect_status(
             callback_data.defect_id, callback_data.status, employee=employee
         )
     except Exception:
         logger.exception("Failed to set status on defect %s", callback_data.defect_id)
-        await callback.message.answer(
-            str(M.STATUS_CHANGE_FAILED), parse_mode=M.PARSE_MODE
-        )
+        await callback.answer(str(M.STATUS_CHANGE_FAILED), show_alert=True)
         return
 
-    if not saved:
-        await callback.message.answer(
-            str(M.STATUS_CHANGE_REFUSED), parse_mode=M.PARSE_MODE
+    if card is None:
+        await callback.answer(str(M.STATUS_CHANGE_REFUSED), show_alert=True)
+        card = await services.get_defect_card(
+            callback_data.defect_id, employee=employee
+        )
+    else:
+        await callback.answer(
+            str(M.STATUS_CHANGED).format(status=str(STATUS_LABEL[callback_data.status]))
         )
 
-    await render_page(callback.message.edit_text, employee, page=callback_data.page)
+    send = callback.message.edit_text
+
+    if card is None:
+        await render_page(send, employee, callback_data.page)
+        return
+
+    await show_card(send, card, callback_data.page)

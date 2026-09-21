@@ -13,6 +13,7 @@ from aiogram.filters.callback_data import CallbackData
 from apps.bot import callback_data
 from apps.bot.callback_data import (
     ConfirmCB,
+    DefectCardCB,
     DefectTypeCB,
     DepartmentCB,
     DimensionCB,
@@ -22,6 +23,7 @@ from apps.bot.callback_data import (
     ResponsibleEmployeeCB,
     ResponsibleEmployeePageCB,
     SeverityCB,
+    StatusAskCB,
     StatusPickCB,
     StatusSetCB,
     TasksPageCB,
@@ -99,8 +101,19 @@ class TestBudget:
 
         assert _size(cb) <= TELEGRAM_LIMIT
 
+    @pytest.mark.parametrize("status", DefectStatus.values)
+    def test_status_ask_with_a_four_digit_page(self, status):
+        cb = StatusAskCB(defect_id=uuid.uuid4(), status=status, page=9999)
+
+        assert _size(cb) <= TELEGRAM_LIMIT
+
     def test_status_pick_with_a_four_digit_page(self):
         cb = StatusPickCB(defect_id=uuid.uuid4(), page=9999)
+
+        assert _size(cb) <= TELEGRAM_LIMIT
+
+    def test_defect_card_with_a_four_digit_page(self):
+        cb = DefectCardCB(defect_id=uuid.uuid4(), page=9999)
 
         assert _size(cb) <= TELEGRAM_LIMIT
 
@@ -110,10 +123,11 @@ class TestBudget:
         assert _size(ResponsibleEmployeePageCB(page=9999)) <= TELEGRAM_LIMIT
         assert _size(TasksPageCB(page=9999)) <= TELEGRAM_LIMIT
 
-    def test_the_tightest_payload_still_has_headroom(self):
-        """StatusSetCB is the one with no room for another string field."""
+    @pytest.mark.parametrize("factory", [StatusSetCB, StatusAskCB])
+    def test_the_tightest_payloads_still_have_headroom(self, factory):
+        """No room for another string field, such as the status being left."""
         worst = max(DefectStatus.values, key=len)
-        cb = StatusSetCB(defect_id=uuid.uuid4(), status=worst, page=99)
+        cb = factory(defect_id=uuid.uuid4(), status=worst, page=99)
 
         assert _size(cb) == 52
 
@@ -197,6 +211,8 @@ class TestDriftedPayloadsStopMatching:
             (ResponsibleEmployeePageCB, "emppg:1:2:3"),
             (TasksPageCB, "tpg:not_a_number"),
             (StatusPickCB, f"dpick:{'z' * 32}:0"),
+            (StatusAskCB, f"dask:{uuid.uuid4().hex}:reopened:0"),
+            (DefectCardCB, "dcard:" + uuid.uuid4().hex),
         ],
     )
     def test_a_shape_change_fails_to_unpack(self, factory, data):

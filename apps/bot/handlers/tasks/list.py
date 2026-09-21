@@ -1,48 +1,15 @@
-import logging
 from typing import TYPE_CHECKING
 
-from apps.bot import services
-from apps.bot.constants import TASKS_PAGE_SIZE
-from apps.bot.keyboards.tasks import tasks_keyboard
 from apps.bot.messages import BotMessages as M
-from apps.core.constants import ROLES_CHANGING_STATUS
 
-from .text import build_text
+from .render import render_page
+from .utils import refuse_unregistered
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable
-
     from aiogram.types import CallbackQuery, Message
 
     from apps.bot.callback_data import TasksPageCB
     from apps.core.models import Employee
-
-logger = logging.getLogger(__name__)
-
-
-async def render_page(send: Callable[..., Awaitable], employee, page: int) -> None:
-    """Fetch one page of open defects and hand it to send."""
-    offset = page * TASKS_PAGE_SIZE
-
-    total = await services.get_open_defects_count(employee=employee)
-    defects = await services.get_open_defects(
-        employee=employee, limit=TASKS_PAGE_SIZE, offset=offset
-    )
-
-    if not defects:
-        await send(str(M.NO_TASKS), parse_mode=M.PARSE_MODE)
-        return
-
-    await send(
-        build_text(defects, page, total),
-        parse_mode=M.PARSE_MODE,
-        reply_markup=tasks_keyboard(
-            defects,
-            page,
-            total,
-            can_change_status=employee.role in ROLES_CHANGING_STATUS,
-        ),
-    )
 
 
 async def my_tasks(message: Message, employee: Employee | None) -> None:
@@ -58,10 +25,9 @@ async def my_tasks_page(
     callback: CallbackQuery, callback_data: TasksPageCB, employee: Employee | None
 ) -> None:
     """Turn to another page of the list."""
-    await callback.answer()
-
     if not employee:
-        await callback.message.edit_text(str(M.NOT_REGISTERED), parse_mode=M.PARSE_MODE)
+        await refuse_unregistered(callback)
         return
 
+    await callback.answer()
     await render_page(callback.message.edit_text, employee, page=callback_data.page)

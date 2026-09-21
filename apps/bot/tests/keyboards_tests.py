@@ -4,14 +4,21 @@ from unittest.mock import MagicMock
 from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
 
 from apps.bot.callback_data import (
+    DefectCardCB,
     DepartmentCB,
     NodeCB,
     ResponsibleEmployeeCB,
+    StatusAskCB,
     StatusPickCB,
     StatusSetCB,
+    TasksPageCB,
 )
 from apps.bot.constants import (
     BTN_ASK,
+    BTN_BACK,
+    BTN_CANCEL,
+    BTN_CHANGE_STATUS,
+    BTN_CONFIRM,
     BTN_HELP,
     BTN_NEW_DEFECT,
     BTN_NEXT,
@@ -20,12 +27,20 @@ from apps.bot.constants import (
     BTN_PAGE_PREV,
     BTN_PREV,
     BTN_SKIP,
+    LIST_NUMBER_EMOJI,
+    STATUS_TRANSITIONS,
     TASKS_PAGE_SIZE,
 )
 from apps.bot.keyboards.defect import department_keyboard, node_keyboard_for_department
 from apps.bot.keyboards.menu import MENU_TEXTS, main_menu_keyboard
 from apps.bot.keyboards.responsible_employee import responsible_employee_keyboard
-from apps.bot.keyboards.tasks import status_picker_keyboard, tasks_keyboard
+from apps.bot.keyboards.tasks import (
+    defect_card_keyboard,
+    status_confirm_keyboard,
+    status_picker_keyboard,
+    tasks_keyboard,
+)
+from apps.bot.tests.builders import unpacked
 from apps.core.constants import Department
 from apps.defects.constants import DefectStatus
 
@@ -55,6 +70,7 @@ def _kb_buttons(kb: InlineKeyboardMarkup) -> list:
 def _make_defect(wagon_number="12345", node_display="Wheelset"):
     defect = MagicMock()
     defect.id = uuid.uuid4()
+    defect.severity = "high"
     defect.wagon.number = wagon_number
     defect.get_node_display.return_value = node_display
     return defect
@@ -79,44 +95,53 @@ class TestMainMenuKeyboard:
 
 class TestTasksKeyboard:
     def test_returns_inline_keyboard(self):
-        kb = tasks_keyboard(defects=[], page=0, total=0)
+        kb = tasks_keyboard(defects=[], page=0, pages=1)
         assert isinstance(kb, InlineKeyboardMarkup)
 
-    def test_one_button_per_defect(self):
-        defects = [_make_defect("11111"), _make_defect("22222")]
-        kb = tasks_keyboard(defects=defects, page=0, total=2, can_change_status=True)
-        defect_rows = [
-            row
-            for row in kb.inline_keyboard
-            if not any(btn.text in {str(BTN_PREV), str(BTN_NEXT)} for btn in row)
-        ]
-        assert len(defect_rows) == 2
+    def test_the_defects_share_one_row_of_numbers(self):
+        defects = [_make_defect() for _ in range(TASKS_PAGE_SIZE)]
+        kb = tasks_keyboard(defects=defects, page=0, pages=2)
 
-    def test_no_status_buttons_unless_allowed(self):
+        assert [btn.text for btn in kb.inline_keyboard[0]] == list(
+            LIST_NUMBER_EMOJI[:TASKS_PAGE_SIZE]
+        )
+
+    def test_every_defect_button_opens_its_card_on_this_page(self):
         defects = [_make_defect("11111"), _make_defect("22222")]
-        kb = tasks_keyboard(defects=defects, page=0, total=TASKS_PAGE_SIZE + 1)
-        assert _nav_texts(kb) == [str(BTN_NEXT)]
-        assert len(kb.inline_keyboard) == 1
+        kb = tasks_keyboard(defects=defects, page=3, pages=5)
+
+        cards = unpacked(kb, DefectCardCB)
+
+        assert [cb.defect_id for cb in cards] == [d.id for d in defects]
+        assert {cb.page for cb in cards} == {3}
+
+    def test_the_list_itself_changes_no_status(self):
+        kb = tasks_keyboard(defects=[_make_defect()], page=0, pages=1)
+
+        assert unpacked(kb, StatusPickCB) == []
+        assert unpacked(kb, StatusSetCB) == []
+
+    def test_a_page_never_runs_out_of_numbers(self):
+        assert len(LIST_NUMBER_EMOJI) >= TASKS_PAGE_SIZE
 
     def test_no_nav_when_single_page(self):
-        kb = tasks_keyboard(defects=[], page=0, total=TASKS_PAGE_SIZE - 1)
+        kb = tasks_keyboard(defects=[], page=0, pages=1)
         assert _nav_texts(kb) == []
 
     def test_next_only_on_first_page_with_more(self):
-        kb = tasks_keyboard(defects=[], page=0, total=TASKS_PAGE_SIZE + 1)
+        kb = tasks_keyboard(defects=[], page=0, pages=2)
         nav = _nav_texts(kb)
         assert str(BTN_NEXT) in nav
         assert str(BTN_PREV) not in nav
 
     def test_prev_only_on_last_page(self):
-        kb = tasks_keyboard(defects=[], page=1, total=TASKS_PAGE_SIZE + 1)
+        kb = tasks_keyboard(defects=[], page=1, pages=2)
         nav = _nav_texts(kb)
         assert str(BTN_PREV) in nav
         assert str(BTN_NEXT) not in nav
 
     def test_both_nav_on_middle_page(self):
-        total = TASKS_PAGE_SIZE * 3
-        kb = tasks_keyboard(defects=[], page=1, total=total)
+        kb = tasks_keyboard(defects=[], page=1, pages=3)
         nav = _nav_texts(kb)
         assert str(BTN_PREV) in nav
         assert str(BTN_NEXT) in nav
@@ -199,29 +224,89 @@ class TestTaskCallbackDataCarriesUuid:
     def test_tasks_keyboard_carries_the_uuid_itself(self):
         defect = _make_defect()
 
-        kb = tasks_keyboard([defect], page=0, total=1, can_change_status=True)
+        kb = tasks_keyboard([defect], page=0, pages=1)
 
-        picks = [
-            StatusPickCB.unpack(btn.callback_data)
-            for btn in _kb_buttons(kb)
-            if btn.callback_data.startswith(StatusPickCB.__prefix__ + ":")
-        ]
-        assert len(picks) == 1
-        assert picks[0].defect_id == defect.id
+        [card] = unpacked(kb, DefectCardCB)
+        assert card.defect_id == defect.id
 
     def test_status_picker_passes_the_uuid_through(self):
         defect_id = uuid.uuid4()
+        targets = STATUS_TRANSITIONS[DefectStatus.OPEN]
 
-        kb = status_picker_keyboard(defect_id, page=0)
+        kb = status_picker_keyboard(defect_id, targets, page=0)
 
-        sets = [
-            StatusSetCB.unpack(btn.callback_data)
-            for btn in _kb_buttons(kb)
-            if btn.callback_data.startswith(StatusSetCB.__prefix__ + ":")
-        ]
-        assert sets
-        assert all(cb.defect_id == defect_id for cb in sets)
-        assert {cb.status for cb in sets} == set(DefectStatus.values)
+        asks = unpacked(kb, StatusAskCB)
+        assert asks
+        assert all(cb.defect_id == defect_id for cb in asks)
+
+
+class TestDefectCardKeyboard:
+    def test_offers_the_status_change_when_allowed(self):
+        defect_id = uuid.uuid4()
+
+        kb = defect_card_keyboard(defect_id, page=2, can_change=True)
+
+        [pick] = unpacked(kb, StatusPickCB)
+        assert (pick.defect_id, pick.page) == (defect_id, 2)
+        assert str(BTN_CHANGE_STATUS) in [b.text for b in _kb_buttons(kb)]
+
+    def test_hides_the_status_change_otherwise(self):
+        kb = defect_card_keyboard(uuid.uuid4(), page=0, can_change=False)
+
+        assert unpacked(kb, StatusPickCB) == []
+
+    def test_returns_to_the_same_page_of_the_list(self):
+        kb = defect_card_keyboard(uuid.uuid4(), page=4, can_change=False)
+
+        [back] = unpacked(kb, TasksPageCB)
+        assert back.page == 4
+        assert _kb_buttons(kb)[-1].text == str(BTN_BACK)
+
+
+class TestStatusPickerKeyboard:
+    def test_offers_only_the_given_statuses(self):
+        targets = (DefectStatus.OPEN, DefectStatus.CLOSED)
+
+        kb = status_picker_keyboard(uuid.uuid4(), targets, page=0)
+
+        assert [cb.status for cb in unpacked(kb, StatusAskCB)] == list(targets)
+
+    def test_picking_asks_first_rather_than_saving(self):
+        kb = status_picker_keyboard(uuid.uuid4(), (DefectStatus.CLOSED,), page=0)
+
+        assert unpacked(kb, StatusSetCB) == []
+
+    def test_back_returns_to_the_card(self):
+        defect_id = uuid.uuid4()
+
+        kb = status_picker_keyboard(defect_id, (DefectStatus.CLOSED,), page=3)
+
+        [card] = unpacked(kb, DefectCardCB)
+        assert (card.defect_id, card.page) == (defect_id, 3)
+        assert _kb_buttons(kb)[-1].text == str(BTN_BACK)
+
+
+class TestStatusConfirmKeyboard:
+    def test_confirm_saves_the_picked_status(self):
+        defect_id = uuid.uuid4()
+
+        kb = status_confirm_keyboard(defect_id, DefectStatus.CLOSED, page=1)
+
+        [save] = unpacked(kb, StatusSetCB)
+        assert (save.defect_id, save.status, save.page) == (
+            defect_id,
+            DefectStatus.CLOSED,
+            1,
+        )
+
+    def test_cancel_returns_to_the_card(self):
+        defect_id = uuid.uuid4()
+
+        kb = status_confirm_keyboard(defect_id, DefectStatus.CLOSED, page=1)
+
+        [card] = unpacked(kb, DefectCardCB)
+        assert card.defect_id == defect_id
+        assert [b.text for b in _kb_buttons(kb)] == [str(BTN_CONFIRM), str(BTN_CANCEL)]
 
 
 class TestCallbackDataStaysUnder64Bytes:

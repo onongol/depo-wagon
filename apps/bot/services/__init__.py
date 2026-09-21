@@ -4,6 +4,7 @@ from .defect import (
     update_defect_ai_result,
     update_defect_status,
 )
+from .defect_card import get_defect_card
 from .employee import get_employee_by_telegram_id, get_managers_and_engineers
 from .measurement import create_measurements_bulk
 from .open_defects import get_open_defects, get_open_defects_count
@@ -32,6 +33,7 @@ __all__ = [
     "download_photo",
     "forget_pending_link",
     "get_connect_url",
+    "get_defect_card",
     "get_department_employee",
     "get_department_employees",
     "get_employee_by_telegram_id",

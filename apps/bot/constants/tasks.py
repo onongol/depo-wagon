@@ -4,6 +4,8 @@ from apps.defects.constants import DefectSeverity, DefectStatus
 
 TASKS_PAGE_SIZE = 5
 
+LIST_NUMBER_EMOJI = ("1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟")
+
 SEVERITY_EMOJI = {
     DefectSeverity.LOW: "🟢",
     DefectSeverity.MEDIUM: "🟡",
@@ -11,23 +13,20 @@ SEVERITY_EMOJI = {
     DefectSeverity.CRITICAL: "🔴",
 }
 
-# Shown in the defect list (only active statuses)
 STATUS_LABEL = {
     DefectStatus.OPEN: _("🔵 Open"),
     DefectStatus.IN_PROGRESS: _("🟡 In Progress"),
+    DefectStatus.CLOSED: _("🟢 Closed"),
 }
 
-# Prefix of the per-defect button that opens the status picker
-STATUS_CHANGE_EMOJI = "🔄"
+STATUS_TRANSITIONS = {
+    DefectStatus.OPEN: (DefectStatus.IN_PROGRESS, DefectStatus.CLOSED),
+    DefectStatus.IN_PROGRESS: (DefectStatus.OPEN, DefectStatus.CLOSED),
+    DefectStatus.CLOSED: (),
+}
 
-# Available options when changing status
-STATUS_OPTIONS = [
-    (_("🔵 Open"), DefectStatus.OPEN),
-    (_("🟡 In Progress"), DefectStatus.IN_PROGRESS),
-    (_("🟢 Closed"), DefectStatus.CLOSED),
-]
-
-# Navigation button labels
+BTN_CHANGE_STATUS = _("⚙️ Change status")
 BTN_PREV = _("⬅️ Previous")
 BTN_NEXT = _("Next ➡️")
 BTN_BACK = _("↩️ Back")
+BTN_CONFIRM = _("✅ Confirm")

@@ -1,11 +1,13 @@
 """The status update, run against the database."""
 
 import uuid
+from unittest.mock import patch
 
 import pytest
 from asgiref.sync import sync_to_async
 from model_bakery import baker
 
+from apps.bot.constants import STATUS_TRANSITIONS
 from apps.bot.services.defect import update_defect_status
 from apps.core.constants import EmployeeRole
 from apps.defects.constants import DefectStatus
@@ -37,11 +39,11 @@ class TestInspectors:
         mine = await _employee()
         defect = await _defect(inspector=mine)
 
-        saved = await update_defect_status(
+        card = await update_defect_status(
             defect.pk, DefectStatus.IN_PROGRESS, employee=mine
         )
 
-        assert saved is True
+        assert card is not None
         assert await _status(defect) == DefectStatus.IN_PROGRESS
 
     async def test_closing_stamps_repaired_at(self):
@@ -57,22 +59,18 @@ class TestInspectors:
         mine = await _employee()
         defect = await _defect(inspector=await _employee())
 
-        saved = await update_defect_status(
-            defect.pk, DefectStatus.CLOSED, employee=mine
-        )
+        card = await update_defect_status(defect.pk, DefectStatus.CLOSED, employee=mine)
 
-        assert saved is False
+        assert card is None
         assert await _status(defect) == DefectStatus.OPEN
 
     async def test_leave_a_defect_with_no_inspector_alone(self):
         mine = await _employee()
         defect = await _defect(inspector=None)
 
-        saved = await update_defect_status(
-            defect.pk, DefectStatus.CLOSED, employee=mine
-        )
+        card = await update_defect_status(defect.pk, DefectStatus.CLOSED, employee=mine)
 
-        assert saved is False
+        assert card is None
         assert await _status(defect) == DefectStatus.OPEN
 
 
@@ -83,11 +81,11 @@ class TestEngineersAndManagers:
         employee = await _employee(role)
         defect = await _defect(inspector=await _employee())
 
-        saved = await update_defect_status(
+        card = await update_defect_status(
             defect.pk, DefectStatus.CLOSED, employee=employee
         )
 
-        assert saved is True
+        assert card is not None
         assert await _status(defect) == DefectStatus.CLOSED
 
     @pytest.mark.parametrize("role", ALL_ROLES)
@@ -99,7 +97,7 @@ class TestEngineersAndManagers:
             await update_defect_status(
                 defect.pk, DefectStatus.CLOSED, employee=employee
             )
-            is True
+            is not None
         )
 
     @pytest.mark.parametrize("role", ALL_ROLES)
@@ -110,7 +108,7 @@ class TestEngineersAndManagers:
             await update_defect_status(
                 uuid.uuid4(), DefectStatus.CLOSED, employee=employee
             )
-            is False
+            is None
         )
 
 
@@ -121,11 +119,11 @@ class TestRefused:
         employee = await _employee(role)
         defect = await _defect(inspector=employee)
 
-        saved = await update_defect_status(
+        card = await update_defect_status(
             defect.pk, DefectStatus.CLOSED, employee=employee
         )
 
-        assert saved is False
+        assert card is None
         assert await _status(defect) == DefectStatus.OPEN
 
     async def test_a_missing_employee_is_refused_rather_than_widened(self):
@@ -139,3 +137,63 @@ class TestRefused:
     async def test_the_employee_cannot_be_left_out(self):
         with pytest.raises(TypeError):
             await update_defect_status(uuid.uuid4(), DefectStatus.CLOSED)
+
+
+@pytest.mark.django_db(transaction=True)
+class TestTransitions:
+    @pytest.mark.parametrize("target", DefectStatus.values)
+    async def test_a_closed_defect_stays_closed(self, target):
+        engineer = await _employee(EmployeeRole.ENGINEER)
+        defect = await _defect(status=DefectStatus.CLOSED)
+
+        card = await update_defect_status(defect.pk, target, employee=engineer)
+
+        assert card is None
+        assert await _status(defect) == DefectStatus.CLOSED
+
+    async def test_work_can_be_handed_back(self):
+        mine = await _employee()
+        defect = await _defect(inspector=mine, status=DefectStatus.IN_PROGRESS)
+
+        card = await update_defect_status(defect.pk, DefectStatus.OPEN, employee=mine)
+
+        assert card is not None
+        assert await _status(defect) == DefectStatus.OPEN
+
+    async def test_the_current_status_is_not_a_change(self):
+        mine = await _employee()
+        defect = await _defect(inspector=mine)
+
+        card = await update_defect_status(defect.pk, DefectStatus.OPEN, employee=mine)
+
+        assert card is None
+
+    async def test_the_saved_card_comes_back_fresh(self):
+        """The card is read inside the write transaction, so it shows the new state."""
+        mine = await _employee()
+        defect = await _defect(inspector=mine)
+
+        card = await update_defect_status(
+            defect.pk, DefectStatus.IN_PROGRESS, employee=mine
+        )
+
+        assert card.defect.status == DefectStatus.IN_PROGRESS
+        assert card.targets == STATUS_TRANSITIONS[DefectStatus.IN_PROGRESS]
+
+    async def test_the_change_is_recorded_in_the_history(self):
+        mine = await _employee()
+        defect = await _defect(inspector=mine)
+        before = await sync_to_async(defect.history.count)()
+
+        await update_defect_status(defect.pk, DefectStatus.IN_PROGRESS, employee=mine)
+
+        assert await sync_to_async(defect.history.count)() == before + 1
+
+    async def test_closing_queues_the_embedding_once_committed(self):
+        mine = await _employee()
+        defect = await _defect(inspector=mine)
+
+        with patch("apps.ai_service.tasks.embed_defect_task.delay") as delay:
+            await update_defect_status(defect.pk, DefectStatus.CLOSED, employee=mine)
+
+        delay.assert_called_once_with(str(defect.pk))

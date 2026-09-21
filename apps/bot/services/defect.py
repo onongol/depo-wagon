@@ -2,9 +2,13 @@ import logging
 from typing import TYPE_CHECKING
 
 from asgiref.sync import sync_to_async
+from django.db import transaction
 from django.utils import timezone
 
+from apps.bot.constants import STATUS_TRANSITIONS
+
 if TYPE_CHECKING:
+    from apps.bot.services.defect_card import DefectCard
     from apps.bot.user_data import DefectData
     from apps.core.models import Employee
 
@@ -70,26 +74,39 @@ def update_defect_ai_result(
 
 
 @sync_to_async
-def update_defect_status(defect_id, status: str, *, employee: Employee) -> bool:
-    """Save the status if this employee may change the defect; True if saved."""
+def update_defect_status(
+    defect_id, status: str, *, employee: Employee
+) -> DefectCard | None:
+    """Save the status if this employee may move the defect to it.
+
+    Returns the card read inside the same transaction, or None when refused.
+    """
+    from apps.bot.services.defect_card import build_defect_card
     from apps.defects.models import Defect
 
     if employee is None:
         msg = "employee is required"
         raise ValueError(msg)
 
-    defect = Defect.objects.status_changeable_by(employee).filter(id=defect_id).first()
-
-    if defect is None:
-        logger.warning(
-            "update_defect_status: defect %s not changeable by employee %s",
-            defect_id,
-            employee.pk,
+    with transaction.atomic():
+        defect = (
+            Defect.objects.status_changeable_by(employee)
+            .select_for_update()
+            .filter(id=defect_id)
+            .first()
         )
-        return False
 
-    defect.set_status(status)
-    return True
+        if defect is None or status not in STATUS_TRANSITIONS.get(defect.status, ()):
+            logger.warning(
+                "update_defect_status: defect %s cannot be moved to %s by employee %s",
+                defect_id,
+                status,
+                employee.pk,
+            )
+            return None
+
+        defect.set_status(status)
+        return build_defect_card(defect_id, employee=employee)
 
 
 @sync_to_async

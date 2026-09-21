@@ -1,14 +1,7 @@
-"""Inline button payloads. The payload *is* the string on the wire, so a button
-survives a restart and is not worker-local.
-
-Prefixes must be unique: aiogram does not check, and a duplicate silently sends
-both classes' buttons to whichever router was included first. Asserted in
-callback_data_tests.py rather than trusted.
-"""
-
 import uuid
 
 from aiogram.filters.callback_data import CallbackData
+from pydantic import BaseModel
 
 from apps.defects.constants import DefectStatus
 
@@ -78,18 +71,26 @@ class LinkConfirmCB(CallbackData, prefix="lnk"):
     employee_id: int
 
 
-class StatusPickCB(CallbackData, prefix="dpick"):
+class DefectRef(BaseModel):
     defect_id: uuid.UUID
     page: int
 
 
-class StatusSetCB(CallbackData, prefix="dset"):
-    """The tight one: 52 of Telegram's 64 bytes, no room for another field.
-
-    Cost is len(prefix), then 1 + len(encoded) per field — UUID 33 (32 hex, no
-    dashes), int 1 + digits, bool 2. pack() raises above 64.
-    """
+class StatusRef(BaseModel):
+    """52 of Telegram's 64 bytes: no room for another field."""
 
     defect_id: uuid.UUID
     status: DefectStatus
     page: int
+
+
+class DefectCardCB(CallbackData, DefectRef, prefix="dcard"): ...
+
+
+class StatusPickCB(CallbackData, DefectRef, prefix="dpick"): ...
+
+
+class StatusAskCB(CallbackData, StatusRef, prefix="dask"): ...
+
+
+class StatusSetCB(CallbackData, StatusRef, prefix="dset"): ...

@@ -4,7 +4,7 @@ import pytest
 from asgiref.sync import async_to_sync, sync_to_async
 from model_bakery import baker
 
-from apps.bot.handlers.tasks.text import build_text
+from apps.bot.handlers.tasks.text import build_text_list
 from apps.bot.services.open_defects import get_open_defects, get_open_defects_count
 from apps.core.constants import EmployeeRole
 from apps.defects.constants import DefectStatus
@@ -84,4 +84,4 @@ def test_the_list_text_reads_nothing_the_page_did_not_load(django_assert_num_que
     defects = async_to_sync(get_open_defects)(employee=employee)
 
     with django_assert_num_queries(0):
-        build_text(defects, page=0, total=len(defects))
+        build_text_list(defects, page=0, total=len(defects), pages=1).render()
