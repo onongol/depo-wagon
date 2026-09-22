@@ -10,16 +10,7 @@ if TYPE_CHECKING:
 
 
 class CloseOldConnectionsMiddleware(BaseMiddleware):
-    """Drop connections that outlived CONN_MAX_AGE before handling an update.
-
-    Register on dp.update — the only observer that fires exactly once per
-    Update and ahead of every filter. That is where PTB did it, by overriding
-    Application.process_update.
-
-    Only before, as PTB did. Closing afterwards as well would be defensible but
-    is a behaviour change, and the long-lived poller has one connection to keep
-    warm rather than a request pool to return to.
-    """
+    """Register only on dp.update — fires once per Update, ahead of every filter."""
 
     async def __call__(
         self,
