@@ -176,7 +176,7 @@ class TestAiChatPrecedence:
     async def test_the_help_button_cancels_instead_of_showing_help(
         self, dp, bot, session, state, employee
     ):
-        """utility_router comes after ai_chat, so the flow's fallback wins."""
+        """help_router comes after ai_chat, so the flow's fallback wins."""
         with as_employee(employee):
             await dp.feed_update(bot, make_message_update("/ask", command=True))
         session.clear()

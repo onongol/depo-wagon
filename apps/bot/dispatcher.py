@@ -57,16 +57,16 @@ def _routers() -> list:
       free-text steps filtering it out with NotACommand;
     - each conversation's state-filtered router precedes its own entry points,
       which is how PTB kept an entry point from restarting a running flow;
-    - utility comes after the conversations, so the Help button pressed inside
+    - help comes after the conversations, so the Help button pressed inside
       the AI chat reaches that flow's fallback rather than help_command;
     - stale is last, and only sees what nothing else claimed.
     """
     from apps.bot.handlers.ai_chat.router import get_ai_chat_router
     from apps.bot.handlers.common.router import (
         get_cancel_router,
+        get_help_router,
         get_stale_router,
         get_start_router,
-        get_utility_router,
     )
     from apps.bot.handlers.defect.router import (
         get_defect_entry_router,
@@ -83,7 +83,7 @@ def _routers() -> list:
         get_tasks_router(),
         get_support_router(),
         get_ai_chat_router(),
-        get_utility_router(),
+        get_help_router(),
         get_stale_router(),
     ]
 
