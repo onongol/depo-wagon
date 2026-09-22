@@ -27,13 +27,16 @@ from apps.bot.fsm import save_defect
 from apps.bot.keyboards.menu import MENU_TEXTS
 from apps.bot.messages import BotMessages as M
 from apps.bot.middlewares import AI_CHAT_TIMEOUT
-from apps.bot.states import AiChatSG, DefectSG
+from apps.bot.states import AiChatSG, DefectSG, SupportSG
 from apps.bot.tests.integration.conftest import (
+    CHAT_ID,
     as_employee,
     make_callback_update,
     make_message_update,
 )
 from apps.bot.user_data import DefectData
+
+SUPPORT_CHAT_ID = "apps.bot.handlers.support.user_handlers.support_chat_id"
 
 
 @pytest.fixture
@@ -285,6 +288,31 @@ class TestAiChatPrecedence:
             await dp.feed_update(bot, make_message_update(str(BTN_ASK)))
 
         assert await state.get_state() == AiChatSG.chatting.state
+
+
+class TestSupportPrecedence:
+    """support sits ahead of ai_chat and help, whose buttons would reach it."""
+
+    @pytest.mark.parametrize("button", [BTN_ASK, BTN_HELP])
+    async def test_a_menu_button_cancels_instead_of_being_relayed(
+        self, dp, bot, session, state, button
+    ):
+        await state.set_state(SupportSG.message)
+
+        with patch(SUPPORT_CHAT_ID, return_value=-100):
+            await dp.feed_update(bot, make_message_update(str(button)))
+
+        sent = session.calls("sendMessage")
+        assert [(m.chat_id, m.text) for m in sent] == [(CHAT_ID, str(M.CANCELLED))]
+        assert await state.get_state() is None
+
+    async def test_a_question_is_still_relayed(self, dp, bot, session, state, employee):
+        await state.set_state(SupportSG.message)
+
+        with as_employee(employee), patch(SUPPORT_CHAT_ID, return_value=-100):
+            await dp.feed_update(bot, make_message_update("The printer is broken"))
+
+        assert session.calls("sendMessage")[0].chat_id == -100
 
 
 class TestUnroutedUpdates:

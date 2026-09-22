@@ -16,7 +16,9 @@ class CommonMessages:
 
     CANCELLED = _("❌ Cancelled.")
 
-    SESSION_ERROR = _("⚠️ Session error. Please try /start again.")
+    SESSION_ERROR = _(
+        "⚠️ Something went wrong. Try again, or send /cancel to start over."
+    )
 
     BUTTON_EXPIRED = _(
         "⏳ This button is no longer valid — the bot has restarted since it was "
