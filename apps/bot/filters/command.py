@@ -1,5 +1,3 @@
-"""Message filters with no aiogram built-in."""
-
 from typing import TYPE_CHECKING
 
 from aiogram.enums import MessageEntityType
@@ -10,12 +8,10 @@ if TYPE_CHECKING:
 
 
 class NotACommand(BaseFilter):
-    """The negation of PTB's filters.COMMAND, used by every free-text step.
+    """Used by every free-text step so a command doesn't get read as input.
 
-    Matches PTB exactly: a command is the *first* entity being a bot_command at
-    offset 0. A message merely mentioning /something later in the text is
-    ordinary text, which matters because a wagon number or a defect description
-    may legitimately contain a slash.
+    Checks entities rather than a leading "/", since a wagon number or defect
+    description may legitimately contain a slash.
     """
 
     async def __call__(self, message: Message) -> bool:
