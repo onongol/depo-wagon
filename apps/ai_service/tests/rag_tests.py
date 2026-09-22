@@ -1,3 +1,5 @@
+import asyncio
+import threading
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -106,6 +108,32 @@ class TestDescribeImages:
         contents = call_kwargs["contents"]
         # 2 image parts + 1 prompt string
         assert len(contents) == 3
+
+
+class TestRerank:
+    async def test_leaves_the_orm_thread_free_while_it_runs(self):
+        """A bot callback's lookup must not wait out another user's /ask."""
+        from apps.ai_service.rag.retrieval.rerank import rerank
+
+        started, release = threading.Event(), threading.Event()
+
+        def slow_rerank(_request):
+            started.set()
+            release.wait(5)
+            return [{"id": 0}]
+
+        ranker = MagicMock(rerank=slow_rerank)
+        target = "apps.ai_service.rag.retrieval.rerank.get_ranker"
+
+        with patch(target, return_value=ranker):
+            task = asyncio.create_task(rerank("q", [{"content": "a"}], top_k=1))
+            assert await asyncio.to_thread(started.wait, 5)
+            try:
+                orm_call = sync_to_async(lambda: "orm")()
+                assert await asyncio.wait_for(orm_call, 1) == "orm"
+            finally:
+                release.set()
+            assert await task == [{"content": "a"}]
 
 
 @pytest.mark.django_db(transaction=True)
