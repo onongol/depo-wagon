@@ -9,6 +9,7 @@ from apps.bot.callback_data import (
     TasksPageCB,
 )
 from apps.bot.constants import BTN_OPEN_DEFECTS
+from apps.bot.filters import PRIVATE_CHAT
 
 from .card import show_defect_card
 from .list import my_tasks, my_tasks_page
@@ -18,6 +19,7 @@ from .status import ask_status_confirmation, set_defect_status, show_status_pick
 def get_tasks_router() -> Router:
     """The open-defects list and card. Not a conversation — every tap re-queries."""
     router = Router(name="tasks")
+    router.message.filter(PRIVATE_CHAT)
     router.message.register(my_tasks, Command("my_tasks"))
     router.message.register(my_tasks, F.text == str(BTN_OPEN_DEFECTS))
     router.callback_query.register(my_tasks_page, TasksPageCB.filter())

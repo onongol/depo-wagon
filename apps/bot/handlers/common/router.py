@@ -5,11 +5,11 @@ functions with no decorators, which is what lets the tests call them directly.
 """
 
 from aiogram import F, Router
-from aiogram.enums import ChatType
 from aiogram.filters import Command, CommandStart
 
 from apps.bot.callback_data import CB_LINK_CANCEL, CB_NOOP, LinkConfirmCB
 from apps.bot.constants import BTN_HELP
+from apps.bot.filters import PRIVATE_CHAT
 
 from .cancel import cancel
 from .help import help_command
@@ -24,6 +24,7 @@ def get_start_router() -> Router:
     did: /start mid-flow is answered here and leaves the flow standing.
     """
     router = Router(name="start")
+    router.message.filter(PRIVATE_CHAT)
     # Link first: a bare CommandStart() matches a deep link too
     router.message.register(start_with_link, CommandStart(deep_link=True))
     router.message.register(start, CommandStart())
@@ -42,6 +43,7 @@ def get_cancel_router() -> Router:
     handler the way an unfiltered F.text one would.
     """
     router = Router(name="cancel")
+    router.message.filter(PRIVATE_CHAT)
     router.message.register(cancel, Command("cancel"))
     return router
 
@@ -54,6 +56,7 @@ def get_help_router() -> Router:
     fallback, not help_command.
     """
     router = Router(name="help")
+    router.message.filter(PRIVATE_CHAT)
     router.message.register(help_command, Command("help"))
     router.message.register(help_command, F.text == str(BTN_HELP))
     return router
@@ -77,5 +80,5 @@ def get_stale_router() -> Router:
     router = Router(name="stale")
     router.callback_query.register(noop_button, F.data == CB_NOOP)
     router.callback_query.register(stale_button)
-    router.message.register(unhandled_message, F.chat.type == ChatType.PRIVATE)
+    router.message.register(unhandled_message, PRIVATE_CHAT)
     return router

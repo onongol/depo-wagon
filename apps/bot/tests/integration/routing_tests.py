@@ -9,6 +9,9 @@ import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from aiogram.fsm.storage.memory import SimpleEventIsolation
+from aiogram.types import Chat, Message, Update, User
+from django.test import override_settings
 
 from apps.bot.callback_data import (
     CB_NOOP,
@@ -23,13 +26,16 @@ from apps.bot.constants import (
     UD_AI_CHAT_LAST,
     LinkStatus,
 )
+from apps.bot.dispatcher import _BOT_COMMANDS, make_dispatcher
 from apps.bot.fsm import save_defect
+from apps.bot.handlers.support.utils import remember_request
 from apps.bot.keyboards.menu import MENU_TEXTS
 from apps.bot.messages import BotMessages as M
 from apps.bot.middlewares import AI_CHAT_TIMEOUT
 from apps.bot.states import AiChatSG, DefectSG, SupportSG
 from apps.bot.tests.integration.conftest import (
     CHAT_ID,
+    USER_ID,
     as_employee,
     make_callback_update,
     make_message_update,
@@ -314,6 +320,31 @@ class TestSupportPrecedence:
 
         assert session.calls("sendMessage")[0].chat_id == -100
 
+    async def test_a_reply_in_the_support_group_reaches_the_user(
+        self, bot, session, storage
+    ):
+        """The one handler meant for a group, so PRIVATE_CHAT must not cover it."""
+        group_id = -1001234567890
+        await remember_request(4242, USER_ID)
+        with override_settings(TELEGRAM_SUPPORT_CHAT_ID=str(group_id)):
+            dp = make_dispatcher(storage, SimpleEventIsolation())
+
+        group = Chat(id=group_id, type="supergroup")
+        operator = User(id=999, is_bot=False, first_name="Operator")
+        reply = Message(
+            message_id=5000,
+            date=0,
+            chat=group,
+            from_user=operator,
+            text="Fixed",
+            reply_to_message=Message(
+                message_id=4242, date=0, chat=group, from_user=operator
+            ),
+        )
+        await dp.feed_update(bot, Update(update_id=90000, message=reply))
+
+        assert session.calls("sendMessage")[0].chat_id == USER_ID
+
 
 class TestUnroutedUpdates:
     """The stale router now answers messages too.
@@ -351,6 +382,23 @@ class TestUnroutedUpdates:
         )
 
         assert session.requests == []
+
+    @pytest.mark.parametrize(
+        "text", [f"/{c}" for c, _d in _BOT_COMMANDS] + sorted(MENU_TEXTS)
+    )
+    async def test_no_entry_point_answers_in_a_group(
+        self, dp, bot, session, employee, text
+    ):
+        """A defect list, a name or an AI answer would be read by the whole group."""
+        update = make_message_update(
+            text, command=text.startswith("/"), chat_type="supergroup"
+        )
+
+        with as_employee(employee) as lookup:
+            await dp.feed_update(bot, update)
+
+        assert session.requests == []
+        lookup.assert_not_awaited()
 
     async def test_the_wrong_content_type_mid_form_stays_silent(
         self, dp, bot, session, state, employee

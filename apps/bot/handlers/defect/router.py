@@ -33,7 +33,7 @@ from apps.bot.callback_data import (
     VerdictCB,
 )
 from apps.bot.constants import BTN_NEW_DEFECT
-from apps.bot.filters import NotACommand
+from apps.bot.filters import PRIVATE_CHAT, NotACommand
 from apps.bot.middlewares import StaleSchemaMiddleware
 from apps.bot.states import DefectSG
 
@@ -73,6 +73,7 @@ _TEXT = (F.text, NotACommand())
 def get_defect_flow_router() -> Router:
     """Every step, filtered by the state it belongs to."""
     router = Router(name="defect_flow")
+    router.message.filter(PRIVATE_CHAT)
     msg = router.message.register
     cb = router.callback_query.register
 
@@ -153,6 +154,7 @@ def get_defect_flow_router() -> Router:
 def get_defect_entry_router() -> Router:
     """The two ways in. Included after the flow router."""
     router = Router(name="defect_entry")
+    router.message.filter(PRIVATE_CHAT)
     router.message.register(new_defect_start, Command("new_defect"))
     router.message.register(new_defect_start, F.text == str(BTN_NEW_DEFECT))
     return router
