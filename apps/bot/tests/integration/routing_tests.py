@@ -203,6 +203,50 @@ class TestAiChatPrecedence:
         assert sent == [str(M.HELP_TEXT)]
         assert await state.get_state() is None
 
+    async def test_a_question_in_the_session_reaches_the_assistant(
+        self, dp, bot, session, state, employee
+    ):
+        """Free text mid-session routes past every earlier router to ai_chat_receive."""
+        with as_employee(employee):
+            await dp.feed_update(bot, make_message_update("/ask", command=True))
+        session.clear()
+
+        answer = AsyncMock(return_value="Tolerance is 3 mm.")
+        with (
+            as_employee(employee),
+            patch("apps.bot.handlers.ai_chat.receive.answer_question", answer),
+        ):
+            await dp.feed_update(bot, make_message_update("What is the tolerance?"))
+
+        assert answer.await_args.args[0] == "What is the tolerance?"
+        assert [m.text for m in session.calls("editMessageText")] == [
+            "Tolerance is 3 mm."
+        ]
+        assert await state.get_state() == AiChatSG.chatting.state
+
+    async def test_the_help_button_gets_help_eleven_minutes_on(
+        self, dp, bot, session, state, employee
+    ):
+        """The same fall-through, but expiring the stamp the middleware wrote itself."""
+        from apps.bot.middlewares import ai_chat_timeout
+
+        with as_employee(employee):
+            await dp.feed_update(bot, make_message_update("/ask", command=True))
+
+        assert (await state.get_data())[UD_AI_CHAT_LAST] > 0
+        session.clear()
+
+        eleven_minutes_on = MagicMock(time=lambda: time.time() + 660)
+        with (
+            as_employee(employee),
+            patch.object(ai_chat_timeout, "time", eleven_minutes_on),
+        ):
+            await dp.feed_update(bot, make_message_update(str(BTN_HELP)))
+
+        sent = [m.text for m in session.calls("sendMessage")]
+        assert sent == [str(M.HELP_TEXT)]
+        assert await state.get_state() is None
+
     async def test_the_ask_button_starts_a_session(self, dp, bot, state, employee):
         with as_employee(employee):
             await dp.feed_update(bot, make_message_update(str(BTN_ASK)))

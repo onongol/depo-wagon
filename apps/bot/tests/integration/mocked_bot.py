@@ -33,26 +33,27 @@ class MockedSession(BaseSession):
         self, bot: Bot, method: TelegramMethod, timeout: int | None = None
     ) -> Any:
         self.requests.append(method)
-        return self._result_for(method)
+        return self._result_for(bot, method)
 
-    def _result_for(self, method: TelegramMethod) -> Any:
+    def _result_for(self, bot: Bot, method: TelegramMethod) -> Any:
         returning = method.__returning__
         if returning is bool or returning is None:
             return True
         if Message in getattr(returning, "__args__", (returning,)):
-            return self._make_message(method)
+            return self._make_message(bot, method)
         return True
 
-    def _make_message(self, method: TelegramMethod) -> Message:
+    def _make_message(self, bot: Bot, method: TelegramMethod) -> Message:
         self._next_message_id += 1
         chat_id = getattr(method, "chat_id", 1) or 1
+        # Bound, or editing it raises a RuntimeError error_handler swallows.
         return Message(
             message_id=self._next_message_id,
             date=0,
             chat=Chat(id=int(chat_id), type="private"),
             from_user=User(id=BOT_ID, is_bot=True, first_name="Bot"),
             text=getattr(method, "text", None) or "",
-        )
+        ).as_(bot)
 
     async def stream_content(
         self,
