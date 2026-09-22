@@ -51,6 +51,10 @@ def _routers() -> list:
 
     - start comes before the conversations, so /start and the account-link
       buttons still work mid-flow;
+    - cancel comes right after start, for the same reason but by aiogram's own
+      idiom: an unfiltered Command("cancel") ahead of every conversation wins
+      by registration order alone, rather than depending on each flow's
+      free-text steps filtering it out with NotACommand;
     - each conversation's state-filtered router precedes its own entry points,
       which is how PTB kept an entry point from restarting a running flow;
     - utility comes after the conversations, so the Help button pressed inside
@@ -59,6 +63,7 @@ def _routers() -> list:
     """
     from apps.bot.handlers.ai_chat.router import get_ai_chat_router
     from apps.bot.handlers.common.router import (
+        get_cancel_router,
         get_stale_router,
         get_start_router,
         get_utility_router,
@@ -72,6 +77,7 @@ def _routers() -> list:
 
     return [
         get_start_router(),
+        get_cancel_router(),
         get_defect_flow_router(),
         get_defect_entry_router(),
         get_tasks_router(),

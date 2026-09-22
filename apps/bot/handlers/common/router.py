@@ -32,8 +32,22 @@ def get_start_router() -> Router:
     return router
 
 
+def get_cancel_router() -> Router:
+    """/cancel alone, included right after start.
+
+    Split out of get_utility_router() so /cancel wins by registration order
+    the way aiogram's own idioms expect, rather than depending on every
+    conversation's free-text steps filtering it out with NotACommand. Ahead
+    of every conversation router, so it can't be shadowed by a state-specific
+    handler the way an unfiltered F.text one would.
+    """
+    router = Router(name="cancel")
+    router.message.register(cancel, Command("cancel"))
+    return router
+
+
 def get_utility_router() -> Router:
-    """/help and /cancel.
+    """/help.
 
     Included after the conversations, mirroring PTB's registration order: the
     Help menu button pressed inside the AI chat reaches that flow's own
@@ -42,7 +56,6 @@ def get_utility_router() -> Router:
     router = Router(name="utility")
     router.message.register(help_command, Command("help"))
     router.message.register(help_command, F.text == str(BTN_HELP))
-    router.message.register(cancel, Command("cancel"))
     return router
 
 
