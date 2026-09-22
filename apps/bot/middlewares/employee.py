@@ -1,5 +1,3 @@
-"""Load the chat's employee for the handlers that take one."""
-
 import logging
 from typing import TYPE_CHECKING, Any
 
@@ -41,6 +39,7 @@ class EmployeeMiddleware(BaseMiddleware):
             return await handler(event, data)
 
         user = data.get("event_from_user")
+
         try:
             data["employee"] = (
                 await services.get_employee_by_telegram_id(user.id) if user else None
