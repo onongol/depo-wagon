@@ -9,6 +9,8 @@ import logging
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from aiogram.enums import ChatType
+from aiogram.exceptions import TelegramAPIError
 from aiogram.fsm.storage.memory import MemoryStorage, SimpleEventIsolation
 
 from apps.bot.dispatcher import _BOT_COMMANDS, make_dispatcher, on_startup
@@ -102,14 +104,74 @@ class TestMiddlewareAndHooks:
         assert dispatcher.errors.handlers
 
     async def test_the_error_handler_swallows_rather_than_reraises(self, caplog):
-        event = MagicMock()
-        event.exception = RuntimeError("boom")
+        event = _error_event(message=None, callback_query=None)
 
         with caplog.at_level(logging.ERROR):
             result = await error_handler(event)
 
         assert result is None
         assert "Unhandled exception" in caplog.text
+
+
+def _error_event(**update):
+    return MagicMock(update=MagicMock(**update), exception=RuntimeError("boom"))
+
+
+def _message(chat_type=ChatType.PRIVATE):
+    return MagicMock(chat=MagicMock(type=chat_type), answer=AsyncMock())
+
+
+def _telegram_error():
+    return TelegramAPIError(method=MagicMock(), message="query is too old")
+
+
+class TestErrorHandlerTellsTheUser:
+    async def test_a_message_is_answered(self):
+        message = _message()
+
+        await error_handler(_error_event(message=message, callback_query=None))
+
+        message.answer.assert_awaited_once_with(str(M.SESSION_ERROR))
+
+    async def test_a_callback_is_answered_and_told_in_the_chat(self):
+        callback = MagicMock(answer=AsyncMock(), message=_message())
+
+        await error_handler(_error_event(message=None, callback_query=callback))
+
+        callback.answer.assert_awaited_once_with()
+        callback.message.answer.assert_awaited_once_with(str(M.SESSION_ERROR))
+
+    async def test_an_expired_query_still_gets_the_message(self):
+        """The failure this path exists for is slow enough to outlive the query."""
+        callback = MagicMock(
+            answer=AsyncMock(side_effect=_telegram_error()), message=_message()
+        )
+
+        await error_handler(_error_event(message=None, callback_query=callback))
+
+        callback.message.answer.assert_awaited_once_with(str(M.SESSION_ERROR))
+
+    async def test_a_failure_to_tell_the_user_is_swallowed(self):
+        message = _message()
+        message.answer.side_effect = _telegram_error()
+
+        result = await error_handler(_error_event(message=message, callback_query=None))
+
+        assert result is None
+
+    async def test_a_group_chat_is_left_alone(self):
+        message = _message(ChatType.SUPERGROUP)
+
+        await error_handler(_error_event(message=message, callback_query=None))
+
+        message.answer.assert_not_awaited()
+
+    async def test_a_callback_without_a_message_is_still_answered(self):
+        callback = MagicMock(answer=AsyncMock(), message=None)
+
+        await error_handler(_error_event(message=None, callback_query=callback))
+
+        callback.answer.assert_awaited_once_with()
 
 
 class TestStartupHook:

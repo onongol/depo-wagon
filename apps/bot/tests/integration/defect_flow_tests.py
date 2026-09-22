@@ -283,8 +283,8 @@ class TestAFormLeftOverFromAnEarlierBuild:
 
     Only six of the flow's steps check the None load_defect returns for it; the
     rest assign onto the form. Without the middleware this walk ends in an
-    AttributeError that error_handler logs and swallows, leaving the user with
-    a dead keyboard and no reply — which is what the assertions below pin.
+    AttributeError: error_handler's generic session error, and the stale form
+    left in place to trip the next tap too — the assertions below pin the reset.
     """
 
     async def _mid_flow_with_a_foreign_schema(self, dp, bot, state):

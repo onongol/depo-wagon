@@ -319,6 +319,26 @@ class TestUnroutedUpdates:
         assert await state.get_state() == DefectSG.photo.state
 
 
+class TestAFailedEmployeeLookup:
+    """The middleware raises; the reply comes from error_handler, as for any fault."""
+
+    LOOKUP = "apps.bot.middlewares.employee.services.get_employee_by_telegram_id"
+
+    async def test_a_message_is_told_the_session_failed(self, dp, bot, session):
+        with patch(self.LOOKUP, AsyncMock(side_effect=RuntimeError("db down"))):
+            await dp.feed_update(bot, make_message_update("/my_tasks", command=True))
+
+        sent = [m.text for m in session.calls("sendMessage")]
+        assert sent == [str(M.SESSION_ERROR)]
+
+    async def test_a_callback_is_answered_and_told(self, dp, bot, session):
+        with patch(self.LOOKUP, AsyncMock(side_effect=RuntimeError("db down"))):
+            await dp.feed_update(bot, make_callback_update(TasksPageCB(page=2).pack()))
+
+        assert session.method_names() == ["answerCallbackQuery", "sendMessage"]
+        assert session.calls("sendMessage")[0].text == str(M.SESSION_ERROR)
+
+
 class TestHandlersThatNeedNoEmployee:
     """The lookup follows the handler's signature, so these must not trigger it."""
 

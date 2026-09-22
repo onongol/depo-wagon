@@ -394,32 +394,19 @@ class TestEmployeeMiddleware:
         lookup.assert_not_awaited()
         handler.assert_awaited_once()
 
-    async def test_a_failed_lookup_never_reaches_the_handler(self):
-        from apps.bot.messages import BotMessages as M
+    async def test_a_failed_lookup_is_left_to_the_error_handler(self):
+        from aiogram.dispatcher.event.handler import HandlerObject
 
-        message = _spec_message()
+        from apps.bot.middlewares import EmployeeMiddleware
 
-        result, handler, _, _ = await self._call(
-            _takes_employee,
-            event=message,
-            lookup=AsyncMock(side_effect=RuntimeError("db down")),
-        )
+        handler = AsyncMock()
+        data = {
+            "handler": HandlerObject(callback=_takes_employee),
+            "event_from_user": MagicMock(id=777),
+        }
+        lookup = AsyncMock(side_effect=RuntimeError("db down"))
 
-        assert result is None
-        handler.assert_not_awaited()
-        message.answer.assert_awaited_once_with(str(M.SESSION_ERROR))
-
-    async def test_a_failed_lookup_on_a_callback_is_answered(self):
-        from apps.bot.messages import BotMessages as M
-
-        callback = _spec_callback()
-
-        _, handler, _, _ = await self._call(
-            _takes_employee,
-            event=callback,
-            lookup=AsyncMock(side_effect=RuntimeError("db down")),
-        )
+        with patch(self.LOOKUP, lookup), pytest.raises(RuntimeError, match="db down"):
+            await EmployeeMiddleware()(handler, _spec_message(), data)
 
         handler.assert_not_awaited()
-        callback.answer.assert_awaited_once_with()
-        callback.message.answer.assert_awaited_once_with(str(M.SESSION_ERROR))

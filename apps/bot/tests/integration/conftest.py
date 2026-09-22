@@ -29,6 +29,13 @@ _update_ids = count(1)
 _message_ids = count(1)
 
 
+@pytest.fixture(autouse=True)
+def _no_connection_cleanup():
+    """pytest-django blocks the touch once an earlier test left a connection open."""
+    with patch("apps.bot.middlewares.db.close_old_connections"):
+        yield
+
+
 @pytest.fixture
 def bot():
     return make_mocked_bot()
