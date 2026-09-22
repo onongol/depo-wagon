@@ -80,6 +80,14 @@ class TestMiddlewareAndHooks:
 
         assert any(isinstance(m, CloseOldConnectionsMiddleware) for m in registered)
 
+    def test_the_ai_chat_timeout_is_checked_before_any_router(self, dispatcher):
+        """On a router, an earlier one claiming the update would skip the check."""
+        from apps.bot.middlewares import AiChatTimeoutMiddleware
+
+        registered = dispatcher.update.outer_middleware[:]
+
+        assert any(isinstance(m, AiChatTimeoutMiddleware) for m in registered)
+
     @pytest.mark.parametrize("observer", ["message", "callback_query"])
     def test_the_employee_is_loaded_for_messages_and_callbacks(
         self, dispatcher, observer

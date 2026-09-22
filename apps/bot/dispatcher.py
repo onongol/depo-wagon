@@ -8,7 +8,11 @@ from aiogram.types import BotCommand, MenuButtonCommands
 from django.utils.translation import gettext_lazy as _
 
 from apps.bot.messages import BotMessages as M
-from apps.bot.middlewares import CloseOldConnectionsMiddleware, EmployeeMiddleware
+from apps.bot.middlewares import (
+    AiChatTimeoutMiddleware,
+    CloseOldConnectionsMiddleware,
+    EmployeeMiddleware,
+)
 
 if TYPE_CHECKING:
     from aiogram.fsm.storage.base import BaseEventIsolation, BaseStorage
@@ -99,6 +103,10 @@ def make_dispatcher(
     # ahead of every filter — where PTB closed connections by overriding
     # Application.process_update.
     dp.update.outer_middleware(CloseOldConnectionsMiddleware())
+
+    # Global rather than on the ai_chat router: a router earlier in the chain
+    # claiming the update would otherwise leave an expired session standing.
+    dp.update.outer_middleware(AiChatTimeoutMiddleware())
 
     # Inner, so it reaches the handlers of every included router
     employee = EmployeeMiddleware()

@@ -2,7 +2,6 @@ import time
 from typing import TYPE_CHECKING, Any
 
 from aiogram import BaseMiddleware
-from aiogram.dispatcher.event.bases import UNHANDLED
 
 from apps.bot.constants import UD_AI_CHAT_LAST
 from apps.bot.states import AiChatSG
@@ -23,14 +22,17 @@ class AiChatTimeoutMiddleware(BaseMiddleware):
         event: TelegramObject,
         data: dict[str, Any],
     ) -> Any:
-        state: FSMContext = data["state"]
+        state: FSMContext | None = data.get("state")
 
-        if await state.get_state() == AiChatSG.chatting.state:
+        if state is None:
+            return await handler(event, data)
+
+        if data.get("raw_state") == AiChatSG.chatting.state:
             last = (await state.get_data()).get(UD_AI_CHAT_LAST)
 
             if last is not None and time.time() - last > AI_CHAT_TIMEOUT:
                 await state.clear()
-                return UNHANDLED
+                data["raw_state"] = None
 
         result = await handler(event, data)
 

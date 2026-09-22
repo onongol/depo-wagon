@@ -203,6 +203,19 @@ class TestAiChatPrecedence:
         assert sent == [str(M.HELP_TEXT)]
         assert await state.get_state() is None
 
+    async def test_a_router_ahead_of_ai_chat_still_expires_the_session(
+        self, dp, bot, state, employee
+    ):
+        """tasks sits before ai_chat, so only a global check catches this one."""
+        with as_employee(employee):
+            await dp.feed_update(bot, make_message_update("/ask", command=True))
+        await state.update_data({UD_AI_CHAT_LAST: time.time() - AI_CHAT_TIMEOUT - 1})
+
+        with as_employee(employee):
+            await dp.feed_update(bot, make_message_update("/my_tasks", command=True))
+
+        assert await state.get_state() is None
+
     async def test_a_question_in_the_session_reaches_the_assistant(
         self, dp, bot, session, state, employee
     ):

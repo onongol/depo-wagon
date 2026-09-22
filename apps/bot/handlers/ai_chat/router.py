@@ -5,7 +5,6 @@ from apps.bot.constants import BTN_ASK
 from apps.bot.filters import NotACommand
 from apps.bot.handlers.common.cancel import cancel
 from apps.bot.keyboards.menu import MENU_TEXTS
-from apps.bot.middlewares import AiChatTimeoutMiddleware
 from apps.bot.states import AiChatSG
 
 from .receive import ai_chat_receive
@@ -19,7 +18,6 @@ def get_ai_chat_router() -> Router:
     question, which is what PTB's _MENU_TEXTS fallback did.
     """
     router = Router(name="ai_chat")
-    router.message.outer_middleware(AiChatTimeoutMiddleware())
 
     router.message.register(ai_chat_start, Command("ask"))
     router.message.register(ai_chat_start, F.text == str(BTN_ASK))

@@ -4,7 +4,6 @@ import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from aiogram.dispatcher.event.bases import UNHANDLED
 from aiogram.exceptions import TelegramAPIError
 from aiogram.types import CallbackQuery, Message
 
@@ -77,11 +76,13 @@ class TestAiChatTimeoutMiddleware:
     Unobservable difference — state is only ever inspected when one arrives.
     """
 
-    async def _call(self, state, handler=None):
+    async def _call(self, state, handler=None, data=None):
         from apps.bot.middlewares import AiChatTimeoutMiddleware
 
         handler = handler or AsyncMock(return_value="handled")
-        result = await AiChatTimeoutMiddleware()(handler, MagicMock(), {"state": state})
+        data = data if data is not None else {}
+        data.update({"state": state, "raw_state": await state.get_state()})
+        result = await AiChatTimeoutMiddleware()(handler, MagicMock(), data)
         return result, handler
 
     async def test_passes_through_outside_the_ai_chat(self, state):
@@ -112,12 +113,12 @@ class TestAiChatTimeoutMiddleware:
 
         result, handler = await self._call(state)
 
-        assert result is UNHANDLED
-        handler.assert_not_awaited()
+        assert result == "handled"
+        handler.assert_awaited_once()
         assert await state.get_state() is None
 
     async def test_an_expired_session_lets_the_update_reach_later_routers(self, state):
-        """UNHANDLED is what makes a menu button fall through instead of being eaten."""
+        """The cleared state must reach the filters, which read raw_state from data."""
         from apps.bot.constants import UD_AI_CHAT_LAST
         from apps.bot.middlewares import AI_CHAT_TIMEOUT
         from apps.bot.states import AiChatSG
@@ -125,9 +126,21 @@ class TestAiChatTimeoutMiddleware:
         await state.set_state(AiChatSG.chatting)
         await state.update_data({UD_AI_CHAT_LAST: time.time() - AI_CHAT_TIMEOUT - 1})
 
-        result, _ = await self._call(state)
+        data = {}
+        await self._call(state, data=data)
 
-        assert result is UNHANDLED
+        assert data["raw_state"] is None
+
+    async def test_an_event_with_no_fsm_context_passes_through(self):
+        """Global now, so chat-only events reach it with no state resolved."""
+        from apps.bot.middlewares import AiChatTimeoutMiddleware
+
+        handler = AsyncMock(return_value="handled")
+
+        result = await AiChatTimeoutMiddleware()(handler, MagicMock(), {})
+
+        assert result == "handled"
+        handler.assert_awaited_once()
 
     async def test_a_session_with_no_stamp_is_not_expired(self, state):
         from apps.bot.states import AiChatSG
