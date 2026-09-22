@@ -1,5 +1,3 @@
-"""Django connection hygiene."""
-
 from typing import TYPE_CHECKING, Any
 
 from aiogram import BaseMiddleware
