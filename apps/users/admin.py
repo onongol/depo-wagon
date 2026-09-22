@@ -16,3 +16,8 @@ class CustomUserAdmin(ModelAdmin):
     list_filter = ["is_staff", "is_active"]
     search_fields = ["email", "first_name", "last_name"]
     readonly_fields = ["date_joined", "last_login"]
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj is not None and hasattr(obj, "employee"):
+            return [*self.readonly_fields, "is_active"]
+        return self.readonly_fields
