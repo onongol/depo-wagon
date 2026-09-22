@@ -27,8 +27,14 @@ class AiChatTimeoutMiddleware(BaseMiddleware):
 
         if await state.get_state() == AiChatSG.chatting.state:
             last = (await state.get_data()).get(UD_AI_CHAT_LAST)
+
             if last is not None and time.time() - last > AI_CHAT_TIMEOUT:
                 await state.clear()
                 return UNHANDLED
 
-        return await handler(event, data)
+        result = await handler(event, data)
+
+        if await state.get_state() == AiChatSG.chatting.state:
+            await state.update_data({UD_AI_CHAT_LAST: time.time()})
+
+        return result

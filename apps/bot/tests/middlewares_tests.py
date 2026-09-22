@@ -139,6 +139,47 @@ class TestAiChatTimeoutMiddleware:
         assert result == "handled"
         handler.assert_awaited_once()
 
+    async def test_stamps_the_session_after_the_handler_runs(self, state):
+        """The middleware owns the stamp now — no handler has to remember it."""
+        from apps.bot.constants import UD_AI_CHAT_LAST
+        from apps.bot.states import AiChatSG
+
+        await state.set_state(AiChatSG.chatting)
+        await state.update_data({UD_AI_CHAT_LAST: time.time() - 5})
+
+        before = time.time()
+        await self._call(state)
+
+        assert (await state.get_data())[UD_AI_CHAT_LAST] >= before
+
+    async def test_stamps_a_session_the_handler_just_started(self, state):
+        """Covers ai_chat_start: not chatting on entry, chatting once handler returns."""
+        from apps.bot.constants import UD_AI_CHAT_LAST
+        from apps.bot.states import AiChatSG
+
+        async def handler(event, data):
+            await data["state"].set_state(AiChatSG.chatting)
+            return "handled"
+
+        before = time.time()
+        await self._call(state, handler=handler)
+
+        assert (await state.get_data())[UD_AI_CHAT_LAST] >= before
+
+    async def test_does_not_stamp_a_session_the_handler_ended(self, state):
+        """Covers cancel: the handler clears the state, so there's nothing to stamp."""
+        from apps.bot.constants import UD_AI_CHAT_LAST
+        from apps.bot.states import AiChatSG
+
+        async def handler(event, data):
+            await data["state"].clear()
+            return "handled"
+
+        await state.set_state(AiChatSG.chatting)
+        await self._call(state, handler=handler)
+
+        assert UD_AI_CHAT_LAST not in await state.get_data()
+
 
 def _spec_message() -> MagicMock:
     """spec'd, unlike the shared builders: the middleware branches on isinstance."""

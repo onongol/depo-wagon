@@ -1,7 +1,6 @@
 import asyncio
 import contextlib
 import logging
-import time
 from http import HTTPStatus
 from typing import TYPE_CHECKING
 
@@ -9,7 +8,7 @@ from aiogram.exceptions import TelegramAPIError
 from google.genai.errors import ServerError
 
 from apps.ai_service.rag.chat import ContentBlockedError, answer_question
-from apps.bot.constants import UD_AI_CHAT_HISTORY, UD_AI_CHAT_LAST
+from apps.bot.constants import UD_AI_CHAT_HISTORY
 from apps.bot.messages import BotMessages as M
 
 if TYPE_CHECKING:
@@ -43,7 +42,6 @@ async def ai_chat_receive(message: Message, state: FSMContext) -> None:
         logger.warning("Could not send thinking message for user %s", user_id)
         return
 
-    await state.update_data({UD_AI_CHAT_LAST: time.time()})
     history: list[dict] = (await state.get_data()).get(UD_AI_CHAT_HISTORY, [])
 
     try:

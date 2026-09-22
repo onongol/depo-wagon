@@ -1,11 +1,10 @@
 import contextlib
 import logging
-import time
 from typing import TYPE_CHECKING
 
 from aiogram.exceptions import TelegramAPIError
 
-from apps.bot.constants import UD_AI_CHAT_HISTORY, UD_AI_CHAT_LAST
+from apps.bot.constants import UD_AI_CHAT_HISTORY
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import AiChatSG
 
@@ -28,7 +27,7 @@ async def ai_chat_start(
             await message.answer(str(M.NOT_REGISTERED))
         return
 
-    await state.update_data({UD_AI_CHAT_HISTORY: [], UD_AI_CHAT_LAST: time.time()})
+    await state.update_data({UD_AI_CHAT_HISTORY: []})
 
     try:
         await message.answer(str(M.AI_CHAT_GREETING), parse_mode=M.PARSE_MODE)
