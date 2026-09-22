@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Any
 
 from aiogram import BaseMiddleware
+from asgiref.sync import sync_to_async
 from django.db import close_old_connections
 
 if TYPE_CHECKING:
@@ -18,5 +19,5 @@ class CloseOldConnectionsMiddleware(BaseMiddleware):
         event: TelegramObject,
         data: dict[str, Any],
     ) -> Any:
-        close_old_connections()
+        await sync_to_async(close_old_connections)()
         return await handler(event, data)
