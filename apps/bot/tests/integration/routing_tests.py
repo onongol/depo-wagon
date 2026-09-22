@@ -237,6 +237,26 @@ class TestAiChatPrecedence:
         ]
         assert await state.get_state() == AiChatSG.chatting.state
 
+    async def test_a_session_ends_once_the_employee_is_gone(
+        self, dp, bot, session, state, employee
+    ):
+        """The idle timeout never fires while the user keeps typing."""
+        with as_employee(employee):
+            await dp.feed_update(bot, make_message_update("/ask", command=True))
+        session.clear()
+
+        answer = AsyncMock()
+        with (
+            as_employee(None),
+            patch("apps.bot.handlers.ai_chat.receive.answer_question", answer),
+        ):
+            await dp.feed_update(bot, make_message_update("What is the tolerance?"))
+
+        answer.assert_not_awaited()
+        sent = [m.text for m in session.calls("sendMessage")]
+        assert sent == [str(M.NOT_REGISTERED)]
+        assert await state.get_state() is None
+
     async def test_the_help_button_gets_help_eleven_minutes_on(
         self, dp, bot, session, state, employee
     ):

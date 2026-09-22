@@ -15,6 +15,8 @@ if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
     from aiogram.types import Message
 
+    from apps.core.models import Employee
+
 logger = logging.getLogger(__name__)
 
 _HISTORY_KEEP = 4
@@ -27,12 +29,21 @@ async def _safe_edit(msg: Message, text: str) -> None:
         await msg.edit_text(text)
 
 
-async def ai_chat_receive(message: Message, state: FSMContext) -> None:
+async def ai_chat_receive(
+    message: Message, state: FSMContext, employee: Employee | None
+) -> None:
     """Answer a user question through the RAG generator and reply with it.
 
-    Never leaves the conversation: every failure path edits the placeholder and
-    stays in AiChatSG.chatting, so the user can just ask again.
+    An AI failure never leaves the conversation: it edits the placeholder and
+    stays in AiChatSG.chatting, so the user can just ask again. A chat that
+    lost its employee mid-session does leave it.
     """
+    if not employee:
+        await state.clear()
+        with contextlib.suppress(TelegramAPIError):
+            await message.answer(str(M.NOT_REGISTERED))
+        return
+
     question = message.text.strip()
     user_id = message.from_user.id
 
