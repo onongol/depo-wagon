@@ -1,17 +1,3 @@
-"""Idle timeout for the AI chat.
-
-PTB's ConversationHandler took conversation_timeout=600 and ended the
-conversation on a timer. aiogram has no equivalent, so the check runs on the
-next message instead. The difference is unobservable: state is only ever
-inspected when a message arrives.
-
-An outer middleware rather than a check inside the handler, because the ai_chat
-router also owns the menu-text fallback. Checked inside, a menu button pressed
-eleven minutes later would still be eaten by that fallback; returning UNHANDLED
-here clears the state and lets the update carry on to the later routers, which
-is what PTB's proactive timer produced.
-"""
-
 import time
 from typing import TYPE_CHECKING, Any
 
