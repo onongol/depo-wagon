@@ -16,6 +16,12 @@ AI_CHAT_TIMEOUT = 600.0
 
 
 class AiChatTimeoutMiddleware(BaseMiddleware):
+    """End an idle /ask session on the next update rather than on a timer.
+
+    Clearing the state resets raw_state too — filters read it from data, not
+    from storage.
+    """
+
     async def __call__(
         self,
         handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
