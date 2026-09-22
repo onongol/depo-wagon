@@ -14,7 +14,7 @@ TARGET = "apps.bot.middlewares.db.close_old_connections"
 
 
 class TestCloseOldConnectionsMiddleware:
-    async def test_closes_connections_before_the_handler_runs(self):
+    async def test_closes_connections_after_the_handler_runs(self):
         order = []
         middleware = CloseOldConnectionsMiddleware()
 
@@ -25,8 +25,20 @@ class TestCloseOldConnectionsMiddleware:
         with patch(TARGET, side_effect=lambda: order.append("close")):
             result = await middleware(handler, MagicMock(), {})
 
-        assert order == ["close", "handler"]
+        assert order == ["handler", "close"]
         assert result == "result"
+
+    async def test_closes_connections_even_when_the_handler_raises(self):
+        middleware = CloseOldConnectionsMiddleware()
+
+        async def handler(event, data):
+            msg = "boom"
+            raise RuntimeError(msg)
+
+        with patch(TARGET) as close, pytest.raises(RuntimeError, match="boom"):
+            await middleware(handler, MagicMock(), {})
+
+        close.assert_called_once()
 
     async def test_passes_the_event_and_data_through_untouched(self):
         middleware = CloseOldConnectionsMiddleware()

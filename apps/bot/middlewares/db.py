@@ -19,5 +19,7 @@ class CloseOldConnectionsMiddleware(BaseMiddleware):
         event: TelegramObject,
         data: dict[str, Any],
     ) -> Any:
-        await sync_to_async(close_old_connections)()
-        return await handler(event, data)
+        try:
+            return await handler(event, data)
+        finally:
+            await sync_to_async(close_old_connections)()
