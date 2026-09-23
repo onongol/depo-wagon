@@ -20,7 +20,6 @@ logger = logging.getLogger(__name__)
 
 
 async def show_welcome_menu(message: Message, employee) -> None:
-    """Send the main menu greeting to the user."""
     await message.answer(
         str(M.WELCOME_MENU).format(
             full_name=html.escape(employee.full_name),
@@ -32,11 +31,6 @@ async def show_welcome_menu(message: Message, employee) -> None:
 
 
 async def start(message: Message, employee: Employee | None) -> None:
-    """A bare /start with no token, which is just "who am I".
-
-    An unattached chat is told to go and connect from the web app, because this
-    bot cannot establish anybody's identity on its own.
-    """
     if employee:
         await show_welcome_menu(message, employee)
         return
@@ -48,18 +42,6 @@ async def start(message: Message, employee: Employee | None) -> None:
 
 
 async def start_with_link(message: Message, command: CommandObject) -> None:
-    """/start from a deep link: spend the token, then ask before attaching.
-
-    Telegram passes the payload of a ``t.me/<bot>?start=<token>`` deep link as
-    the argument to /start, which is how the web app hands this chat a token it
-    issued for an already-authenticated employee. There is nothing to verify
-    here: the web session established who they are before the token existed.
-
-    Nothing is attached here. A deep link can be forwarded, so the chat that
-    followed it is asked to confirm out loud which account it is about to take
-    over. Spending the token first keeps it single-use while that question
-    waits for an answer.
-    """
     employee, status = await services.resolve_link_token(command.args)
     if status is not LinkStatus.OK:
         await message.answer(
@@ -76,7 +58,6 @@ async def start_with_link(message: Message, command: CommandObject) -> None:
 
 
 async def confirm_link(callback: CallbackQuery, callback_data: LinkConfirmCB) -> None:
-    """Attach the chat, if it still holds the offer that named this employee."""
     await callback.answer()
 
     employee_id = callback_data.employee_id
@@ -100,7 +81,6 @@ async def confirm_link(callback: CallbackQuery, callback_data: LinkConfirmCB) ->
 
 
 async def cancel_link(callback: CallbackQuery) -> None:
-    """Drop a link the person declined."""
     await callback.answer()
     try:
         await services.forget_pending_link(callback.from_user.id)
