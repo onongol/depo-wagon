@@ -22,6 +22,7 @@ from apps.bot.constants import UD_DEFECT, UD_EDITING, UD_RESP_SEARCH
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.common.cancel import cancel
 from apps.bot.handlers.common.help import help_command
+from apps.bot.handlers.common.text import build_cancelled_text
 from apps.bot.handlers.common.utils import clamp_page
 from apps.bot.handlers.defect.defect_type import receive_defect_type
 from apps.bot.handlers.defect.department import receive_department
@@ -82,9 +83,7 @@ class TestCancelHandler:
 
         await cancel(message, state)
 
-        message.answer.assert_awaited_once_with(
-            str(M.CANCELLED), parse_mode=M.PARSE_MODE
-        )
+        message.answer.assert_awaited_once_with(**build_cancelled_text().as_kwargs())
 
     async def test_tolerates_an_idle_conversation(self, state):
         await cancel(make_message(), state)

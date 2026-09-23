@@ -14,8 +14,6 @@ class CommonMessages:
         "Register and track wagon defects with photos, measurements and AI analysis."
     )
 
-    CANCELLED = _("❌ Cancelled.")
-
     SESSION_ERROR = _(
         "⚠️ Something went wrong. Try again, or send /cancel to start over."
     )

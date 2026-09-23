@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from apps.bot.messages import BotMessages as M
+from apps.bot.handlers.common.text import build_cancelled_text
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
@@ -9,4 +9,4 @@ if TYPE_CHECKING:
 
 async def cancel(message: Message, state: FSMContext) -> None:
     await state.clear()
-    await message.answer(str(M.CANCELLED), parse_mode=M.PARSE_MODE)
+    await message.answer(**build_cancelled_text().as_kwargs())

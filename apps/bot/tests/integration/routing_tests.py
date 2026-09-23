@@ -30,6 +30,7 @@ from apps.bot.constants import (
 from apps.bot.dispatcher import _BOT_COMMANDS, make_dispatcher
 from apps.bot.fsm import save_defect
 from apps.bot.handlers.common.link_errors import get_link_error_message
+from apps.bot.handlers.common.text import build_cancelled_text
 from apps.bot.handlers.support.utils import remember_request
 from apps.bot.keyboards.menu import MENU_TEXTS
 from apps.bot.messages import BotMessages as M
@@ -195,7 +196,7 @@ class TestAiChatPrecedence:
         await dp.feed_update(bot, make_message_update(str(BTN_HELP)))
 
         sent = [m.text for m in session.calls("sendMessage")]
-        assert sent == [str(M.CANCELLED)]
+        assert sent == [build_cancelled_text().render()[0]]
         assert await state.get_state() is None
 
     async def test_an_expired_session_lets_the_button_through_to_help(
@@ -311,7 +312,8 @@ class TestSupportPrecedence:
             await dp.feed_update(bot, make_message_update(str(button)))
 
         sent = session.calls("sendMessage")
-        assert [(m.chat_id, m.text) for m in sent] == [(CHAT_ID, str(M.CANCELLED))]
+        cancelled = build_cancelled_text().render()[0]
+        assert [(m.chat_id, m.text) for m in sent] == [(CHAT_ID, cancelled)]
         assert await state.get_state() is None
 
     async def test_a_question_is_still_relayed(self, dp, bot, session, state, employee):
