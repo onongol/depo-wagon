@@ -435,6 +435,22 @@ class TestAFailedEmployeeLookup:
         assert session.calls("sendMessage")[0].text == str(M.SESSION_ERROR)
 
 
+class TestAFailedDeepLink:
+    """start_with_link catches nothing itself; error_handler answers for it."""
+
+    async def test_the_chat_is_told_the_session_failed(self, dp, bot, session):
+        with patch("apps.bot.handlers.common.start.services") as svc:
+            svc.resolve_link_token = AsyncMock(
+                side_effect=ConnectionError("redis down")
+            )
+            await dp.feed_update(
+                bot, make_message_update("/start sometoken", command=True)
+            )
+
+        sent = [m.text for m in session.calls("sendMessage")]
+        assert sent == [str(M.SESSION_ERROR)]
+
+
 class TestHandlersThatNeedNoEmployee:
     """The lookup follows the handler's signature, so these must not trigger it."""
 

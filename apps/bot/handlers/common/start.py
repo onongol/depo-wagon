@@ -17,22 +17,18 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_RESOLVE_ERROR_TEXT = {
+_LINK_STATUS_TEXT = {
     LinkStatus.INVALID_TOKEN: M.LINK_TOKEN_INVALID,
-    LinkStatus.NO_EMPLOYEE: M.LINK_NO_EMPLOYEE,
-}
-
-_ATTACH_ERROR_TEXT = {
     LinkStatus.NO_EMPLOYEE: M.LINK_NO_EMPLOYEE,
     LinkStatus.ALREADY_LINKED: M.LINK_ALREADY_TAKEN,
 }
 
 
-def _error_text(texts: dict, status: LinkStatus):
+def _error_text(status: LinkStatus):
     """Never leave the chat without an answer, and say so in the log."""
-    text = texts.get(status)
+    text = _LINK_STATUS_TEXT.get(status)
     if text is None:
-        logger.error("Link status %s has no message on this path", status)
+        logger.error("Link status %s has no message", status)
         return M.SESSION_ERROR
     return text
 
@@ -78,25 +74,12 @@ async def start_with_link(message: Message, command: CommandObject) -> None:
     over. Spending the token first keeps it single-use while that question
     waits for an answer.
     """
-    try:
-        employee, status = await services.resolve_link_token(command.args)
-    except Exception:
-        logger.exception("Resolving a link token failed")
-        await message.answer(str(M.SESSION_ERROR))
-        return
-
+    employee, status = await services.resolve_link_token(command.args)
     if status is not LinkStatus.OK:
-        text = _error_text(_RESOLVE_ERROR_TEXT, status)
-        await message.answer(str(text), parse_mode=M.PARSE_MODE)
+        await message.answer(str(_error_text(status)), parse_mode=M.PARSE_MODE)
         return
 
-    try:
-        await services.remember_pending_link(message.from_user.id, employee.pk)
-    except Exception:
-        logger.exception("Recording the pending link failed")
-        await message.answer(str(M.SESSION_ERROR))
-        return
-
+    await services.remember_pending_link(message.from_user.id, employee.pk)
     await message.answer(
         str(M.LINK_CONFIRM).format(full_name=html.escape(employee.full_name)),
         parse_mode=M.PARSE_MODE,
@@ -137,8 +120,9 @@ async def confirm_link(callback: CallbackQuery, callback_data: LinkConfirmCB) ->
         return
 
     if status is not LinkStatus.OK:
-        text = _error_text(_ATTACH_ERROR_TEXT, status)
-        await callback.message.edit_text(str(text), parse_mode=M.PARSE_MODE)
+        await callback.message.edit_text(
+            str(_error_text(status)), parse_mode=M.PARSE_MODE
+        )
         return
 
     await callback.message.edit_text(str(M.LINK_OK), parse_mode=M.PARSE_MODE)
