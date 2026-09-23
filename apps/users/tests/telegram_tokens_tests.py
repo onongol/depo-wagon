@@ -51,6 +51,29 @@ class TestConcurrentRedemption:
 
         assert telegram_tokens.redeem(token) is None
 
+    def test_a_token_issued_mid_redeem_stays_revocable(self, monkeypatch):
+        spent = telegram_tokens.issue(42)
+        fresh = []
+
+        class PageReloadsMidRedeem:
+            """The connect page issues again between our spend and our cleanup."""
+
+            def __getattr__(self, name):
+                return getattr(cache, name)
+
+            def delete(self, key, *args, **kwargs):
+                deleted = cache.delete(key, *args, **kwargs)
+                if not fresh:
+                    fresh.append(telegram_tokens.issue(42))
+                return deleted
+
+        monkeypatch.setattr(telegram_tokens, "cache", PageReloadsMidRedeem())
+        assert telegram_tokens.redeem(spent) == 42
+        monkeypatch.undo()
+
+        telegram_tokens.issue(42)
+        assert telegram_tokens.redeem(fresh[0]) is None
+
 
 class TestTokensAreStoredHashed:
     """Reading the cache must not hand anybody a working token."""
@@ -84,5 +107,22 @@ class TestOnlyOneLiveTokenPerUser:
 
     def test_a_redeemed_user_can_be_issued_a_working_token_again(self):
         telegram_tokens.redeem(telegram_tokens.issue(42))
+        token = telegram_tokens.issue(42)
+        assert telegram_tokens.redeem(token) == 42
+
+
+class TestRevoke:
+    def test_revoke_kills_the_live_token(self):
+        token = telegram_tokens.issue(42)
+        telegram_tokens.revoke(42)
+        assert telegram_tokens.redeem(token) is None
+
+    def test_revoke_is_scoped_to_one_user(self):
+        theirs = telegram_tokens.issue(1)
+        telegram_tokens.revoke(2)
+        assert telegram_tokens.redeem(theirs) == 1
+
+    def test_revoking_with_nothing_issued_is_harmless(self):
+        telegram_tokens.revoke(42)
         token = telegram_tokens.issue(42)
         assert telegram_tokens.redeem(token) == 42

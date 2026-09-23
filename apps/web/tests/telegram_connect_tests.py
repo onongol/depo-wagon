@@ -1,12 +1,13 @@
 import pytest
 from aiogram.utils.deep_linking import BAD_PATTERN, DEEPLINK_PAYLOAD_LENGTH
 from allauth.account.models import EmailAddress
-from django.contrib.auth import get_user_model
+from django.contrib.auth import SESSION_KEY, get_user_model
 from django.core.cache import cache
 from django.urls import reverse
 from model_bakery import baker
 
 from apps.core.constants import EmployeeRole
+from apps.users import telegram_tokens
 
 User = get_user_model()
 
@@ -64,8 +65,6 @@ class TestTelegramConnectPage:
         r = client.get(reverse("web:telegram_connect"))
         token = r.context["deep_link"].split("start=")[1]
 
-        from apps.users import telegram_tokens
-
         assert telegram_tokens.redeem(token) == user.pk
 
     def test_reloading_the_page_revokes_the_earlier_link(self, client, settings):
@@ -76,9 +75,14 @@ class TestTelegramConnectPage:
         stale = client.get(url).context["deep_link"].split("start=")[1]
         client.get(url)
 
-        from apps.users import telegram_tokens
-
         assert telegram_tokens.redeem(stale) is None
+
+    def test_the_browser_is_told_not_to_keep_the_page(self, client, settings):
+        settings.TELEGRAM_BOT_USERNAME = "depo_bot"
+        user, _ = _make_employee_user()
+        client.force_login(user)
+        r = client.get(reverse("web:telegram_connect"))
+        assert "no-store" in r["Cache-Control"]
 
     def test_linked_employee_is_offered_no_new_link(self, client, settings):
         settings.TELEGRAM_BOT_USERNAME = "depo_bot"
@@ -95,6 +99,44 @@ class TestTelegramConnectPage:
         r = client.get(reverse("web:telegram_connect"))
         assert r.status_code == 200
         assert "deep_link" not in r.context or r.context["deep_link"] is None
+
+
+@pytest.mark.django_db
+class TestLinkDiesWithTheSession:
+    """A link left on a shared screen must not work for whoever sits down next."""
+
+    @pytest.fixture
+    def token(self, client, settings):
+        settings.TELEGRAM_BOT_USERNAME = "depo_bot"
+        user, _ = _make_employee_user()
+        client.force_login(user)
+        r = client.get(reverse("web:telegram_connect"))
+        return r.context["deep_link"].split("start=")[1]
+
+    def test_logging_out_revokes_the_link(self, client, token):
+        client.post(reverse("account_logout"))
+        assert telegram_tokens.redeem(token) is None
+
+    def test_changing_the_password_revokes_the_link(self, client, token):
+        new_password = "Rail-depot-2026!"
+        client.post(
+            reverse("account_change_password"),
+            {
+                "oldpassword": "pass12345",
+                "password1": new_password,
+                "password2": new_password,
+            },
+        )
+        assert User.objects.get(email="tg@depot.mn").check_password(new_password)
+        assert telegram_tokens.redeem(token) is None
+
+    def test_a_cache_outage_does_not_block_logout(self, client, token, monkeypatch):
+        def cache_down(user_id):
+            raise ConnectionError
+
+        monkeypatch.setattr(telegram_tokens, "revoke", cache_down)
+        client.post(reverse("account_logout"))
+        assert SESSION_KEY not in client.session
 
 
 @pytest.mark.django_db

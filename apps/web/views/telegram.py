@@ -3,6 +3,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.shortcuts import redirect, render
 from django.utils.translation import gettext_lazy as _
+from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 
 from apps.users import telegram_tokens
@@ -10,6 +11,8 @@ from apps.users.notifications import DISCONNECTED, notify_telegram_link_change
 from apps.web.decorators import employee_required
 
 
+# Back after logout must not bring a live link back on screen.
+@never_cache
 @employee_required
 def telegram_connect(request):
     """Show whether this employee's Telegram is attached, and offer to attach it.

@@ -31,9 +31,7 @@ def issue(user_id: int) -> str:
     tokens live until they expire. Both belong to the same user, so the cost is
     a link that outlives its page, not a wider door.
     """
-    previous = cache.get(_user_key(user_id))
-    if previous:
-        cache.delete(_key(previous))
+    revoke(user_id)
 
     token = secrets.token_urlsafe(_TOKEN_BYTES)
     digest = _digest(token)
@@ -55,7 +53,8 @@ def redeem(token: str) -> int | None:
     if not token:
         return None
 
-    key = _key(_digest(token))
+    digest = _digest(token)
+    key = _key(digest)
     user_id = cache.get(key)
     if user_id is None:
         return None
@@ -63,5 +62,16 @@ def redeem(token: str) -> int | None:
     if not cache.delete(key):
         return None
 
-    cache.delete(_user_key(user_id))
+    # The page may have issued a newer token meanwhile; its index must survive.
+    user_key = _user_key(user_id)
+    if cache.get(user_key) == digest:
+        cache.delete(user_key)
     return user_id
+
+
+def revoke(user_id: int) -> None:
+    """Kill this user's live token, if any, such as one left on a screen."""
+    user_key = _user_key(user_id)
+    digest = cache.get(user_key)
+    if digest:
+        cache.delete_many([_key(digest), user_key])
