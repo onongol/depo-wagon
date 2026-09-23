@@ -1,19 +1,3 @@
-"""Updates that no handler claimed.
-
-A tap only reaches here once every registered filter has declined it, which is
-the whole test: a payload whose shape changed across a deploy no longer matches
-its own factory's filter, so it arrives alongside the buttons the PTB build
-sent before cutover. Both are dead in the same way and both get told so rather
-than left spinning.
-
-Two things stay silent, and both are scoped rather than global. The layout
-spacer is registered ahead of this one, or tapping a blank button would wipe
-out the employee list. And a stray tap while a defect form is open never gets
-this far — defect.cancel.stale_callback is registered last inside the flow
-router under StateFilter(DefectSG), which is what keeps a mid-form misfire from
-replacing the form with an expired-button notice.
-"""
-
 import inspect
 import logging
 from typing import TYPE_CHECKING
