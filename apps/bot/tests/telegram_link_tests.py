@@ -12,8 +12,8 @@ from model_bakery import baker
 
 from apps.bot.callback_data import CB_LINK_CANCEL, LinkConfirmCB
 from apps.bot.constants import LinkStatus
+from apps.bot.handlers.common.link_errors import _STATUS_MESSAGES
 from apps.bot.handlers.common.start import (
-    _LINK_STATUS_TEXT,
     cancel_link,
     confirm_link,
     start,
@@ -353,7 +353,7 @@ class TestStartHandler:
             await start_with_link(message, command)
         svc.attach_telegram.assert_not_called()
 
-    @pytest.mark.parametrize("status", sorted(_LINK_STATUS_TEXT))
+    @pytest.mark.parametrize("status", sorted(_STATUS_MESSAGES))
     async def test_unresolvable_token_offers_nothing(self, status):
         message = make_message()
         command = make_command("sometoken")
@@ -407,7 +407,7 @@ class TestConfirmLink:
             await confirm_link(callback, callback_data)
         assert menu.await_args.args[1] is employee
 
-    @pytest.mark.parametrize("status", sorted(_LINK_STATUS_TEXT))
+    @pytest.mark.parametrize("status", sorted(_STATUS_MESSAGES))
     async def test_failed_attach_shows_no_menu(self, status):
         callback = make_callback(user_id=12345)
         callback_data = LinkConfirmCB(employee_id=42)
@@ -453,16 +453,16 @@ class TestConfirmLink:
 
 class TestLinkStatusRouting:
     def test_every_failure_status_reaches_a_message(self):
-        assert _LINK_STATUS_TEXT.keys() == set(LinkStatus) - {LinkStatus.OK}
+        assert _STATUS_MESSAGES.keys() == set(LinkStatus) - {LinkStatus.OK}
 
     async def test_an_unrouted_status_still_answers(self, caplog):
         callback = make_callback(user_id=12345)
         callback_data = LinkConfirmCB(employee_id=42)
         with (
             patch("apps.bot.handlers.common.start.services") as svc,
-            patch.dict(_LINK_STATUS_TEXT),
+            patch.dict(_STATUS_MESSAGES),
         ):
-            del _LINK_STATUS_TEXT[LinkStatus.ALREADY_LINKED]
+            del _STATUS_MESSAGES[LinkStatus.ALREADY_LINKED]
             svc.claim_pending_link = AsyncMock(return_value=True)
             svc.attach_telegram = AsyncMock(
                 return_value=(None, LinkStatus.ALREADY_LINKED)

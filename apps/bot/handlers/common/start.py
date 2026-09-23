@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from apps.bot import services
 from apps.bot.constants import LinkStatus
+from apps.bot.handlers.common.link_errors import get_link_error_message
 from apps.bot.keyboards.common import link_confirm_keyboard
 from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.messages import BotMessages as M
@@ -16,21 +17,6 @@ if TYPE_CHECKING:
     from apps.core.models import Employee
 
 logger = logging.getLogger(__name__)
-
-_LINK_STATUS_TEXT = {
-    LinkStatus.INVALID_TOKEN: M.LINK_TOKEN_INVALID,
-    LinkStatus.NO_EMPLOYEE: M.LINK_NO_EMPLOYEE,
-    LinkStatus.ALREADY_LINKED: M.LINK_ALREADY_TAKEN,
-}
-
-
-def _error_text(status: LinkStatus):
-    """Never leave the chat without an answer, and say so in the log."""
-    text = _LINK_STATUS_TEXT.get(status)
-    if text is None:
-        logger.error("Link status %s has no message", status)
-        return M.SESSION_ERROR
-    return text
 
 
 async def show_welcome_menu(message: Message, employee) -> None:
@@ -76,7 +62,9 @@ async def start_with_link(message: Message, command: CommandObject) -> None:
     """
     employee, status = await services.resolve_link_token(command.args)
     if status is not LinkStatus.OK:
-        await message.answer(str(_error_text(status)), parse_mode=M.PARSE_MODE)
+        await message.answer(
+            str(get_link_error_message(status)), parse_mode=M.PARSE_MODE
+        )
         return
 
     await services.remember_pending_link(message.from_user.id, employee.pk)
@@ -121,7 +109,7 @@ async def confirm_link(callback: CallbackQuery, callback_data: LinkConfirmCB) ->
 
     if status is not LinkStatus.OK:
         await callback.message.edit_text(
-            str(_error_text(status)), parse_mode=M.PARSE_MODE
+            str(get_link_error_message(status)), parse_mode=M.PARSE_MODE
         )
         return
 
