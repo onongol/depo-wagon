@@ -332,6 +332,21 @@ class TestAFormLeftOverFromAnEarlierBuild:
         assert await state.get_state() == DefectSG.department.state
         assert (await load_defect(state)).wagon_number == WAGON_NUMBER
 
+    async def test_a_form_left_behind_does_not_hijack_another_feature(
+        self, dp, bot, state, session, flow
+    ):
+        """A failed save leaves the form but not the state; /help still gets help."""
+        from apps.bot.constants import UD_DEFECT
+
+        await self._mid_flow_with_a_foreign_schema(dp, bot, state)
+        await state.set_state(None)
+        session.clear()
+
+        await dp.feed_update(bot, make_message_update("/help", command=True))
+
+        assert [m.text for m in session.calls("sendMessage")] == [str(M.HELP_TEXT)]
+        assert UD_DEFECT not in await state.get_data()
+
 
 class TestHumanFactorBranch:
     async def test_routes_to_the_employee_picker(self, dp, bot, state, flow):

@@ -8,6 +8,7 @@ from aiogram.exceptions import TelegramAPIError
 from aiogram.types import CallbackQuery, InaccessibleMessage, Message
 
 from apps.bot.middlewares import CloseOldConnectionsMiddleware
+from apps.bot.states import DefectSG, SupportSG
 
 TARGET = "apps.bot.middlewares.db.close_old_connections"
 
@@ -222,16 +223,18 @@ class TestStaleSchemaMiddleware:
 
         handler = handler or AsyncMock(return_value="handled")
         event = event if event is not None else _spec_message()
-        result = await StaleSchemaMiddleware()(handler, event, {"state": state})
+        data = {"state": state, "raw_state": await state.get_state()}
+        result = await StaleSchemaMiddleware()(handler, event, data)
         return result, handler
 
-    async def _store_stale_defect(self, state):
+    async def _store_stale_defect(self, state, at=DefectSG.node):
         from apps.bot.constants import UD_DEFECT
         from apps.bot.user_data import STATE_SCHEMA_VERSION, DefectData
 
         stored = DefectData(wagon_number="60123456").to_dict()
         stored["_schema"] = STATE_SCHEMA_VERSION + 1
         await state.update_data({UD_DEFECT: stored})
+        await state.set_state(at)
 
     async def test_passes_through_when_no_form_is_stored(self, state):
         result, handler = await self._call(state)
@@ -258,12 +261,33 @@ class TestStaleSchemaMiddleware:
         assert result is None
         handler.assert_not_awaited()
 
+    async def test_a_form_left_behind_outside_the_flow_does_not_claim_the_update(
+        self, state
+    ):
+        """Failed saves and /ask mid-form leave it; /help must still get help."""
+        await self._store_stale_defect(state, at=None)
+        message = _spec_message()
+
+        result, handler = await self._call(state, event=message)
+
+        assert result == "handled"
+        handler.assert_awaited_once()
+        message.answer.assert_not_awaited()
+
+    async def test_another_flow_keeps_its_state_and_loses_only_the_form(self, state):
+        from apps.bot.constants import UD_DEFECT
+
+        await self._store_stale_defect(state, at=SupportSG.message)
+
+        await self._call(state)
+
+        assert UD_DEFECT not in await state.get_data()
+        assert await state.get_state() == SupportSG.message.state
+
     async def test_a_stale_form_is_dropped_and_the_state_reset(self, state):
         from apps.bot.fsm import load_defect
-        from apps.bot.states import DefectSG
 
-        await self._store_stale_defect(state)
-        await state.set_state(DefectSG.severity)
+        await self._store_stale_defect(state, at=DefectSG.severity)
 
         await self._call(state)
 

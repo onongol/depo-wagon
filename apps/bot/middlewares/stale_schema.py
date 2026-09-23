@@ -9,6 +9,7 @@ from aiogram.types import CallbackQuery, Message
 from apps.bot.constants import UD_DEFECT
 from apps.bot.fsm import clear_defect_keys
 from apps.bot.messages import BotMessages as M
+from apps.bot.states import DefectSG
 from apps.bot.user_data import is_current_schema
 
 if TYPE_CHECKING:
@@ -45,6 +46,14 @@ async def _announce(event: TelegramObject) -> None:
 
 
 class StaleSchemaMiddleware(BaseMiddleware):
+    """Drop a defect form an older build wrote, before any flow step loads it.
+
+    Outer runs ahead of StateFilter, so every feature's updates pass through.
+    Outside DefectSG the form is dropped silently and the update goes on;
+    inside it the update is swallowed, since a step would dereference None
+    and stale_callback would blame the button instead of the form.
+    """
+
     async def __call__(
         self,
         handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
@@ -54,11 +63,15 @@ class StaleSchemaMiddleware(BaseMiddleware):
         state: FSMContext = data["state"]
         stored = (await state.get_data()).get(UD_DEFECT)
 
-        if stored and not is_current_schema(stored):
-            logger.info("Discarding a defect form written by an older state schema")
-            await clear_defect_keys(state)
-            await state.set_state(None)
-            await _announce(event)
-            return None
+        if not stored or is_current_schema(stored):
+            return await handler(event, data)
 
-        return await handler(event, data)
+        logger.info("Discarding a defect form written by an older state schema")
+        await clear_defect_keys(state)
+
+        if data.get("raw_state") not in DefectSG.__all_states_names__:
+            return await handler(event, data)
+
+        await state.set_state(None)
+        await _announce(event)
+        return None
