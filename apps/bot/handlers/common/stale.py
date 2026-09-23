@@ -17,7 +17,6 @@ logger = logging.getLogger(__name__)
 
 
 async def noop_button(callback: CallbackQuery) -> None:
-    """Absorb a spacer tap. Answering is what stops the client spinner."""
     await callback.answer()
 
 
