@@ -12,14 +12,17 @@ from model_bakery import baker
 
 from apps.bot.callback_data import CB_LINK_CANCEL, LinkConfirmCB
 from apps.bot.constants import LinkStatus
-from apps.bot.handlers.common.link_errors import _STATUS_MESSAGES
+from apps.bot.handlers.common.link_errors import (
+    _STATUS_MESSAGES,
+    get_link_error_message,
+)
 from apps.bot.handlers.common.start import (
     cancel_link,
     confirm_link,
     start,
     start_with_link,
 )
-from apps.bot.messages import BotMessages as M
+from apps.bot.handlers.common.text import build_link_cancelled_text
 from apps.bot.services.employee import get_employee_by_telegram_id
 from apps.bot.services.telegram_link import (
     attach_telegram,
@@ -331,7 +334,7 @@ class TestStartHandler:
         with patch("apps.bot.handlers.common.start.services") as svc:
             svc.get_connect_url = MagicMock(return_value="https://x/telegram/")
             await start(message, None)
-        assert "https://x/telegram/" in message.answer.await_args.args[0]
+        assert "https://x/telegram/" in message.answer.await_args.kwargs["text"]
 
     async def test_bare_start_when_linked_shows_menu(self):
         message = make_message()
@@ -495,8 +498,8 @@ class TestConfirmLink:
         with patch("apps.bot.handlers.common.start.services") as svc:
             svc.complete_telegram_link = AsyncMock(return_value=(None, status))
             await confirm_link(callback, callback_data)
-        text = callback.message.edit_text.await_args.args[0]
-        assert text == str(_STATUS_MESSAGES[status])
+        sent = callback.message.edit_text.await_args.kwargs
+        assert sent == get_link_error_message(status).as_kwargs()
 
     async def test_service_failure_is_left_to_the_error_handler(self):
         callback = make_callback(user_id=12345)
@@ -600,14 +603,16 @@ class TestCancelLink:
     async def test_says_so(self):
         callback = make_callback(CB_LINK_CANCEL)
         await cancel_link(callback)
-        assert callback.message.edit_text.await_args.args[0] == str(M.LINK_CANCELLED)
+        sent = callback.message.edit_text.await_args.kwargs
+        assert sent == build_link_cancelled_text().as_kwargs()
 
     async def test_says_so_even_when_the_offer_cannot_be_dropped(self):
         callback = make_callback(CB_LINK_CANCEL)
         with patch("apps.bot.services.telegram_link.cache") as redis:
             redis.delete.side_effect = ConnectionError("redis down")
             await cancel_link(callback)
-        assert callback.message.edit_text.await_args.args[0] == str(M.LINK_CANCELLED)
+        sent = callback.message.edit_text.await_args.kwargs
+        assert sent == build_link_cancelled_text().as_kwargs()
 
     async def test_drops_the_offer(self):
         callback = make_callback(CB_LINK_CANCEL, user_id=777)

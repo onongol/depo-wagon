@@ -31,12 +31,6 @@ class CommonMessages:
         "/help to start again."
     )
 
-    WELCOME_MENU = _(
-        "👋 Hello, <b>{full_name}</b>!\n\n"
-        "👷 Role: {role}\n\n"
-        "👇 <b>Select an action below:</b>"
-    )
-
     HELP_TEXT = _(
         "🤖 <b>Wagon Defect Registration Bot</b>\n\n"
         "<b>How to register a defect:</b>\n"

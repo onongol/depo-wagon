@@ -4,8 +4,7 @@ from aiogram.types import InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from apps.bot.callback_data import CB_CANCEL, CB_LINK_CANCEL, LinkConfirmCB
-from apps.bot.constants import BTN_CANCEL, BTN_DONE, BTN_SKIP
-from apps.bot.messages import BotMessages as M
+from apps.bot.constants import BTN_CANCEL, BTN_CONNECT, BTN_DONE, BTN_SKIP
 
 if TYPE_CHECKING:
     from aiogram.types import InlineKeyboardMarkup
@@ -34,8 +33,8 @@ def link_confirm_keyboard(employee_id: int) -> InlineKeyboardMarkup:
     """Confirm or decline attaching this chat to an employee."""
     builder = InlineKeyboardBuilder()
     builder.button(
-        text=str(M.LINK_CONFIRM_BUTTON),
+        text=str(BTN_CONNECT),
         callback_data=LinkConfirmCB(employee_id=employee_id),
     )
-    builder.button(text=str(M.LINK_CANCEL_BUTTON), callback_data=CB_LINK_CANCEL)
+    builder.button(text=str(BTN_CANCEL), callback_data=CB_LINK_CANCEL)
     return builder.as_markup()

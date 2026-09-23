@@ -7,6 +7,7 @@ a detached copy — the assertions read it back rather than holding a reference.
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from aiogram.utils.text_decorations import html_decoration
 
 from apps.bot.callback_data import (
     DefectTypeCB,
@@ -659,6 +660,7 @@ class TestUserTextIsEscaped:
         assert (await load_defect(state)).responsible_employee_label == "<b>Bold Bat"
 
     async def test_the_employee_name_in_the_greeting(self):
+        """Sent as entities rather than HTML, so the name goes out verbatim."""
         from apps.bot.handlers.common.start import show_welcome_menu
 
         employee = MagicMock(full_name="A & <B>", role="inspector")
@@ -667,4 +669,7 @@ class TestUserTextIsEscaped:
 
         await show_welcome_menu(message, employee)
 
-        assert "A &amp; &lt;B&gt;" in message.answer.await_args.args[0]
+        sent = message.answer.await_args.kwargs
+        assert sent["parse_mode"] is None
+        html = html_decoration.unparse(sent["text"], sent["entities"])
+        assert "<b>A &amp; &lt;B&gt;</b>" in html

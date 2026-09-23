@@ -1,4 +1,4 @@
-from .auth import LinkStatus
+from .auth import BTN_CONNECT, LinkStatus
 from .common import (
     BTN_ADD,
     BTN_ASK,
@@ -49,6 +49,7 @@ __all__ = [
     "BTN_CANCEL",
     "BTN_CHANGE_STATUS",
     "BTN_CONFIRM",
+    "BTN_CONNECT",
     "BTN_DONE",
     "BTN_HELP",
     "BTN_NEW_DEFECT",
