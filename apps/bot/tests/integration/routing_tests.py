@@ -30,7 +30,7 @@ from apps.bot.constants import (
 from apps.bot.dispatcher import _BOT_COMMANDS, make_dispatcher
 from apps.bot.fsm import save_defect
 from apps.bot.handlers.common.link_errors import get_link_error_message
-from apps.bot.handlers.common.text import build_cancelled_text
+from apps.bot.handlers.common.text import build_cancelled_text, build_help_text
 from apps.bot.handlers.support.utils import remember_request
 from apps.bot.keyboards.menu import MENU_TEXTS
 from apps.bot.messages import BotMessages as M
@@ -212,7 +212,7 @@ class TestAiChatPrecedence:
         await dp.feed_update(bot, make_message_update(str(BTN_HELP)))
 
         sent = [m.text for m in session.calls("sendMessage")]
-        assert sent == [str(M.HELP_TEXT)]
+        assert sent == [build_help_text().render()[0]]
         assert await state.get_state() is None
 
     async def test_a_router_ahead_of_ai_chat_still_expires_the_session(
@@ -289,7 +289,7 @@ class TestAiChatPrecedence:
             await dp.feed_update(bot, make_message_update(str(BTN_HELP)))
 
         sent = [m.text for m in session.calls("sendMessage")]
-        assert sent == [str(M.HELP_TEXT)]
+        assert sent == [build_help_text().render()[0]]
         assert await state.get_state() is None
 
     async def test_the_ask_button_starts_a_session(self, dp, bot, state, employee):
@@ -377,7 +377,7 @@ class TestUnroutedUpdates:
         await dp.feed_update(bot, make_message_update("/help", command=True))
 
         sent = [m.text for m in session.calls("sendMessage")]
-        assert sent == [str(M.HELP_TEXT)]
+        assert sent == [build_help_text().render()[0]]
 
     async def test_a_group_chat_is_left_alone(self, dp, bot, session):
         """The support group carries traffic this bot must not answer."""

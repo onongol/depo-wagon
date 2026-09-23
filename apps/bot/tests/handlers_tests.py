@@ -18,11 +18,19 @@ from apps.bot.callback_data import (
     ResponsibleEmployeePageCB,
     SeverityCB,
 )
-from apps.bot.constants import UD_DEFECT, UD_EDITING, UD_RESP_SEARCH
+from apps.bot.constants import (
+    BTN_CANCEL,
+    BTN_NEW_DEFECT,
+    BTN_OPEN_DEFECTS,
+    BTN_SAVE,
+    UD_DEFECT,
+    UD_EDITING,
+    UD_RESP_SEARCH,
+)
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.common.cancel import cancel
 from apps.bot.handlers.common.help import help_command
-from apps.bot.handlers.common.text import build_cancelled_text
+from apps.bot.handlers.common.text import build_cancelled_text, build_help_text
 from apps.bot.handlers.common.utils import clamp_page
 from apps.bot.handlers.defect.defect_type import receive_defect_type
 from apps.bot.handlers.defect.department import receive_department
@@ -97,9 +105,12 @@ class TestHelpHandler:
 
         await help_command(message)
 
-        message.answer.assert_awaited_once_with(
-            str(M.HELP_TEXT), parse_mode=M.PARSE_MODE
-        )
+        message.answer.assert_awaited_once_with(**build_help_text().as_kwargs())
+
+    def test_names_the_buttons_as_the_keyboard_shows_them(self):
+        text = build_help_text().render()[0]
+        for button in (BTN_NEW_DEFECT, BTN_SAVE, BTN_OPEN_DEFECTS, BTN_CANCEL):
+            assert str(button) in text
 
 
 class TestReceiveDepartment:

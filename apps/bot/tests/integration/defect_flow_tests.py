@@ -26,6 +26,7 @@ from apps.bot.callback_data import (
     VerdictCB,
 )
 from apps.bot.fsm import load_defect, save_defect
+from apps.bot.handlers.common.text import build_help_text
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.bot.tests.integration.conftest import (
@@ -344,7 +345,9 @@ class TestAFormLeftOverFromAnEarlierBuild:
 
         await dp.feed_update(bot, make_message_update("/help", command=True))
 
-        assert [m.text for m in session.calls("sendMessage")] == [str(M.HELP_TEXT)]
+        assert [m.text for m in session.calls("sendMessage")] == [
+            build_help_text().render()[0]
+        ]
         assert UD_DEFECT not in await state.get_data()
 
 

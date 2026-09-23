@@ -1,4 +1,5 @@
 from .text_cancel import build_cancelled_text
+from .text_help import build_help_text
 from .text_start import (
     GET_NEW_LINK,
     build_link_cancelled_text,
@@ -11,6 +12,7 @@ from .text_start import (
 __all__ = [
     "GET_NEW_LINK",
     "build_cancelled_text",
+    "build_help_text",
     "build_link_cancelled_text",
     "build_link_confirm_text",
     "build_link_ok_text",
