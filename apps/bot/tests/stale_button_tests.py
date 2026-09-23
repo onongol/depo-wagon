@@ -11,7 +11,7 @@ import uuid
 
 from apps.bot.callback_data import CB_NOOP
 from apps.bot.handlers.common.stale import noop_button, stale_button
-from apps.bot.messages import BotMessages as M
+from apps.bot.handlers.common.text import build_button_expired_text
 from apps.bot.tests.builders import make_bad_request, make_callback
 
 
@@ -46,7 +46,7 @@ class TestStaleButton:
         await stale_button(callback, bot)
 
         bot.edit_message_text.assert_awaited_once_with(
-            text=str(M.BUTTON_EXPIRED),
+            **build_button_expired_text().as_kwargs(),
             chat_id=callback.message.chat.id,
             message_id=callback.message.message_id,
         )

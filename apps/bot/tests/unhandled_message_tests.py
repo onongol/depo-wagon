@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from apps.bot.handlers.common.stale import KNOWN_STATES, unhandled_message
-from apps.bot.messages import BotMessages as M
+from apps.bot.handlers.common.text import build_unhandled_message_text
 from apps.bot.states import AiChatSG, DefectSG, SupportSG
 from apps.bot.tests.builders import make_message
 
@@ -66,7 +66,7 @@ class TestNothingIsWaiting:
         await unhandled_message(message, _state(None))
 
         message.answer.assert_awaited_once_with(
-            str(M.UNHANDLED_MESSAGE), parse_mode=M.PARSE_MODE
+            **build_unhandled_message_text().as_kwargs()
         )
 
     async def test_has_nothing_to_clear_when_there_is_no_state(self):
@@ -86,7 +86,8 @@ class TestAStateThisBuildDoesNotKnow:
         await unhandled_message(message, state)
 
         state.clear.assert_awaited_once()
-        assert message.answer.await_args.args[0] == str(M.UNHANDLED_MESSAGE)
+        sent = message.answer.await_args.kwargs
+        assert sent == build_unhandled_message_text().as_kwargs()
 
     async def test_a_renamed_attribute_counts_too(self):
         state = _state("DefectSG:wagon_number")

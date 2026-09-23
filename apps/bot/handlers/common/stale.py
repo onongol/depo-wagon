@@ -6,7 +6,10 @@ from aiogram.exceptions import TelegramAPIError
 from aiogram.fsm.state import StatesGroup
 
 from apps.bot import states
-from apps.bot.messages import BotMessages as M
+from apps.bot.handlers.common.text import (
+    build_button_expired_text,
+    build_unhandled_message_text,
+)
 
 if TYPE_CHECKING:
     from aiogram import Bot
@@ -43,7 +46,7 @@ async def stale_button(callback: CallbackQuery, bot: Bot) -> None:
 
     try:
         await bot.edit_message_text(
-            text=str(M.BUTTON_EXPIRED),
+            **build_button_expired_text().as_kwargs(),
             chat_id=callback.message.chat.id,
             message_id=callback.message.message_id,
         )
@@ -68,4 +71,4 @@ async def unhandled_message(message: Message, state: FSMContext) -> None:
         logger.warning("Clearing an FSM state this build does not know: %s", current)
         await state.clear()
 
-    await message.answer(str(M.UNHANDLED_MESSAGE), parse_mode=M.PARSE_MODE)
+    await message.answer(**build_unhandled_message_text().as_kwargs())

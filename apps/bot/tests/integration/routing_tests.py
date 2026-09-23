@@ -32,9 +32,11 @@ from apps.bot.dispatcher import _BOT_COMMANDS, make_dispatcher
 from apps.bot.fsm import save_defect
 from apps.bot.handlers.common.link_errors import get_link_error_message
 from apps.bot.handlers.common.text import (
+    build_button_expired_text,
     build_cancelled_text,
     build_help_text,
     build_link_cancelled_text,
+    build_unhandled_message_text,
 )
 from apps.bot.handlers.support.utils import remember_request
 from apps.bot.keyboards.menu import MENU_TEXTS
@@ -88,7 +90,7 @@ class TestTheUnfilteredFallback:
 
         edits = session.calls("editMessageText")
         assert len(edits) == 1
-        assert edits[0].text == str(M.BUTTON_EXPIRED)
+        assert edits[0].text == build_button_expired_text().render()[0]
 
     async def test_schema_drift_gets_the_expired_reply(self, dp, bot, session):
         """Known prefix, wrong arity — no filter matches, so the fallback does."""
@@ -112,7 +114,7 @@ class TestTheUnfilteredFallback:
 
         edits = session.calls("editMessageText")
         assert len(edits) == 1
-        assert edits[0].text == str(M.BUTTON_EXPIRED)
+        assert edits[0].text == build_button_expired_text().render()[0]
 
 
 class TestPrecedenceDuringTheDefectFlow:
@@ -369,13 +371,13 @@ class TestUnroutedUpdates:
         await dp.feed_update(bot, make_message_update("just talking"))
 
         sent = [m.text for m in session.calls("sendMessage")]
-        assert sent == [str(M.UNHANDLED_MESSAGE)]
+        assert sent == [build_unhandled_message_text().render()[0]]
 
     async def test_an_unknown_command_is_answered_too(self, dp, bot, session):
         await dp.feed_update(bot, make_message_update("/nope", command=True))
 
         sent = [m.text for m in session.calls("sendMessage")]
-        assert sent == [str(M.UNHANDLED_MESSAGE)]
+        assert sent == [build_unhandled_message_text().render()[0]]
 
     async def test_a_known_command_still_wins(self, dp, bot, session):
         """The fallback is last, so /help must never reach it."""
