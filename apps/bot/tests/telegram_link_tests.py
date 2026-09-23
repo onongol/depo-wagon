@@ -443,7 +443,10 @@ class TestConfirmLink:
                 return_value=(MagicMock(), LinkStatus.OK)
             )
             await confirm_link(callback, callback_data)
-        assert svc.complete_telegram_link.await_args.args == (777, 42)
+        assert svc.complete_telegram_link.await_args.kwargs == {
+            "telegram_id": 777,
+            "employee_id": 42,
+        }
 
     async def test_shows_the_menu_for_the_employee_attached(self):
         callback = make_callback(user_id=12345)
@@ -487,15 +490,16 @@ class TestConfirmLink:
         text = callback.message.edit_text.await_args.args[0]
         assert text == str(_STATUS_MESSAGES[status])
 
-    async def test_service_failure_is_reported_not_raised(self):
+    async def test_service_failure_is_left_to_the_error_handler(self):
         callback = make_callback(user_id=12345)
         callback_data = LinkConfirmCB(employee_id=42)
         with patch("apps.bot.handlers.common.start.services") as svc:
             svc.complete_telegram_link = AsyncMock(
                 side_effect=ConnectionError("redis down")
             )
-            await confirm_link(callback, callback_data)
-        callback.message.edit_text.assert_awaited_once()
+            with pytest.raises(ConnectionError):
+                await confirm_link(callback, callback_data)
+        callback.message.edit_text.assert_not_awaited()
 
 
 class TestLinkStatusRouting:

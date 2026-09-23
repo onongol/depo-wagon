@@ -43,6 +43,7 @@ async def start(message: Message, employee: Employee | None) -> None:
 
 async def start_with_link(message: Message, command: CommandObject) -> None:
     employee, status = await services.resolve_link_token(command.args)
+
     if status is not LinkStatus.OK:
         await message.answer(
             str(get_link_error_message(status)), parse_mode=M.PARSE_MODE
@@ -50,6 +51,7 @@ async def start_with_link(message: Message, command: CommandObject) -> None:
         return
 
     await services.remember_pending_link(message.from_user.id, employee.pk)
+
     await message.answer(
         str(M.LINK_CONFIRM).format(full_name=html.escape(employee.full_name)),
         parse_mode=M.PARSE_MODE,
@@ -60,15 +62,9 @@ async def start_with_link(message: Message, command: CommandObject) -> None:
 async def confirm_link(callback: CallbackQuery, callback_data: LinkConfirmCB) -> None:
     await callback.answer()
 
-    employee_id = callback_data.employee_id
-    try:
-        employee, status = await services.complete_telegram_link(
-            callback.from_user.id, employee_id
-        )
-    except Exception:
-        logger.exception("Completing the link to employee %s failed", employee_id)
-        await callback.message.edit_text(str(M.SESSION_ERROR))
-        return
+    employee, status = await services.complete_telegram_link(
+        telegram_id=callback.from_user.id, employee_id=callback_data.employee_id
+    )
 
     if status is not LinkStatus.OK:
         await callback.message.edit_text(

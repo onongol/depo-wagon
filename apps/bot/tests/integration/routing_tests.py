@@ -17,6 +17,7 @@ from apps.bot.callback_data import (
     CB_NOOP,
     ConfirmCB,
     DepartmentCB,
+    LinkConfirmCB,
     TasksPageCB,
 )
 from apps.bot.constants import (
@@ -435,8 +436,8 @@ class TestAFailedEmployeeLookup:
         assert session.calls("sendMessage")[0].text == str(M.SESSION_ERROR)
 
 
-class TestAFailedDeepLink:
-    """start_with_link catches nothing itself; error_handler answers for it."""
+class TestAFailedAccountLink:
+    """The link handlers catch nothing themselves; error_handler answers for them."""
 
     async def test_the_chat_is_told_the_session_failed(self, dp, bot, session):
         with patch("apps.bot.handlers.common.start.services") as svc:
@@ -449,6 +450,19 @@ class TestAFailedDeepLink:
 
         sent = [m.text for m in session.calls("sendMessage")]
         assert sent == [str(M.SESSION_ERROR)]
+
+    async def test_a_confirm_tap_is_told_the_session_failed(self, dp, bot, session):
+        with patch("apps.bot.handlers.common.start.services") as svc:
+            svc.complete_telegram_link = AsyncMock(
+                side_effect=ConnectionError("redis down")
+            )
+            await dp.feed_update(
+                bot, make_callback_update(LinkConfirmCB(employee_id=42).pack())
+            )
+
+        sent = [m.text for m in session.calls("sendMessage")]
+        assert sent == [str(M.SESSION_ERROR)]
+        assert session.calls("editMessageText") == []
 
 
 class TestHandlersThatNeedNoEmployee:
