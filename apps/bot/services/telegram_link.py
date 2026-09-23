@@ -108,3 +108,19 @@ def attach_telegram(employee_id: int, telegram_id: int):
         notify_telegram_link_change(employee.user, CONNECTED)
 
     return employee, LinkStatus.OK
+
+
+async def complete_telegram_link(telegram_id: int, employee_id: int):
+    """Spend this chat's offer and attach the chat, returning ``(employee, OK)``.
+
+    ``(None, OFFER_EXPIRED)`` when the chat holds no offer naming this employee,
+    otherwise whatever attach_telegram answers. The offer is spent either way.
+    """
+    if not await claim_pending_link(telegram_id, employee_id):
+        logger.warning(
+            "Chat %s confirmed employee %s while holding no such offer",
+            telegram_id,
+            employee_id,
+        )
+        return None, LinkStatus.OFFER_EXPIRED
+    return await attach_telegram(employee_id, telegram_id)

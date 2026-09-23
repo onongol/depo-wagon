@@ -15,8 +15,7 @@ from .responsible_employee import (
     get_department_employees,
 )
 from .telegram_link import (
-    attach_telegram,
-    claim_pending_link,
+    complete_telegram_link,
     forget_pending_link,
     get_connect_url,
     remember_pending_link,
@@ -25,8 +24,7 @@ from .telegram_link import (
 from .wagon import get_wagon_by_number
 
 __all__ = [
-    "attach_telegram",
-    "claim_pending_link",
+    "complete_telegram_link",
     "count_department_employees",
     "create_defect",
     "create_measurements_bulk",

@@ -81,29 +81,11 @@ async def confirm_link(callback: CallbackQuery, callback_data: LinkConfirmCB) ->
 
     employee_id = callback_data.employee_id
     try:
-        claimed = await services.claim_pending_link(callback.from_user.id, employee_id)
-    except Exception:
-        logger.exception("Claiming the offer for employee %s failed", employee_id)
-        await callback.message.edit_text(str(M.SESSION_ERROR))
-        return
-
-    if not claimed:
-        logger.warning(
-            "Chat %s confirmed employee %s while holding no such offer",
-            callback.from_user.id,
-            employee_id,
-        )
-        await callback.message.edit_text(
-            str(M.LINK_CONFIRM_EXPIRED), parse_mode=M.PARSE_MODE
-        )
-        return
-
-    try:
-        employee, status = await services.attach_telegram(
-            employee_id, callback.from_user.id
+        employee, status = await services.complete_telegram_link(
+            callback.from_user.id, employee_id
         )
     except Exception:
-        logger.exception("Attaching a chat to employee %s failed", employee_id)
+        logger.exception("Completing the link to employee %s failed", employee_id)
         await callback.message.edit_text(str(M.SESSION_ERROR))
         return
 
