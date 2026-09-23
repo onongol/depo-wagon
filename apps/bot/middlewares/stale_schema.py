@@ -13,6 +13,7 @@ needs told.
 """
 
 import logging
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 from aiogram import BaseMiddleware
@@ -43,15 +44,18 @@ async def _announce(event: TelegramObject) -> None:
     if not isinstance(event, CallbackQuery):
         return
 
-    await event.answer()
+    with suppress(TelegramAPIError):
+        await event.answer()
 
     if event.message is None:
         return
 
-    try:
-        await event.message.edit_text(text)
-    except TelegramAPIError:
-        await event.message.answer(text)
+    if isinstance(event.message, Message):
+        with suppress(TelegramAPIError):
+            await event.message.edit_text(text)
+            return
+
+    await event.message.answer(text)
 
 
 class StaleSchemaMiddleware(BaseMiddleware):

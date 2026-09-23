@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from aiogram.exceptions import TelegramAPIError
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, InaccessibleMessage, Message
 
 from apps.bot.middlewares import CloseOldConnectionsMiddleware
 
@@ -300,6 +300,33 @@ class TestStaleSchemaMiddleware:
         callback.message.edit_text.side_effect = TelegramAPIError(
             method=MagicMock(), message="too old"
         )
+
+        await self._call(state, event=callback)
+
+        callback.message.answer.assert_awaited_once_with(str(M.FORM_OUTDATED))
+
+    async def test_an_expired_query_does_not_cost_the_notice(self, state):
+        """The form is already cleared by then — the error handler would say the wrong thing."""
+        from apps.bot.messages import BotMessages as M
+
+        await self._store_stale_defect(state)
+        callback = _spec_callback()
+        callback.answer.side_effect = TelegramAPIError(
+            method=MagicMock(), message="query is too old"
+        )
+
+        await self._call(state, event=callback)
+
+        callback.message.edit_text.assert_awaited_once_with(str(M.FORM_OUTDATED))
+
+    async def test_an_inaccessible_message_gets_a_fresh_notice(self, state):
+        """Past 48 hours the message has no edit_text — it can only be answered."""
+        from apps.bot.messages import BotMessages as M
+
+        await self._store_stale_defect(state)
+        callback = _spec_callback()
+        callback.message = MagicMock(spec=InaccessibleMessage)
+        callback.message.answer = AsyncMock()
 
         await self._call(state, event=callback)
 
