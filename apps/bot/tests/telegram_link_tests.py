@@ -19,6 +19,7 @@ from apps.bot.handlers.common.start import (
     start,
     start_with_link,
 )
+from apps.bot.messages import BotMessages as M
 from apps.bot.services.employee import get_employee_by_telegram_id
 from apps.bot.services.telegram_link import (
     attach_telegram,
@@ -239,6 +240,13 @@ class TestPendingLink:
         await forget_pending_link(777)
 
         assert await claim_pending_link(777, 42) is False
+
+    async def test_a_failed_drop_is_logged_not_raised(self, caplog):
+        with patch("apps.bot.services.telegram_link.cache") as redis:
+            redis.delete.side_effect = ConnectionError("redis down")
+            await forget_pending_link(777)
+
+        assert "Dropping the pending link of chat 777 failed" in caplog.text
 
 
 @pytest.mark.django_db(transaction=True)
@@ -592,7 +600,14 @@ class TestCancelLink:
     async def test_says_so(self):
         callback = make_callback(CB_LINK_CANCEL)
         await cancel_link(callback)
-        callback.message.edit_text.assert_awaited_once()
+        assert callback.message.edit_text.await_args.args[0] == str(M.LINK_CANCELLED)
+
+    async def test_says_so_even_when_the_offer_cannot_be_dropped(self):
+        callback = make_callback(CB_LINK_CANCEL)
+        with patch("apps.bot.services.telegram_link.cache") as redis:
+            redis.delete.side_effect = ConnectionError("redis down")
+            await cancel_link(callback)
+        assert callback.message.edit_text.await_args.args[0] == str(M.LINK_CANCELLED)
 
     async def test_drops_the_offer(self):
         callback = make_callback(CB_LINK_CANCEL, user_id=777)

@@ -1,5 +1,4 @@
 import html
-import logging
 from typing import TYPE_CHECKING
 
 from apps.bot import services
@@ -15,8 +14,6 @@ if TYPE_CHECKING:
 
     from apps.bot.callback_data import LinkConfirmCB
     from apps.core.models import Employee
-
-logger = logging.getLogger(__name__)
 
 
 async def show_welcome_menu(message: Message, employee) -> None:
@@ -78,8 +75,5 @@ async def confirm_link(callback: CallbackQuery, callback_data: LinkConfirmCB) ->
 
 async def cancel_link(callback: CallbackQuery) -> None:
     await callback.answer()
-    try:
-        await services.forget_pending_link(callback.from_user.id)
-    except Exception:
-        logger.exception("Dropping the pending link failed")
+    await services.forget_pending_link(callback.from_user.id)
     await callback.message.edit_text(str(M.LINK_CANCELLED), parse_mode=M.PARSE_MODE)

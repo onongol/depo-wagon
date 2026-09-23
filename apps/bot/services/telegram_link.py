@@ -64,8 +64,15 @@ async def claim_pending_link(telegram_id: int, employee_id: int) -> bool:
 
 
 async def forget_pending_link(telegram_id: int) -> None:
-    """Drop this chat's offer, declined or superseded."""
-    await sync_to_async(cache.delete)(_pending_key(telegram_id))
+    """Drop this chat's offer, declined or superseded.
+
+    Best-effort: an offer left behind expires with PENDING_TTL, and only this
+    chat can claim it.
+    """
+    try:
+        await sync_to_async(cache.delete)(_pending_key(telegram_id))
+    except Exception:
+        logger.exception("Dropping the pending link of chat %s failed", telegram_id)
 
 
 @sync_to_async
