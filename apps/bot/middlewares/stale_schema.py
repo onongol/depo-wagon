@@ -1,17 +1,3 @@
-"""Reset a defect form that an earlier build's models wrote.
-
-Stored state is discarded rather than migrated, so DefectData.from_dict returns
-None for a foreign schema. Only six of the flow's twenty-odd steps check that
-None; the rest assign straight onto the form. So the reset has to happen ahead
-of the handler, not inside it — an outer middleware on the flow router, the
-same shape AiChatTimeoutMiddleware uses.
-
-Swallowing the update rather than returning UNHANDLED: the fall-through for a
-callback is stale_button, which would replace the message with "this button has
-expired" — true of the button, wrong about the form, which is what the user
-needs told.
-"""
-
 import logging
 from contextlib import suppress
 from typing import TYPE_CHECKING, Any
