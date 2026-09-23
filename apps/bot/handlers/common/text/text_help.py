@@ -19,11 +19,8 @@ def build_help_text() -> Text:
         _("Attach 📸 photos"),
         _("Enter 📐 measurements"),
         _("Add a 📝 description defect and details"),
-        Text(
-            _("Review the summary — tap a field (Wagon, Node…) to ✏️ edit it, then tap"),
-            " ",
-            Bold(BTN_SAVE),
-        ),
+        _("Review the summary — tap a field to ✏️ edit it"),
+        Text(_("Tap"), " ", Bold(BTN_SAVE)),
         _("Wait for the 🤖 AI analysis, then submit your own verdict"),
     )
     return as_list(
