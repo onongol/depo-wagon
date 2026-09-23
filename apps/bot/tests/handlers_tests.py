@@ -7,6 +7,7 @@ a detached copy — the assertions read it back rather than holding a reference.
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from aiogram.types import InaccessibleMessage
 from aiogram.utils.text_decorations import html_decoration
 
 from apps.bot.callback_data import (
@@ -32,7 +33,7 @@ from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.common.cancel import cancel
 from apps.bot.handlers.common.help import help_command
 from apps.bot.handlers.common.text import build_cancelled_text, build_help_text
-from apps.bot.handlers.common.utils import clamp_page
+from apps.bot.handlers.common.utils import clamp_page, edit_or_send
 from apps.bot.handlers.defect.defect_type import receive_defect_type
 from apps.bot.handlers.defect.department import receive_department
 from apps.bot.handlers.defect.edit import start_edit
@@ -51,7 +52,7 @@ from apps.bot.handlers.defect.responsible_employee import (
 from apps.bot.handlers.defect.responsible_employee.list import EMPLOYEE_PAGE_SIZE
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
-from apps.bot.tests.builders import make_callback, make_message
+from apps.bot.tests.builders import make_bad_request, make_callback, make_message
 from apps.bot.user_data import DefectData
 from apps.defects.constants import DefectType
 
@@ -245,6 +246,57 @@ class TestReceiveDefectType:
             await save_defect(state, DefectData())
             await receive_defect_type(make_callback(), DefectTypeCB(value=value), state)
             assert await state.get_state() == DefectSG.severity.state
+
+
+class TestEditOrSend:
+    """The screen reaches the user whatever became of the button's message."""
+
+    async def test_edits_the_message_in_place(self):
+        callback = make_callback()
+
+        await edit_or_send(callback, text="x")
+
+        callback.message.edit_text.assert_awaited_once_with(text="x")
+        callback.message.answer.assert_not_awaited()
+
+    async def test_an_unchanged_screen_is_left_alone(self):
+        callback = make_callback()
+        callback.message.edit_text.side_effect = make_bad_request(
+            "Bad Request: message is not modified"
+        )
+
+        await edit_or_send(callback, text="x")
+
+        callback.message.answer.assert_not_awaited()
+
+    async def test_a_refused_edit_is_sent_anew(self):
+        callback = make_callback()
+        callback.message.edit_text.side_effect = make_bad_request(
+            "Bad Request: message can't be edited"
+        )
+
+        await edit_or_send(callback, text="x")
+
+        callback.message.answer.assert_awaited_once_with(text="x")
+
+    async def test_an_inaccessible_message_is_answered_not_edited(self):
+        """spec= makes any edit attempt an AttributeError, as in production."""
+        callback = make_callback()
+        callback.message = MagicMock(spec=InaccessibleMessage)
+        callback.message.answer = AsyncMock()
+
+        await edit_or_send(callback, text="x")
+
+        callback.message.answer.assert_awaited_once_with(text="x")
+
+    async def test_without_a_message_it_writes_to_the_user(self):
+        callback = make_callback(user_id=777)
+        callback.message = None
+        callback.bot.send_message = AsyncMock()
+
+        await edit_or_send(callback, text="x")
+
+        callback.bot.send_message.assert_awaited_once_with(777, text="x")
 
 
 class TestClampPage:

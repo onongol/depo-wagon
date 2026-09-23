@@ -10,6 +10,7 @@ from apps.bot.handlers.common.text import (
     build_not_connected_text,
     build_welcome_text,
 )
+from apps.bot.handlers.common.utils import edit_or_send
 from apps.bot.keyboards.common import link_confirm_keyboard
 from apps.bot.keyboards.menu import main_menu_keyboard
 
@@ -61,14 +62,14 @@ async def confirm_link(callback: CallbackQuery, callback_data: LinkConfirmCB) ->
     )
 
     if status is not LinkStatus.OK:
-        await callback.message.edit_text(**get_link_error_message(status).as_kwargs())
+        await edit_or_send(callback, **get_link_error_message(status).as_kwargs())
         return
 
-    await callback.message.edit_text(**build_link_ok_text().as_kwargs())
+    await edit_or_send(callback, **build_link_ok_text().as_kwargs())
     await show_welcome_menu(callback.message, employee)
 
 
 async def cancel_link(callback: CallbackQuery) -> None:
     await callback.answer()
     await services.forget_pending_link(callback.from_user.id)
-    await callback.message.edit_text(**build_link_cancelled_text().as_kwargs())
+    await edit_or_send(callback, **build_link_cancelled_text().as_kwargs())

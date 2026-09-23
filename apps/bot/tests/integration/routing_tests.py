@@ -14,6 +14,7 @@ from aiogram.types import Chat, Message, Update, User
 from django.test import override_settings
 
 from apps.bot.callback_data import (
+    CB_LINK_CANCEL,
     CB_NOOP,
     ConfirmCB,
     DepartmentCB,
@@ -30,7 +31,11 @@ from apps.bot.constants import (
 from apps.bot.dispatcher import _BOT_COMMANDS, make_dispatcher
 from apps.bot.fsm import save_defect
 from apps.bot.handlers.common.link_errors import get_link_error_message
-from apps.bot.handlers.common.text import build_cancelled_text, build_help_text
+from apps.bot.handlers.common.text import (
+    build_cancelled_text,
+    build_help_text,
+    build_link_cancelled_text,
+)
 from apps.bot.handlers.support.utils import remember_request
 from apps.bot.keyboards.menu import MENU_TEXTS
 from apps.bot.messages import BotMessages as M
@@ -437,6 +442,30 @@ class TestAFailedEmployeeLookup:
 
         assert session.method_names() == ["answerCallbackQuery", "sendMessage"]
         assert session.calls("sendMessage")[0].text == str(M.SESSION_ERROR)
+
+
+class TestAButtonOnAnInaccessibleMessage:
+    """The message has no edit methods; the reply arrives as a new message."""
+
+    async def test_cancelling_a_link_still_says_so(self, dp, bot, session):
+        await dp.feed_update(
+            bot, make_callback_update(CB_LINK_CANCEL, inaccessible=True)
+        )
+
+        assert session.calls("editMessageText") == []
+        sent = [m.text for m in session.calls("sendMessage")]
+        assert sent == [build_link_cancelled_text().render()[0]]
+
+    async def test_an_expired_confirmation_still_says_so(self, dp, bot, session):
+        callback_data = LinkConfirmCB(employee_id=42).pack()
+
+        await dp.feed_update(
+            bot, make_callback_update(callback_data, inaccessible=True)
+        )
+
+        assert session.calls("editMessageText") == []
+        sent = [m.text for m in session.calls("sendMessage")]
+        assert sent == [get_link_error_message(LinkStatus.OFFER_EXPIRED).render()[0]]
 
 
 class TestAFailedAccountLink:

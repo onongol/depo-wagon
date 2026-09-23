@@ -10,6 +10,7 @@ from aiogram.fsm.storage.memory import SimpleEventIsolation
 from aiogram.types import (
     CallbackQuery,
     Chat,
+    InaccessibleMessage,
     Message,
     MessageEntity,
     PhotoSize,
@@ -126,7 +127,20 @@ def make_photo_update(
     )
 
 
-def make_callback_update(data: str) -> Update:
+def make_callback_update(data: str, *, inaccessible: bool = False) -> Update:
+    """A button tap; inaccessible puts it on a message the bot can no longer see."""
+    message_id = next(_message_ids)
+    if inaccessible:
+        message = InaccessibleMessage(chat=_chat(), message_id=message_id, date=0)
+    else:
+        message = Message(
+            message_id=message_id,
+            date=0,
+            chat=_chat(),
+            from_user=User(id=BOT_ID, is_bot=True, first_name="Bot"),
+            text="previous",
+        )
+
     return Update(
         update_id=next(_update_ids),
         callback_query=CallbackQuery(
@@ -134,12 +148,6 @@ def make_callback_update(data: str) -> Update:
             from_user=_user(),
             chat_instance="ci",
             data=data,
-            message=Message(
-                message_id=next(_message_ids),
-                date=0,
-                chat=_chat(),
-                from_user=User(id=BOT_ID, is_bot=True, first_name="Bot"),
-                text="previous",
-            ),
+            message=message,
         ),
     )
