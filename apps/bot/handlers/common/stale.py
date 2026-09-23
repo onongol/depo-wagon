@@ -1,7 +1,8 @@
 import logging
+from contextlib import suppress
 from typing import TYPE_CHECKING
 
-from aiogram.exceptions import TelegramAPIError
+from aiogram.exceptions import TelegramBadRequest
 
 from apps.bot.handlers.common.text import (
     build_button_expired_text,
@@ -17,7 +18,8 @@ logger = logging.getLogger(__name__)
 
 
 async def noop_button(callback: CallbackQuery) -> None:
-    await callback.answer()
+    with suppress(TelegramBadRequest):
+        await callback.answer()
 
 
 async def stale_button(callback: CallbackQuery, bot: Bot) -> None:
@@ -25,21 +27,21 @@ async def stale_button(callback: CallbackQuery, bot: Bot) -> None:
 
     Edits by chat and message id rather than through callback.message, which by
     definition may be an InaccessibleMessage here — this handler exists for old
-    messages.
+    messages. A 400 here is a refusal about this one message or query and is
+    expected; anything else reaches error_handler.
     """
-    await callback.answer()
+    with suppress(TelegramBadRequest):
+        await callback.answer()
 
     if callback.message is None:
         return
 
-    try:
+    with suppress(TelegramBadRequest):
         await bot.edit_message_text(
             **build_button_expired_text().as_kwargs(),
             chat_id=callback.message.chat.id,
             message_id=callback.message.message_id,
         )
-    except TelegramAPIError:
-        logger.debug("Could not replace a stale keyboard (message deleted or too old)")
 
 
 async def unhandled_message(message: Message, state: FSMContext) -> None:
