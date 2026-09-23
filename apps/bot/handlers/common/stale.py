@@ -1,11 +1,8 @@
-import inspect
 import logging
 from typing import TYPE_CHECKING
 
 from aiogram.exceptions import TelegramAPIError
-from aiogram.fsm.state import StatesGroup
 
-from apps.bot import states
 from apps.bot.handlers.common.text import (
     build_button_expired_text,
     build_unhandled_message_text,
@@ -17,14 +14,6 @@ if TYPE_CHECKING:
     from aiogram.types import CallbackQuery, Message
 
 logger = logging.getLogger(__name__)
-
-# Read off the module rather than listed, so a new group is covered on sight.
-KNOWN_STATES = frozenset(
-    name
-    for _, group in inspect.getmembers(states, inspect.isclass)
-    if issubclass(group, StatesGroup) and group is not StatesGroup
-    for name in group.__all_states_names__
-)
 
 
 async def noop_button(callback: CallbackQuery) -> None:
@@ -57,15 +46,11 @@ async def stale_button(callback: CallbackQuery, bot: Bot) -> None:
 async def unhandled_message(message: Message, state: FSMContext) -> None:
     """Answer a private message no router claimed, instead of going quiet.
 
-    Silent while a state this build knows is live: the step is mid-flow and the
-    user sent the wrong content type, so its own prompt still stands and the
-    form must survive. Silence is only wrong once nothing is waiting — an
-    expired FSM key, or a state string left by an older build.
+    Reached only outside every known state (the router filters with
+    ~StateFilter(*ALL_GROUPS)): an expired FSM key, or a state string left by
+    an older build.
     """
     current = await state.get_state()
-
-    if current in KNOWN_STATES:
-        return
 
     if current is not None:
         logger.warning("Clearing an FSM state this build does not know: %s", current)

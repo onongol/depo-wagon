@@ -5,11 +5,12 @@ functions with no decorators, which is what lets the tests call them directly.
 """
 
 from aiogram import F, Router
-from aiogram.filters import Command, CommandStart
+from aiogram.filters import Command, CommandStart, StateFilter
 
 from apps.bot.callback_data import CB_LINK_CANCEL, CB_NOOP, LinkConfirmCB
 from apps.bot.constants import BTN_HELP
 from apps.bot.filters import PRIVATE_CHAT
+from apps.bot.states import ALL_GROUPS
 
 from .cancel import cancel
 from .help import help_command
@@ -75,10 +76,12 @@ def get_stale_router() -> Router:
     is user-visible.
 
     The message handler is private-chat only: the support group carries traffic
-    this bot is not meant to answer.
+    this bot is not meant to answer. It also stays out of every known state: a
+    sticker at the photo step falls through here, and the step's own prompt is
+    still on screen, so the form must survive untouched.
     """
     router = Router(name="stale")
     router.callback_query.register(noop_button, F.data == CB_NOOP)
     router.callback_query.register(stale_button)
-    router.message.register(unhandled_message, PRIVATE_CHAT)
+    router.message.register(unhandled_message, PRIVATE_CHAT, ~StateFilter(*ALL_GROUPS))
     return router

@@ -1,19 +1,21 @@
 """Tests for the message fallback.
 
-The valuable one is the silent branch. Message handlers inside the defect flow
-are filtered by content type — text for the wagon number, a photo for the photo
-step — and the flow's own catch-all covers callbacks only. So a sticker sent
-mid-form already falls through to this handler, and clearing the state there
-would destroy a form the user spent minutes on.
+The silent branch lives in the router, not here: ~StateFilter(*ALL_GROUPS)
+keeps a sticker sent mid-form from ever reaching the handler, and
+routing_tests covers that walk. What stays testable directly is the handler
+itself and the completeness of ALL_GROUPS — a group left out of it would have
+its forms cleared by the first wrong-content message.
 """
 
+import inspect
 from unittest.mock import AsyncMock, MagicMock
 
-import pytest
+from aiogram.fsm.state import StatesGroup
 
-from apps.bot.handlers.common.stale import KNOWN_STATES, unhandled_message
+from apps.bot import states
+from apps.bot.handlers.common.stale import unhandled_message
 from apps.bot.handlers.common.text import build_unhandled_message_text
-from apps.bot.states import AiChatSG, DefectSG, SupportSG
+from apps.bot.states import ALL_GROUPS
 from apps.bot.tests.builders import make_message
 
 
@@ -24,39 +26,19 @@ def _state(current: str | None) -> MagicMock:
     return state
 
 
-class TestKnownStates:
-    def test_it_covers_every_group_in_the_states_module(self):
-        expected = {
-            name
-            for group in (DefectSG, SupportSG, AiChatSG)
-            for name in group.__all_states_names__
+class TestAllGroups:
+    def test_lists_every_group_in_the_states_module(self):
+        declared = {
+            group
+            for _, group in inspect.getmembers(states, inspect.isclass)
+            if issubclass(group, StatesGroup) and group is not StatesGroup
         }
 
-        assert expected == KNOWN_STATES
+        assert declared == set(ALL_GROUPS)
 
-    def test_it_is_not_empty(self):
-        """The silent branch would never fire if the scan came back empty."""
-        assert len(KNOWN_STATES) == 19
-
-
-class TestInsideALiveFlow:
-    @pytest.mark.parametrize(
-        "state_name",
-        [DefectSG.wagon_num.state, DefectSG.photo.state, AiChatSG.chatting.state],
-    )
-    async def test_stays_silent(self, state_name):
-        message = make_message("a sticker, say")
-
-        await unhandled_message(message, _state(state_name))
-
-        message.answer.assert_not_called()
-
-    async def test_leaves_the_form_standing(self):
-        state = _state(DefectSG.desc.state)
-
-        await unhandled_message(make_message("oops"), state)
-
-        state.clear.assert_not_called()
+    def test_the_scan_finds_something(self):
+        """Guards the test above against comparing two empty sets."""
+        assert len(ALL_GROUPS) == 3
 
 
 class TestNothingIsWaiting:

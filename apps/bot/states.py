@@ -36,3 +36,6 @@ class SupportSG(StatesGroup):
 
 class AiChatSG(StatesGroup):
     chatting = State()
+
+
+ALL_GROUPS = (DefectSG, SupportSG, AiChatSG)

@@ -49,6 +49,7 @@ from apps.bot.tests.integration.conftest import (
     as_employee,
     make_callback_update,
     make_message_update,
+    make_photo_update,
 )
 from apps.bot.user_data import DefectData
 
@@ -424,6 +425,33 @@ class TestUnroutedUpdates:
 
         assert session.requests == []
         assert await state.get_state() == DefectSG.photo.state
+
+    @pytest.mark.parametrize(
+        "known",
+        [DefectSG.desc, SupportSG.message, AiChatSG.chatting],
+        ids=lambda s: s.state,
+    )
+    async def test_every_group_keeps_its_state_through_a_stray_photo(
+        self, dp, bot, session, state, known
+    ):
+        """One state from each of ALL_GROUPS; each step there asks for text."""
+        await state.set_state(known)
+
+        await dp.feed_update(bot, make_photo_update("stray"))
+
+        assert session.requests == []
+        assert await state.get_state() == known.state
+
+    async def test_a_state_left_by_an_older_build_is_cleared_and_answered(
+        self, dp, bot, session, state
+    ):
+        await state.set_state("RetiredSG:wagon_num")
+
+        await dp.feed_update(bot, make_message_update("12345678"))
+
+        sent = [m.text for m in session.calls("sendMessage")]
+        assert sent == [build_unhandled_message_text().render()[0]]
+        assert await state.get_state() is None
 
 
 class TestAFailedEmployeeLookup:
