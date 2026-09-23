@@ -2,6 +2,7 @@ from aiogram.utils.formatting import Bold, Text, as_list
 from django.utils.translation import gettext_lazy as _
 
 from apps.bot.constants import (
+    BTN_ASK,
     BTN_CANCEL,
     BTN_NEW_DEFECT,
     BTN_OPEN_DEFECTS,
@@ -19,7 +20,7 @@ def build_help_text() -> Text:
         _("Enter 📐 measurements"),
         _("Add a 📝 description defect and details"),
         Text(
-            _("Review the summary — tap a field (Wagon, Node…) to ✏️ edit it, then"),
+            _("Review the summary — tap a field (Wagon, Node…) to ✏️ edit it, then tap"),
             " ",
             Bold(BTN_SAVE),
         ),
@@ -36,6 +37,11 @@ def build_help_text() -> Text:
         ),
         as_list(
             Text(Bold(BTN_OPEN_DEFECTS), " — ", _("view and update open defects.")),
+            Text(
+                Bold(BTN_ASK),
+                " — ",
+                _("ask about wagon maintenance, tolerance norms and depot documents."),
+            ),
             Text(Bold(BTN_CANCEL), " — ", _("stop the current step at any time.")),
         ),
         Text(

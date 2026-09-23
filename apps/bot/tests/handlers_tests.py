@@ -19,6 +19,7 @@ from apps.bot.callback_data import (
     SeverityCB,
 )
 from apps.bot.constants import (
+    BTN_ASK,
     BTN_CANCEL,
     BTN_NEW_DEFECT,
     BTN_OPEN_DEFECTS,
@@ -109,7 +110,8 @@ class TestHelpHandler:
 
     def test_names_the_buttons_as_the_keyboard_shows_them(self):
         text = build_help_text().render()[0]
-        for button in (BTN_NEW_DEFECT, BTN_SAVE, BTN_OPEN_DEFECTS, BTN_CANCEL):
+        buttons = (BTN_NEW_DEFECT, BTN_SAVE, BTN_OPEN_DEFECTS, BTN_ASK, BTN_CANCEL)
+        for button in buttons:
             assert str(button) in text
 
 
