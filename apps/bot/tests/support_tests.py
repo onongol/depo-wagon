@@ -211,24 +211,31 @@ class TestSupportReceive:
         )
 
 
-class TestSupportRouter:
+class TestSupportGroupRouter:
     """The reply half needs a concrete chat id to filter on."""
 
     def test_registers_the_reply_handler_when_a_chat_is_configured(self):
-        from apps.bot.handlers.support.router import get_support_router
+        from apps.bot.handlers.support.router import get_support_group_router
 
         with override_settings(TELEGRAM_SUPPORT_CHAT_ID="-1001234567890"):
-            router = get_support_router()
+            router = get_support_group_router()
 
         callbacks = [h.callback.__name__ for h in router.message.handlers]
-        assert "support_reply" in callbacks
+        assert callbacks == ["support_reply"]
 
-    def test_omits_the_reply_handler_when_no_chat_is_configured(self):
+    def test_is_empty_when_no_chat_is_configured(self):
+        from apps.bot.handlers.support.router import get_support_group_router
+
+        with override_settings(TELEGRAM_SUPPORT_CHAT_ID=""):
+            router = get_support_group_router()
+
+        assert router.message.handlers == []
+
+    def test_the_user_half_stands_without_a_chat(self):
         from apps.bot.handlers.support.router import get_support_router
 
         with override_settings(TELEGRAM_SUPPORT_CHAT_ID=""):
             router = get_support_router()
 
         callbacks = [h.callback.__name__ for h in router.message.handlers]
-        assert "support_reply" not in callbacks
         assert "support_start" in callbacks

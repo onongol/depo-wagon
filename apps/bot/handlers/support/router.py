@@ -3,7 +3,7 @@
 from aiogram import F, Router
 from aiogram.filters import Command, StateFilter
 
-from apps.bot.filters import PRIVATE_CHAT, NotACommand
+from apps.bot.filters import NotACommand
 from apps.bot.handlers.common.cancel import cancel
 from apps.bot.keyboards.menu import MENU_TEXTS
 from apps.bot.states import SupportSG
@@ -14,39 +14,35 @@ from .utils import support_chat_id
 
 
 def get_support_router() -> Router:
-    """The /support relay: user to the support group, and replies back.
+    """The user's half of /support: the question, relayed to the support group.
 
     A menu button cancels, as in ai_chat: support sits ahead of the ai_chat and
     help routers, so it would otherwise be relayed as the question.
-
-    The only router with a handler outside private chats, so PRIVATE_CHAT goes
-    on each user-side handler rather than on the router. The reply half is
-    registered only when a support chat is configured — an F.chat.id filter
-    needs a concrete id. Replies to the bot's own messages reach it even with
-    group privacy mode on.
     """
     router = Router(name="support")
-
-    router.message.register(support_start, PRIVATE_CHAT, Command("support"))
+    router.message.register(support_start, Command("support"))
     router.message.register(
-        cancel, PRIVATE_CHAT, StateFilter(SupportSG.message), F.text.in_(MENU_TEXTS)
+        cancel, StateFilter(SupportSG.message), F.text.in_(MENU_TEXTS)
     )
     router.message.register(
         support_receive,
-        PRIVATE_CHAT,
         StateFilter(SupportSG.message),
         F.text,
         ~F.text.in_(MENU_TEXTS),
         NotACommand(),
     )
+    return router
 
+
+def get_support_group_router() -> Router:
+    """Operators' replies in the support group, relayed back to the user.
+
+    Empty without a configured chat: F.chat.id needs a concrete id. Replies to
+    the bot's own messages reach it even with group privacy mode on.
+    """
+    router = Router(name="support_group")
     chat_id = support_chat_id()
     if chat_id is not None:
-        router.message.register(
-            support_reply,
-            F.chat.id == chat_id,
-            F.reply_to_message,
-            NotACommand(),
-        )
-
+        router.message.filter(F.chat.id == chat_id)
+        router.message.register(support_reply, F.reply_to_message, NotACommand())
     return router

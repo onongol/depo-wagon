@@ -24,6 +24,12 @@ def dispatcher():
     return make_dispatcher(MemoryStorage(), SimpleEventIsolation())
 
 
+def _private_names(dispatcher) -> list[str]:
+    """The private-chat routers in order: where every precedence lives."""
+    (private,) = [r for r in dispatcher.sub_routers if r.name == "private"]
+    return [r.name for r in private.sub_routers]
+
+
 class TestEventsIsolation:
     def test_uses_the_isolation_it_is_given(self):
         """aiogram silently falls back to no isolation at all."""
@@ -34,46 +40,52 @@ class TestEventsIsolation:
         assert dispatcher.fsm.events_isolation is isolation
 
 
+class TestTopLevelRouters:
+    def test_private_chats_and_the_support_group_are_separate_trees(self, dispatcher):
+        """Every handler lives under one of these, so the chat type is set once."""
+        assert [r.name for r in dispatcher.sub_routers] == ["private", "support_group"]
+
+
 class TestRouterOrder:
     def test_start_comes_before_everything_else(self, dispatcher):
         """So /start and the link buttons still work mid-conversation."""
-        names = [r.name for r in dispatcher.sub_routers]
+        names = _private_names(dispatcher)
 
         assert names[0] == "start"
 
     @pytest.mark.parametrize("flow", ["defect_flow", "support", "ai_chat"])
     def test_cancel_comes_before_every_conversation(self, dispatcher, flow):
         """/cancel wins by registration order, ahead of every flow's own state."""
-        names = [r.name for r in dispatcher.sub_routers]
+        names = _private_names(dispatcher)
 
         assert names.index("cancel") < names.index(flow)
 
     def test_help_comes_after_the_conversations(self, dispatcher):
         """The Help button inside a flow must reach that flow, not help_command."""
-        names = [r.name for r in dispatcher.sub_routers]
+        names = _private_names(dispatcher)
 
         assert names.index("help") > names.index("ai_chat")
 
     def test_ai_chat_comes_before_help_so_its_fallback_wins(self, dispatcher):
         """The Help button pressed mid-session cancels, it does not show help."""
-        names = [r.name for r in dispatcher.sub_routers]
+        names = _private_names(dispatcher)
 
         assert names.index("ai_chat") < names.index("help")
 
     def test_tasks_comes_after_start(self, dispatcher):
         """/start mid-list is answered by start, leaving the list on screen."""
-        names = [r.name for r in dispatcher.sub_routers]
+        names = _private_names(dispatcher)
 
         assert names.index("tasks") > names.index("start")
 
     def test_stale_goes_last(self, dispatcher):
         """Anything registered after it would never be reached."""
-        names = [r.name for r in dispatcher.sub_routers]
+        names = _private_names(dispatcher)
 
         assert names[-1] == "stale"
 
     def test_every_router_is_named_so_the_order_is_assertable(self, dispatcher):
-        assert all(r.name for r in dispatcher.sub_routers)
+        assert all(_private_names(dispatcher))
 
 
 class TestMiddlewareAndHooks:
@@ -265,19 +277,19 @@ class TestDefectRouterOrder:
     """
 
     def test_flow_comes_before_entry(self, dispatcher):
-        names = [r.name for r in dispatcher.sub_routers]
+        names = _private_names(dispatcher)
 
         assert names.index("defect_flow") < names.index("defect_entry")
 
     def test_flow_comes_after_start(self, dispatcher):
         """Link buttons keep working mid-flow, as they did under PTB."""
-        names = [r.name for r in dispatcher.sub_routers]
+        names = _private_names(dispatcher)
 
         assert names.index("start") < names.index("defect_flow")
 
     def test_flow_comes_before_tasks(self, dispatcher):
         """1:1 with PTB: list pagination is inert while a defect is in progress."""
-        names = [r.name for r in dispatcher.sub_routers]
+        names = _private_names(dispatcher)
 
         assert names.index("defect_flow") < names.index("tasks")
 

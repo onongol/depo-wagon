@@ -9,6 +9,7 @@ import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from aiogram import Router
 from aiogram.fsm.storage.memory import SimpleEventIsolation
 from aiogram.types import Chat, Message, Update, User
 from django.db import OperationalError
@@ -31,7 +32,7 @@ from apps.bot.constants import (
     UD_AI_CHAT_LAST,
     LinkStatus,
 )
-from apps.bot.dispatcher import _BOT_COMMANDS, make_dispatcher
+from apps.bot.dispatcher import _BOT_COMMANDS, _routers, make_dispatcher
 from apps.bot.errors import build_session_error_text
 from apps.bot.fsm import save_defect
 from apps.bot.handlers.common.link_errors import get_link_error_message
@@ -545,6 +546,47 @@ class TestUnroutedUpdates:
         sent = [m.text for m in session.calls("sendMessage")]
         assert sent == [build_unhandled_message_text().render()[0]]
         assert await state.get_state() is None
+
+
+class TestAPrivateRouterNeedsNoChatFilter:
+    """The chat type is filtered once, on the private tree, for every router in it."""
+
+    @pytest.fixture
+    def seen(self):
+        return []
+
+    @pytest.fixture
+    def dp(self, storage, seen):
+        """The real tree with an unfiltered catch-all first in line."""
+
+        async def spy(event) -> None:
+            seen.append(event)
+
+        def with_spy():
+            extra = Router(name="unfiltered")
+            extra.message.register(spy)
+            extra.callback_query.register(spy)
+            return [extra, *_routers()]
+
+        with patch("apps.bot.dispatcher._routers", with_spy):
+            return make_dispatcher(storage, SimpleEventIsolation())
+
+    async def test_a_group_message_never_reaches_it(self, dp, bot, seen):
+        await dp.feed_update(bot, make_message_update("hi", chat_type="supergroup"))
+
+        assert seen == []
+
+    async def test_a_group_tap_never_reaches_it(self, dp, bot, seen):
+        await dp.feed_update(bot, make_callback_update("x", chat_type="supergroup"))
+
+        assert seen == []
+
+    async def test_a_private_chat_does(self, dp, bot, seen):
+        """Keeps the two above from passing on a spy that was never wired."""
+        await dp.feed_update(bot, make_message_update("hi"))
+        await dp.feed_update(bot, make_callback_update("x"))
+
+        assert len(seen) == 2
 
 
 class TestAFailingOuterMiddleware:

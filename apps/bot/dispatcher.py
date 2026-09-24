@@ -1,11 +1,11 @@
 import logging
 from typing import TYPE_CHECKING
 
-from aiogram import Bot, Dispatcher
+from aiogram import Bot, Dispatcher, Router
 from aiogram.types import BotCommand, MenuButtonCommands
 from django.utils.translation import gettext_lazy as _
 
-from apps.bot.filters import PRIVATE_CALLBACK
+from apps.bot.filters import PRIVATE_CALLBACK, PRIVATE_CHAT
 from apps.bot.messages import BotMessages as M
 from apps.bot.middlewares import (
     AiChatTimeoutMiddleware,
@@ -48,7 +48,7 @@ async def on_startup(bot: Bot) -> None:
 
 
 def _routers() -> list:
-    """Every router, in the order updates reach them. The order is load-bearing:
+    """Every private-chat router, in the order updates reach them. Load-bearing:
 
     - start first, so the link buttons work mid-flow instead of hitting its catch-all;
     - cancel ahead of every conversation, so /cancel ends everything by order alone;
@@ -85,10 +85,23 @@ def _routers() -> list:
     ]
 
 
+def _private_router() -> Router:
+    """Everything a private chat reaches. The chat-type filters sit here once.
+
+    Callbacks too: no router puts buttons in a group, so a tap there is forged.
+    """
+    router = Router(name="private")
+    router.message.filter(PRIVATE_CHAT)
+    router.callback_query.filter(PRIVATE_CALLBACK)
+    router.include_routers(*_routers())
+    return router
+
+
 def make_dispatcher(
     storage: BaseStorage, events_isolation: BaseEventIsolation
 ) -> Dispatcher:
     from apps.bot.errors import error_handler
+    from apps.bot.handlers.support.router import get_support_group_router
 
     dp = Dispatcher(storage=storage, events_isolation=events_isolation)
 
@@ -101,10 +114,6 @@ def make_dispatcher(
     # claiming the update would otherwise leave an expired session standing.
     dp.update.outer_middleware(AiChatTimeoutMiddleware())
 
-    # No router puts buttons in a group; a tap there can only be forged, and
-    # would edit the group's message. On dp, so no router can forget it.
-    dp.callback_query.filter(PRIVATE_CALLBACK)
-
     # Inner, so it reaches the handlers of every included router
     employee = EmployeeMiddleware()
     dp.message.middleware(employee)
@@ -113,8 +122,9 @@ def make_dispatcher(
     dp.startup.register(on_startup)
     dp.errors.register(error_handler)
 
-    for router in _routers():
-        dp.include_router(router)
+    # Disjoint by chat, so neither can shadow the other
+    private = _private_router()
+    dp.include_routers(private, get_support_group_router())
 
-    logger.info("Dispatcher created with %s routers.", len(dp.sub_routers))
+    logger.info("Dispatcher created with %s private routers.", len(private.sub_routers))
     return dp
