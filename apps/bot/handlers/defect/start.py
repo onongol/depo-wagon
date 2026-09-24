@@ -5,6 +5,8 @@ from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.bot.user_data import DefectData
 
+from .text import build_new_defect_text
+
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
     from aiogram.types import Message
@@ -15,11 +17,10 @@ if TYPE_CHECKING:
 async def new_defect_start(
     message: Message, state: FSMContext, employee: Employee | None
 ) -> None:
-    """Entry point: /new_defect or menu button."""
     if not employee:
         await message.answer(str(M.NOT_REGISTERED))
         return
 
     await save_defect(state, DefectData())
-    await message.answer(str(M.NEW_DEFECT_START), parse_mode=M.PARSE_MODE)
+    await message.answer(**build_new_defect_text().as_kwargs())
     await state.set_state(DefectSG.wagon_num)

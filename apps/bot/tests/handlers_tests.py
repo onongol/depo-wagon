@@ -48,6 +48,8 @@ from apps.bot.handlers.defect.responsible_employee import (
     skip_responsible_employee,
 )
 from apps.bot.handlers.defect.responsible_employee.list import EMPLOYEE_PAGE_SIZE
+from apps.bot.handlers.defect.start import new_defect_start
+from apps.bot.handlers.defect.text import build_new_defect_text
 from apps.bot.handlers.defect.wagon import receive_wagon_number
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
@@ -113,6 +115,16 @@ class TestHelpHandler:
         buttons = (BTN_NEW_DEFECT, BTN_SAVE, BTN_OPEN_DEFECTS, BTN_ASK, BTN_CANCEL)
         for button in buttons:
             assert str(button) in text
+
+
+class TestNewDefectStart:
+    async def test_asks_for_the_wagon_number(self, state):
+        message = make_message()
+
+        await new_defect_start(message, state, MagicMock())
+
+        message.answer.assert_awaited_once_with(**build_new_defect_text().as_kwargs())
+        assert await state.get_state() == DefectSG.wagon_num.state
 
 
 class TestReceiveWagonNumber:
