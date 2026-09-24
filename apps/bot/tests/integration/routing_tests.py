@@ -18,8 +18,10 @@ from django.test import override_settings
 from apps.bot.callback_data import (
     CB_DEFECT_CONTINUE,
     CB_DEFECT_RESTART,
+    CB_DESC_SKIP,
     CB_LINK_CANCEL,
     CB_NOOP,
+    CB_PHOTO_SKIP,
     ConfirmCB,
     DefectCardCB,
     DepartmentCB,
@@ -52,6 +54,7 @@ from apps.bot.handlers.defect.text import (
 from apps.bot.handlers.start.link_errors import get_link_error_message
 from apps.bot.handlers.start.text import build_link_cancelled_text
 from apps.bot.handlers.support.utils import remember_request
+from apps.bot.keyboards.common import done_keyboard, skip_keyboard
 from apps.bot.keyboards.defect import defect_in_progress_keyboard
 from apps.bot.keyboards.menu import MENU_TEXTS
 from apps.bot.messages import BotMessages as M
@@ -65,8 +68,10 @@ from apps.bot.tests.integration.conftest import (
     make_message_update,
     make_photo_update,
 )
-from apps.bot.user_data import DefectData
+from apps.bot.user_data import DefectData, MeasurementEntry, PhotoEntry
+from apps.core.constants import Department
 
+RESP_SERVICES = "apps.bot.handlers.defect.responsible_employee.list.services"
 SUPPORT_CHAT_ID = "apps.bot.handlers.support.user_handlers.support_chat_id"
 TASKS_COUNT = "apps.bot.handlers.tasks.render.services.get_open_defects_count"
 TASKS_PAGE = "apps.bot.handlers.tasks.render.services.get_open_defects"
@@ -260,15 +265,77 @@ class TestNewDefectDuringARunningForm:
         assert (await load_defect(state)).wagon_number == self.WAGON
 
     @pytest.mark.usefixtures("form")
-    async def test_continue_leaves_the_form_as_it_was(self, dp, bot, session, state):
+    async def test_continue_shows_the_step_again(self, dp, bot, session, state):
         await state.set_state(DefectSG.desc)
+
+        await dp.feed_update(bot, make_callback_update(CB_DEFECT_CONTINUE))
+
+        (edit,) = session.calls("editMessageText")
+        assert edit.text == str(M.ASK_DESCRIPTION)
+        assert edit.reply_markup == skip_keyboard(CB_DESC_SKIP)
+        assert await state.get_state() == DefectSG.desc.state
+        assert (await load_defect(state)).wagon_number == self.WAGON
+
+    @pytest.fixture
+    async def full_form(self, state):
+        await save_defect(
+            state,
+            DefectData(
+                wagon_id=3,
+                wagon_number=self.WAGON,
+                department=Department.BOGIE.value,
+                department_label="Bogie",
+                defect_type_label="Crack",
+                severity_label="High",
+                current_measurement=MeasurementEntry(
+                    dimension="depth", dimension_label="Depth"
+                ),
+            ),
+        )
+
+    @pytest.mark.usefixtures("full_form")
+    @pytest.mark.parametrize(
+        "step",
+        [s for s in DefectSG.__states__ if s != DefectSG.saving],
+        ids=lambda s: s.state,
+    )
+    async def test_every_step_has_a_screen_to_return_to(
+        self, dp, bot, session, state, step
+    ):
+        await state.set_state(step)
+
+        with patch(RESP_SERVICES) as svc:
+            svc.count_department_employees = AsyncMock(return_value=0)
+            svc.get_department_employees = AsyncMock(return_value=[])
+            await dp.feed_update(bot, make_callback_update(CB_DEFECT_CONTINUE))
+
+        (edit,) = session.calls("editMessageText")
+        assert edit.text != build_defect_continued_text().render()[0]
+        assert await state.get_state() == step.state
+
+    async def test_the_photo_step_offers_done_once_a_photo_is_in(
+        self, dp, bot, session, state
+    ):
+        photo = PhotoEntry(file_id="f", message_id=1)
+        await save_defect(state, DefectData(photos=[photo, photo]))
+        await state.set_state(DefectSG.photo)
+
+        await dp.feed_update(bot, make_callback_update(CB_DEFECT_CONTINUE))
+
+        (edit,) = session.calls("editMessageText")
+        assert edit.text == str(M.PHOTO_RECEIVED).format(count=2)
+        assert edit.reply_markup == done_keyboard(CB_PHOTO_SKIP)
+
+    @pytest.mark.usefixtures("form")
+    async def test_continue_while_saving_just_says_carry_on(
+        self, dp, bot, session, state
+    ):
+        await state.set_state(DefectSG.saving)
 
         await dp.feed_update(bot, make_callback_update(CB_DEFECT_CONTINUE))
 
         edits = [e.text for e in session.calls("editMessageText")]
         assert edits == [build_defect_continued_text().render()[0]]
-        assert await state.get_state() == DefectSG.desc.state
-        assert (await load_defect(state)).wagon_number == self.WAGON
 
     @pytest.mark.usefixtures("form")
     async def test_start_over_opens_a_blank_form(self, dp, bot, session, state):

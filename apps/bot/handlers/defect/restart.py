@@ -1,8 +1,9 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from apps.bot.keyboards.defect import defect_in_progress_keyboard
 from apps.bot.utils.screens import edit_or_send
 
+from .resume import show_current_step
 from .start import open_blank_form
 from .text import (
     build_defect_continued_text,
@@ -23,9 +24,15 @@ async def defect_in_progress(message: Message) -> None:
     )
 
 
-async def continue_defect(callback: CallbackQuery) -> None:
+async def continue_defect(callback: CallbackQuery, state: FSMContext) -> None:
+    """The question turns into the step it interrupted."""
     await callback.answer()
-    await edit_or_send(callback, **build_defect_continued_text().as_kwargs())
+
+    async def send(text: str, **kwargs: Any) -> None:
+        await edit_or_send(callback, text=text, **kwargs)
+
+    if not await show_current_step(send, state):
+        await edit_or_send(callback, **build_defect_continued_text().as_kwargs())
 
 
 async def restart_defect(callback: CallbackQuery, state: FSMContext) -> None:
