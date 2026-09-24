@@ -6,18 +6,22 @@ from .render import render_page
 from .utils import refuse_unregistered
 
 if TYPE_CHECKING:
+    from aiogram.fsm.context import FSMContext
     from aiogram.types import CallbackQuery, Message
 
     from apps.bot.callback_data import TasksPageCB
     from apps.core.models import Employee
 
 
-async def my_tasks(message: Message, employee: Employee | None) -> None:
-    """Show the first page of open defects."""
+async def my_tasks(
+    message: Message, state: FSMContext, employee: Employee | None
+) -> None:
+    """Show the first page of open defects, leaving the AI chat or support prompt."""
     if not employee:
         await message.answer(str(M.NOT_REGISTERED), parse_mode=M.PARSE_MODE)
         return
 
+    await state.clear()
     await render_page(message.answer, employee, page=0)
 
 

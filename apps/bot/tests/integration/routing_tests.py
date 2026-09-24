@@ -26,6 +26,7 @@ from apps.bot.constants import (
     BTN_ASK,
     BTN_HELP,
     BTN_NEW_DEFECT,
+    BTN_OPEN_DEFECTS,
     UD_AI_CHAT_LAST,
     LinkStatus,
 )
@@ -183,6 +184,37 @@ class TestPrecedenceDuringTheDefectFlow:
 
         assert await state.get_state() == DefectSG.photo.state
 
+    async def test_a_link_button_mid_flow_reaches_the_link_handler(
+        self, dp, bot, state, employee
+    ):
+        """start precedes the flow, whose catch-all would swallow the tap."""
+        await self._enter_photo_step(dp, bot, state, employee)
+
+        with patch("apps.bot.handlers.common.start.services") as svc:
+            svc.complete_telegram_link = AsyncMock(
+                return_value=(None, LinkStatus.OFFER_EXPIRED)
+            )
+            await dp.feed_update(
+                bot, make_callback_update(LinkConfirmCB(employee_id=7).pack())
+            )
+
+        svc.complete_telegram_link.assert_awaited_once()
+
+    async def test_cancel_mid_flow_is_the_global_cancel(
+        self, dp, bot, session, state, employee
+    ):
+        """cancel precedes the flow, so /cancel ends everything, not just the form."""
+        await self._enter_photo_step(dp, bot, state, employee)
+        await state.update_data({UD_AI_CHAT_LAST: 1.0})
+        session.clear()
+
+        await dp.feed_update(bot, make_message_update("/cancel", command=True))
+
+        sent = [m.text for m in session.calls("sendMessage")]
+        assert sent == [build_cancelled_text().render()[0]]
+        assert await state.get_state() is None
+        assert await state.get_data() == {}
+
 
 class TestAiChatPrecedence:
     async def test_the_new_defect_button_leaves_the_ai_chat(
@@ -228,23 +260,45 @@ class TestAiChatPrecedence:
         assert await state.get_state() is None
 
     async def test_a_router_ahead_of_ai_chat_still_expires_the_session(
-        self, dp, bot, session, state, employee
+        self, dp, bot, state, employee
     ):
-        """tasks sits before ai_chat, so only a global check catches this one."""
+        """start sits before ai_chat and keeps the state, so only a global check can."""
         with as_employee(employee):
             await dp.feed_update(bot, make_message_update("/ask", command=True))
         await state.update_data({UD_AI_CHAT_LAST: time.time() - AI_CHAT_TIMEOUT - 1})
-        session.clear()
+
+        with as_employee(employee):
+            await dp.feed_update(bot, make_message_update("/start", command=True))
+
+        assert await state.get_state() is None
+
+    async def test_start_mid_session_leaves_the_chat_standing(
+        self, dp, bot, state, employee
+    ):
+        """The control for the test above: without the timeout, /start keeps it."""
+        with as_employee(employee):
+            await dp.feed_update(bot, make_message_update("/ask", command=True))
+            await dp.feed_update(bot, make_message_update("/start", command=True))
+
+        assert await state.get_state() == AiChatSG.chatting.state
+
+    @pytest.mark.parametrize("flow", [AiChatSG.chatting, SupportSG.message])
+    async def test_open_defects_leaves_the_flow_and_shows_the_list(
+        self, dp, bot, state, employee, flow
+    ):
+        """Like New Defect: the next text must not go to the assistant or support."""
+        await state.set_state(flow)
 
         with (
             as_employee(employee),
+            patch(SUPPORT_CHAT_ID, return_value=-100),
             patch(TASKS_COUNT, AsyncMock(return_value=0)),
             patch(TASKS_PAGE, AsyncMock(return_value=[])),
         ):
-            await dp.feed_update(bot, make_message_update("/my_tasks", command=True))
+            await dp.feed_update(bot, make_message_update(str(BTN_OPEN_DEFECTS)))
 
         assert await state.get_state() is None
-        sent = [m.text for m in session.calls("sendMessage")]
+        sent = [m.text for m in bot.session.calls("sendMessage")]
         assert sent == [str(M.NO_TASKS)]
 
     async def test_a_question_in_the_session_reaches_the_assistant(

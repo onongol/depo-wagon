@@ -120,54 +120,54 @@ def _answered_quietly(callback) -> None:
 
 
 class TestMyTasks:
-    async def test_refuses_an_unregistered_chat(self):
+    async def test_refuses_an_unregistered_chat(self, state):
         message = make_message()
 
-        await my_tasks(message, None)
+        await my_tasks(message, state, None)
 
         message.answer.assert_awaited_once_with(
             str(M.NOT_REGISTERED), parse_mode=M.PARSE_MODE
         )
 
-    async def test_says_so_when_there_is_nothing_open(self, svc, employee):
+    async def test_says_so_when_there_is_nothing_open(self, svc, employee, state):
         svc.get_open_defects.return_value = []
         svc.get_open_defects_count.return_value = 0
         message = make_message()
 
-        await my_tasks(message, employee)
+        await my_tasks(message, state, employee)
 
         assert message.answer.await_args.args[0] == str(M.NO_TASKS)
 
-    async def test_sends_a_new_message_with_a_keyboard(self, svc, employee):
+    async def test_sends_a_new_message_with_a_keyboard(self, svc, employee, state):
         message = make_message()
 
-        await my_tasks(message, employee)
+        await my_tasks(message, state, employee)
 
         assert message.answer.await_args.kwargs["reply_markup"] is not None
 
     @pytest.mark.parametrize("role", EmployeeRole.values)
-    async def test_every_role_can_open_the_cards(self, svc, employee, role):
+    async def test_every_role_can_open_the_cards(self, svc, employee, role, state):
         employee.role = role
         message = make_message()
 
-        await my_tasks(message, employee)
+        await my_tasks(message, state, employee)
 
         kb = message.answer.await_args.kwargs["reply_markup"]
         assert unpacked(kb, DefectCardCB)
         assert unpacked(kb, StatusPickCB) == []
 
-    async def test_always_starts_at_the_first_page(self, svc, employee):
-        await my_tasks(make_message(), employee)
+    async def test_always_starts_at_the_first_page(self, svc, employee, state):
+        await my_tasks(make_message(), state, employee)
 
         assert svc.get_open_defects.await_args.kwargs["offset"] == 0
 
     @pytest.mark.parametrize("role", [*EmployeeRole.values, "unknown"])
     async def test_leaves_the_scope_to_the_query_whatever_the_role(
-        self, svc, employee, role
+        self, svc, employee, role, state
     ):
         employee.role = role
 
-        await my_tasks(make_message(), employee)
+        await my_tasks(make_message(), state, employee)
 
         assert svc.get_open_defects.await_args.kwargs["employee"] is employee
         assert svc.get_open_defects_count.await_args.kwargs["employee"] is employee

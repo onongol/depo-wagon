@@ -1,5 +1,3 @@
-"""Dispatcher assembly. Replaces the PTB Application builder."""
-
 import logging
 from typing import TYPE_CHECKING
 
@@ -49,21 +47,15 @@ async def on_startup(bot: Bot) -> None:
 
 
 def _routers() -> list:
-    """Every router, in the order updates are offered to them.
+    """Every router, in the order updates reach them. The order is load-bearing:
 
-    The order is load-bearing and reproduces PTB's registration order:
-
-    - start comes before the conversations, so /start and the account-link
-      buttons still work mid-flow;
-    - cancel comes right after start, for the same reason but by aiogram's own
-      idiom: an unfiltered Command("cancel") ahead of every conversation wins
-      by registration order alone, rather than depending on each flow's
-      free-text steps filtering it out with NotACommand;
-    - each conversation's state-filtered router precedes its own entry points,
-      which is how PTB kept an entry point from restarting a running flow;
-    - help comes after the conversations, so the Help button pressed inside
-      the AI chat reaches that flow's fallback rather than help_command;
-    - stale is last, and only sees what nothing else claimed.
+    - start first, so the link buttons work mid-flow instead of hitting its catch-all;
+    - cancel ahead of every conversation, so /cancel ends everything by order alone;
+    - the defect flow ahead of its entry, so New Defect can't restart a running form;
+    - tasks ahead of support and ai_chat, so Open Defects leaves them for the list;
+    - support ahead of ai_chat and help, so their buttons cancel it, not get relayed;
+    - help after the conversations, so Help inside the AI chat reaches its fallback;
+    - stale last: it sees only what nothing else claimed.
     """
     from apps.bot.handlers.ai_chat.router import get_ai_chat_router
     from apps.bot.handlers.common.router import (

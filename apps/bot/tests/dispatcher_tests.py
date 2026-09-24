@@ -41,11 +41,12 @@ class TestRouterOrder:
 
         assert names[0] == "start"
 
-    def test_cancel_comes_right_after_start(self, dispatcher):
+    @pytest.mark.parametrize("flow", ["defect_flow", "support", "ai_chat"])
+    def test_cancel_comes_before_every_conversation(self, dispatcher, flow):
         """/cancel wins by registration order, ahead of every flow's own state."""
         names = [r.name for r in dispatcher.sub_routers]
 
-        assert names.index("cancel") == names.index("start") + 1
+        assert names.index("cancel") < names.index(flow)
 
     def test_help_comes_after_the_conversations(self, dispatcher):
         """The Help button inside a flow must reach that flow, not help_command."""
