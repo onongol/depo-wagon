@@ -4,9 +4,8 @@ from aiogram.utils.formatting import Text, as_list
 from django.utils.translation import gettext_lazy as _
 
 from apps.bot.constants import LinkStatus
-from apps.bot.messages import BotMessages as M
 
-from .text import GET_NEW_LINK
+from .text import GET_NEW_LINK, build_session_error_text
 
 logger = logging.getLogger(__name__)
 
@@ -40,5 +39,5 @@ def get_link_error_message(status: LinkStatus) -> Text:
     message = _STATUS_MESSAGES.get(status)
     if message is None:
         logger.error("Link status %s has no message", status)
-        return Text(M.SESSION_ERROR)
+        return build_session_error_text()
     return message

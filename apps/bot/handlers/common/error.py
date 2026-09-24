@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from aiogram.enums import ChatType
 from aiogram.exceptions import TelegramAPIError
 
-from apps.bot.messages import BotMessages as M
+from apps.bot.handlers.common.text import build_session_error_text
 
 if TYPE_CHECKING:
     from aiogram.types import ErrorEvent, Update
@@ -26,7 +26,7 @@ async def _tell_the_user(update: Update) -> None:
         return
 
     with suppress(TelegramAPIError):
-        await message.answer(str(M.SESSION_ERROR))
+        await message.answer(**build_session_error_text().as_kwargs())
 
 
 async def error_handler(event: ErrorEvent) -> None:

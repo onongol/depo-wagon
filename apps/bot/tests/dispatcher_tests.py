@@ -15,6 +15,7 @@ from aiogram.fsm.storage.memory import MemoryStorage, SimpleEventIsolation
 
 from apps.bot.dispatcher import _BOT_COMMANDS, make_dispatcher, on_startup
 from apps.bot.handlers.common.error import error_handler
+from apps.bot.handlers.common.text import build_session_error_text
 from apps.bot.messages import BotMessages as M
 
 
@@ -131,7 +132,9 @@ class TestErrorHandlerTellsTheUser:
 
         await error_handler(_error_event(message=message, callback_query=None))
 
-        message.answer.assert_awaited_once_with(str(M.SESSION_ERROR))
+        message.answer.assert_awaited_once_with(
+            **build_session_error_text().as_kwargs()
+        )
 
     async def test_a_callback_is_answered_and_told_in_the_chat(self):
         callback = MagicMock(answer=AsyncMock(), message=_message())
@@ -139,7 +142,9 @@ class TestErrorHandlerTellsTheUser:
         await error_handler(_error_event(message=None, callback_query=callback))
 
         callback.answer.assert_awaited_once_with()
-        callback.message.answer.assert_awaited_once_with(str(M.SESSION_ERROR))
+        callback.message.answer.assert_awaited_once_with(
+            **build_session_error_text().as_kwargs()
+        )
 
     async def test_an_expired_query_still_gets_the_message(self):
         """The failure this path exists for is slow enough to outlive the query."""
@@ -149,7 +154,9 @@ class TestErrorHandlerTellsTheUser:
 
         await error_handler(_error_event(message=None, callback_query=callback))
 
-        callback.message.answer.assert_awaited_once_with(str(M.SESSION_ERROR))
+        callback.message.answer.assert_awaited_once_with(
+            **build_session_error_text().as_kwargs()
+        )
 
     async def test_a_failure_to_tell_the_user_is_swallowed(self):
         message = _message()

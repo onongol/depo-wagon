@@ -36,6 +36,7 @@ from apps.bot.handlers.common.text import (
     build_cancelled_text,
     build_help_text,
     build_link_cancelled_text,
+    build_session_error_text,
     build_unhandled_message_text,
 )
 from apps.bot.handlers.support.utils import remember_request
@@ -464,14 +465,17 @@ class TestAFailedEmployeeLookup:
             await dp.feed_update(bot, make_message_update("/my_tasks", command=True))
 
         sent = [m.text for m in session.calls("sendMessage")]
-        assert sent == [str(M.SESSION_ERROR)]
+        assert sent == [build_session_error_text().render()[0]]
 
     async def test_a_callback_is_answered_and_told(self, dp, bot, session):
         with patch(self.LOOKUP, AsyncMock(side_effect=RuntimeError("db down"))):
             await dp.feed_update(bot, make_callback_update(TasksPageCB(page=2).pack()))
 
         assert session.method_names() == ["answerCallbackQuery", "sendMessage"]
-        assert session.calls("sendMessage")[0].text == str(M.SESSION_ERROR)
+        assert (
+            session.calls("sendMessage")[0].text
+            == build_session_error_text().render()[0]
+        )
 
 
 class TestAButtonOnAnInaccessibleMessage:
@@ -511,7 +515,7 @@ class TestAFailedAccountLink:
             )
 
         sent = [m.text for m in session.calls("sendMessage")]
-        assert sent == [str(M.SESSION_ERROR)]
+        assert sent == [build_session_error_text().render()[0]]
 
     async def test_a_confirm_tap_is_told_the_session_failed(self, dp, bot, session):
         with patch("apps.bot.handlers.common.start.services") as svc:
@@ -523,7 +527,7 @@ class TestAFailedAccountLink:
             )
 
         sent = [m.text for m in session.calls("sendMessage")]
-        assert sent == [str(M.SESSION_ERROR)]
+        assert sent == [build_session_error_text().render()[0]]
         assert session.calls("editMessageText") == []
 
 
