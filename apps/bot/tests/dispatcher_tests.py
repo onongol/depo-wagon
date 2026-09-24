@@ -268,18 +268,12 @@ class TestStartupHook:
 
 
 class TestDefectRouterOrder:
-    """The flow router must precede its own entry points.
-
-    That ordering is what stopped PTB's entry point from restarting a
-    conversation already in progress: BTN_NEW_DEFECT typed mid-flow reaches
-    receive_wagon_number, whose MENU_TEXTS guard re-prompts, rather than
-    wiping the half-filled form.
-    """
-
-    def test_flow_comes_before_entry(self, dispatcher):
+    @pytest.mark.parametrize("flow", ["support", "ai_chat"])
+    def test_entry_comes_before_the_flows_it_leaves(self, dispatcher, flow):
+        """Both cancel on a menu button, so New Defect would end them, not start one."""
         names = _private_names(dispatcher)
 
-        assert names.index("defect_flow") < names.index("defect_entry")
+        assert names.index("defect_entry") < names.index(flow)
 
     def test_flow_comes_after_start(self, dispatcher):
         """Link buttons keep working mid-flow, as they did under PTB."""

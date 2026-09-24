@@ -16,6 +16,8 @@ CB_MEAS_DONE = "meas_done"
 CB_NORM_SKIP = "norm_skip"
 CB_UNIT_SKIP = "unit_skip"
 CB_DESC_SKIP = "desc_skip"
+CB_DEFECT_CONTINUE = "df_continue"
+CB_DEFECT_RESTART = "df_restart"
 CB_LINK_CANCEL = "link_cancel"
 
 

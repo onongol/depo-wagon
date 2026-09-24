@@ -16,6 +16,8 @@ from django.db import OperationalError
 from django.test import override_settings
 
 from apps.bot.callback_data import (
+    CB_DEFECT_CONTINUE,
+    CB_DEFECT_RESTART,
     CB_LINK_CANCEL,
     CB_NOOP,
     ConfirmCB,
@@ -30,20 +32,27 @@ from apps.bot.constants import (
     BTN_NEW_DEFECT,
     BTN_OPEN_DEFECTS,
     UD_AI_CHAT_LAST,
+    UD_EDITING,
     LinkStatus,
 )
 from apps.bot.dispatcher import _BOT_COMMANDS, _routers, make_dispatcher
 from apps.bot.errors import build_session_error_text
-from apps.bot.fsm import save_defect
+from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.common.text import (
     build_button_expired_text,
     build_cancelled_text,
     build_help_text,
     build_unhandled_message_text,
 )
+from apps.bot.handlers.defect.text import (
+    build_defect_continued_text,
+    build_defect_in_progress_text,
+    build_new_defect_text,
+)
 from apps.bot.handlers.start.link_errors import get_link_error_message
 from apps.bot.handlers.start.text import build_link_cancelled_text
 from apps.bot.handlers.support.utils import remember_request
+from apps.bot.keyboards.defect import defect_in_progress_keyboard
 from apps.bot.keyboards.menu import MENU_TEXTS
 from apps.bot.messages import BotMessages as M
 from apps.bot.middlewares import AI_CHAT_TIMEOUT
@@ -144,16 +153,6 @@ class TestPrecedenceDuringTheDefectFlow:
         assert session.calls("editMessageText") == []
         assert await state.get_state() == DefectSG.photo.state
 
-    async def test_the_new_defect_button_does_not_restart_a_running_flow(
-        self, dp, bot, state, employee
-    ):
-        """The flow router precedes the entry router, so the guard re-prompts."""
-        with as_employee(employee):
-            await dp.feed_update(bot, make_message_update("/new_defect", command=True))
-        await dp.feed_update(bot, make_message_update(str(BTN_NEW_DEFECT)))
-
-        assert await state.get_state() == DefectSG.wagon_num.state
-
     @pytest.fixture
     async def at_wagon_step(self, dp, bot, session, employee):
         with as_employee(employee):
@@ -161,7 +160,7 @@ class TestPrecedenceDuringTheDefectFlow:
         session.clear()
 
     @pytest.mark.usefixtures("at_wagon_step")
-    @pytest.mark.parametrize("label", sorted(MENU_TEXTS))
+    @pytest.mark.parametrize("label", sorted(MENU_TEXTS - {str(BTN_NEW_DEFECT)}))
     async def test_no_menu_label_is_read_as_a_wagon_number(
         self, dp, bot, session, state, label
     ):
@@ -216,6 +215,73 @@ class TestPrecedenceDuringTheDefectFlow:
         assert sent == [build_cancelled_text().render()[0]]
         assert await state.get_state() is None
         assert await state.get_data() == {}
+
+
+class TestNewDefectDuringARunningForm:
+    """Asked at every step, not only where a text handler guards menu labels."""
+
+    WAGON = "80035668"
+
+    @pytest.fixture
+    async def form(self, state):
+        await save_defect(state, DefectData(wagon_id=3, wagon_number=self.WAGON))
+        await state.update_data({UD_EDITING: True})
+
+    @pytest.mark.usefixtures("form")
+    @pytest.mark.parametrize(
+        "step",
+        [
+            DefectSG.wagon_num,
+            DefectSG.department,
+            DefectSG.photo,
+            DefectSG.desc,
+            DefectSG.confirm,
+            DefectSG.employee_verdict,
+        ],
+        ids=lambda s: s.state,
+    )
+    @pytest.mark.parametrize(
+        "text", ["/new_defect", str(BTN_NEW_DEFECT)], ids=["command", "button"]
+    )
+    async def test_the_form_is_kept_and_the_user_asked(
+        self, dp, bot, state, step, text
+    ):
+        """No employee: reaching the entry instead would reply NOT_REGISTERED."""
+        await state.set_state(step)
+        update = make_message_update(text, command=text.startswith("/"))
+
+        with as_employee(None):
+            await dp.feed_update(bot, update)
+
+        sent = bot.session.calls("sendMessage")
+        assert [m.text for m in sent] == [build_defect_in_progress_text().render()[0]]
+        assert sent[0].reply_markup == defect_in_progress_keyboard()
+        assert await state.get_state() == step.state
+        assert (await load_defect(state)).wagon_number == self.WAGON
+
+    @pytest.mark.usefixtures("form")
+    async def test_continue_leaves_the_form_as_it_was(self, dp, bot, session, state):
+        await state.set_state(DefectSG.desc)
+
+        await dp.feed_update(bot, make_callback_update(CB_DEFECT_CONTINUE))
+
+        edits = [e.text for e in session.calls("editMessageText")]
+        assert edits == [build_defect_continued_text().render()[0]]
+        assert await state.get_state() == DefectSG.desc.state
+        assert (await load_defect(state)).wagon_number == self.WAGON
+
+    @pytest.mark.usefixtures("form")
+    async def test_start_over_opens_a_blank_form(self, dp, bot, session, state):
+        """UD_EDITING surviving would send the next wagon number to the summary."""
+        await state.set_state(DefectSG.confirm)
+
+        await dp.feed_update(bot, make_callback_update(CB_DEFECT_RESTART))
+
+        edits = [e.text for e in session.calls("editMessageText")]
+        assert edits == [build_new_defect_text().render()[0]]
+        assert await state.get_state() == DefectSG.wagon_num.state
+        assert await load_defect(state) == DefectData()
+        assert UD_EDITING not in await state.get_data()
 
 
 class TestAiChatPrecedence:

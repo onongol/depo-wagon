@@ -20,8 +20,10 @@ from .common import (
     UD_RESP_SEARCH,
 )
 from .defect import (
+    BTN_CONTINUE,
     BTN_PAGE_NEXT,
     BTN_PAGE_PREV,
+    BTN_START_OVER,
     SEVERITY_CHOICES,
     SEVERITY_LABELS,
     VERDICT_CHOICES,
@@ -50,6 +52,7 @@ __all__ = [
     "BTN_CHANGE_STATUS",
     "BTN_CONFIRM",
     "BTN_CONNECT",
+    "BTN_CONTINUE",
     "BTN_DONE",
     "BTN_HELP",
     "BTN_NEW_DEFECT",
@@ -60,6 +63,7 @@ __all__ = [
     "BTN_PREV",
     "BTN_SAVE",
     "BTN_SKIP",
+    "BTN_START_OVER",
     "DEFECT_USER_DATA_KEYS",
     "EDIT_FIELDS",
     "LIST_NUMBER_EMOJI",

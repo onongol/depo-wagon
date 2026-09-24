@@ -1,10 +1,8 @@
 """Routers for defect registration.
 
-Split in two on purpose. The flow router is state-filtered and is included
-before the entry router, which is how PTB stopped an entry point from
-restarting a conversation already in progress: BTN_NEW_DEFECT typed during the
-flow reaches receive_wagon_number, whose MENU_TEXTS guard re-prompts, rather
-than wiping the form and starting over.
+Disjoint by state: the entry answers only outside DefectSG, and inside it the
+flow asks whether to continue or start over, so a running form is never wiped
+without the user choosing to.
 """
 
 from aiogram import F, Router
@@ -12,6 +10,8 @@ from aiogram.filters import Command, StateFilter
 
 from apps.bot.callback_data import (
     CB_CANCEL,
+    CB_DEFECT_CONTINUE,
+    CB_DEFECT_RESTART,
     CB_DESC_SKIP,
     CB_MEAS_ADD,
     CB_MEAS_DONE,
@@ -62,6 +62,7 @@ from .responsible_employee import (
     select_responsible_employee,
     skip_responsible_employee,
 )
+from .restart import continue_defect, defect_in_progress, restart_defect
 from .severity import receive_severity
 from .start import new_defect_start
 from .verdict import receive_employee_verdict
@@ -80,6 +81,13 @@ def get_defect_flow_router() -> Router:
     # dereference the None load_defect returns for it.
     router.message.outer_middleware(StaleSchemaMiddleware())
     router.callback_query.outer_middleware(StaleSchemaMiddleware())
+
+    # Ahead of every text step, which would take the button for an answer
+    running = StateFilter(DefectSG)
+    msg(defect_in_progress, running, Command("new_defect"))
+    msg(defect_in_progress, running, F.text == str(BTN_NEW_DEFECT))
+    cb(continue_defect, running, F.data == CB_DEFECT_CONTINUE)
+    cb(restart_defect, running, F.data == CB_DEFECT_RESTART)
 
     msg(receive_wagon_number, StateFilter(DefectSG.wagon_num), *_TEXT)
     cb(receive_department, StateFilter(DefectSG.department), DepartmentCB.filter())
@@ -151,8 +159,9 @@ def get_defect_flow_router() -> Router:
 
 
 def get_defect_entry_router() -> Router:
-    """The two ways in. Included after the flow router."""
+    """The two ways in, outside a running form."""
     router = Router(name="defect_entry")
+    router.message.filter(~StateFilter(DefectSG))
     router.message.register(new_defect_start, Command("new_defect"))
     router.message.register(new_defect_start, F.text == str(BTN_NEW_DEFECT))
     return router

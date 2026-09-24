@@ -126,6 +126,16 @@ class TestNewDefectStart:
         message.answer.assert_awaited_once_with(**build_new_defect_text().as_kwargs())
         assert await state.get_state() == DefectSG.wagon_num.state
 
+    async def test_drops_what_an_abandoned_form_left_behind(self, state):
+        """Edit, then /ask, then New Defect: the entry runs outside DefectSG."""
+        await state.update_data({UD_EDITING: True, UD_RESP_SEARCH: "bat"})
+
+        await new_defect_start(make_message(), state, MagicMock())
+
+        data = await state.get_data()
+        assert UD_EDITING not in data
+        assert UD_RESP_SEARCH not in data
+
 
 class TestReceiveWagonNumber:
     async def test_a_failed_lookup_logs_nothing_the_user_typed(self, state, caplog):

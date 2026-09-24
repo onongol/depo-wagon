@@ -52,7 +52,7 @@ def _routers() -> list:
 
     - start first, so the link buttons work mid-flow instead of hitting its catch-all;
     - cancel ahead of every conversation, so /cancel ends everything by order alone;
-    - the defect flow ahead of its entry, so New Defect can't restart a running form;
+    - the defect entry ahead of support and ai_chat, so New Defect leaves them for a form;
     - tasks ahead of support and ai_chat, so Open Defects leaves them for the list;
     - support ahead of ai_chat and help, so their buttons cancel it, not get relayed;
     - help after the conversations, so Help inside the AI chat reaches its fallback;
