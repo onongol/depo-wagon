@@ -157,16 +157,20 @@ def make_photo_update(
     )
 
 
-def make_callback_update(data: str, *, inaccessible: bool = False) -> Update:
+def make_callback_update(
+    data: str, *, inaccessible: bool = False, chat_type: str = "private"
+) -> Update:
     """A button tap; inaccessible puts it on a message the bot can no longer see."""
     message_id = next(_message_ids)
     if inaccessible:
-        message = InaccessibleMessage(chat=_chat(), message_id=message_id, date=0)
+        message = InaccessibleMessage(
+            chat=_chat(chat_type), message_id=message_id, date=0
+        )
     else:
         message = Message(
             message_id=message_id,
             date=0,
-            chat=_chat(),
+            chat=_chat(chat_type),
             from_user=User(id=BOT_ID, is_bot=True, first_name="Bot"),
             text="previous",
         )

@@ -18,6 +18,7 @@ from apps.bot.callback_data import (
     CB_LINK_CANCEL,
     CB_NOOP,
     ConfirmCB,
+    DefectCardCB,
     DepartmentCB,
     LinkConfirmCB,
     TasksPageCB,
@@ -475,6 +476,33 @@ class TestUnroutedUpdates:
             await dp.feed_update(bot, update)
 
         assert session.requests == []
+        lookup.assert_not_awaited()
+
+    @pytest.mark.parametrize(
+        "data",
+        [
+            LinkConfirmCB(employee_id=42).pack(),
+            CB_LINK_CANCEL,
+            DefectCardCB(defect_id=uuid.uuid4(), page=0).pack(),
+            TasksPageCB(page=1).pack(),
+            CB_NOOP,
+            "garbage",
+        ],
+        ids=["link", "link_cancel", "card", "page", "noop", "stale"],
+    )
+    @pytest.mark.parametrize("inaccessible", [False, True])
+    async def test_no_button_answers_in_a_group(
+        self, dp, bot, employee, data, inaccessible
+    ):
+        """Only a forged tap lands there; answering it would edit the group's message."""
+        update = make_callback_update(
+            data, inaccessible=inaccessible, chat_type="supergroup"
+        )
+
+        with as_employee(employee) as lookup:
+            await dp.feed_update(bot, update)
+
+        assert bot.session.requests == []
         lookup.assert_not_awaited()
 
     async def test_the_wrong_content_type_mid_form_stays_silent(

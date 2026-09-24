@@ -5,6 +5,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.types import BotCommand, MenuButtonCommands
 from django.utils.translation import gettext_lazy as _
 
+from apps.bot.filters import PRIVATE_CALLBACK
 from apps.bot.messages import BotMessages as M
 from apps.bot.middlewares import (
     AiChatTimeoutMiddleware,
@@ -99,6 +100,10 @@ def make_dispatcher(
     # Global rather than on the ai_chat router: a router earlier in the chain
     # claiming the update would otherwise leave an expired session standing.
     dp.update.outer_middleware(AiChatTimeoutMiddleware())
+
+    # No router puts buttons in a group; a tap there can only be forged, and
+    # would edit the group's message. On dp, so no router can forget it.
+    dp.callback_query.filter(PRIVATE_CALLBACK)
 
     # Inner, so it reaches the handlers of every included router
     employee = EmployeeMiddleware()
