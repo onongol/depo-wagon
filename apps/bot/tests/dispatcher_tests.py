@@ -12,6 +12,7 @@ import pytest
 from aiogram.enums import ChatType
 from aiogram.exceptions import TelegramAPIError
 from aiogram.fsm.storage.memory import MemoryStorage, SimpleEventIsolation
+from aiogram.types import Chat, Message, Update, User
 
 from apps.bot.dispatcher import _BOT_COMMANDS, make_dispatcher, on_startup
 from apps.bot.handlers.common.error import error_handler
@@ -112,6 +113,26 @@ class TestMiddlewareAndHooks:
 
         assert result is None
         assert "Unhandled exception" in caplog.text
+
+    async def test_the_log_names_the_update_but_carries_nothing_personal(self, caplog):
+        user = User(id=777, is_bot=False, first_name="Batbayar", username="bat_d")
+        message = Message(
+            message_id=1,
+            date=0,
+            chat=Chat(id=777, type=ChatType.SUPERGROUP),
+            from_user=user,
+            text="call me on +976 9911 2233",
+        )
+        event = MagicMock(
+            update=Update(update_id=42, message=message), exception=RuntimeError()
+        )
+
+        with caplog.at_level(logging.ERROR):
+            await error_handler(event)
+
+        assert "update_id=42" in caplog.text
+        for personal in ("Batbayar", "bat_d", "9911 2233"):
+            assert personal not in caplog.text
 
 
 def _error_event(**update):

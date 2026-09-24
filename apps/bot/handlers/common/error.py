@@ -32,6 +32,8 @@ async def _tell_the_user(update: Update) -> None:
 async def error_handler(event: ErrorEvent) -> None:
     """Log, tell the user, swallow."""
     logger.error(
-        "Unhandled exception in update %s", event.update, exc_info=event.exception
+        "Unhandled exception in update_id=%s",
+        event.update.update_id,
+        exc_info=event.exception,
     )
     await _tell_the_user(event.update)
