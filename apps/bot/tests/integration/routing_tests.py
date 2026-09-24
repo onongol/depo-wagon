@@ -55,6 +55,8 @@ from apps.bot.tests.integration.conftest import (
 from apps.bot.user_data import DefectData
 
 SUPPORT_CHAT_ID = "apps.bot.handlers.support.user_handlers.support_chat_id"
+TASKS_COUNT = "apps.bot.handlers.tasks.render.services.get_open_defects_count"
+TASKS_PAGE = "apps.bot.handlers.tasks.render.services.get_open_defects"
 
 
 @pytest.fixture
@@ -225,17 +227,24 @@ class TestAiChatPrecedence:
         assert await state.get_state() is None
 
     async def test_a_router_ahead_of_ai_chat_still_expires_the_session(
-        self, dp, bot, state, employee
+        self, dp, bot, session, state, employee
     ):
         """tasks sits before ai_chat, so only a global check catches this one."""
         with as_employee(employee):
             await dp.feed_update(bot, make_message_update("/ask", command=True))
         await state.update_data({UD_AI_CHAT_LAST: time.time() - AI_CHAT_TIMEOUT - 1})
+        session.clear()
 
-        with as_employee(employee):
+        with (
+            as_employee(employee),
+            patch(TASKS_COUNT, AsyncMock(return_value=0)),
+            patch(TASKS_PAGE, AsyncMock(return_value=[])),
+        ):
             await dp.feed_update(bot, make_message_update("/my_tasks", command=True))
 
         assert await state.get_state() is None
+        sent = [m.text for m in session.calls("sendMessage")]
+        assert sent == [str(M.NO_TASKS)]
 
     async def test_a_question_in_the_session_reaches_the_assistant(
         self, dp, bot, session, state, employee
@@ -458,6 +467,11 @@ class TestUnroutedUpdates:
 class TestAFailedEmployeeLookup:
     """The middleware raises; the reply comes from error_handler, as for any fault."""
 
+    @pytest.fixture
+    def _no_swallowed_crash(self):
+        """These tests break a handler on purpose."""
+        yield
+
     LOOKUP = "apps.bot.middlewares.employee.services.get_employee_by_telegram_id"
 
     async def test_a_message_is_told_the_session_failed(self, dp, bot, session):
@@ -504,6 +518,11 @@ class TestAButtonOnAnInaccessibleMessage:
 
 class TestAFailedAccountLink:
     """The link handlers catch nothing themselves; error_handler answers for them."""
+
+    @pytest.fixture
+    def _no_swallowed_crash(self):
+        """These tests break a handler on purpose."""
+        yield
 
     async def test_the_chat_is_told_the_session_failed(self, dp, bot, session):
         with patch("apps.bot.handlers.common.start.services") as svc:

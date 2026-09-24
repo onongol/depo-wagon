@@ -1,5 +1,6 @@
 """Fixtures for driving real Updates through a real Dispatcher."""
 
+import logging
 from itertools import count
 from unittest.mock import AsyncMock, patch
 
@@ -35,6 +36,35 @@ def _no_connection_cleanup():
     """pytest-django blocks the touch once an earlier test left a connection open."""
     with patch("apps.bot.middlewares.db.close_old_connections"):
         yield
+
+
+class _Crashes(logging.Handler):
+    def __init__(self):
+        super().__init__(level=logging.ERROR)
+        self.records: list[logging.LogRecord] = []
+
+    def emit(self, record):
+        self.records.append(record)
+
+
+@pytest.fixture(autouse=True)
+def _no_swallowed_crash():
+    """error_handler turns a crash into a polite reply; a test must not pass on it.
+
+    A class whose tests break a handler on purpose overrides this with a no-op.
+    """
+    crashes = _Crashes()
+    error_log = logging.getLogger("apps.bot.handlers.common.error")
+    error_log.addHandler(crashes)
+    yield
+    error_log.removeHandler(crashes)
+
+    if crashes.records:
+        pytest.fail(
+            "A handler crashed and error_handler swallowed it.\n"
+            + logging.Formatter().formatException(crashes.records[0].exc_info),
+            pytrace=False,
+        )
 
 
 @pytest.fixture

@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from aiogram.enums import ChatType
-from aiogram.exceptions import TelegramAPIError
+from aiogram.exceptions import ClientDecodeError, TelegramAPIError
 from aiogram.fsm.storage.memory import MemoryStorage, SimpleEventIsolation
 from aiogram.types import Chat, Message, Update, User
 
@@ -106,20 +106,21 @@ class TestMiddlewareAndHooks:
         assert dispatcher.errors.handlers
 
     async def test_the_error_handler_swallows_rather_than_reraises(self, caplog):
-        event = _error_event(message=None, callback_query=None)
+        event = _error_event(callback_query=None)
 
         with caplog.at_level(logging.ERROR):
-            result = await error_handler(event)
+            result = await error_handler(event, _bot())
 
         assert result is None
         assert "Unhandled exception" in caplog.text
 
     async def test_the_log_names_the_update_but_carries_nothing_personal(self, caplog):
         user = User(id=777, is_bot=False, first_name="Batbayar", username="bat_d")
+        chat = Chat(id=777, type=ChatType.SUPERGROUP)
         message = Message(
             message_id=1,
             date=0,
-            chat=Chat(id=777, type=ChatType.SUPERGROUP),
+            chat=chat,
             from_user=user,
             text="call me on +976 9911 2233",
         )
@@ -128,78 +129,91 @@ class TestMiddlewareAndHooks:
         )
 
         with caplog.at_level(logging.ERROR):
-            await error_handler(event)
+            await error_handler(event, _bot(), chat)
 
         assert "update_id=42" in caplog.text
         for personal in ("Batbayar", "bat_d", "9911 2233"):
             assert personal not in caplog.text
 
 
-def _error_event(**update):
-    return MagicMock(update=MagicMock(**update), exception=RuntimeError("boom"))
+def _error_event(callback_query=None):
+    return MagicMock(
+        update=MagicMock(update_id=1, callback_query=callback_query),
+        exception=RuntimeError("boom"),
+    )
 
 
-def _message(chat_type=ChatType.PRIVATE):
-    return MagicMock(chat=MagicMock(type=chat_type), answer=AsyncMock())
+def _bot():
+    return MagicMock(send_message=AsyncMock())
+
+
+def _chat(chat_type=ChatType.PRIVATE):
+    return Chat(id=777, type=chat_type)
+
+
+def _callback(**kwargs):
+    return MagicMock(answer=AsyncMock(**kwargs))
 
 
 def _telegram_error():
     return TelegramAPIError(method=MagicMock(), message="query is too old")
 
 
+def _decode_error():
+    """A proxy's HTML error page: aiogram cannot parse it, and it is no API error."""
+    return ClientDecodeError("Failed to decode object", ValueError(), "<html>502")
+
+
 class TestErrorHandlerTellsTheUser:
-    async def test_a_message_is_answered(self):
-        message = _message()
+    async def test_a_private_chat_is_told(self):
+        bot = _bot()
 
-        await error_handler(_error_event(message=message, callback_query=None))
+        await error_handler(_error_event(), bot, _chat())
 
-        message.answer.assert_awaited_once_with(
-            **build_session_error_text().as_kwargs()
+        bot.send_message.assert_awaited_once_with(
+            777, **build_session_error_text().as_kwargs()
         )
 
     async def test_a_callback_is_answered_and_told_in_the_chat(self):
-        callback = MagicMock(answer=AsyncMock(), message=_message())
+        bot, callback = _bot(), _callback()
 
-        await error_handler(_error_event(message=None, callback_query=callback))
+        await error_handler(_error_event(callback), bot, _chat())
 
         callback.answer.assert_awaited_once_with()
-        callback.message.answer.assert_awaited_once_with(
-            **build_session_error_text().as_kwargs()
-        )
+        bot.send_message.assert_awaited_once()
 
-    async def test_an_expired_query_still_gets_the_message(self):
+    @pytest.mark.parametrize("error", [_telegram_error(), _decode_error()])
+    async def test_a_failed_answer_still_gets_the_message(self, error):
         """The failure this path exists for is slow enough to outlive the query."""
-        callback = MagicMock(
-            answer=AsyncMock(side_effect=_telegram_error()), message=_message()
-        )
+        bot, callback = _bot(), _callback(side_effect=error)
 
-        await error_handler(_error_event(message=None, callback_query=callback))
+        await error_handler(_error_event(callback), bot, _chat())
 
-        callback.message.answer.assert_awaited_once_with(
-            **build_session_error_text().as_kwargs()
-        )
+        bot.send_message.assert_awaited_once()
 
-    async def test_a_failure_to_tell_the_user_is_swallowed(self):
-        message = _message()
-        message.answer.side_effect = _telegram_error()
+    @pytest.mark.parametrize("error", [_telegram_error(), _decode_error()])
+    async def test_a_failure_to_tell_the_user_is_swallowed(self, error):
+        bot = _bot()
+        bot.send_message.side_effect = error
 
-        result = await error_handler(_error_event(message=message, callback_query=None))
+        result = await error_handler(_error_event(), bot, _chat())
 
         assert result is None
 
     async def test_a_group_chat_is_left_alone(self):
-        message = _message(ChatType.SUPERGROUP)
+        bot = _bot()
 
-        await error_handler(_error_event(message=message, callback_query=None))
+        await error_handler(_error_event(), bot, _chat(ChatType.SUPERGROUP))
 
-        message.answer.assert_not_awaited()
+        bot.send_message.assert_not_awaited()
 
-    async def test_a_callback_without_a_message_is_still_answered(self):
-        callback = MagicMock(answer=AsyncMock(), message=None)
+    async def test_an_update_without_a_chat_is_still_answered(self):
+        bot, callback = _bot(), _callback()
 
-        await error_handler(_error_event(message=None, callback_query=callback))
+        await error_handler(_error_event(callback), bot, None)
 
         callback.answer.assert_awaited_once_with()
+        bot.send_message.assert_not_awaited()
 
 
 class TestStartupHook:
