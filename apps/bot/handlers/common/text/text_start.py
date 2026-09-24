@@ -8,9 +8,7 @@ from aiogram.utils.formatting import (
 )
 from django.utils.translation import gettext_lazy as _
 
-_CONNECT_TELEGRAM = Bold(_("Connect Telegram"))
-_LINK_GET_NEW = _("Get a new link in the web app via")
-GET_NEW_LINK = Text(_LINK_GET_NEW, " ", _CONNECT_TELEGRAM, ".")
+from .text_connect_page import CONNECT_TELEGRAM, GET_NEW_LINK
 
 _SELECT_ACTION = Bold(_("Select an action below"))
 
@@ -33,7 +31,7 @@ def build_not_connected_text(site_url: str) -> Text:
         Text("👋 ", Bold(_("Welcome!"))),
         _NOT_CONNECTED,
         as_list(
-            Text(_NOT_CONNECTED_SIGN_IN, " ", _CONNECT_TELEGRAM, ":"),
+            Text(_NOT_CONNECTED_SIGN_IN, " ", CONNECT_TELEGRAM, ":"),
             Url(site_url),
         ),
         sep="\n\n",
