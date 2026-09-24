@@ -82,18 +82,14 @@ class CeleryEmailBackend(BaseEmailBackend):
             try:
                 payload = serialize_message(message)
             except TypeError:
-                logger.warning(
-                    "Message to %s is not queueable, sending it inline", message.to
-                )
+                logger.warning("A message is not queueable, sending it inline")
                 queued += deliver([message], fail_silently=self.fail_silently)
                 continue
 
             try:
                 send_queued_email.delay(payload)
             except OperationalError:
-                logger.exception(
-                    "Could not queue mail to %s, sending it inline", message.to
-                )
+                logger.exception("Could not queue mail, sending it inline")
                 queued += deliver([message], fail_silently=self.fail_silently)
             else:
                 queued += 1

@@ -51,7 +51,9 @@ async def support_reply(message: Message, bot: Bot) -> None:
                 message_id=message.message_id,
             )
     except Exception:
-        logger.exception("Failed to deliver support reply to %s", user_id)
+        logger.exception(
+            "Failed to deliver support reply to request %s", replied_to.message_id
+        )
         await message.reply(str(M.SUPPORT_REPLY_FAILED))
         return
 

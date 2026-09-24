@@ -349,6 +349,22 @@ class TestNotifyDecommission:
             )
         assert context.bot.send_message.await_count == 2
 
+    async def test_a_failed_send_logs_the_employee_id_only(self, caplog):
+        context = self._make_context()
+        context.bot.send_message = AsyncMock(
+            side_effect=TelegramForbiddenError(method=None, message="blocked")
+        )
+        manager = self._make_manager(111, name="Oyuntsetseg")
+        manager.id = 9
+        with patch("apps.bot.handlers.defect.notifications.services") as svc:
+            svc.get_managers_and_engineers = AsyncMock(return_value=[manager])
+            await notify_decommission(
+                context.bot, employee=MagicMock(), defect=_make_defect_data()
+            )
+        assert "employee 9" in caplog.text
+        assert "Oyuntsetseg" not in caplog.text
+        assert "111" not in caplog.text
+
     async def test_none_defect_does_not_raise(self):
         context = self._make_context()
         employee = MagicMock()

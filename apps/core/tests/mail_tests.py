@@ -94,7 +94,7 @@ class TestQueueing:
 
 
 class TestFallbackToInlineDelivery:
-    def test_a_dead_broker_still_delivers(self):
+    def test_a_dead_broker_still_delivers(self, caplog):
         with patch(
             "apps.core.tasks.send_queued_email.delay",
             side_effect=OperationalError("broker is down"),
@@ -104,8 +104,10 @@ class TestFallbackToInlineDelivery:
             )
         assert sent == 1
         assert mail.outbox[0].to == ["owner@depot.mn"]
+        assert "Could not queue mail" in caplog.text
+        assert "@depot.mn" not in caplog.text
 
-    def test_an_unserializable_attachment_still_delivers(self):
+    def test_an_unserializable_attachment_still_delivers(self, caplog):
         message = make_message()
         part = MIMEBase("application", "octet-stream")
         part.set_payload(b"raw")
@@ -116,6 +118,8 @@ class TestFallbackToInlineDelivery:
         assert sent == 1
         delay.assert_not_called()
         assert mail.outbox[0].to == ["owner@depot.mn"]
+        assert "not queueable" in caplog.text
+        assert "@depot.mn" not in caplog.text
 
 
 class TestSendQueuedEmailTask:
@@ -127,7 +131,7 @@ class TestSendQueuedEmailTask:
             "text/html",
         )
 
-    def test_a_delivery_failure_is_retried(self):
+    def test_a_delivery_failure_is_retried(self, caplog):
         with (
             patch("apps.core.mail.deliver", side_effect=Exception("smtp is down")),
             patch.object(
@@ -137,3 +141,5 @@ class TestSendQueuedEmailTask:
         ):
             send_queued_email(serialize_message(make_message()))
         retry.assert_called_once()
+        assert "Queued mail failed" in caplog.text
+        assert "@depot.mn" not in caplog.text

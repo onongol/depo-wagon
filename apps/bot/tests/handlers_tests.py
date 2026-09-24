@@ -50,6 +50,7 @@ from apps.bot.handlers.defect.responsible_employee import (
     skip_responsible_employee,
 )
 from apps.bot.handlers.defect.responsible_employee.list import EMPLOYEE_PAGE_SIZE
+from apps.bot.handlers.defect.wagon import receive_wagon_number
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.bot.tests.builders import make_bad_request, make_callback, make_message
@@ -114,6 +115,22 @@ class TestHelpHandler:
         buttons = (BTN_NEW_DEFECT, BTN_SAVE, BTN_OPEN_DEFECTS, BTN_ASK, BTN_CANCEL)
         for button in buttons:
             assert str(button) in text
+
+
+class TestReceiveWagonNumber:
+    async def test_a_failed_lookup_logs_nothing_the_user_typed(self, state, caplog):
+        await save_defect(state, DefectData())
+        message = make_message("Batbayar 99112233")
+
+        with patch(
+            "apps.bot.handlers.defect.wagon.services.get_wagon_by_number",
+            AsyncMock(side_effect=RuntimeError("db down")),
+        ):
+            await receive_wagon_number(message, state)
+
+        message.answer.assert_awaited_once_with(str(M.SESSION_ERROR))
+        assert "Failed to fetch a wagon" in caplog.text
+        assert "Batbayar" not in caplog.text
 
 
 class TestReceiveDepartment:

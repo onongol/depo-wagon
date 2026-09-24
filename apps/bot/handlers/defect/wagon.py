@@ -34,7 +34,7 @@ async def receive_wagon_number(message: Message, state: FSMContext) -> None:
     try:
         wagon = await services.get_wagon_by_number(number)
     except Exception:
-        logger.exception("Failed to fetch wagon by number %r", number)
+        logger.exception("Failed to fetch a wagon by number")
         await message.answer(str(M.SESSION_ERROR))
         return
 

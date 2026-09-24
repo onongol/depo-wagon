@@ -20,8 +20,6 @@ logger = logging.getLogger(__name__)
 async def ai_chat_start(
     message: Message, state: FSMContext, employee: Employee | None
 ) -> None:
-    user_id = message.from_user.id
-
     if not employee:
         with contextlib.suppress(TelegramAPIError):
             await message.answer(str(M.NOT_REGISTERED))
@@ -32,7 +30,7 @@ async def ai_chat_start(
     try:
         await message.answer(str(M.AI_CHAT_GREETING), parse_mode=M.PARSE_MODE)
     except TelegramAPIError:
-        logger.warning("Could not send greeting for user %s", user_id)
+        logger.warning("Could not send greeting for employee %s", employee.id)
         return
 
     await state.set_state(AiChatSG.chatting)

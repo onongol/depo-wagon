@@ -37,7 +37,7 @@ def resolve_link_token(token: str):
     try:
         employee = Employee.objects.get(user_id=user_id, is_active=True)
     except Employee.DoesNotExist:
-        logger.warning("resolve_link_token: no active employee for user %s", user_id)
+        logger.warning("resolve_link_token: the token's account has no active employee")
         return None, LinkStatus.NO_EMPLOYEE
 
     return employee, LinkStatus.OK
@@ -72,7 +72,7 @@ async def forget_pending_link(telegram_id: int) -> None:
     try:
         await sync_to_async(cache.delete)(_pending_key(telegram_id))
     except Exception:
-        logger.exception("Dropping the pending link of chat %s failed", telegram_id)
+        logger.exception("Dropping a pending link failed")
 
 
 @sync_to_async
@@ -90,7 +90,7 @@ def attach_telegram(employee_id: int, telegram_id: int):
             pk=employee_id, is_active=True
         )
     except Employee.DoesNotExist:
-        logger.warning("attach_telegram: employee %s is gone or inactive", employee_id)
+        logger.warning("attach_telegram: the employee is gone or inactive")
         return None, LinkStatus.NO_EMPLOYEE
 
     # Refuse to move a chat that already belongs to a different employee.
@@ -106,7 +106,7 @@ def attach_telegram(employee_id: int, telegram_id: int):
         with transaction.atomic():
             employee.save(update_fields=["telegram_id"])
     except IntegrityError:
-        logger.warning("attach_telegram: chat %s was taken concurrently", telegram_id)
+        logger.warning("attach_telegram: the chat was taken concurrently")
         return None, LinkStatus.ALREADY_LINKED
 
     if employee.user_id:
@@ -124,10 +124,6 @@ async def complete_telegram_link(telegram_id: int, employee_id: int):
     otherwise whatever attach_telegram answers. The offer is spent either way.
     """
     if not await claim_pending_link(telegram_id, employee_id):
-        logger.warning(
-            "Chat %s confirmed employee %s while holding no such offer",
-            telegram_id,
-            employee_id,
-        )
+        logger.warning("A chat confirmed an employee while holding no such offer")
         return None, LinkStatus.OFFER_EXPIRED
     return await attach_telegram(employee_id, telegram_id)

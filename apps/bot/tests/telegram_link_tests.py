@@ -121,6 +121,15 @@ class TestResolveLinkToken:
 
         assert status is LinkStatus.NO_EMPLOYEE
 
+    async def test_a_missing_employee_is_logged_without_any_id(self, caplog):
+        user = await make("users.CustomUser", pk=987654321)
+        token = await sync_to_async(telegram_tokens.issue)(user.pk)
+
+        await resolve_link_token(token)
+
+        assert "has no active employee" in caplog.text
+        assert "987654321" not in caplog.text
+
 
 @pytest.mark.django_db(transaction=True)
 class TestAttachTelegram:
@@ -185,6 +194,16 @@ class TestAttachTelegram:
         assert status is LinkStatus.ALREADY_LINKED
         assert Employee.objects.get(pk=employee.pk).telegram_id is None
 
+    def test_a_lost_race_is_logged_without_any_id(self, caplog):
+        employee = baker.make("core.Employee", telegram_id=None, is_active=True)
+
+        with rival_claims_the_chat(987654321):
+            async_to_sync(attach_telegram)(employee.pk, telegram_id=987654321)
+
+        assert "taken concurrently" in caplog.text
+        assert f"employee {employee.pk}" not in caplog.text
+        assert "987654321" not in caplog.text
+
     def test_a_lost_race_leaves_the_outer_transaction_usable(self):
         """The savepoint, not just the except: callers may be mid-transaction."""
         from apps.core.models import Employee
@@ -206,6 +225,12 @@ class TestAttachTelegram:
         _, status = await attach_telegram(employee.pk, telegram_id=777)
 
         assert status is LinkStatus.NO_EMPLOYEE
+
+    async def test_a_gone_employee_is_logged_without_any_id(self, caplog):
+        await attach_telegram(424242, telegram_id=987654321)
+
+        assert "gone or inactive" in caplog.text
+        assert "424242" not in caplog.text
 
 
 class TestPendingLink:
@@ -249,7 +274,8 @@ class TestPendingLink:
             redis.delete.side_effect = ConnectionError("redis down")
             await forget_pending_link(777)
 
-        assert "Dropping the pending link of chat 777 failed" in caplog.text
+        assert "Dropping a pending link failed" in caplog.text
+        assert "777" not in caplog.text
 
 
 @pytest.mark.django_db(transaction=True)
@@ -271,6 +297,14 @@ class TestCompleteTelegramLink:
 
         assert status is LinkStatus.OFFER_EXPIRED
         attach.assert_not_called()
+
+    async def test_a_missing_offer_is_logged_without_any_id(self, caplog):
+        with patch(self.ATTACH):
+            await complete_telegram_link(987654321, 424242)
+
+        assert "no such offer" in caplog.text
+        assert "424242" not in caplog.text
+        assert "987654321" not in caplog.text
 
     async def test_an_offer_naming_another_employee_attaches_nothing(self):
         await remember_pending_link(777, 41)

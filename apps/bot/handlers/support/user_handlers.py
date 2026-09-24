@@ -61,7 +61,10 @@ async def support_receive(
             chat_id=chat_id, text=text, parse_mode=M.PARSE_MODE
         )
     except Exception:
-        logger.exception("Failed to relay support request from %s", user.id)
+        logger.exception(
+            "Failed to relay support request from %s",
+            f"employee {employee.id}" if employee else "an unlinked chat",
+        )
         await message.answer(str(M.SUPPORT_UNAVAILABLE), parse_mode=M.PARSE_MODE)
         await state.set_state(None)
         return

@@ -41,11 +41,6 @@ async def notify_decommission(
                 parse_mode=M.PARSE_MODE,
             )
         except TelegramAPIError as exc:
-            logger.warning(
-                "Failed to notify manager %s (tg=%s): %s",
-                manager.full_name,
-                manager.telegram_id,
-                exc,
-            )
+            logger.warning("Failed to notify employee %s: %s", manager.id, exc)
 
     await asyncio.gather(*[_send_one(manager) for manager in managers])

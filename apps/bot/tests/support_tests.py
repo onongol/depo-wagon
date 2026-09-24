@@ -111,6 +111,19 @@ class TestSupportReply:
 
         message.reply.assert_awaited_once_with(str(M.SUPPORT_REPLY_FAILED))
 
+    async def test_a_delivery_failure_logs_the_request_not_the_user(self, caplog):
+        message = _make_group_reply("answer", reply_to_id=4242)
+        bot = _make_bot()
+        bot.send_message = AsyncMock(side_effect=Exception("blocked"))
+
+        with patch.object(
+            admin_handlers, "lookup_request", AsyncMock(return_value=777)
+        ):
+            await admin_handlers.support_reply(message, bot)
+
+        assert "request 4242" in caplog.text
+        assert "777" not in caplog.text
+
 
 class TestSupportStart:
     async def test_unavailable_when_not_configured(self, state):
@@ -158,6 +171,32 @@ class TestSupportReceive:
         remember.assert_awaited_once_with(999, 12345)
         # user gets the confirmation
         message.answer.assert_awaited_once_with(str(M.SUPPORT_SENT))
+
+    async def test_a_failed_relay_logs_the_employee_not_the_telegram_user(
+        self, state, caplog
+    ):
+        message = _make_user_message()
+        bot = _make_bot()
+        bot.send_message = AsyncMock(side_effect=Exception("group gone"))
+        employee = MagicMock(id=7, full_name="Bat Erdene", employee_id="E-001")
+
+        with patch.object(user_handlers, "support_chat_id", return_value=-100):
+            await user_handlers.support_receive(message, state, bot, employee)
+
+        assert "employee 7" in caplog.text
+        for personal in ("12345", "Bat Erdene", "basbish"):
+            assert personal not in caplog.text
+
+    async def test_a_failed_relay_from_an_unlinked_chat_logs_no_id(self, state, caplog):
+        message = _make_user_message()
+        bot = _make_bot()
+        bot.send_message = AsyncMock(side_effect=Exception("group gone"))
+
+        with patch.object(user_handlers, "support_chat_id", return_value=-100):
+            await user_handlers.support_receive(message, state, bot, None)
+
+        assert "an unlinked chat" in caplog.text
+        assert "12345" not in caplog.text
 
     async def test_unavailable_when_not_configured(self, state):
         message = _make_user_message()

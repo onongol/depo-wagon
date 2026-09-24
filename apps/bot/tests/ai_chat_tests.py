@@ -216,6 +216,22 @@ class TestAiChatReceive:
         thinking_msg.edit_text.assert_called_once_with(str(M.AI_CHAT_ERROR))
         assert await state.get_state() == AiChatSG.chatting.state
 
+    async def test_a_failure_logs_the_employee_not_the_telegram_user(
+        self, state, caplog
+    ):
+        await self._enter(state)
+        message, _ = self._make_message()
+        employee = _make_employee()
+        employee.id = 7
+        with patch(
+            "apps.bot.handlers.ai_chat.receive.answer_question",
+            AsyncMock(side_effect=RuntimeError("unexpected")),
+        ):
+            await ai_chat_receive(message, state, employee)
+
+        assert "employee 7" in caplog.text
+        assert str(message.from_user.id) not in caplog.text
+
     async def test_error_does_not_update_history(self, state):
         await self._enter(state)
         message, _ = self._make_message()
