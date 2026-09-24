@@ -2,17 +2,18 @@ from typing import TYPE_CHECKING
 
 from apps.bot import services
 from apps.bot.constants import LinkStatus
-from apps.bot.handlers.common.link_errors import get_link_error_message
-from apps.bot.handlers.common.text import (
+from apps.bot.keyboards.common import link_confirm_keyboard
+from apps.bot.keyboards.menu import main_menu_keyboard
+from apps.bot.utils.screens import edit_or_send
+
+from .link_errors import get_link_error_message
+from .text import (
     build_link_cancelled_text,
     build_link_confirm_text,
     build_link_ok_text,
     build_not_connected_text,
     build_welcome_text,
 )
-from apps.bot.keyboards.common import link_confirm_keyboard
-from apps.bot.keyboards.menu import main_menu_keyboard
-from apps.bot.utils.screens import edit_or_send
 
 if TYPE_CHECKING:
     from aiogram.filters import CommandObject

@@ -672,7 +672,7 @@ class TestUserTextIsEscaped:
 
     async def test_the_employee_name_in_the_greeting(self):
         """Sent as entities rather than HTML, so the name goes out verbatim."""
-        from apps.bot.handlers.common.start import show_welcome_menu
+        from apps.bot.handlers.start.start import show_welcome_menu
 
         employee = MagicMock(full_name="A & <B>", role="inspector")
         employee.get_role_display.return_value = "Inspector"

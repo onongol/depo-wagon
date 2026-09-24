@@ -63,12 +63,12 @@ def _routers() -> list:
         get_cancel_router,
         get_help_router,
         get_stale_router,
-        get_start_router,
     )
     from apps.bot.handlers.defect.router import (
         get_defect_entry_router,
         get_defect_flow_router,
     )
+    from apps.bot.handlers.start.router import get_start_router
     from apps.bot.handlers.support.router import get_support_router
     from apps.bot.handlers.tasks.router import get_tasks_router
 

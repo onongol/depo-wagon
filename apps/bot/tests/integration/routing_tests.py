@@ -35,14 +35,14 @@ from apps.bot.constants import (
 from apps.bot.dispatcher import _BOT_COMMANDS, _routers, make_dispatcher
 from apps.bot.errors import build_session_error_text
 from apps.bot.fsm import save_defect
-from apps.bot.handlers.common.link_errors import get_link_error_message
 from apps.bot.handlers.common.text import (
     build_button_expired_text,
     build_cancelled_text,
     build_help_text,
-    build_link_cancelled_text,
     build_unhandled_message_text,
 )
+from apps.bot.handlers.start.link_errors import get_link_error_message
+from apps.bot.handlers.start.text import build_link_cancelled_text
 from apps.bot.handlers.support.utils import remember_request
 from apps.bot.keyboards.menu import MENU_TEXTS
 from apps.bot.messages import BotMessages as M
@@ -179,7 +179,7 @@ class TestPrecedenceDuringTheDefectFlow:
 
         with (
             as_employee(None),
-            patch("apps.bot.handlers.common.start.services") as svc,
+            patch("apps.bot.handlers.start.start.services") as svc,
         ):
             svc.get_connect_url = MagicMock(return_value="https://x/telegram/")
             await dp.feed_update(bot, make_message_update("/start", command=True))
@@ -192,7 +192,7 @@ class TestPrecedenceDuringTheDefectFlow:
         """start precedes the flow, whose catch-all would swallow the tap."""
         await self._enter_photo_step(dp, bot, state, employee)
 
-        with patch("apps.bot.handlers.common.start.services") as svc:
+        with patch("apps.bot.handlers.start.start.services") as svc:
             svc.complete_telegram_link = AsyncMock(
                 return_value=(None, LinkStatus.OFFER_EXPIRED)
             )
@@ -710,7 +710,7 @@ class TestAFailedAccountLink:
         yield
 
     async def test_the_chat_is_told_the_session_failed(self, dp, bot, session):
-        with patch("apps.bot.handlers.common.start.services") as svc:
+        with patch("apps.bot.handlers.start.start.services") as svc:
             svc.resolve_link_token = AsyncMock(
                 side_effect=ConnectionError("redis down")
             )
@@ -722,7 +722,7 @@ class TestAFailedAccountLink:
         assert sent == [build_session_error_text().render()[0]]
 
     async def test_a_confirm_tap_is_told_the_session_failed(self, dp, bot, session):
-        with patch("apps.bot.handlers.common.start.services") as svc:
+        with patch("apps.bot.handlers.start.start.services") as svc:
             svc.complete_telegram_link = AsyncMock(
                 side_effect=ConnectionError("redis down")
             )
@@ -756,7 +756,7 @@ class TestHandlersThatNeedNoEmployee:
     async def test_a_deep_link_does_not_look_up_the_employee(self, dp, bot, session):
         with (
             as_employee(None) as lookup,
-            patch("apps.bot.handlers.common.start.services") as svc,
+            patch("apps.bot.handlers.start.start.services") as svc,
         ):
             svc.resolve_link_token = AsyncMock(
                 return_value=(None, LinkStatus.INVALID_TOKEN)

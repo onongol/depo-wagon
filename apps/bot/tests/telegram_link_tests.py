@@ -12,14 +12,14 @@ from model_bakery import baker
 
 from apps.bot.callback_data import CB_LINK_CANCEL, LinkConfirmCB
 from apps.bot.constants import LinkStatus
-from apps.bot.handlers.common.link_errors import get_link_error_message
-from apps.bot.handlers.common.start import (
+from apps.bot.handlers.start.link_errors import get_link_error_message
+from apps.bot.handlers.start.start import (
     cancel_link,
     confirm_link,
     start,
     start_with_link,
 )
-from apps.bot.handlers.common.text import (
+from apps.bot.handlers.start.text import (
     STATUS_MESSAGES,
     build_link_cancelled_text,
 )
@@ -373,7 +373,7 @@ class TestEmployeeIsReadFresh:
 class TestStartHandler:
     async def test_bare_start_when_unlinked_points_at_the_web_app(self):
         message = make_message()
-        with patch("apps.bot.handlers.common.start.services") as svc:
+        with patch("apps.bot.handlers.start.start.services") as svc:
             svc.get_connect_url = MagicMock(return_value="https://x/telegram/")
             await start(message, None)
         assert "https://x/telegram/" in message.answer.await_args.kwargs["text"]
@@ -382,7 +382,7 @@ class TestStartHandler:
         message = make_message()
         employee = MagicMock()
         with patch(
-            "apps.bot.handlers.common.start.show_welcome_menu",
+            "apps.bot.handlers.start.start.show_welcome_menu",
             new_callable=AsyncMock,
         ) as menu:
             await start(message, employee)
@@ -391,7 +391,7 @@ class TestStartHandler:
     async def test_token_is_passed_through_to_the_service(self):
         message = make_message()
         command = make_command("sometoken")
-        with patch("apps.bot.handlers.common.start.services") as svc:
+        with patch("apps.bot.handlers.start.start.services") as svc:
             svc.resolve_link_token = AsyncMock(
                 return_value=(_make_employee_mock(), LinkStatus.OK)
             )
@@ -402,7 +402,7 @@ class TestStartHandler:
     async def test_token_offers_the_employee_it_resolved(self):
         message = make_message()
         command = make_command("sometoken")
-        with patch("apps.bot.handlers.common.start.services") as svc:
+        with patch("apps.bot.handlers.start.start.services") as svc:
             svc.resolve_link_token = AsyncMock(
                 return_value=(_make_employee_mock(pk=42), LinkStatus.OK)
             )
@@ -416,7 +416,7 @@ class TestStartHandler:
     async def test_the_offer_is_recorded_against_this_chat(self):
         message = make_message(user_id=777)
         command = make_command("sometoken")
-        with patch("apps.bot.handlers.common.start.services") as svc:
+        with patch("apps.bot.handlers.start.start.services") as svc:
             svc.resolve_link_token = AsyncMock(
                 return_value=(_make_employee_mock(pk=42), LinkStatus.OK)
             )
@@ -427,7 +427,7 @@ class TestStartHandler:
     async def test_no_offer_is_recorded_without_a_button(self):
         message = make_message()
         command = make_command("sometoken")
-        with patch("apps.bot.handlers.common.start.services") as svc:
+        with patch("apps.bot.handlers.start.start.services") as svc:
             svc.resolve_link_token = AsyncMock(
                 return_value=(None, LinkStatus.INVALID_TOKEN)
             )
@@ -438,7 +438,7 @@ class TestStartHandler:
     async def test_an_unrecordable_offer_shows_no_button(self):
         message = make_message()
         command = make_command("sometoken")
-        with patch("apps.bot.handlers.common.start.services") as svc:
+        with patch("apps.bot.handlers.start.start.services") as svc:
             svc.resolve_link_token = AsyncMock(
                 return_value=(_make_employee_mock(), LinkStatus.OK)
             )
@@ -452,7 +452,7 @@ class TestStartHandler:
     async def test_token_attaches_nothing_on_its_own(self):
         message = make_message()
         command = make_command("sometoken")
-        with patch("apps.bot.handlers.common.start.services") as svc:
+        with patch("apps.bot.handlers.start.start.services") as svc:
             svc.resolve_link_token = AsyncMock(
                 return_value=(_make_employee_mock(), LinkStatus.OK)
             )
@@ -464,7 +464,7 @@ class TestStartHandler:
     async def test_unresolvable_token_offers_nothing(self, status):
         message = make_message()
         command = make_command("sometoken")
-        with patch("apps.bot.handlers.common.start.services") as svc:
+        with patch("apps.bot.handlers.start.start.services") as svc:
             svc.resolve_link_token = AsyncMock(return_value=(None, status))
             await start_with_link(message, command)
         assert "reply_markup" not in message.answer.await_args.kwargs
@@ -472,7 +472,7 @@ class TestStartHandler:
     async def test_service_failure_is_left_to_the_error_handler(self):
         message = make_message()
         command = make_command("sometoken")
-        with patch("apps.bot.handlers.common.start.services") as svc:
+        with patch("apps.bot.handlers.start.start.services") as svc:
             svc.resolve_link_token = AsyncMock(
                 side_effect=ConnectionError("redis down")
             )
@@ -486,9 +486,9 @@ class TestConfirmLink:
         callback = make_callback(user_id=777)
         callback_data = LinkConfirmCB(employee_id=42)
         with (
-            patch("apps.bot.handlers.common.start.services") as svc,
+            patch("apps.bot.handlers.start.start.services") as svc,
             patch(
-                "apps.bot.handlers.common.start.show_welcome_menu",
+                "apps.bot.handlers.start.start.show_welcome_menu",
                 new_callable=AsyncMock,
             ),
         ):
@@ -506,9 +506,9 @@ class TestConfirmLink:
         callback_data = LinkConfirmCB(employee_id=42)
         employee = MagicMock()
         with (
-            patch("apps.bot.handlers.common.start.services") as svc,
+            patch("apps.bot.handlers.start.start.services") as svc,
             patch(
-                "apps.bot.handlers.common.start.show_welcome_menu",
+                "apps.bot.handlers.start.start.show_welcome_menu",
                 new_callable=AsyncMock,
             ) as menu,
         ):
@@ -523,9 +523,9 @@ class TestConfirmLink:
         callback = make_callback(user_id=12345)
         callback_data = LinkConfirmCB(employee_id=42)
         with (
-            patch("apps.bot.handlers.common.start.services") as svc,
+            patch("apps.bot.handlers.start.start.services") as svc,
             patch(
-                "apps.bot.handlers.common.start.show_welcome_menu",
+                "apps.bot.handlers.start.start.show_welcome_menu",
                 new_callable=AsyncMock,
             ) as menu,
         ):
@@ -537,7 +537,7 @@ class TestConfirmLink:
     async def test_a_failed_link_says_why(self, status):
         callback = make_callback(user_id=12345)
         callback_data = LinkConfirmCB(employee_id=42)
-        with patch("apps.bot.handlers.common.start.services") as svc:
+        with patch("apps.bot.handlers.start.start.services") as svc:
             svc.complete_telegram_link = AsyncMock(return_value=(None, status))
             await confirm_link(callback, callback_data)
         assert _screen(callback) == get_link_error_message(status).as_kwargs()
@@ -545,7 +545,7 @@ class TestConfirmLink:
     async def test_service_failure_is_left_to_the_error_handler(self):
         callback = make_callback(user_id=12345)
         callback_data = LinkConfirmCB(employee_id=42)
-        with patch("apps.bot.handlers.common.start.services") as svc:
+        with patch("apps.bot.handlers.start.start.services") as svc:
             svc.complete_telegram_link = AsyncMock(
                 side_effect=ConnectionError("redis down")
             )
@@ -562,7 +562,7 @@ class TestLinkStatusRouting:
         callback = make_callback(user_id=12345)
         callback_data = LinkConfirmCB(employee_id=42)
         with (
-            patch("apps.bot.handlers.common.start.services") as svc,
+            patch("apps.bot.handlers.start.start.services") as svc,
             patch.dict(STATUS_MESSAGES),
         ):
             del STATUS_MESSAGES[LinkStatus.ALREADY_LINKED]
@@ -636,7 +636,7 @@ class TestForwardedDeepLink:
 class TestCancelLink:
     async def test_attaches_nothing(self):
         callback = make_callback(CB_LINK_CANCEL)
-        with patch("apps.bot.handlers.common.start.services") as svc:
+        with patch("apps.bot.handlers.start.start.services") as svc:
             svc.forget_pending_link = AsyncMock()
             await cancel_link(callback)
         svc.complete_telegram_link.assert_not_called()
