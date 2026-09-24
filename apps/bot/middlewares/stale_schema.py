@@ -3,11 +3,12 @@ from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 from aiogram import BaseMiddleware
-from aiogram.exceptions import TelegramAPIError
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import CallbackQuery, Message
 
 from apps.bot.constants import UD_DEFECT
 from apps.bot.fsm import clear_defect_keys
+from apps.bot.handlers.common.utils import edit_or_send
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.bot.user_data import is_current_schema
@@ -31,18 +32,10 @@ async def _announce(event: TelegramObject) -> None:
     if not isinstance(event, CallbackQuery):
         return
 
-    with suppress(TelegramAPIError):
+    with suppress(TelegramBadRequest):
         await event.answer()
 
-    if event.message is None:
-        return
-
-    if isinstance(event.message, Message):
-        with suppress(TelegramAPIError):
-            await event.message.edit_text(text)
-            return
-
-    await event.message.answer(text)
+    await edit_or_send(event, text=text)
 
 
 class StaleSchemaMiddleware(BaseMiddleware):

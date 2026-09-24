@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any
 
 from aiogram import Bot
 from aiogram.client.session.base import BaseSession
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import Chat, Message, User
 
 if TYPE_CHECKING:
@@ -27,12 +28,15 @@ class MockedSession(BaseSession):
     def __init__(self) -> None:
         super().__init__()
         self.requests: list[TelegramMethod] = []
+        self.refusals: dict[str, str] = {}
         self._next_message_id = 1000
 
     async def make_request(
         self, bot: Bot, method: TelegramMethod, timeout: int | None = None
     ) -> Any:
         self.requests.append(method)
+        if refusal := self.refusals.get(method.__api_method__):
+            raise TelegramBadRequest(method=method, message=refusal)
         return self._result_for(bot, method)
 
     def _result_for(self, bot: Bot, method: TelegramMethod) -> Any:
@@ -78,6 +82,10 @@ class MockedSession(BaseSession):
 
     def clear(self) -> None:
         self.requests.clear()
+
+    def refuse(self, api_method: str, message: str) -> None:
+        """Answer every later call to api_method with a 400 carrying message."""
+        self.refusals[api_method] = message
 
 
 def make_mocked_bot() -> Bot:

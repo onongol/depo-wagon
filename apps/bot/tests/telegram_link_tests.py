@@ -71,6 +71,14 @@ def rival_claims_the_chat(telegram_id):
         pre_save.disconnect(on_save, sender=Employee)
 
 
+def _screen(callback) -> dict:
+    """What edit_or_send put on the button's message, without its addressing."""
+    sent = dict(callback.bot.edit_message_text.await_args.kwargs)
+    for key in ("chat_id", "message_id", "reply_markup"):
+        sent.pop(key)
+    return sent
+
+
 def _make_employee_mock(pk=7, full_name="Batbayar Bat"):
     employee = MagicMock()
     employee.pk = pk
@@ -532,8 +540,7 @@ class TestConfirmLink:
         with patch("apps.bot.handlers.common.start.services") as svc:
             svc.complete_telegram_link = AsyncMock(return_value=(None, status))
             await confirm_link(callback, callback_data)
-        sent = callback.message.edit_text.await_args.kwargs
-        assert sent == get_link_error_message(status).as_kwargs()
+        assert _screen(callback) == get_link_error_message(status).as_kwargs()
 
     async def test_service_failure_is_left_to_the_error_handler(self):
         callback = make_callback(user_id=12345)
@@ -544,7 +551,7 @@ class TestConfirmLink:
             )
             with pytest.raises(ConnectionError):
                 await confirm_link(callback, callback_data)
-        callback.message.edit_text.assert_not_awaited()
+        callback.bot.edit_message_text.assert_not_awaited()
 
 
 class TestLinkStatusRouting:
@@ -563,7 +570,7 @@ class TestLinkStatusRouting:
                 return_value=(None, LinkStatus.ALREADY_LINKED)
             )
             await confirm_link(callback, callback_data)
-        callback.message.edit_text.assert_awaited_once()
+        callback.bot.edit_message_text.assert_awaited_once()
         assert "has no message" in caplog.text
 
 
@@ -637,16 +644,14 @@ class TestCancelLink:
     async def test_says_so(self):
         callback = make_callback(CB_LINK_CANCEL)
         await cancel_link(callback)
-        sent = callback.message.edit_text.await_args.kwargs
-        assert sent == build_link_cancelled_text().as_kwargs()
+        assert _screen(callback) == build_link_cancelled_text().as_kwargs()
 
     async def test_says_so_even_when_the_offer_cannot_be_dropped(self):
         callback = make_callback(CB_LINK_CANCEL)
         with patch("apps.bot.services.telegram_link.cache") as redis:
             redis.delete.side_effect = ConnectionError("redis down")
             await cancel_link(callback)
-        sent = callback.message.edit_text.await_args.kwargs
-        assert sent == build_link_cancelled_text().as_kwargs()
+        assert _screen(callback) == build_link_cancelled_text().as_kwargs()
 
     async def test_drops_the_offer(self):
         callback = make_callback(CB_LINK_CANCEL, user_id=777)

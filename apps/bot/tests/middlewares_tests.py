@@ -4,11 +4,11 @@ import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from aiogram.exceptions import TelegramAPIError
 from aiogram.types import CallbackQuery, InaccessibleMessage, Message
 
 from apps.bot.middlewares import CloseOldConnectionsMiddleware
 from apps.bot.states import DefectSG, SupportSG
+from apps.bot.tests.builders import make_bad_request
 
 TARGET = "apps.bot.middlewares.db.close_old_connections"
 
@@ -200,6 +200,8 @@ def _spec_message() -> MagicMock:
     message = MagicMock(spec=Message)
     message.answer = AsyncMock()
     message.edit_text = AsyncMock()
+    message.chat = MagicMock(id=777)
+    message.message_id = 5
     return message
 
 
@@ -207,6 +209,7 @@ def _spec_callback() -> MagicMock:
     callback = MagicMock(spec=CallbackQuery)
     callback.answer = AsyncMock()
     callback.message = _spec_message()
+    callback.bot = MagicMock(edit_message_text=AsyncMock())
     return callback
 
 
@@ -313,7 +316,12 @@ class TestStaleSchemaMiddleware:
         await self._call(state, event=callback)
 
         callback.answer.assert_awaited_once_with()
-        callback.message.edit_text.assert_awaited_once_with(str(M.FORM_OUTDATED))
+        callback.bot.edit_message_text.assert_awaited_once_with(
+            chat_id=callback.message.chat.id,
+            message_id=callback.message.message_id,
+            reply_markup=None,
+            text=str(M.FORM_OUTDATED),
+        )
 
     async def test_a_failed_edit_still_reaches_the_user(self, state):
         """The message may be too old to edit — this fires at a deploy boundary."""
@@ -321,40 +329,51 @@ class TestStaleSchemaMiddleware:
 
         await self._store_stale_defect(state)
         callback = _spec_callback()
-        callback.message.edit_text.side_effect = TelegramAPIError(
-            method=MagicMock(), message="too old"
+        callback.bot.edit_message_text.side_effect = make_bad_request(
+            "Bad Request: message can't be edited"
         )
 
         await self._call(state, event=callback)
 
-        callback.message.answer.assert_awaited_once_with(str(M.FORM_OUTDATED))
+        callback.message.answer.assert_awaited_once_with(
+            reply_markup=None, text=str(M.FORM_OUTDATED)
+        )
+
+    async def test_an_unchanged_notice_is_not_sent_twice(self, state):
+        """A second tap on the same stale keyboard must not stack duplicates."""
+        await self._store_stale_defect(state)
+        callback = _spec_callback()
+        callback.bot.edit_message_text.side_effect = make_bad_request(
+            "Bad Request: message is not modified"
+        )
+
+        await self._call(state, event=callback)
+
+        callback.message.answer.assert_not_awaited()
 
     async def test_an_expired_query_does_not_cost_the_notice(self, state):
         """The form is already cleared by then — the error handler would say the wrong thing."""
-        from apps.bot.messages import BotMessages as M
-
         await self._store_stale_defect(state)
         callback = _spec_callback()
-        callback.answer.side_effect = TelegramAPIError(
-            method=MagicMock(), message="query is too old"
-        )
+        callback.answer.side_effect = make_bad_request("Bad Request: query is too old")
 
         await self._call(state, event=callback)
 
-        callback.message.edit_text.assert_awaited_once_with(str(M.FORM_OUTDATED))
+        callback.bot.edit_message_text.assert_awaited_once()
 
-    async def test_an_inaccessible_message_gets_a_fresh_notice(self, state):
-        """Past 48 hours the message has no edit_text — it can only be answered."""
-        from apps.bot.messages import BotMessages as M
-
+    async def test_an_inaccessible_message_is_edited_by_its_ids(self, state):
+        """It has no edit_text of its own; the bot can still edit it by id."""
         await self._store_stale_defect(state)
         callback = _spec_callback()
         callback.message = MagicMock(spec=InaccessibleMessage)
         callback.message.answer = AsyncMock()
+        callback.message.chat = MagicMock(id=777)
+        callback.message.message_id = 9
 
         await self._call(state, event=callback)
 
-        callback.message.answer.assert_awaited_once_with(str(M.FORM_OUTDATED))
+        assert callback.bot.edit_message_text.await_args.kwargs["message_id"] == 9
+        callback.message.answer.assert_not_awaited()
 
     async def test_state_the_defect_flow_does_not_own_is_left_alone(self, state):
         from apps.bot.constants import UD_AI_CHAT_HISTORY

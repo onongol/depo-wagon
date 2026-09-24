@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from aiogram.fsm.storage.memory import SimpleEventIsolation
 from aiogram.types import Chat, Message, Update, User
+from django.db import OperationalError
 from django.test import override_settings
 
 from apps.bot.callback_data import (
@@ -464,6 +465,54 @@ class TestUnroutedUpdates:
         assert await state.get_state() is None
 
 
+class TestAFailingOuterMiddleware:
+    """ErrorsMiddleware is aiogram's first outer middleware, so it wraps ours too."""
+
+    @pytest.fixture
+    def _no_swallowed_crash(self):
+        """These tests break a middleware on purpose."""
+        yield
+
+    async def test_fsm_storage_down(self, dp, bot, session, storage):
+        """aiogram's own FSMContextMiddleware reads the state before any router."""
+        with patch.object(
+            storage, "get_state", AsyncMock(side_effect=ConnectionError("redis down"))
+        ):
+            await dp.feed_update(bot, make_message_update("/help", command=True))
+
+        sent = [m.text for m in session.calls("sendMessage")]
+        assert sent == [build_session_error_text().render()[0]]
+
+    async def test_the_ai_chat_timeout_check_failing(self, dp, bot, session, state):
+        await state.set_state(AiChatSG.chatting)
+
+        with patch.object(
+            state.storage,
+            "get_data",
+            AsyncMock(side_effect=ConnectionError("redis down")),
+        ):
+            await dp.feed_update(bot, make_message_update("/help", command=True))
+
+        sent = [m.text for m in session.calls("sendMessage")]
+        assert sent == [build_session_error_text().render()[0]]
+
+    async def test_connection_cleanup_failing_after_the_handler_answered(
+        self, dp, bot, session
+    ):
+        """The cleanup runs in finally, so the user is served and then told it failed."""
+        with patch(
+            "apps.bot.middlewares.db.close_old_connections",
+            side_effect=OperationalError("db gone"),
+        ):
+            await dp.feed_update(bot, make_message_update("/help", command=True))
+
+        sent = [m.text for m in session.calls("sendMessage")]
+        assert sent == [
+            build_help_text().render()[0],
+            build_session_error_text().render()[0],
+        ]
+
+
 class TestAFailedEmployeeLookup:
     """The middleware raises; the reply comes from error_handler, as for any fault."""
 
@@ -493,25 +542,37 @@ class TestAFailedEmployeeLookup:
 
 
 class TestAButtonOnAnInaccessibleMessage:
-    """The message has no edit methods; the reply arrives as a new message."""
+    """No edit methods of its own: the bot edits it by id, or sends anew if refused."""
 
-    async def test_cancelling_a_link_still_says_so(self, dp, bot, session):
+    DELETED = "Bad Request: message to edit not found"
+
+    async def test_cancelling_a_link_edits_it_by_id(self, dp, bot, session):
         await dp.feed_update(
             bot, make_callback_update(CB_LINK_CANCEL, inaccessible=True)
         )
 
-        assert session.calls("editMessageText") == []
+        edits = [m.text for m in session.calls("editMessageText")]
+        assert edits == [build_link_cancelled_text().render()[0]]
+        assert session.calls("sendMessage") == []
+
+    async def test_a_deleted_message_gets_the_reply_anew(self, dp, bot, session):
+        session.refuse("editMessageText", self.DELETED)
+
+        await dp.feed_update(
+            bot, make_callback_update(CB_LINK_CANCEL, inaccessible=True)
+        )
+
         sent = [m.text for m in session.calls("sendMessage")]
         assert sent == [build_link_cancelled_text().render()[0]]
 
     async def test_an_expired_confirmation_still_says_so(self, dp, bot, session):
+        session.refuse("editMessageText", self.DELETED)
         callback_data = LinkConfirmCB(employee_id=42).pack()
 
         await dp.feed_update(
             bot, make_callback_update(callback_data, inaccessible=True)
         )
 
-        assert session.calls("editMessageText") == []
         sent = [m.text for m in session.calls("sendMessage")]
         assert sent == [get_link_error_message(LinkStatus.OFFER_EXPIRED).render()[0]]
 

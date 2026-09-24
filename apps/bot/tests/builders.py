@@ -37,6 +37,8 @@ def make_callback(data: str | None = None, *, user_id: int = USER_ID) -> MagicMo
     callback.data = data
     callback.from_user.id = user_id
     callback.message = make_message()
+    callback.bot.edit_message_text = AsyncMock()
+    callback.bot.send_message = AsyncMock()
     return callback
 
 
