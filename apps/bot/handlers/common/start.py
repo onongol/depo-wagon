@@ -10,9 +10,9 @@ from apps.bot.handlers.common.text import (
     build_not_connected_text,
     build_welcome_text,
 )
-from apps.bot.handlers.common.utils import edit_or_send
 from apps.bot.keyboards.common import link_confirm_keyboard
 from apps.bot.keyboards.menu import main_menu_keyboard
+from apps.bot.utils.screens import edit_or_send
 
 if TYPE_CHECKING:
     from aiogram.filters import CommandObject

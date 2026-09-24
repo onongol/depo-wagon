@@ -18,7 +18,6 @@ from apps.bot.callback_data import (
     TasksPageCB,
 )
 from apps.bot.constants import STATUS_LABEL
-from apps.bot.handlers.common.utils import send_screen
 from apps.bot.handlers.tasks import (
     ask_status_confirmation,
     my_tasks,
@@ -40,6 +39,7 @@ from apps.bot.tests.builders import (
     make_message,
     unpacked,
 )
+from apps.bot.utils.screens import send_screen
 from apps.core.constants import EmployeeRole
 from apps.defects.constants import DefectStatus
 

@@ -3,9 +3,10 @@ from typing import TYPE_CHECKING
 
 from apps.bot import services
 from apps.bot.constants import UD_RESP_SEARCH
-from apps.bot.handlers.common.utils import clamp_page, send_screen
 from apps.bot.keyboards.responsible_employee import responsible_employee_keyboard
 from apps.bot.messages import BotMessages as M
+from apps.bot.utils.pagination import clamp_page
+from apps.bot.utils.screens import send_screen
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable

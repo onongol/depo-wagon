@@ -8,10 +8,10 @@ from aiogram.types import CallbackQuery, Message
 
 from apps.bot.constants import UD_DEFECT
 from apps.bot.fsm import clear_defect_keys
-from apps.bot.handlers.common.utils import edit_or_send
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.bot.user_data import is_current_schema
+from apps.bot.utils.screens import edit_or_send
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable

@@ -3,9 +3,9 @@ from typing import TYPE_CHECKING
 
 from apps.bot import services
 from apps.bot.constants import STATUS_LABEL
-from apps.bot.handlers.common.utils import send_screen
 from apps.bot.keyboards.tasks import status_confirm_keyboard, status_picker_keyboard
 from apps.bot.messages import BotMessages as M
+from apps.bot.utils.screens import send_screen
 
 from .card import load_card, show_card
 from .render import render_page

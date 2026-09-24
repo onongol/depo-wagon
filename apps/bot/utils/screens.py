@@ -21,12 +21,6 @@ def _is_uneditable(exc: TelegramBadRequest) -> bool:
     return "message to edit not found" in msg or "message can't be edited" in msg
 
 
-def clamp_page(total: int, page: int, page_size: int) -> tuple[int, int]:
-    """Number of pages, never less than one, and page pulled into range."""
-    total_pages = max(1, (total + page_size - 1) // page_size)
-    return total_pages, max(0, min(page, total_pages - 1))
-
-
 async def send_screen(send: Callable[..., Awaitable], text: str, **kwargs: Any) -> None:
     """Send or edit in place; an edit that would change nothing is not an error."""
     try:

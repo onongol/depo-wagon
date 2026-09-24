@@ -1,9 +1,9 @@
 from typing import TYPE_CHECKING
 
 from apps.bot import services
-from apps.bot.handlers.common.utils import send_screen
 from apps.bot.keyboards.tasks import defect_card_keyboard
 from apps.bot.messages import BotMessages as M
+from apps.bot.utils.screens import send_screen
 
 from .render import render_page
 from .text import build_card_text
