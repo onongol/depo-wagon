@@ -5,14 +5,7 @@ from apps.bot.messages import BotMessages as M
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
-    from aiogram.types import CallbackQuery, Message
-
-
-async def cancel_defect_command(message: Message, state: FSMContext) -> None:
-    """Cancel the defect flow with /cancel."""
-    await clear_defect_keys(state)
-    await state.set_state(None)
-    await message.answer(str(M.DEFECT_CANCELLED))
+    from aiogram.types import CallbackQuery
 
 
 async def cancel_defect_button(callback: CallbackQuery, state: FSMContext) -> None:

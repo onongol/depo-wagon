@@ -37,7 +37,7 @@ from apps.bot.filters import NotACommand
 from apps.bot.middlewares import StaleSchemaMiddleware
 from apps.bot.states import DefectSG
 
-from .cancel import cancel_defect_button, cancel_defect_command, stale_callback
+from .cancel import cancel_defect_button, stale_callback
 from .confirm import confirm_defect
 from .defect_type import receive_defect_type
 from .department import receive_department
@@ -149,9 +149,7 @@ def get_defect_flow_router() -> Router:
         VerdictCB.filter(),
     )
 
-    # Fallbacks, in PTB's order: /cancel, the Cancel button, then a catch-all
-    # that silently absorbs anything else while the flow is running.
-    msg(cancel_defect_command, StateFilter(DefectSG), Command("cancel"))
+    # Fallbacks: the Cancel button, then any other tap. /cancel is the global router's.
     cb(cancel_defect_button, StateFilter(DefectSG), F.data == CB_CANCEL)
     cb(stale_callback, StateFilter(DefectSG))
 
