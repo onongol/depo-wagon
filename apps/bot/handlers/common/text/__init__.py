@@ -1,5 +1,4 @@
 from .text_cancel import build_cancelled_text
-from .text_error import build_session_error_text
 from .text_help import build_help_text
 from .text_stale import build_button_expired_text, build_unhandled_message_text
 from .text_start import (
@@ -20,7 +19,6 @@ __all__ = [
     "build_link_confirm_text",
     "build_link_ok_text",
     "build_not_connected_text",
-    "build_session_error_text",
     "build_unhandled_message_text",
     "build_welcome_text",
 ]

@@ -95,7 +95,7 @@ def _routers() -> list:
 def make_dispatcher(
     storage: BaseStorage, events_isolation: BaseEventIsolation
 ) -> Dispatcher:
-    from apps.bot.handlers.common.error import error_handler
+    from apps.bot.errors import error_handler
 
     dp = Dispatcher(storage=storage, events_isolation=events_isolation)
 

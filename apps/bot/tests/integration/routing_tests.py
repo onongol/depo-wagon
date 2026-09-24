@@ -30,6 +30,7 @@ from apps.bot.constants import (
     LinkStatus,
 )
 from apps.bot.dispatcher import _BOT_COMMANDS, make_dispatcher
+from apps.bot.errors import build_session_error_text
 from apps.bot.fsm import save_defect
 from apps.bot.handlers.common.link_errors import get_link_error_message
 from apps.bot.handlers.common.text import (
@@ -37,7 +38,6 @@ from apps.bot.handlers.common.text import (
     build_cancelled_text,
     build_help_text,
     build_link_cancelled_text,
-    build_session_error_text,
     build_unhandled_message_text,
 )
 from apps.bot.handlers.support.utils import remember_request

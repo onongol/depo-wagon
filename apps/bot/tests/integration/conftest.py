@@ -54,7 +54,7 @@ def _no_swallowed_crash():
     A class whose tests break a handler on purpose overrides this with a no-op.
     """
     crashes = _Crashes()
-    error_log = logging.getLogger("apps.bot.handlers.common.error")
+    error_log = logging.getLogger("apps.bot.errors")
     error_log.addHandler(crashes)
     yield
     error_log.removeHandler(crashes)

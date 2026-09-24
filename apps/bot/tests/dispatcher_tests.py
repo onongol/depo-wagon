@@ -15,8 +15,7 @@ from aiogram.fsm.storage.memory import MemoryStorage, SimpleEventIsolation
 from aiogram.types import Chat, Message, Update, User
 
 from apps.bot.dispatcher import _BOT_COMMANDS, make_dispatcher, on_startup
-from apps.bot.handlers.common.error import error_handler
-from apps.bot.handlers.common.text import build_session_error_text
+from apps.bot.errors import build_session_error_text, error_handler
 from apps.bot.messages import BotMessages as M
 
 

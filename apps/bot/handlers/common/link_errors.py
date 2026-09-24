@@ -4,8 +4,9 @@ from aiogram.utils.formatting import Text, as_list
 from django.utils.translation import gettext_lazy as _
 
 from apps.bot.constants import LinkStatus
+from apps.bot.errors import build_session_error_text
 
-from .text import GET_NEW_LINK, build_session_error_text
+from .text import GET_NEW_LINK
 
 logger = logging.getLogger(__name__)
 
