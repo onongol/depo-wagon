@@ -33,6 +33,7 @@ from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.common.text import build_help_text
 from apps.bot.handlers.defect.text import (
     build_department_confirmed_text,
+    build_edit_node_text,
     build_edit_wagon_text,
     build_wagon_confirmed_text,
 )
@@ -416,7 +417,7 @@ class TestEditingTheNode:
         await dp.feed_update(bot, make_callback_update(EditCB(field="node").pack()))
 
         (edit,) = session.calls("editMessageText")
-        assert edit.text == str(M.EDIT_NODE)
+        assert edit.text == build_edit_node_text().render()[0]
         assert edit.reply_markup == node_keyboard_for_department(Department.BOGIE)
         assert await state.get_state() == DefectSG.node.state
 

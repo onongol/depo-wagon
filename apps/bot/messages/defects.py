@@ -4,9 +4,7 @@ from django.utils.translation import gettext_lazy as _
 class DefectMessages:
     """The whole step-by-step defect registration flow and AI results."""
 
-    # ── Node / part / type / severity ────────────────────────────────────────
-
-    NODE_CONFIRMED = _("✅ Node: <b>{label}</b>\n\nEnter the part number (or skip):")
+    # ── Part / type / severity ───────────────────────────────────────────────
 
     PART_NUMBER_PROMPT = _("🔢 Enter the part number <i>(e.g. ABC-1234)</i> or skip:")
 
@@ -45,7 +43,6 @@ class DefectMessages:
 
     # ── Edit from summary ────────────────────────────────────────────────────
 
-    EDIT_NODE = _("✏️ Select the node:")
     EDIT_PART_NUMBER = _("✏️ Enter the part number (or skip):")
     EDIT_DEFECT_TYPE = _("✏️ Select the defect type:")
     EDIT_SEVERITY = _("✏️ Select severity:")

@@ -10,6 +10,7 @@ import pytest
 from aiogram.utils.text_decorations import html_decoration
 
 from apps.bot.callback_data import (
+    CB_PART_NUMBER_SKIP,
     DefectTypeCB,
     DepartmentCB,
     EditCB,
@@ -51,14 +52,16 @@ from apps.bot.handlers.defect.responsible_employee.list import EMPLOYEE_PAGE_SIZ
 from apps.bot.handlers.defect.severity import receive_severity
 from apps.bot.handlers.defect.start import new_defect_start
 from apps.bot.handlers.defect.text import (
+    build_node_confirmed_text,
     build_wagon_not_found_text,
 )
 from apps.bot.handlers.defect.wagon import WagonScene
+from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.states import DefectSG
 from apps.bot.tests.builders import make_callback, make_message
 from apps.bot.user_data import DefectData
-from apps.defects.constants import DefectType
+from apps.defects.constants import DefectNode, DefectType
 
 WAGON_LOOKUP = "apps.bot.handlers.defect.wagon.services.get_wagon_by_number"
 
@@ -208,12 +211,17 @@ class TestReceiveNode:
 
     async def test_moves_to_the_part_number_step(self, state):
         await save_defect(state, DefectData())
+        callback = make_callback()
 
         await NodeScene(wizard=AsyncMock()).receive(
-            make_callback(), NodeCB(value="wheel"), state
+            callback, NodeCB(value=DefectNode.WHEEL), state
         )
 
         assert await state.get_state() == DefectSG.part_number.state
+        callback.message.edit_text.assert_awaited_once_with(
+            **build_node_confirmed_text(DefectNode.WHEEL.label).as_kwargs(),
+            reply_markup=skip_keyboard(CB_PART_NUMBER_SKIP),
+        )
 
     async def test_an_edit_goes_back_to_the_summary(self, state):
         await save_defect(state, DefectData(department="bogie"))

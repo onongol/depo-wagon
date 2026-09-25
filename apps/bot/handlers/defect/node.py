@@ -7,12 +7,15 @@ from apps.bot.constants import UD_EDITING
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.keyboards.defect import node_keyboard_for_department
-from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.defects.constants import DefectNode
 
 from .scene import DefectScene
-from .text import build_department_confirmed_text
+from .text import (
+    build_department_confirmed_text,
+    build_edit_node_text,
+    build_node_confirmed_text,
+)
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
@@ -32,7 +35,7 @@ class NodeScene(DefectScene, state=DefectSG.node.state):
     async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:
         keyboard = node_keyboard_for_department(form.department or "")
         if data.get(UD_EDITING):
-            return str(M.EDIT_NODE), keyboard
+            return build_edit_node_text(), keyboard
         return build_department_confirmed_text(form.department_label), keyboard
 
     @on.callback_query(NodeCB.filter())
@@ -53,8 +56,7 @@ class NodeScene(DefectScene, state=DefectSG.node.state):
             return
 
         await callback.message.edit_text(
-            str(M.NODE_CONFIRMED).format(label=node_label),
-            parse_mode=M.PARSE_MODE,
+            **build_node_confirmed_text(node_label).as_kwargs(),
             reply_markup=skip_keyboard(CB_PART_NUMBER_SKIP),
         )
         await state.set_state(DefectSG.part_number)
