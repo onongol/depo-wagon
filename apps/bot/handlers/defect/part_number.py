@@ -7,11 +7,14 @@ from apps.bot.callback_data import CB_PART_NUMBER_SKIP
 from apps.bot.constants import UD_EDITING
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.keyboards.common import skip_keyboard
-from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 
 from .scene import STEP_TEXT, DefectScene
-from .text import build_node_confirmed_text
+from .text import (
+    build_edit_part_number_text,
+    build_node_confirmed_text,
+    build_part_number_too_long_text,
+)
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
@@ -31,18 +34,18 @@ class PartNumberScene(DefectScene, state=DefectSG.part_number.state):
     async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:
         keyboard = skip_keyboard(CB_PART_NUMBER_SKIP)
         if data.get(UD_EDITING):
-            return str(M.EDIT_PART_NUMBER), keyboard
+            return build_edit_part_number_text(), keyboard
         return build_node_confirmed_text(form.node_label), keyboard
 
     @on.message(*STEP_TEXT)
     async def receive(self, message: Message, state: FSMContext) -> None:
         part_number = message.text.strip()
         if len(part_number) > PART_NUMBER_MAX_LENGTH:
+            too_long = build_part_number_too_long_text(
+                len(part_number), PART_NUMBER_MAX_LENGTH
+            )
             await message.answer(
-                str(M.PART_NUMBER_TOO_LONG).format(
-                    length=len(part_number), max=PART_NUMBER_MAX_LENGTH
-                ),
-                parse_mode=M.PARSE_MODE,
+                **too_long.as_kwargs(),
                 reply_markup=skip_keyboard(CB_PART_NUMBER_SKIP),
             )
             return

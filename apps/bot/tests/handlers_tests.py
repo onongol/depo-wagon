@@ -50,11 +50,14 @@ from apps.bot.handlers.defect.responsible_employee.list import EMPLOYEE_PAGE_SIZ
 from apps.bot.handlers.defect.severity import receive_severity
 from apps.bot.handlers.defect.start import new_defect_start
 from apps.bot.handlers.defect.text import (
+    build_defect_type_confirmed_text,
+    build_part_number_confirmed_text,
+    build_part_number_skipped_text,
     build_wagon_not_found_text,
 )
 from apps.bot.handlers.defect.wagon import WagonScene
+from apps.bot.keyboards.defect import severity_keyboard
 from apps.bot.keyboards.menu import main_menu_keyboard
-from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.bot.tests.builders import make_callback, make_message
 from apps.bot.user_data import DefectData
@@ -265,7 +268,7 @@ class TestReceivePartNumber:
 
         assert (await load_defect(state)).part_number == ""
         scene.wizard.goto.assert_not_awaited()
-        reply = message.answer.await_args.args[0]
+        reply = message.answer.await_args.kwargs["text"]
         assert f"{PART_NUMBER_MAX_LENGTH + 1}/{PART_NUMBER_MAX_LENGTH}" in reply
 
     async def test_skip_clears_the_part_number(self, state):
@@ -322,6 +325,19 @@ class TestReceiveDefectType:
         payloads = [b.callback_data for row in kb.inline_keyboard for b in row]
         assert any(p.startswith(SeverityCB.__prefix__ + ":") for p in payloads)
 
+    async def test_says_which_type_before_asking_the_severity(self, state):
+        await save_defect(state, DefectData())
+        callback = make_callback()
+
+        await DefectTypeScene(wizard=AsyncMock()).receive(
+            callback, DefectTypeCB(value=DefectType.CRACK), state
+        )
+
+        callback.message.edit_text.assert_awaited_once_with(
+            **build_defect_type_confirmed_text(DefectType.CRACK.label).as_kwargs(),
+            reply_markup=severity_keyboard(),
+        )
+
     async def test_every_type_reaches_the_same_step(self, state):
         for value in DefectType.values:
             await save_defect(state, DefectData())
@@ -334,8 +350,19 @@ class TestReceiveDefectType:
         typed, _ = await DefectTypeScene.screen(DefectData(part_number="PN-1"), {})
         skipped, _ = await DefectTypeScene.screen(DefectData(), {})
 
-        assert "PN-1" in typed
-        assert skipped == str(M.PART_NUMBER_SKIPPED)
+        assert "PN-1" in typed.render()[0]
+        assert skipped.render() == build_part_number_skipped_text().render()
+
+    async def test_the_part_number_is_shown_as_typed(self, state):
+        """An entity, not HTML: markup in what the user typed needs no escaping."""
+        await save_defect(state, DefectData())
+
+        await PartNumberScene(wizard=AsyncMock()).receive(make_message("<A&B>"), state)
+        form = await load_defect(state)
+        text, _ = await DefectTypeScene.screen(form, {})
+
+        assert form.part_number == "<A&B>"
+        assert text.render() == build_part_number_confirmed_text("<A&B>").render()
 
 
 class TestResponsibleEmployee:
@@ -678,16 +705,6 @@ class TestUserTextIsEscaped:
         await search_responsible_employee(message, state)
 
         assert "&lt;b" in message.answer.await_args.args[0]
-
-    async def test_the_part_number_is_escaped_but_stored_as_typed(self, state):
-        await save_defect(state, DefectData())
-
-        await PartNumberScene(wizard=AsyncMock()).receive(make_message("<A&B>"), state)
-        form = await load_defect(state)
-        text, _ = await DefectTypeScene.screen(form, {})
-
-        assert form.part_number == "<A&B>"
-        assert "&lt;A&amp;B&gt;" in text
 
     async def test_the_unit_is_escaped_but_stored_as_typed(self, state):
         from apps.bot.handlers.defect.measurement import receive_unit

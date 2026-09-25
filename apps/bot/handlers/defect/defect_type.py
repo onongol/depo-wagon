@@ -1,4 +1,3 @@
-import html
 from typing import TYPE_CHECKING, Any
 
 from aiogram.fsm.scene import on
@@ -7,11 +6,16 @@ from apps.bot.callback_data import DefectTypeCB
 from apps.bot.constants import UD_EDITING
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.keyboards.defect import defect_type_keyboard, severity_keyboard
-from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.defects.constants import DefectType
 
 from .scene import DefectScene
+from .text import (
+    build_defect_type_confirmed_text,
+    build_edit_defect_type_text,
+    build_part_number_confirmed_text,
+    build_part_number_skipped_text,
+)
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
@@ -31,12 +35,10 @@ class DefectTypeScene(DefectScene, state=DefectSG.defect_type.state):
     async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:
         keyboard = defect_type_keyboard()
         if data.get(UD_EDITING):
-            return str(M.EDIT_DEFECT_TYPE), keyboard
+            return build_edit_defect_type_text(), keyboard
         if form.part_number:
-            part_number = html.escape(form.part_number)
-            text = str(M.PART_NUMBER_CONFIRMED).format(part_number=part_number)
-            return text, keyboard
-        return str(M.PART_NUMBER_SKIPPED), keyboard
+            return build_part_number_confirmed_text(form.part_number), keyboard
+        return build_part_number_skipped_text(), keyboard
 
     @on.callback_query(DefectTypeCB.filter())
     async def receive(
@@ -56,8 +58,7 @@ class DefectTypeScene(DefectScene, state=DefectSG.defect_type.state):
             return
 
         await callback.message.edit_text(
-            str(M.DEFECT_TYPE_CONFIRMED).format(label=dtype_label),
-            parse_mode=M.PARSE_MODE,
+            **build_defect_type_confirmed_text(dtype_label).as_kwargs(),
             reply_markup=severity_keyboard(),
         )
         await state.set_state(DefectSG.severity)

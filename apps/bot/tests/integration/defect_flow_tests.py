@@ -34,9 +34,12 @@ from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.common.text import build_help_text
 from apps.bot.handlers.defect.text import (
     build_department_confirmed_text,
+    build_edit_defect_type_text,
     build_edit_node_text,
     build_edit_wagon_text,
     build_node_confirmed_text,
+    build_part_number_confirmed_text,
+    build_part_number_skipped_text,
     build_wagon_confirmed_text,
 )
 from apps.bot.keyboards.common import skip_keyboard
@@ -468,19 +471,20 @@ class TestThePartNumberStep:
         await dp.feed_update(bot, make_callback_update(CB_PART_NUMBER_SKIP))
 
         (edit,) = session.calls("editMessageText")
-        assert edit.text == str(M.PART_NUMBER_SKIPPED)
+        assert edit.text == build_part_number_skipped_text().render()[0]
         assert edit.reply_markup == defect_type_keyboard()
         assert await state.get_state() == DefectSG.defect_type.state
         assert (await load_defect(state)).part_number == ""
 
-    async def test_a_typed_one_is_confirmed_escaped(self, dp, bot, session, state):
+    async def test_a_typed_one_is_confirmed_as_typed(self, dp, bot, session, state):
         await save_defect(state, self.FORM)
         await state.set_state(DefectSG.part_number)
 
         await dp.feed_update(bot, make_message_update("<PN-42>"))
 
         (sent,) = session.calls("sendMessage")
-        assert "&lt;PN-42&gt;" in sent.text
+        expected = build_part_number_confirmed_text("<PN-42>")
+        assert (sent.text, sent.entities) == expected.render()
         assert sent.reply_markup == defect_type_keyboard()
         assert (await load_defect(state)).part_number == "<PN-42>"
 
@@ -508,7 +512,7 @@ class TestEditingTheDefectType:
             bot, make_callback_update(EditCB(field="defect_type").pack())
         )
         (edit,) = session.calls("editMessageText")
-        assert edit.text == str(M.EDIT_DEFECT_TYPE)
+        assert edit.text == build_edit_defect_type_text().render()[0]
         assert await state.get_state() == DefectSG.defect_type.state
 
         tap = DefectTypeCB(value=DefectType.CRACK).pack()
