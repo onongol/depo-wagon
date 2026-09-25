@@ -189,6 +189,17 @@ class TestMakeStorage:
 
         assert "42" in storage.key_builder.build(key, "state")
 
+    def test_keys_take_the_destiny_scenes_keep_their_history_under(self, settings):
+        """Without with_destiny the builder raises on it, and every retake() fails."""
+        from apps.bot.fsm.storage import make_storage
+
+        settings.TELEGRAM_FSM_REDIS_URL = "redis://localhost:6379/9"
+
+        storage = make_storage()
+        key = StorageKey(bot_id=42, chat_id=1, user_id=1, destiny="scenes_history")
+
+        assert "scenes_history" in storage.key_builder.build(key, "data")
+
 
 class TestMakeIsolation:
     def test_locks_over_the_storage_connection_and_keys(self, settings):
