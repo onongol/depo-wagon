@@ -6,6 +6,7 @@ from .defect_type import DefectTypeScene
 from .department import DepartmentScene
 from .node import NodeScene
 from .part_number import PartNumberScene
+from .photo import PhotoScene
 from .severity import SeverityScene
 from .wagon import WagonScene
 
@@ -19,6 +20,7 @@ DEFECT_SCENES: tuple[type[DefectScene], ...] = (
     PartNumberScene,
     DefectTypeScene,
     SeverityScene,
+    PhotoScene,
 )
 
 _BY_STATE = {scene.__scene_config__.state: scene for scene in DEFECT_SCENES}

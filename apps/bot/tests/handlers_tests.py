@@ -10,7 +10,6 @@ import pytest
 from aiogram.utils.text_decorations import html_decoration
 
 from apps.bot.callback_data import (
-    CB_PHOTO_SKIP,
     DefectTypeCB,
     DepartmentCB,
     EditCB,
@@ -58,7 +57,6 @@ from apps.bot.handlers.defect.text import (
     build_wagon_not_found_text,
 )
 from apps.bot.handlers.defect.wagon import WagonScene
-from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.keyboards.defect import severity_keyboard
 from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.messages import BotMessages as M
@@ -360,19 +358,14 @@ class TestSeverityScene:
         assert text == str(M.EDIT_SEVERITY)
         assert keyboard == severity_keyboard()
 
-    async def test_saves_it_and_moves_to_the_photo_step(self, state):
+    async def test_saves_it_and_goes_on_to_the_photo_scene(self, state):
         await save_defect(state, DefectData())
-        callback = make_callback()
+        scene = SeverityScene(wizard=AsyncMock())
 
-        await SeverityScene(wizard=AsyncMock()).receive(
-            callback, SeverityCB(value="high"), state
-        )
+        await scene.receive(make_callback(), SeverityCB(value="high"), state)
 
         assert (await load_defect(state)).severity == "high"
-        assert await state.get_state() == DefectSG.photo.state
-        assert callback.message.edit_text.await_args.kwargs["reply_markup"] == (
-            skip_keyboard(CB_PHOTO_SKIP)
-        )
+        scene.wizard.goto.assert_awaited_once_with(DefectSG.photo)
 
     async def test_an_edit_goes_back_to_the_summary(self, state):
         await save_defect(state, DefectData())

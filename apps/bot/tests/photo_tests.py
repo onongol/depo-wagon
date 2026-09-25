@@ -10,9 +10,8 @@ from unittest.mock import AsyncMock, MagicMock
 from apps.bot.constants import BTN_DONE, UD_LAST_MEDIA_GROUP, UD_LAST_PHOTO_MSG
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.defect.photo.receive import (
+    PhotoScene,
     clear_last_photo_keyboard,
-    receive_photo,
-    skip_photo,
 )
 from apps.bot.messages import BotMessages as M
 from apps.bot.tests.builders import (
@@ -52,6 +51,14 @@ def _photos(*file_ids):
 
 async def _file_ids(state):
     return [p.file_id for p in (await load_defect(state)).photos]
+
+
+async def receive_photo(message, state, bot):
+    await PhotoScene(wizard=AsyncMock()).receive(message, state, bot)
+
+
+async def skip_photo(callback, state):
+    await PhotoScene(wizard=AsyncMock()).skip(callback, state)
 
 
 class TestClearLastPhotoKeyboard:

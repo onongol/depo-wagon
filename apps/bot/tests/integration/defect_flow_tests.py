@@ -29,7 +29,7 @@ from apps.bot.callback_data import (
     SeverityCB,
     VerdictCB,
 )
-from apps.bot.constants import UD_EDITING
+from apps.bot.constants import SEVERITY_LABELS, UD_EDITING
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.common.text import build_help_text
 from apps.bot.handlers.defect.text import (
@@ -537,6 +537,20 @@ class TestTheSeverityStep:
         assert (edit.text, edit.entities) == expected.render()
         assert edit.reply_markup == severity_keyboard()
         assert await state.get_state() == DefectSG.severity.state
+
+    async def test_it_leads_to_the_photo_step_in_place(self, dp, bot, session, state):
+        """Skip until the first photo; the photo scene draws that itself."""
+        await save_defect(state, DefectData(wagon_id=1))
+        await state.set_state(DefectSG.severity)
+
+        await dp.feed_update(bot, make_callback_update(SeverityCB(value="high").pack()))
+
+        (edit,) = session.calls("editMessageText")
+        assert edit.text == str(M.SEVERITY_CONFIRMED).format(
+            label=SEVERITY_LABELS["high"]
+        )
+        assert edit.reply_markup == skip_keyboard(CB_PHOTO_SKIP)
+        assert await state.get_state() == DefectSG.photo.state
 
     async def test_an_edit_asks_again_and_goes_back(self, dp, bot, session, state):
         await save_defect(state, DefectData(wagon_id=1, severity="low"))

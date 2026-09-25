@@ -1,15 +1,19 @@
 import logging
 from bisect import insort
 from operator import attrgetter
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+from aiogram import F
 from aiogram.exceptions import TelegramAPIError
+from aiogram.fsm.scene import on
 
 from apps.bot.callback_data import CB_PHOTO_SKIP
 from apps.bot.constants import UD_LAST_MEDIA_GROUP, UD_LAST_PHOTO_MSG
 from apps.bot.fsm import load_defect, save_defect
-from apps.bot.keyboards.common import done_keyboard
+from apps.bot.handlers.defect.scene import DefectScene
+from apps.bot.keyboards.common import done_keyboard, skip_keyboard
 from apps.bot.messages import BotMessages as M
+from apps.bot.states import DefectSG
 from apps.bot.user_data import PhotoEntry
 from apps.defects.validators import MAX_PHOTO_BYTES
 
@@ -19,6 +23,9 @@ if TYPE_CHECKING:
     from aiogram import Bot
     from aiogram.fsm.context import FSMContext
     from aiogram.types import CallbackQuery, Message
+
+    from apps.bot.handlers.defect.scene import Screen
+    from apps.bot.user_data import DefectData
 
 logger = logging.getLogger(__name__)
 
@@ -40,50 +47,65 @@ async def clear_last_photo_keyboard(bot: Bot, state: FSMContext) -> None:
         logger.debug("Could not clear photo keyboard (message deleted or too old)")
 
 
-async def receive_photo(message: Message, state: FSMContext, bot: Bot) -> None:
-    """Record a photo, answering a lone one and only the first of an album.
+class PhotoScene(DefectScene, state=DefectSG.photo.state):
+    """Photos until Done, which is Skip until the first one; the summary has no edit.
 
-    Telegram sends an album as separate updates with no end marker, so the rest
-    of it is recorded silently and the total is shown on Done. Album updates
-    can be handled out of order, so photos are kept sorted by message_id.
+    An album comes as separate updates with no end marker, taken one at a time
+    under the per-user FSM lock in no set order. So each photo is recorded as it
+    comes and only an album's first is answered: waiting for the rest cannot
+    work, as they queue behind the lock the waiter holds.
     """
-    photo = message.photo[-1]
 
-    if photo.file_size and photo.file_size > MAX_PHOTO_BYTES:
-        await message.answer(str(M.PHOTO_TOO_LARGE))
-        return
+    @classmethod
+    async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:
+        if form.photos:
+            text = str(M.PHOTO_RECEIVED).format(count=len(form.photos))
+            return text, done_keyboard(CB_PHOTO_SKIP)
+        text = str(M.SEVERITY_CONFIRMED).format(label=form.severity_label)
+        return text, skip_keyboard(CB_PHOTO_SKIP)
 
-    defect = await load_defect(state)
-    insort(
-        defect.photos,
-        PhotoEntry(file_id=photo.file_id, message_id=message.message_id),
-        key=attrgetter("message_id"),
-    )
-    await save_defect(state, defect)
+    @on.message(F.photo)
+    async def receive(self, message: Message, state: FSMContext, bot: Bot) -> None:
+        photo = message.photo[-1]
 
-    group = message.media_group_id
-    if group and (await state.get_data()).get(UD_LAST_MEDIA_GROUP) == group:
-        return
+        if photo.file_size and photo.file_size > MAX_PHOTO_BYTES:
+            await message.answer(str(M.PHOTO_TOO_LARGE))
+            return
 
-    if group:
-        text = str(M.PHOTO_ALBUM_RECEIVING)
-    else:
-        text = str(M.PHOTO_RECEIVED).format(count=len(defect.photos))
+        defect = await load_defect(state)
+        insort(
+            defect.photos,
+            PhotoEntry(file_id=photo.file_id, message_id=message.message_id),
+            key=attrgetter("message_id"),
+        )
+        await save_defect(state, defect)
 
-    await clear_last_photo_keyboard(bot, state)
-    sent = await message.answer(text, reply_markup=done_keyboard(CB_PHOTO_SKIP))
-    await state.update_data(
-        {
-            UD_LAST_PHOTO_MSG: [sent.chat.id, sent.message_id],
-            UD_LAST_MEDIA_GROUP: group,
-        }
-    )
+        group = message.media_group_id
+        if group and (await state.get_data()).get(UD_LAST_MEDIA_GROUP) == group:
+            return
 
+        if group:
+            text = str(M.PHOTO_ALBUM_RECEIVING)
+        else:
+            text = str(M.PHOTO_RECEIVED).format(count=len(defect.photos))
 
-async def skip_photo(callback: CallbackQuery, state: FSMContext) -> None:
-    """Leave the photo step, reporting how many photos were attached."""
-    defect = await load_defect(state)
-    count = len(defect.photos)
+        # New, not an edit of one higher up: Done stays under the latest photo
+        await clear_last_photo_keyboard(bot, state)
+        sent = await message.answer(text, reply_markup=done_keyboard(CB_PHOTO_SKIP))
+        await state.update_data(
+            {
+                UD_LAST_PHOTO_MSG: [sent.chat.id, sent.message_id],
+                UD_LAST_MEDIA_GROUP: group,
+            }
+        )
 
-    await callback.answer(str(M.PHOTOS_ATTACHED).format(count=count) if count else None)
-    await after_photos(callback.message.edit_text, defect, state)
+    @on.callback_query(F.data == CB_PHOTO_SKIP)
+    async def skip(self, callback: CallbackQuery, state: FSMContext) -> None:
+        """Done and Skip alike, reporting how many photos were attached."""
+        defect = await load_defect(state)
+        count = len(defect.photos)
+
+        await callback.answer(
+            str(M.PHOTOS_ATTACHED).format(count=count) if count else None
+        )
+        await after_photos(callback.message.edit_text, defect, state)

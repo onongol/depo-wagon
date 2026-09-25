@@ -21,7 +21,6 @@ from apps.bot.callback_data import (
     CB_MEAS_DONE,
     CB_MEAS_SKIP,
     CB_NORM_SKIP,
-    CB_PHOTO_SKIP,
     CB_RESP_EMP_SKIP,
     CB_UNIT_SKIP,
     ConfirmCB,
@@ -51,7 +50,6 @@ from .measurement import (
     skip_norm_value,
     skip_unit,
 )
-from .photo import receive_photo, skip_photo
 from .responsible_employee import (
     page_responsible_employee,
     search_responsible_employee,
@@ -99,9 +97,6 @@ def _plain_steps_router() -> Router:
     )
     cb(continue_defect, running, F.data == CB_DEFECT_CONTINUE)
     cb(restart_defect, running, F.data == CB_DEFECT_RESTART)
-
-    msg(receive_photo, StateFilter(DefectSG.photo), F.photo)
-    cb(skip_photo, StateFilter(DefectSG.photo), F.data == CB_PHOTO_SKIP)
 
     resp = StateFilter(DefectSG.responsible_employee)
     cb(select_responsible_employee, resp, ResponsibleEmployeeCB.filter())

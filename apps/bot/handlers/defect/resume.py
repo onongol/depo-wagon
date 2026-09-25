@@ -8,11 +8,10 @@ from typing import TYPE_CHECKING
 from apps.bot.callback_data import (
     CB_DESC_SKIP,
     CB_NORM_SKIP,
-    CB_PHOTO_SKIP,
     CB_UNIT_SKIP,
 )
 from apps.bot.fsm import load_defect
-from apps.bot.keyboards.common import done_keyboard, skip_keyboard
+from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.keyboards.confirm import employee_verdict_keyboard
 from apps.bot.keyboards.measurement import (
     dimension_keyboard,
@@ -31,22 +30,10 @@ if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
     from aiogram.fsm.context import FSMContext
-    from aiogram.types import InlineKeyboardMarkup
-
-    from apps.bot.user_data import DefectData
-
-
-def _photo(defect: DefectData) -> tuple[str, InlineKeyboardMarkup]:
-    if defect.photos:
-        text = str(M.PHOTO_RECEIVED).format(count=len(defect.photos))
-        return text, done_keyboard(CB_PHOTO_SKIP)
-    text = str(M.SEVERITY_CONFIRMED).format(label=defect.severity_label)
-    return text, skip_keyboard(CB_PHOTO_SKIP)
 
 
 # As each step first showed it; confirm and responsible_employee render async
 _SCREENS = {
-    DefectSG.photo.state: _photo,
     DefectSG.measurement_choice.state: lambda d: (
         str(M.ASK_MEASUREMENT),
         measurement_next_keyboard()
