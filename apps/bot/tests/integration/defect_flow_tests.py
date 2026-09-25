@@ -33,6 +33,7 @@ from apps.bot.constants import UD_EDITING
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.common.text import build_help_text
 from apps.bot.handlers.defect.text import (
+    build_defect_type_confirmed_text,
     build_department_confirmed_text,
     build_edit_defect_type_text,
     build_edit_node_text,
@@ -47,6 +48,7 @@ from apps.bot.keyboards.defect import (
     defect_type_keyboard,
     department_keyboard,
     node_keyboard_for_department,
+    severity_keyboard,
 )
 from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.messages import BotMessages as M
@@ -520,6 +522,35 @@ class TestEditingTheDefectType:
 
         assert await state.get_state() == DefectSG.confirm.state
         assert (await load_defect(state)).defect_type == DefectType.CRACK
+
+
+class TestTheSeverityStep:
+    async def test_the_type_leads_to_it_in_place(self, dp, bot, session, state):
+        await save_defect(state, DefectData(wagon_id=1))
+        await state.set_state(DefectSG.defect_type)
+
+        tap = DefectTypeCB(value=DefectType.CRACK).pack()
+        await dp.feed_update(bot, make_callback_update(tap))
+
+        (edit,) = session.calls("editMessageText")
+        expected = build_defect_type_confirmed_text(DefectType.CRACK.label)
+        assert (edit.text, edit.entities) == expected.render()
+        assert edit.reply_markup == severity_keyboard()
+        assert await state.get_state() == DefectSG.severity.state
+
+    async def test_an_edit_asks_again_and_goes_back(self, dp, bot, session, state):
+        await save_defect(state, DefectData(wagon_id=1, severity="low"))
+        await state.set_state(DefectSG.confirm)
+
+        await dp.feed_update(bot, make_callback_update(EditCB(field="severity").pack()))
+        (edit,) = session.calls("editMessageText")
+        assert edit.text == str(M.EDIT_SEVERITY)
+        assert edit.reply_markup == severity_keyboard()
+
+        await dp.feed_update(bot, make_callback_update(SeverityCB(value="high").pack()))
+
+        assert await state.get_state() == DefectSG.confirm.state
+        assert (await load_defect(state)).severity == "high"
 
 
 class TestEditingTheWagon:

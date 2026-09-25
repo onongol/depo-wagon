@@ -29,7 +29,6 @@ from apps.bot.callback_data import (
     EditCB,
     ResponsibleEmployeeCB,
     ResponsibleEmployeePageCB,
-    SeverityCB,
     VerdictCB,
 )
 from apps.bot.constants import BTN_NEW_DEFECT
@@ -62,7 +61,6 @@ from .responsible_employee import (
 from .restart import continue_defect, menu_button_mid_flow, restart_defect
 from .scene import ask_about_the_open_form
 from .scenes import DEFECT_SCENES
-from .severity import receive_severity
 from .start import new_defect_start
 from .verdict import receive_employee_verdict
 
@@ -101,8 +99,6 @@ def _plain_steps_router() -> Router:
     )
     cb(continue_defect, running, F.data == CB_DEFECT_CONTINUE)
     cb(restart_defect, running, F.data == CB_DEFECT_RESTART)
-
-    cb(receive_severity, StateFilter(DefectSG.severity), SeverityCB.filter())
 
     msg(receive_photo, StateFilter(DefectSG.photo), F.photo)
     cb(skip_photo, StateFilter(DefectSG.photo), F.data == CB_PHOTO_SKIP)

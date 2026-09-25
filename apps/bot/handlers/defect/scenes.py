@@ -6,6 +6,7 @@ from .defect_type import DefectTypeScene
 from .department import DepartmentScene
 from .node import NodeScene
 from .part_number import PartNumberScene
+from .severity import SeverityScene
 from .wagon import WagonScene
 
 if TYPE_CHECKING:
@@ -17,6 +18,7 @@ DEFECT_SCENES: tuple[type[DefectScene], ...] = (
     NodeScene,
     PartNumberScene,
     DefectTypeScene,
+    SeverityScene,
 )
 
 _BY_STATE = {scene.__scene_config__.state: scene for scene in DEFECT_SCENES}

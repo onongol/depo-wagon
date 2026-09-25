@@ -5,13 +5,12 @@ from aiogram.fsm.scene import on
 from apps.bot.callback_data import DefectTypeCB
 from apps.bot.constants import UD_EDITING
 from apps.bot.fsm import load_defect, save_defect
-from apps.bot.keyboards.defect import defect_type_keyboard, severity_keyboard
+from apps.bot.keyboards.defect import defect_type_keyboard
 from apps.bot.states import DefectSG
 from apps.defects.constants import DefectType
 
 from .scene import DefectScene
 from .text import (
-    build_defect_type_confirmed_text,
     build_edit_defect_type_text,
     build_part_number_confirmed_text,
     build_part_number_skipped_text,
@@ -54,11 +53,4 @@ class DefectTypeScene(DefectScene, state=DefectSG.defect_type.state):
         defect.defect_type_label = dtype_label
         await save_defect(state, defect)
 
-        if await self.back_to_summary_if_editing(state):
-            return
-
-        await callback.message.edit_text(
-            **build_defect_type_confirmed_text(dtype_label).as_kwargs(),
-            reply_markup=severity_keyboard(),
-        )
-        await state.set_state(DefectSG.severity)
+        await self.go_on(state, DefectSG.severity)

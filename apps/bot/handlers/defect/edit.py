@@ -4,9 +4,6 @@ from apps.bot.callback_data import CB_DESC_SKIP
 from apps.bot.constants import UD_EDITING
 from apps.bot.fsm import load_defect
 from apps.bot.keyboards.common import skip_keyboard
-from apps.bot.keyboards.defect import (
-    severity_keyboard,
-)
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 
@@ -24,12 +21,12 @@ _EDIT_SCENES = {
     "node": DefectSG.node,
     "part_number": DefectSG.part_number,
     "defect_type": DefectSG.defect_type,
+    "severity": DefectSG.severity,
 }
 
 # field -> (prompt, keyboard built from the defect under edit, state to enter).
 # Keyboards are built per call: their callback payloads are per-message.
 _EDIT_STEPS = {
-    "severity": (M.EDIT_SEVERITY, lambda _: severity_keyboard(), DefectSG.severity),
     "description": (
         M.EDIT_DESCRIPTION,
         lambda _: skip_keyboard(CB_DESC_SKIP),

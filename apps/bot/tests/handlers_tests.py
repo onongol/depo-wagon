@@ -10,6 +10,7 @@ import pytest
 from aiogram.utils.text_decorations import html_decoration
 
 from apps.bot.callback_data import (
+    CB_PHOTO_SKIP,
     DefectTypeCB,
     DepartmentCB,
     EditCB,
@@ -34,6 +35,7 @@ from apps.bot.handlers.common.help import help_command
 from apps.bot.handlers.common.text import build_cancelled_text, build_help_text
 from apps.bot.handlers.defect.defect_type import DefectTypeScene
 from apps.bot.handlers.defect.department import DepartmentScene
+from apps.bot.handlers.defect.description import receive_description
 from apps.bot.handlers.defect.edit import start_edit
 from apps.bot.handlers.defect.node import NodeScene
 from apps.bot.handlers.defect.part_number import (
@@ -47,7 +49,7 @@ from apps.bot.handlers.defect.responsible_employee import (
     skip_responsible_employee,
 )
 from apps.bot.handlers.defect.responsible_employee.list import EMPLOYEE_PAGE_SIZE
-from apps.bot.handlers.defect.severity import receive_severity
+from apps.bot.handlers.defect.severity import SeverityScene
 from apps.bot.handlers.defect.start import new_defect_start
 from apps.bot.handlers.defect.text import (
     build_defect_type_confirmed_text,
@@ -56,8 +58,10 @@ from apps.bot.handlers.defect.text import (
     build_wagon_not_found_text,
 )
 from apps.bot.handlers.defect.wagon import WagonScene
+from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.keyboards.defect import severity_keyboard
 from apps.bot.keyboards.menu import main_menu_keyboard
+from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.bot.tests.builders import make_callback, make_message
 from apps.bot.user_data import DefectData
@@ -303,7 +307,7 @@ class TestReceivePartNumber:
 
 
 class TestReceiveDefectType:
-    async def test_saves_the_type_and_moves_to_severity(self, state):
+    async def test_saves_the_type(self, state):
         await save_defect(state, DefectData())
 
         await DefectTypeScene(wizard=AsyncMock()).receive(
@@ -311,40 +315,16 @@ class TestReceiveDefectType:
         )
 
         assert (await load_defect(state)).defect_type == DefectType.HUMAN_FACTOR
-        assert await state.get_state() == DefectSG.severity.state
 
-    async def test_offers_the_severity_keyboard(self, state):
-        await save_defect(state, DefectData())
-        callback = make_callback()
-
-        await DefectTypeScene(wizard=AsyncMock()).receive(
-            callback, DefectTypeCB(value=DefectType.HUMAN_FACTOR), state
-        )
-
-        kb = callback.message.edit_text.await_args.kwargs["reply_markup"]
-        payloads = [b.callback_data for row in kb.inline_keyboard for b in row]
-        assert any(p.startswith(SeverityCB.__prefix__ + ":") for p in payloads)
-
-    async def test_says_which_type_before_asking_the_severity(self, state):
-        await save_defect(state, DefectData())
-        callback = make_callback()
-
-        await DefectTypeScene(wizard=AsyncMock()).receive(
-            callback, DefectTypeCB(value=DefectType.CRACK), state
-        )
-
-        callback.message.edit_text.assert_awaited_once_with(
-            **build_defect_type_confirmed_text(DefectType.CRACK.label).as_kwargs(),
-            reply_markup=severity_keyboard(),
-        )
-
-    async def test_every_type_reaches_the_same_step(self, state):
+    async def test_every_type_goes_on_to_the_severity_scene(self, state):
+        """Its screen is the severity scene's to draw; see TestSeverityScene."""
         for value in DefectType.values:
             await save_defect(state, DefectData())
-            await DefectTypeScene(wizard=AsyncMock()).receive(
-                make_callback(), DefectTypeCB(value=value), state
-            )
-            assert await state.get_state() == DefectSG.severity.state
+            scene = DefectTypeScene(wizard=AsyncMock())
+
+            await scene.receive(make_callback(), DefectTypeCB(value=value), state)
+
+            scene.wizard.goto.assert_awaited_once_with(DefectSG.severity)
 
     async def test_the_screen_says_whether_the_part_number_was_skipped(self):
         typed, _ = await DefectTypeScene.screen(DefectData(part_number="PN-1"), {})
@@ -363,6 +343,49 @@ class TestReceiveDefectType:
 
         assert form.part_number == "<A&B>"
         assert text.render() == build_part_number_confirmed_text("<A&B>").render()
+
+
+class TestSeverityScene:
+    async def test_the_screen_names_the_type_and_offers_the_levels(self):
+        form = DefectData(defect_type_label="Crack")
+
+        text, keyboard = await SeverityScene.screen(form, {})
+
+        assert text.render() == build_defect_type_confirmed_text("Crack").render()
+        assert keyboard == severity_keyboard()
+
+    async def test_an_edit_asks_for_it_again(self):
+        text, keyboard = await SeverityScene.screen(DefectData(), {UD_EDITING: True})
+
+        assert text == str(M.EDIT_SEVERITY)
+        assert keyboard == severity_keyboard()
+
+    async def test_saves_it_and_moves_to_the_photo_step(self, state):
+        await save_defect(state, DefectData())
+        callback = make_callback()
+
+        await SeverityScene(wizard=AsyncMock()).receive(
+            callback, SeverityCB(value="high"), state
+        )
+
+        assert (await load_defect(state)).severity == "high"
+        assert await state.get_state() == DefectSG.photo.state
+        assert callback.message.edit_text.await_args.kwargs["reply_markup"] == (
+            skip_keyboard(CB_PHOTO_SKIP)
+        )
+
+    async def test_an_edit_goes_back_to_the_summary(self, state):
+        await save_defect(state, DefectData())
+        await state.update_data({UD_EDITING: True})
+        callback = make_callback()
+        wizard = AsyncMock(event=callback, update_type="callback_query")
+
+        await SeverityScene(wizard=wizard).receive(
+            callback, SeverityCB(value="high"), state
+        )
+
+        assert await state.get_state() == DefectSG.confirm.state
+        assert UD_EDITING not in await state.get_data()
 
 
 class TestResponsibleEmployee:
@@ -509,10 +532,12 @@ class TestEditFromSummary:
     async def test_routes_to_the_field_and_flags_edit_mode(self, state):
         await save_defect(state, DefectData())
 
-        await start_edit(make_callback(), EditCB(field="severity"), state, AsyncMock())
+        await start_edit(
+            make_callback(), EditCB(field="description"), state, AsyncMock()
+        )
 
         assert (await state.get_data())[UD_EDITING] is True
-        assert await state.get_state() == DefectSG.severity.state
+        assert await state.get_state() == DefectSG.desc.state
 
     async def test_a_field_that_is_a_scene_is_entered_as_one(self, state):
         """The scene draws the edit prompt; see the flow tests."""
@@ -534,9 +559,11 @@ class TestEditFromSummary:
 
     async def test_the_edited_field_returns_to_the_summary(self, state):
         await save_defect(state, DefectData())
-        await start_edit(make_callback(), EditCB(field="severity"), state, AsyncMock())
+        await start_edit(
+            make_callback(), EditCB(field="description"), state, AsyncMock()
+        )
 
-        await receive_severity(make_callback(), SeverityCB(value="high"), state)
+        await receive_description(make_message("Cracked weld"), state)
 
         assert await state.get_state() == DefectSG.confirm.state
         assert UD_EDITING not in await state.get_data()
