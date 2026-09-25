@@ -1,11 +1,17 @@
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from aiogram.exceptions import TelegramBadRequest
-from aiogram.types import Chat, InaccessibleMessage, InlineKeyboardMarkup
+from aiogram.types import (
+    Chat,
+    InaccessibleMessage,
+    InlineKeyboardMarkup,
+    KeyboardButton,
+    ReplyKeyboardMarkup,
+)
 
 from apps.bot.tests.builders import make_bad_request, make_callback, make_message
-from apps.bot.utils.screens import edit_or_send
+from apps.bot.utils.screens import answer_anew, edit_or_send
 
 
 def _callback_on(message) -> MagicMock:
@@ -101,4 +107,63 @@ class TestEditOrSend:
 
         callback.bot.send_message.assert_awaited_once_with(
             777, reply_markup=None, text="x"
+        )
+
+
+class TestAnswerAnew:
+    """A reply keyboard only rides a new message; the tapped one loses its buttons."""
+
+    MENU = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="Menu")]])
+
+    def _callback(self, message) -> MagicMock:
+        callback = _callback_on(message)
+        callback.bot.edit_message_reply_markup = AsyncMock()
+        return callback
+
+    async def test_strips_the_buttons_and_answers_below(self):
+        callback = self._callback(make_message())
+
+        await answer_anew(callback, text="x", reply_markup=self.MENU)
+
+        callback.bot.edit_message_reply_markup.assert_awaited_once_with(
+            chat_id=callback.message.chat.id,
+            message_id=callback.message.message_id,
+            reply_markup=None,
+        )
+        callback.message.answer.assert_awaited_once_with(
+            reply_markup=self.MENU, text="x"
+        )
+
+    @pytest.mark.parametrize(
+        "refusal", ["message is not modified", "message to edit not found"]
+    )
+    async def test_a_refused_strip_still_answers(self, refusal):
+        callback = self._callback(make_message())
+        callback.bot.edit_message_reply_markup.side_effect = make_bad_request(
+            f"Bad Request: {refusal}"
+        )
+
+        await answer_anew(callback, text="x", reply_markup=self.MENU)
+
+        callback.message.answer.assert_awaited_once()
+
+    async def test_an_inaccessible_message_is_stripped_by_its_ids(self):
+        callback = self._callback(_inaccessible())
+
+        with patch.object(InaccessibleMessage, "answer", AsyncMock()) as answer:
+            await answer_anew(callback, text="x", reply_markup=self.MENU)
+
+        callback.bot.edit_message_reply_markup.assert_awaited_once_with(
+            chat_id=777, message_id=5, reply_markup=None
+        )
+        answer.assert_awaited_once_with(reply_markup=self.MENU, text="x")
+
+    async def test_without_a_message_it_writes_to_the_user(self):
+        callback = self._callback(None)
+
+        await answer_anew(callback, text="x", reply_markup=self.MENU)
+
+        callback.bot.edit_message_reply_markup.assert_not_awaited()
+        callback.bot.send_message.assert_awaited_once_with(
+            777, reply_markup=self.MENU, text="x"
         )

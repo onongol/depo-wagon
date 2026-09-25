@@ -11,8 +11,10 @@ from contextlib import ExitStack
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from aiogram.types import ReplyKeyboardRemove
 
 from apps.bot.callback_data import (
+    CB_CANCEL,
     CB_MEAS_ADD,
     CB_MEAS_DONE,
     CB_PHOTO_SKIP,
@@ -27,6 +29,7 @@ from apps.bot.callback_data import (
 )
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.common.text import build_help_text
+from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.bot.tests.integration.conftest import (
@@ -284,6 +287,71 @@ class TestConfirmingTwice:
         assert await state.get_state() == DefectSG.saving.state
 
 
+class TestTheMenuWhileAFormIsOpen:
+    """Hidden on the way in, since no step takes it for an answer; back on the way out."""
+
+    async def test_the_way_in_hides_it(self, dp, bot, session, flow):
+        await dp.feed_update(bot, make_message_update("/new_defect", command=True))
+
+        (sent,) = session.calls("sendMessage")
+        assert sent.reply_markup == ReplyKeyboardRemove()
+
+    async def test_the_cancel_button_brings_it_back(self, dp, bot, session, state):
+        await save_defect(state, DefectData(wagon_id=3))
+        await state.set_state(DefectSG.department)
+
+        await dp.feed_update(bot, make_callback_update(CB_CANCEL))
+
+        (sent,) = session.calls("sendMessage")
+        assert (sent.text, sent.reply_markup) == (
+            str(M.DEFECT_CANCELLED),
+            main_menu_keyboard(),
+        )
+        assert session.calls("editMessageReplyMarkup")
+
+    async def test_the_verdict_brings_it_back(self, dp, bot, session, state, flow):
+        await save_defect(state, DefectData(wagon_id=3, defect_id=str(uuid.uuid4())))
+        await state.set_state(DefectSG.employee_verdict)
+
+        await dp.feed_update(
+            bot, make_callback_update(VerdictCB(value=DefectVerdict.OK).pack())
+        )
+
+        assert session.calls("sendMessage")[-1].reply_markup == main_menu_keyboard()
+
+    async def test_a_failed_save_brings_it_back(self, dp, bot, session, state, flow):
+        flow.register.side_effect = RuntimeError("db down")
+        await save_defect(state, DefectData(wagon_id=3))
+        await state.set_state(DefectSG.confirm)
+
+        await dp.feed_update(
+            bot, make_callback_update(ConfirmCB(confirmed=True).pack())
+        )
+
+        (sent,) = session.calls("sendMessage")
+        assert (sent.text, sent.reply_markup) == (
+            str(M.SAVE_FAILED),
+            main_menu_keyboard(),
+        )
+        assert await state.get_state() is None
+
+    async def test_a_failed_verdict_brings_it_back(self, dp, bot, session, state, flow):
+        flow.verdict_services.save_employee_verdict.side_effect = RuntimeError("down")
+        await save_defect(state, DefectData(wagon_id=3, defect_id=str(uuid.uuid4())))
+        await state.set_state(DefectSG.employee_verdict)
+
+        await dp.feed_update(
+            bot, make_callback_update(VerdictCB(value=DefectVerdict.OK).pack())
+        )
+
+        (sent,) = session.calls("sendMessage")
+        assert (sent.text, sent.reply_markup) == (
+            str(M.SESSION_ERROR),
+            main_menu_keyboard(),
+        )
+        assert await state.get_state() is None
+
+
 class TestAFormLeftOverFromAnEarlierBuild:
     """A deploy lands mid-flow and the stored form no longer matches the code.
 
@@ -320,8 +388,9 @@ class TestAFormLeftOverFromAnEarlierBuild:
 
         assert await state.get_state() is None
         assert await load_defect(state) is None
-        edits = session.calls("editMessageText")
-        assert [e.text for e in edits] == [str(M.FORM_OUTDATED)]
+        sent = session.calls("sendMessage")
+        assert [m.text for m in sent] == [str(M.FORM_OUTDATED)]
+        assert sent[0].reply_markup == main_menu_keyboard()
 
     async def test_the_user_can_start_a_fresh_form_straight_after(
         self, dp, bot, state, session, flow
@@ -381,8 +450,8 @@ class TestAStepWithoutItsForm:
 
         await dp.feed_update(bot, make_callback_update(tap))
 
-        edits = [e.text for e in session.calls("editMessageText")]
-        assert edits == [str(M.DEFECT_CANCELLED)]
+        sent = [m.text for m in session.calls("sendMessage")]
+        assert sent == [str(M.DEFECT_CANCELLED)]
         assert await state.get_state() is None
 
 

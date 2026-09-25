@@ -7,6 +7,7 @@ a detached copy — the assertions read it back rather than holding a reference.
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from aiogram.types import ReplyKeyboardRemove
 from aiogram.utils.text_decorations import html_decoration
 
 from apps.bot.callback_data import (
@@ -56,7 +57,7 @@ from apps.bot.handlers.defect.text import (
 )
 from apps.bot.handlers.defect.wagon import receive_wagon_number
 from apps.bot.keyboards.defect import department_keyboard
-from apps.bot.messages import BotMessages as M
+from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.states import DefectSG
 from apps.bot.tests.builders import make_callback, make_message
 from apps.bot.user_data import DefectData
@@ -96,12 +97,14 @@ class TestCancelHandler:
         assert await state.get_data() == {}
         assert await state.get_state() is None
 
-    async def test_replies_with_cancelled_message(self, state):
+    async def test_replies_with_the_menu_the_defect_form_hid(self, state):
         message = make_message()
 
         await cancel(message, state)
 
-        message.answer.assert_awaited_once_with(**build_cancelled_text().as_kwargs())
+        message.answer.assert_awaited_once_with(
+            **build_cancelled_text().as_kwargs(), reply_markup=main_menu_keyboard()
+        )
 
     async def test_tolerates_an_idle_conversation(self, state):
         await cancel(make_message(), state)
@@ -125,12 +128,14 @@ class TestHelpHandler:
 
 
 class TestNewDefectStart:
-    async def test_asks_for_the_wagon_number(self, state):
+    async def test_asks_for_the_wagon_number_with_the_menu_hidden(self, state):
         message = make_message()
 
         await new_defect_start(message, state, MagicMock())
 
-        message.answer.assert_awaited_once_with(**build_new_defect_text().as_kwargs())
+        message.answer.assert_awaited_once_with(
+            **build_new_defect_text().as_kwargs(), reply_markup=ReplyKeyboardRemove()
+        )
         assert await state.get_state() == DefectSG.wagon_num.state
 
     async def test_drops_what_an_abandoned_form_left_behind(self, state):
@@ -518,18 +523,19 @@ class TestAfterPhotos:
         picker.count.assert_awaited_once_with("coupler_brake", "")
         assert await state.get_state() == DefectSG.responsible_employee.state
 
-    async def test_a_failed_lookup_ends_the_flow(self, state, picker):
+    async def test_a_failed_lookup_keeps_the_photo_step_to_retry(self, state, picker):
+        """error_handler answers; Done is still on screen to tap again."""
         from apps.bot.handlers.defect.photo.routing import after_photos
 
         picker.count.side_effect = RuntimeError("db down")
         defect = DefectData(defect_type=DefectType.HUMAN_FACTOR, department="bogie")
         await save_defect(state, defect)
-        send = AsyncMock()
+        await state.set_state(DefectSG.photo)
 
-        await after_photos(send, defect, state)
+        with pytest.raises(RuntimeError):
+            await after_photos(AsyncMock(), defect, state)
 
-        send.assert_awaited_once_with(str(M.SESSION_ERROR))
-        assert await state.get_state() is None
+        assert await state.get_state() == DefectSG.photo.state
 
     async def test_other_defect_types_go_to_the_measurement_step(self, state):
         from apps.bot.handlers.defect.photo.routing import after_photos

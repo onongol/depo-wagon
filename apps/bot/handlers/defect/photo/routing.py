@@ -1,4 +1,3 @@
-import logging
 from typing import TYPE_CHECKING
 
 from apps.bot.constants import UD_LAST_MEDIA_GROUP, UD_LAST_PHOTO_MSG, UD_RESP_SEARCH
@@ -13,8 +12,6 @@ if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
 
     from apps.bot.user_data import DefectData
-
-logger = logging.getLogger(__name__)
 
 
 async def after_photos(
@@ -32,15 +29,7 @@ async def after_photos(
 
     if defect.defect_type == DefectType.HUMAN_FACTOR:
         await state.update_data({UD_RESP_SEARCH: ""})
-
-        try:
-            await show_responsible_employee_list(send, state, defect.department, page=0)
-        except Exception:
-            logger.exception("Failed to show the employee list in after_photos")
-            await send(str(M.SESSION_ERROR))
-            await state.set_state(None)
-            return
-
+        await show_responsible_employee_list(send, state, defect.department, page=0)
         await state.set_state(DefectSG.responsible_employee)
         return
 

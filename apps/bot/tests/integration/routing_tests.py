@@ -59,7 +59,7 @@ from apps.bot.handlers.start.text import build_link_cancelled_text
 from apps.bot.handlers.support.utils import remember_request
 from apps.bot.keyboards.common import done_keyboard, skip_keyboard
 from apps.bot.keyboards.defect import defect_in_progress_keyboard, department_keyboard
-from apps.bot.keyboards.menu import MENU_TEXTS
+from apps.bot.keyboards.menu import MENU_TEXTS, main_menu_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.middlewares import AI_CHAT_TIMEOUT
 from apps.bot.states import AiChatSG, DefectSG, SupportSG
@@ -178,7 +178,10 @@ class TestPrecedenceDuringTheDefectFlow:
         await save_defect(state, self.FORM)
 
     @pytest.mark.usefixtures("stored_form")
-    @pytest.mark.parametrize("label", sorted(MENU_TEXTS - {str(BTN_NEW_DEFECT)}))
+    @pytest.mark.parametrize(
+        "label",
+        [*sorted(MENU_TEXTS - {str(BTN_NEW_DEFECT)}), "/my_tasks", "/ask", "/support"],
+    )
     @pytest.mark.parametrize(
         "step",
         [s for s in DefectSG.__states__ if s != DefectSG.saving],
@@ -187,7 +190,11 @@ class TestPrecedenceDuringTheDefectFlow:
     async def test_a_menu_button_shows_the_step_again(
         self, dp, bot, state, step, label
     ):
-        """Never an answer at a text step; never a way out that drops the form."""
+        """Never an answer at a text step; never a way out that drops the form.
+
+        The commands too: with the menu hidden, the Menu button's list is the way
+        to them, and each would wipe the form or leave it behind.
+        """
         await state.set_state(step)
         before = await state.get_data()
         screen = AsyncMock()
@@ -195,7 +202,8 @@ class TestPrecedenceDuringTheDefectFlow:
         with patch(RESP_SERVICES) as svc:
             svc.count_department_employees = AsyncMock(return_value=0)
             svc.get_department_employees = AsyncMock(return_value=[])
-            await dp.feed_update(bot, make_message_update(label))
+            update = make_message_update(label, command=label.startswith("/"))
+            await dp.feed_update(bot, update)
             after = await state.get_data()
             await show_current_step(screen, state)
 
@@ -966,7 +974,9 @@ class TestHandlersThatNeedNoEmployee:
 
         lookup.assert_not_awaited()
         assert await state.get_state() is None
-        assert session.calls("editMessageText")[0].text == str(M.DEFECT_CANCELLED)
+        (sent,) = session.calls("sendMessage")
+        assert sent.text == str(M.DEFECT_CANCELLED)
+        assert sent.reply_markup == main_menu_keyboard()
 
     async def test_a_deep_link_does_not_look_up_the_employee(self, dp, bot, session):
         with (

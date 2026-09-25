@@ -1,5 +1,7 @@
 from typing import TYPE_CHECKING
 
+from aiogram.types import ReplyKeyboardRemove
+
 from apps.bot.fsm import clear_defect_keys, save_defect
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
@@ -29,4 +31,7 @@ async def new_defect_start(
         return
 
     await open_blank_form(state)
-    await message.answer(**build_new_defect_text().as_kwargs())
+    # The menu is no answer to any step; every exit brings it back
+    await message.answer(
+        **build_new_defect_text().as_kwargs(), reply_markup=ReplyKeyboardRemove()
+    )

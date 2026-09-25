@@ -1,7 +1,9 @@
 from typing import TYPE_CHECKING
 
 from apps.bot.fsm import clear_defect_keys
+from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.messages import BotMessages as M
+from apps.bot.utils.screens import answer_anew
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
@@ -13,7 +15,9 @@ async def cancel_defect_button(callback: CallbackQuery, state: FSMContext) -> No
     await callback.answer()
     await clear_defect_keys(state)
     await state.set_state(None)
-    await callback.message.edit_text(str(M.DEFECT_CANCELLED))
+    await answer_anew(
+        callback, text=str(M.DEFECT_CANCELLED), reply_markup=main_menu_keyboard()
+    )
 
 
 async def stale_callback(callback: CallbackQuery) -> None:

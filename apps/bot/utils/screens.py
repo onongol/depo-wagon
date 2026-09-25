@@ -1,4 +1,5 @@
 import logging
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 from aiogram.exceptions import TelegramBadRequest
@@ -6,7 +7,7 @@ from aiogram.exceptions import TelegramBadRequest
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
-    from aiogram.types import CallbackQuery, InlineKeyboardMarkup
+    from aiogram.types import CallbackQuery, InlineKeyboardMarkup, ReplyKeyboardMarkup
 
 logger = logging.getLogger(__name__)
 
@@ -63,5 +64,28 @@ async def edit_or_send(
         logger.info("Message refused the edit, sending anew: %s", exc.message)
     else:
         return
+
+    await message.answer(reply_markup=reply_markup, **kwargs)
+
+
+async def answer_anew(
+    callback: CallbackQuery, *, reply_markup: ReplyKeyboardMarkup, **kwargs: Any
+) -> None:
+    """Strip the button's message of its keyboard and answer in a new one.
+
+    For a reply keyboard, which no edit can carry. A 400 on the strip means the
+    buttons are already gone, which is all it was for.
+    """
+    message = callback.message
+    if message is None:
+        await callback.bot.send_message(
+            callback.from_user.id, reply_markup=reply_markup, **kwargs
+        )
+        return
+
+    with suppress(TelegramBadRequest):
+        await callback.bot.edit_message_reply_markup(
+            chat_id=message.chat.id, message_id=message.message_id, reply_markup=None
+        )
 
     await message.answer(reply_markup=reply_markup, **kwargs)

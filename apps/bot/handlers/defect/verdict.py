@@ -8,6 +8,7 @@ from apps.bot.constants import UD_DEFECT, VERDICT_LABELS
 from apps.bot.fsm import load_defect
 from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.messages import BotMessages as M
+from apps.bot.utils.screens import answer_anew
 from apps.defects.constants import DefectVerdict
 
 from .notifications import notify_decommission
@@ -46,7 +47,9 @@ async def receive_employee_verdict(
             await services.save_employee_verdict(defect.defect_id, verdict_value)
         except Exception:
             logger.exception("Failed to save verdict for defect %s", defect.defect_id)
-            await callback.message.edit_text(str(M.SESSION_ERROR))
+            await answer_anew(
+                callback, text=str(M.SESSION_ERROR), reply_markup=main_menu_keyboard()
+            )
             await state.set_state(None)
             return
 

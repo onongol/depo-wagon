@@ -3,8 +3,10 @@ from typing import TYPE_CHECKING
 
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.keyboards.confirm import employee_verdict_keyboard
+from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
+from apps.bot.utils.screens import answer_anew
 
 from .formatters import build_recommendation_text, build_result_text
 from .pipeline import register_defect, run_ai_analysis
@@ -39,7 +41,12 @@ async def confirm_defect(
         registered = await register_defect(defect_data, employee, bot)
     except Exception:
         logger.exception("Failed to save defect")
-        await callback.message.edit_text(str(M.SAVE_FAILED), parse_mode=M.PARSE_MODE)
+        await answer_anew(
+            callback,
+            text=str(M.SAVE_FAILED),
+            parse_mode=M.PARSE_MODE,
+            reply_markup=main_menu_keyboard(),
+        )
         await state.set_state(None)
         return
 

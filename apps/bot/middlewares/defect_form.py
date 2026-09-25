@@ -8,10 +8,11 @@ from aiogram.types import CallbackQuery, Message
 
 from apps.bot.constants import UD_DEFECT
 from apps.bot.fsm import clear_defect_keys
+from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.bot.user_data import is_current_schema
-from apps.bot.utils.screens import edit_or_send
+from apps.bot.utils.screens import answer_anew
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -23,8 +24,9 @@ logger = logging.getLogger(__name__)
 
 
 async def _announce(event: TelegramObject, text: str) -> None:
+    """Ends the form, so it brings the menu back."""
     if isinstance(event, Message):
-        await event.answer(text)
+        await event.answer(text, reply_markup=main_menu_keyboard())
         return
 
     if not isinstance(event, CallbackQuery):
@@ -33,7 +35,7 @@ async def _announce(event: TelegramObject, text: str) -> None:
     with suppress(TelegramBadRequest):
         await event.answer()
 
-    await edit_or_send(event, text=text)
+    await answer_anew(event, text=text, reply_markup=main_menu_keyboard())
 
 
 class DefectFormMiddleware(BaseMiddleware):

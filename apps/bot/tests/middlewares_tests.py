@@ -4,8 +4,9 @@ import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from aiogram.types import CallbackQuery, InaccessibleMessage, Message
+from aiogram.types import CallbackQuery, Message
 
+from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.middlewares import CloseOldConnectionsMiddleware
 from apps.bot.states import DefectSG, SupportSG
@@ -210,7 +211,7 @@ def _spec_callback() -> MagicMock:
     callback = MagicMock(spec=CallbackQuery)
     callback.answer = AsyncMock()
     callback.message = _spec_message()
-    callback.bot = MagicMock(edit_message_text=AsyncMock())
+    callback.bot = MagicMock(edit_message_reply_markup=AsyncMock())
     return callback
 
 
@@ -256,20 +257,19 @@ class TestDefectFormMiddleware:
         assert result is None
         handler.assert_not_awaited()
         assert await state.get_state() is None
-        message.answer.assert_awaited_once_with(str(M.DEFECT_CANCELLED))
+        message.answer.assert_awaited_once_with(
+            str(M.DEFECT_CANCELLED), reply_markup=main_menu_keyboard()
+        )
 
-    async def test_a_tap_without_its_form_replaces_the_keyboard(self, state):
+    async def test_a_tap_without_its_form_is_told_so_below_it(self, state):
         await state.set_state(DefectSG.department)
         callback = _spec_callback()
 
         await self._call(state, event=callback)
 
         callback.answer.assert_awaited_once_with()
-        callback.bot.edit_message_text.assert_awaited_once_with(
-            chat_id=callback.message.chat.id,
-            message_id=callback.message.message_id,
-            reply_markup=None,
-            text=str(M.DEFECT_CANCELLED),
+        callback.message.answer.assert_awaited_once_with(
+            text=str(M.DEFECT_CANCELLED), reply_markup=main_menu_keyboard()
         )
 
     async def test_passes_through_a_form_this_build_wrote(self, state):
@@ -330,47 +330,26 @@ class TestDefectFormMiddleware:
 
         await self._call(state, event=message)
 
-        message.answer.assert_awaited_once_with(str(M.FORM_OUTDATED))
+        message.answer.assert_awaited_once_with(
+            str(M.FORM_OUTDATED), reply_markup=main_menu_keyboard()
+        )
 
-    async def test_a_callback_is_answered_and_its_keyboard_replaced(self, state):
+    async def test_a_tap_gets_its_buttons_stripped_and_the_menu_back(self, state):
+        """An edit carries no reply keyboard, so the notice is a new message."""
         await self._store_stale_defect(state)
         callback = _spec_callback()
 
         await self._call(state, event=callback)
 
         callback.answer.assert_awaited_once_with()
-        callback.bot.edit_message_text.assert_awaited_once_with(
+        callback.bot.edit_message_reply_markup.assert_awaited_once_with(
             chat_id=callback.message.chat.id,
             message_id=callback.message.message_id,
             reply_markup=None,
-            text=str(M.FORM_OUTDATED),
         )
-
-    async def test_a_failed_edit_still_reaches_the_user(self, state):
-        """The message may be too old to edit — this fires at a deploy boundary."""
-        await self._store_stale_defect(state)
-        callback = _spec_callback()
-        callback.bot.edit_message_text.side_effect = make_bad_request(
-            "Bad Request: message can't be edited"
-        )
-
-        await self._call(state, event=callback)
-
         callback.message.answer.assert_awaited_once_with(
-            reply_markup=None, text=str(M.FORM_OUTDATED)
+            text=str(M.FORM_OUTDATED), reply_markup=main_menu_keyboard()
         )
-
-    async def test_an_unchanged_notice_is_not_sent_twice(self, state):
-        """A second tap on the same stale keyboard must not stack duplicates."""
-        await self._store_stale_defect(state)
-        callback = _spec_callback()
-        callback.bot.edit_message_text.side_effect = make_bad_request(
-            "Bad Request: message is not modified"
-        )
-
-        await self._call(state, event=callback)
-
-        callback.message.answer.assert_not_awaited()
 
     async def test_an_expired_query_does_not_cost_the_notice(self, state):
         """The form is already cleared by then — the error handler would say the wrong thing."""
@@ -380,21 +359,7 @@ class TestDefectFormMiddleware:
 
         await self._call(state, event=callback)
 
-        callback.bot.edit_message_text.assert_awaited_once()
-
-    async def test_an_inaccessible_message_is_edited_by_its_ids(self, state):
-        """It has no edit_text of its own; the bot can still edit it by id."""
-        await self._store_stale_defect(state)
-        callback = _spec_callback()
-        callback.message = MagicMock(spec=InaccessibleMessage)
-        callback.message.answer = AsyncMock()
-        callback.message.chat = MagicMock(id=777)
-        callback.message.message_id = 9
-
-        await self._call(state, event=callback)
-
-        assert callback.bot.edit_message_text.await_args.kwargs["message_id"] == 9
-        callback.message.answer.assert_not_awaited()
+        callback.message.answer.assert_awaited_once()
 
     async def test_state_the_defect_flow_does_not_own_is_left_alone(self, state):
         from apps.bot.constants import UD_AI_CHAT_HISTORY

@@ -92,6 +92,7 @@ def get_defect_flow_router() -> Router:
     msg(defect_in_progress, running, Command("new_defect"))
     msg(defect_in_progress, running, F.text == str(BTN_NEW_DEFECT))
     msg(menu_button_mid_flow, running, F.text.in_(MENU_TEXTS))
+    msg(menu_button_mid_flow, running, Command("my_tasks", "ask", "support"))
     cb(continue_defect, running, F.data == CB_DEFECT_CONTINUE)
     cb(restart_defect, running, F.data == CB_DEFECT_RESTART)
 
