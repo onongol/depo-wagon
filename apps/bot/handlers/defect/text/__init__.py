@@ -3,6 +3,8 @@ from .text_defect_type import (
     build_edit_defect_type_text,
     build_part_number_confirmed_text,
     build_part_number_skipped_text,
+    build_responsible_employee_confirmed_text,
+    build_responsible_employee_skipped_text,
 )
 from .text_department import build_department_confirmed_text
 from .text_node import build_edit_node_text, build_node_confirmed_text
@@ -45,6 +47,8 @@ __all__ = [
     "build_photo_received_text",
     "build_photo_too_large_text",
     "build_photos_attached_toast",
+    "build_responsible_employee_confirmed_text",
+    "build_responsible_employee_skipped_text",
     "build_severity_confirmed_text",
     "build_wagon_confirmed_text",
     "build_wagon_not_found_text",

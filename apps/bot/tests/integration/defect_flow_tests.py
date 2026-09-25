@@ -26,12 +26,14 @@ from apps.bot.callback_data import (
     DimensionCB,
     EditCB,
     NodeCB,
+    ResponsibleEmployeeCB,
     SeverityCB,
     VerdictCB,
 )
 from apps.bot.constants import SEVERITY_LABELS, UD_EDITING
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.common.text import build_help_text
+from apps.bot.handlers.defect.responsible_employee.list import EMPLOYEE_PAGE_SIZE
 from apps.bot.handlers.defect.text import (
     build_album_receiving_text,
     build_defect_type_confirmed_text,
@@ -43,6 +45,7 @@ from apps.bot.handlers.defect.text import (
     build_part_number_confirmed_text,
     build_part_number_skipped_text,
     build_photos_attached_toast,
+    build_responsible_employee_confirmed_text,
     build_severity_confirmed_text,
     build_wagon_confirmed_text,
 )
@@ -72,6 +75,7 @@ from apps.defects.constants import (
 )
 
 WAGON_NUMBER = "60123456"
+HUMAN_FACTOR = DefectTypeCB(value=DefectType.HUMAN_FACTOR).pack()
 
 
 @pytest.fixture
@@ -705,43 +709,143 @@ class TestAStepWithoutItsForm:
         assert await state.get_state() is None
 
 
-class TestHumanFactorBranch:
-    async def test_routes_to_the_employee_picker(self, dp, bot, state, flow):
-        roster = [MagicMock(id=i, first_name=f"U{i}", last_name="L") for i in range(3)]
+async def _to_the_type_step(dp, bot):
+    await dp.feed_update(bot, make_message_update("/new_defect", command=True))
+    await dp.feed_update(bot, make_message_update(WAGON_NUMBER))
+    await dp.feed_update(
+        bot, make_callback_update(DepartmentCB(value=Department.BOGIE).pack())
+    )
+    await dp.feed_update(
+        bot, make_callback_update(NodeCB(value=DefectNode.WHEEL).pack())
+    )
+    await dp.feed_update(bot, make_message_update("PN-42"))
 
-        await dp.feed_update(bot, make_message_update("/new_defect", command=True))
-        await dp.feed_update(bot, make_message_update(WAGON_NUMBER))
+
+class TestHumanFactorBranch:
+    ROSTER = tuple(MagicMock(id=i, first_name=f"U{i}", last_name="L") for i in range(3))
+
+    @pytest.fixture
+    def roster(self):
+        with ExitStack() as stack:
+            p = stack.enter_context
+            p(
+                patch(
+                    "apps.bot.services.count_department_employees",
+                    AsyncMock(return_value=len(self.ROSTER)),
+                )
+            )
+            search = p(
+                patch(
+                    "apps.bot.services.get_department_employees",
+                    AsyncMock(return_value=list(self.ROSTER)),
+                )
+            )
+            p(
+                patch(
+                    "apps.bot.services.get_department_employee",
+                    AsyncMock(return_value=self.ROSTER[1]),
+                )
+            )
+            yield search
+
+    async def _up_to_the_type(self, dp, bot):
+        await _to_the_type_step(dp, bot)
+        await dp.feed_update(bot, make_callback_update(HUMAN_FACTOR))
+
+    @pytest.mark.usefixtures("flow", "roster")
+    async def test_the_employee_comes_straight_after_the_type(
+        self, dp, bot, session, state
+    ):
+        await self._up_to_the_type(dp, bot)
+
+        assert await state.get_state() == DefectSG.responsible_employee.state
+        edit = session.calls("editMessageText")[-1]
+        assert [row[0].text for row in edit.reply_markup.inline_keyboard[:3]] == [
+            "U0 L",
+            "U1 L",
+            "U2 L",
+        ]
+
+    @pytest.mark.usefixtures("flow", "roster")
+    async def test_the_pick_is_named_on_the_severity_screen(
+        self, dp, bot, session, state
+    ):
+        await self._up_to_the_type(dp, bot)
+
         await dp.feed_update(
-            bot, make_callback_update(DepartmentCB(value=Department.BOGIE).pack())
+            bot, make_callback_update(ResponsibleEmployeeCB(employee_id=1).pack())
         )
-        await dp.feed_update(
-            bot, make_callback_update(NodeCB(value=DefectNode.WHEEL).pack())
-        )
-        await dp.feed_update(bot, make_message_update("PN-42"))
-        await dp.feed_update(
-            bot,
-            make_callback_update(DefectTypeCB(value=DefectType.HUMAN_FACTOR).pack()),
-        )
+
+        assert await state.get_state() == DefectSG.severity.state
+        assert (await load_defect(state)).responsible_employee_label == "U1 L"
+        edit = session.calls("editMessageText")[-1]
+        expected = build_responsible_employee_confirmed_text("U1 L")
+        assert (edit.text, edit.entities) == expected.render()
+        assert edit.reply_markup == severity_keyboard()
+
+    @pytest.mark.usefixtures("flow", "roster")
+    async def test_skipped_it_goes_on_through_the_photos_to_the_description(
+        self, dp, bot, state
+    ):
+        """No measurements for a human factor."""
+        await self._up_to_the_type(dp, bot)
+
+        await dp.feed_update(bot, make_callback_update(CB_RESP_EMP_SKIP))
+        assert await state.get_state() == DefectSG.severity.state
+
         await dp.feed_update(
             bot, make_callback_update(SeverityCB(value="critical").pack())
         )
+        await dp.feed_update(bot, make_callback_update(CB_PHOTO_SKIP))
 
-        with (
-            patch(
-                "apps.bot.services.count_department_employees",
-                AsyncMock(return_value=len(roster)),
-            ),
-            patch(
-                "apps.bot.services.get_department_employees",
-                AsyncMock(return_value=roster),
-            ),
-        ):
-            await dp.feed_update(bot, make_callback_update(CB_PHOTO_SKIP))
+        assert await state.get_state() == DefectSG.desc.state
+        assert (await load_defect(state)).responsible_employee_id is None
 
+    @pytest.mark.usefixtures("flow")
+    async def test_a_typed_name_narrows_the_list_in_a_new_message(
+        self, dp, bot, session, state, roster
+    ):
+        await self._up_to_the_type(dp, bot)
+        session.clear()
+
+        await dp.feed_update(bot, make_message_update("U1"))
+
+        roster.assert_awaited_with(
+            Department.BOGIE, "U1", limit=EMPLOYEE_PAGE_SIZE, offset=0
+        )
+        (sent,) = session.calls("sendMessage")
+        assert "U1" in sent.text
         assert await state.get_state() == DefectSG.responsible_employee.state
 
-        await dp.feed_update(bot, make_callback_update(CB_RESP_EMP_SKIP))
-        assert await state.get_state() == DefectSG.desc.state
+    @pytest.mark.usefixtures("flow", "roster")
+    async def test_edit_type_to_a_human_factor_asks_then_returns_to_the_summary(
+        self, dp, bot, state
+    ):
+        await save_defect(
+            state,
+            DefectData(
+                wagon_id=3,
+                wagon_number=WAGON_NUMBER,
+                department=Department.BOGIE.value,
+                defect_type=DefectType.WEAR,
+                defect_type_label="Wear",
+            ),
+        )
+        await state.set_state(DefectSG.confirm)
+
+        await dp.feed_update(
+            bot, make_callback_update(EditCB(field="defect_type").pack())
+        )
+        await dp.feed_update(bot, make_callback_update(HUMAN_FACTOR))
+        assert await state.get_state() == DefectSG.responsible_employee.state
+
+        await dp.feed_update(
+            bot, make_callback_update(ResponsibleEmployeeCB(employee_id=1).pack())
+        )
+
+        assert await state.get_state() == DefectSG.confirm.state
+        assert UD_EDITING not in await state.get_data()
+        assert (await load_defect(state)).responsible_employee_label == "U1 L"
 
 
 class TestAlbum:

@@ -43,14 +43,23 @@ class DefectTypeScene(DefectScene, state=DefectSG.defect_type.state):
     async def receive(
         self, callback: CallbackQuery, callback_data: DefectTypeCB, state: FSMContext
     ) -> None:
+        """A human factor asks for its employee next, from Edit too."""
         await callback.answer()
 
         dtype_value = callback_data.value
         dtype_label = str(_DEFECT_TYPE_LABELS.get(dtype_value, dtype_value))
+        human_factor = dtype_value == DefectType.HUMAN_FACTOR
 
         defect = await load_defect(state)
         defect.defect_type = dtype_value
         defect.defect_type_label = dtype_label
+        if not human_factor:
+            defect.responsible_employee_id = None
+            defect.responsible_employee_label = None
         await save_defect(state, defect)
 
-        await self.go_on(state, DefectSG.severity)
+        if not human_factor:
+            await self.go_on(state, DefectSG.severity)
+            return
+
+        await self.wizard.goto(DefectSG.responsible_employee)

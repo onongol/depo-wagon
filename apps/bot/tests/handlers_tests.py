@@ -10,6 +10,7 @@ import pytest
 from aiogram.utils.text_decorations import html_decoration
 
 from apps.bot.callback_data import (
+    CB_DESC_SKIP,
     DefectTypeCB,
     DepartmentCB,
     EditCB,
@@ -41,12 +42,7 @@ from apps.bot.handlers.defect.part_number import (
     PART_NUMBER_MAX_LENGTH,
     PartNumberScene,
 )
-from apps.bot.handlers.defect.responsible_employee import (
-    page_responsible_employee,
-    search_responsible_employee,
-    select_responsible_employee,
-    skip_responsible_employee,
-)
+from apps.bot.handlers.defect.responsible_employee import ResponsibleEmployeeScene
 from apps.bot.handlers.defect.responsible_employee.list import EMPLOYEE_PAGE_SIZE
 from apps.bot.handlers.defect.severity import SeverityScene
 from apps.bot.handlers.defect.start import new_defect_start
@@ -55,9 +51,12 @@ from apps.bot.handlers.defect.text import (
     build_defect_type_confirmed_text,
     build_part_number_confirmed_text,
     build_part_number_skipped_text,
+    build_responsible_employee_confirmed_text,
+    build_responsible_employee_skipped_text,
     build_wagon_not_found_text,
 )
 from apps.bot.handlers.defect.wagon import WagonScene
+from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.keyboards.defect import severity_keyboard
 from apps.bot.keyboards.measurement import measurement_choice_keyboard
 from apps.bot.keyboards.menu import main_menu_keyboard
@@ -316,15 +315,57 @@ class TestReceiveDefectType:
 
         assert (await load_defect(state)).defect_type == DefectType.HUMAN_FACTOR
 
-    async def test_every_type_goes_on_to_the_severity_scene(self, state):
+    async def test_every_other_type_goes_on_to_the_severity_scene(self, state):
         """Its screen is the severity scene's to draw; see TestSeverityScene."""
-        for value in DefectType.values:
+        for value in set(DefectType.values) - {DefectType.HUMAN_FACTOR}:
             await save_defect(state, DefectData())
             scene = DefectTypeScene(wizard=AsyncMock())
 
             await scene.receive(make_callback(), DefectTypeCB(value=value), state)
 
             scene.wizard.goto.assert_awaited_once_with(DefectSG.severity)
+
+    async def test_a_human_factor_goes_on_to_the_employee_scene(self, state):
+        await save_defect(state, DefectData())
+        scene = DefectTypeScene(wizard=AsyncMock())
+
+        await scene.receive(
+            make_callback(), DefectTypeCB(value=DefectType.HUMAN_FACTOR), state
+        )
+
+        scene.wizard.goto.assert_awaited_once_with(DefectSG.responsible_employee)
+
+    async def test_a_human_factor_asks_for_the_employee_after_an_edit_too(self, state):
+        """The employee scene goes back to the summary itself."""
+        await save_defect(state, DefectData(defect_type=DefectType.WEAR))
+        await state.update_data({UD_EDITING: True})
+        scene = DefectTypeScene(wizard=AsyncMock())
+
+        await scene.receive(
+            make_callback(), DefectTypeCB(value=DefectType.HUMAN_FACTOR), state
+        )
+
+        scene.wizard.goto.assert_awaited_once_with(DefectSG.responsible_employee)
+        assert (await state.get_data())[UD_EDITING] is True
+
+    async def test_another_type_drops_the_employee(self, state):
+        """Edit ▸ Type away from a human factor must not save its employee."""
+        await save_defect(
+            state,
+            DefectData(
+                defect_type=DefectType.HUMAN_FACTOR,
+                responsible_employee_id=5,
+                responsible_employee_label="X Y",
+            ),
+        )
+
+        await DefectTypeScene(wizard=AsyncMock()).receive(
+            make_callback(), DefectTypeCB(value=DefectType.WEAR), state
+        )
+
+        defect = await load_defect(state)
+        assert defect.responsible_employee_id is None
+        assert defect.responsible_employee_label is None
 
     async def test_the_screen_says_whether_the_part_number_was_skipped(self):
         typed, _ = await DefectTypeScene.screen(DefectData(part_number="PN-1"), {})
@@ -353,6 +394,23 @@ class TestSeverityScene:
 
         assert text.render() == build_defect_type_confirmed_text("Crack").render()
         assert keyboard == severity_keyboard()
+
+    async def test_after_a_human_factor_the_screen_names_the_employee(self):
+        form = DefectData(
+            defect_type=DefectType.HUMAN_FACTOR, responsible_employee_label="Bold Bat"
+        )
+
+        text, _ = await SeverityScene.screen(form, {})
+
+        expected = build_responsible_employee_confirmed_text("Bold Bat")
+        assert text.render() == expected.render()
+
+    async def test_after_a_human_factor_the_screen_says_it_was_skipped(self):
+        form = DefectData(defect_type=DefectType.HUMAN_FACTOR)
+
+        text, _ = await SeverityScene.screen(form, {})
+
+        assert text.render() == build_responsible_employee_skipped_text().render()
 
     async def test_an_edit_asks_for_it_again(self):
         text, keyboard = await SeverityScene.screen(DefectData(), {UD_EDITING: True})
@@ -383,17 +441,30 @@ class TestSeverityScene:
         assert UD_EDITING not in await state.get_data()
 
 
-class TestResponsibleEmployee:
+class TestResponsibleEmployeeScene:
     async def _seed(self, state, search=""):
         await save_defect(state, DefectData(department="bogie"))
         await state.update_data({UD_RESP_SEARCH: search})
 
-    async def test_skip_moves_to_the_description(self, state):
+    async def test_the_screen_lists_the_form_department_by_the_search(
+        self, state, picker
+    ):
+        form = DefectData(department="coupler_brake")
+
+        await ResponsibleEmployeeScene.screen(form, {UD_RESP_SEARCH: "bo"})
+
+        picker.count.assert_awaited_once_with("coupler_brake", "bo")
+        picker.page.assert_awaited_once_with(
+            "coupler_brake", "bo", limit=EMPLOYEE_PAGE_SIZE, offset=0
+        )
+
+    async def test_skip_goes_on_to_the_severity_scene(self, state):
         await self._seed(state)
+        scene = ResponsibleEmployeeScene(wizard=AsyncMock())
 
-        await skip_responsible_employee(make_callback(), state)
+        await scene.skip(make_callback(), state)
 
-        assert await state.get_state() == DefectSG.desc.state
+        scene.wizard.goto.assert_awaited_once_with(DefectSG.severity)
 
     async def test_skip_records_no_employee(self, state):
         await save_defect(
@@ -401,7 +472,7 @@ class TestResponsibleEmployee:
             DefectData(responsible_employee_id=5, responsible_employee_label="X Y"),
         )
 
-        await skip_responsible_employee(make_callback(), state)
+        await ResponsibleEmployeeScene(wizard=AsyncMock()).skip(make_callback(), state)
 
         defect = await load_defect(state)
         assert defect.responsible_employee_id is None
@@ -410,7 +481,7 @@ class TestResponsibleEmployee:
     async def test_skip_drops_the_search(self, state):
         await self._seed(state, search="foo")
 
-        await skip_responsible_employee(make_callback(), state)
+        await ResponsibleEmployeeScene(wizard=AsyncMock()).skip(make_callback(), state)
 
         assert UD_RESP_SEARCH not in await state.get_data()
 
@@ -418,7 +489,7 @@ class TestResponsibleEmployee:
         picker.count.return_value = 3 * EMPLOYEE_PAGE_SIZE
         await self._seed(state, search="bo")
 
-        await page_responsible_employee(
+        await ResponsibleEmployeeScene(wizard=AsyncMock()).turn_page(
             make_callback(), ResponsibleEmployeePageCB(page=1), state
         )
 
@@ -431,57 +502,67 @@ class TestResponsibleEmployee:
         picker.count.return_value = EMPLOYEE_PAGE_SIZE + 1
         await self._seed(state)
 
-        await page_responsible_employee(
+        await ResponsibleEmployeeScene(wizard=AsyncMock()).turn_page(
             make_callback(), ResponsibleEmployeePageCB(page=99), state
         )
 
         assert picker.page.await_args.kwargs["offset"] == EMPLOYEE_PAGE_SIZE
 
-    async def test_paging_leaves_the_step_where_it_is(self, state, picker):
+    async def test_paging_redraws_the_list_in_place(self, state, picker):
         await self._seed(state)
-        await state.set_state(DefectSG.responsible_employee)
+        callback = make_callback()
+        scene = ResponsibleEmployeeScene(wizard=AsyncMock())
 
-        await page_responsible_employee(
-            make_callback(), ResponsibleEmployeePageCB(page=1), state
-        )
+        await scene.turn_page(callback, ResponsibleEmployeePageCB(page=1), state)
 
-        assert await state.get_state() == DefectSG.responsible_employee.state
+        callback.bot.edit_message_text.assert_awaited_once()
+        scene.wizard.goto.assert_not_awaited()
 
     async def test_select_records_the_employee(self, state, picker):
         picker.one.return_value = _make_employee(7, "Bold", "Bat")
         await self._seed(state)
+        scene = ResponsibleEmployeeScene(wizard=AsyncMock())
 
-        await select_responsible_employee(
-            make_callback(), ResponsibleEmployeeCB(employee_id=7), state
-        )
+        await scene.select(make_callback(), ResponsibleEmployeeCB(employee_id=7), state)
 
         picker.one.assert_awaited_once_with(7, "bogie")
         defect = await load_defect(state)
         assert defect.responsible_employee_id == 7
         assert defect.responsible_employee_label == "Bold Bat"
-        assert await state.get_state() == DefectSG.desc.state
+        scene.wizard.goto.assert_awaited_once_with(DefectSG.severity)
+
+    async def test_select_after_an_edit_goes_back_to_the_summary(self, state, picker):
+        picker.one.return_value = _make_employee(7, "Bold", "Bat")
+        await self._seed(state)
+        await state.update_data({UD_EDITING: True})
+        callback = make_callback()
+        scene = ResponsibleEmployeeScene(
+            wizard=AsyncMock(event=callback, update_type="callback_query")
+        )
+
+        await scene.select(callback, ResponsibleEmployeeCB(employee_id=7), state)
+
+        scene.wizard.goto.assert_not_awaited()
+        assert await state.get_state() == DefectSG.confirm.state
+        assert (await load_defect(state)).responsible_employee_id == 7
 
     async def test_select_redraws_the_list_when_the_employee_is_gone(
         self, state, picker
     ):
         await self._seed(state)
-        await state.set_state(DefectSG.responsible_employee)
-        callback = make_callback()
+        scene = ResponsibleEmployeeScene(wizard=AsyncMock())
 
-        await select_responsible_employee(
-            callback, ResponsibleEmployeeCB(employee_id=7), state
-        )
+        await scene.select(make_callback(), ResponsibleEmployeeCB(employee_id=7), state)
 
         assert (await load_defect(state)).responsible_employee_id is None
-        assert await state.get_state() == DefectSG.responsible_employee.state
-        picker.page.assert_awaited_once()
-        callback.message.edit_text.assert_awaited_once()
+        scene.wizard.retake.assert_awaited_once()
+        scene.wizard.goto.assert_not_awaited()
 
     async def test_select_drops_the_search(self, state, picker):
         picker.one.return_value = _make_employee()
         await self._seed(state, search="query")
 
-        await select_responsible_employee(
+        await ResponsibleEmployeeScene(wizard=AsyncMock()).select(
             make_callback(), ResponsibleEmployeeCB(employee_id=1), state
         )
 
@@ -489,38 +570,23 @@ class TestResponsibleEmployee:
 
 
 class TestSearchResponsibleEmployee:
-    async def _seed(self, state):
+    async def test_stores_the_query_trimmed(self, state):
         await save_defect(state, DefectData(department="bogie"))
 
-    async def test_stores_the_query(self, state, picker):
-        await self._seed(state)
-
-        await search_responsible_employee(make_message("Bold"), state)
+        await ResponsibleEmployeeScene(wizard=AsyncMock()).search(
+            make_message("  Bold "), state
+        )
 
         assert (await state.get_data())[UD_RESP_SEARCH] == "Bold"
 
-    async def test_searches_the_department_on_the_form(self, state, picker):
-        await self._seed(state)
+    async def test_draws_the_step_again(self, state):
+        """retake() redraws it as a new message; see the flow tests."""
+        await save_defect(state, DefectData(department="bogie"))
+        scene = ResponsibleEmployeeScene(wizard=AsyncMock())
 
-        await search_responsible_employee(make_message("  Bold "), state)
+        await scene.search(make_message("test"), state)
 
-        picker.count.assert_awaited_once_with("bogie", "Bold")
-
-    async def test_leaves_the_step_where_it_is(self, state, picker):
-        await self._seed(state)
-        await state.set_state(DefectSG.responsible_employee)
-
-        await search_responsible_employee(make_message("test"), state)
-
-        assert await state.get_state() == DefectSG.responsible_employee.state
-
-    async def test_re_renders_as_a_new_message(self, state, picker):
-        await self._seed(state)
-        message = make_message("test")
-
-        await search_responsible_employee(message, state)
-
-        message.answer.assert_awaited_once()
+        scene.wizard.retake.assert_awaited_once()
 
 
 class TestEditFromSummary:
@@ -602,34 +668,22 @@ class TestUnlinkedEmployeeIsRefused:
 
 
 class TestAfterPhotos:
-    async def test_human_factor_opens_the_list_for_the_form_department(
-        self, state, picker
-    ):
+    async def test_human_factor_skips_the_measurements(self, state):
+        """Its employee was asked right after the type."""
         from apps.bot.handlers.defect.photo.routing import after_photos
 
-        defect = DefectData(
-            defect_type=DefectType.HUMAN_FACTOR, department="coupler_brake"
+        defect = DefectData(defect_type=DefectType.HUMAN_FACTOR)
+        await save_defect(state, defect)
+        send = AsyncMock()
+
+        await after_photos(send, defect, state)
+
+        assert await state.get_state() == DefectSG.desc.state
+        send.assert_awaited_once_with(
+            str(M.ASK_DESCRIPTION),
+            parse_mode=M.PARSE_MODE,
+            reply_markup=skip_keyboard(CB_DESC_SKIP),
         )
-        await save_defect(state, defect)
-
-        await after_photos(AsyncMock(), defect, state)
-
-        picker.count.assert_awaited_once_with("coupler_brake", "")
-        assert await state.get_state() == DefectSG.responsible_employee.state
-
-    async def test_a_failed_lookup_keeps_the_photo_step_to_retry(self, state, picker):
-        """error_handler answers; Done is still on screen to tap again."""
-        from apps.bot.handlers.defect.photo.routing import after_photos
-
-        picker.count.side_effect = RuntimeError("db down")
-        defect = DefectData(defect_type=DefectType.HUMAN_FACTOR, department="bogie")
-        await save_defect(state, defect)
-        await state.set_state(DefectSG.photo)
-
-        with pytest.raises(RuntimeError):
-            await after_photos(AsyncMock(), defect, state)
-
-        assert await state.get_state() == DefectSG.photo.state
 
     async def test_other_defect_types_go_to_the_measurement_step(self, state):
         from apps.bot.handlers.defect.photo.routing import after_photos
@@ -725,13 +779,12 @@ class TestMeasurementUnit:
 class TestUserTextIsEscaped:
     """Replies go out as HTML: text the bot did not write must not parse as tags."""
 
-    async def test_the_search_query(self, state, picker):
-        await save_defect(state, DefectData(department="bogie"))
-        message = make_message("<b")
+    async def test_the_search_query(self, picker):
+        form = DefectData(department="bogie")
 
-        await search_responsible_employee(message, state)
+        text, _ = await ResponsibleEmployeeScene.screen(form, {UD_RESP_SEARCH: "<b"})
 
-        assert "&lt;b" in message.answer.await_args.args[0]
+        assert "&lt;b" in text
 
     async def test_the_unit_is_escaped_but_stored_as_typed(self, state):
         from apps.bot.handlers.defect.measurement import receive_unit
@@ -750,19 +803,21 @@ class TestUserTextIsEscaped:
         assert "&lt;mm&gt;" in message.answer.await_args.args[0]
         assert (await load_defect(state)).measurements[0].unit == "<mm>"
 
-    async def test_the_responsible_employee_is_escaped_but_stored_as_is(
-        self, state, picker
-    ):
+    async def test_the_responsible_employee_is_shown_as_stored(self, state, picker):
+        """An entity, not HTML: the name goes out verbatim."""
         picker.one.return_value = _make_employee(7, "<b>Bold", "Bat")
-        await save_defect(state, DefectData(department="bogie"))
-        callback = make_callback()
-
-        await select_responsible_employee(
-            callback, ResponsibleEmployeeCB(employee_id=7), state
+        await save_defect(
+            state, DefectData(department="bogie", defect_type=DefectType.HUMAN_FACTOR)
         )
 
-        assert "&lt;b&gt;Bold Bat" in callback.message.edit_text.await_args.args[0]
-        assert (await load_defect(state)).responsible_employee_label == "<b>Bold Bat"
+        await ResponsibleEmployeeScene(wizard=AsyncMock()).select(
+            make_callback(), ResponsibleEmployeeCB(employee_id=7), state
+        )
+        form = await load_defect(state)
+        text, _ = await SeverityScene.screen(form, {})
+
+        assert form.responsible_employee_label == "<b>Bold Bat"
+        assert "<b>Bold Bat" in text.render()[0]
 
     async def test_the_employee_name_in_the_greeting(self):
         """Sent as entities rather than HTML, so the name goes out verbatim."""

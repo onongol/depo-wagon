@@ -7,6 +7,7 @@ from .department import DepartmentScene
 from .node import NodeScene
 from .part_number import PartNumberScene
 from .photo import PhotoScene
+from .responsible_employee import ResponsibleEmployeeScene
 from .severity import SeverityScene
 from .wagon import WagonScene
 
@@ -19,6 +20,7 @@ DEFECT_SCENES: tuple[type[DefectScene], ...] = (
     NodeScene,
     PartNumberScene,
     DefectTypeScene,
+    ResponsibleEmployeeScene,
     SeverityScene,
     PhotoScene,
 )

@@ -21,7 +21,6 @@ from apps.bot.keyboards.measurement import (
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 
-from .responsible_employee import show_responsible_employee_list
 from .scene import as_send_kwargs
 from .scenes import scene_for
 from .summary import show_summary
@@ -33,7 +32,7 @@ if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
 
 
-# As each step first showed it; confirm and responsible_employee render async
+# As each step first showed it; confirm renders async
 _SCREENS = {
     DefectSG.measurement_choice.state: lambda d: (
         build_ask_measurement_text(),
@@ -78,8 +77,6 @@ async def show_current_step(send: Callable[..., Awaitable], state: FSMContext) -
         await send(**as_send_kwargs(content), reply_markup=keyboard)
     elif step == DefectSG.confirm.state:
         await show_summary(send, state, defect)
-    elif step == DefectSG.responsible_employee.state:
-        await show_responsible_employee_list(send, state, defect.department)
     elif screen := _SCREENS.get(step):
         content, keyboard = screen(defect)
         await send(**as_send_kwargs(content), reply_markup=keyboard)

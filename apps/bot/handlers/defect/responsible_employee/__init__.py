@@ -1,15 +1,7 @@
-from .list import show_responsible_employee_list
-from .receive import (
-    page_responsible_employee,
-    select_responsible_employee,
-    skip_responsible_employee,
-)
-from .search import search_responsible_employee
+from .list import employee_list_screen
+from .receive import ResponsibleEmployeeScene
 
 __all__ = [
-    "page_responsible_employee",
-    "search_responsible_employee",
-    "select_responsible_employee",
-    "show_responsible_employee_list",
-    "skip_responsible_employee",
+    "ResponsibleEmployeeScene",
+    "employee_list_screen",
 ]

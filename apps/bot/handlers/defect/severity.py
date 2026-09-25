@@ -8,9 +8,14 @@ from apps.bot.fsm import load_defect, save_defect
 from apps.bot.keyboards.defect import severity_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
+from apps.defects.constants import DefectType
 
 from .scene import DefectScene
-from .text import build_defect_type_confirmed_text
+from .text import (
+    build_defect_type_confirmed_text,
+    build_responsible_employee_confirmed_text,
+    build_responsible_employee_skipped_text,
+)
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
@@ -22,13 +27,23 @@ if TYPE_CHECKING:
 
 
 class SeverityScene(DefectScene, state=DefectSG.severity.state):
-    """The severity, from buttons; Edit ▸ Severity reopens it."""
+    """The severity, from buttons; Edit ▸ Severity reopens it.
+
+    A human factor comes here from the employee step, and the screen says how it went.
+    """
 
     @classmethod
     async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:
         if data.get(UD_EDITING):
             return str(M.EDIT_SEVERITY), severity_keyboard()
-        text = build_defect_type_confirmed_text(form.defect_type_label)
+        if form.defect_type != DefectType.HUMAN_FACTOR:
+            text = build_defect_type_confirmed_text(form.defect_type_label)
+        elif form.responsible_employee_label:
+            text = build_responsible_employee_confirmed_text(
+                form.responsible_employee_label
+            )
+        else:
+            text = build_responsible_employee_skipped_text()
         return text, severity_keyboard()
 
     @on.callback_query(SeverityCB.filter())

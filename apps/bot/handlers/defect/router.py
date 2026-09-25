@@ -21,13 +21,10 @@ from apps.bot.callback_data import (
     CB_MEAS_DONE,
     CB_MEAS_SKIP,
     CB_NORM_SKIP,
-    CB_RESP_EMP_SKIP,
     CB_UNIT_SKIP,
     ConfirmCB,
     DimensionCB,
     EditCB,
-    ResponsibleEmployeeCB,
-    ResponsibleEmployeePageCB,
     VerdictCB,
 )
 from apps.bot.constants import BTN_NEW_DEFECT
@@ -49,12 +46,6 @@ from .measurement import (
     receive_unit,
     skip_norm_value,
     skip_unit,
-)
-from .responsible_employee import (
-    page_responsible_employee,
-    search_responsible_employee,
-    select_responsible_employee,
-    skip_responsible_employee,
 )
 from .restart import continue_defect, menu_button_mid_flow, restart_defect
 from .scene import ask_about_the_open_form
@@ -97,12 +88,6 @@ def _plain_steps_router() -> Router:
     )
     cb(continue_defect, running, F.data == CB_DEFECT_CONTINUE)
     cb(restart_defect, running, F.data == CB_DEFECT_RESTART)
-
-    resp = StateFilter(DefectSG.responsible_employee)
-    cb(select_responsible_employee, resp, ResponsibleEmployeeCB.filter())
-    cb(skip_responsible_employee, resp, F.data == CB_RESP_EMP_SKIP)
-    cb(page_responsible_employee, resp, ResponsibleEmployeePageCB.filter())
-    msg(search_responsible_employee, resp, *_TEXT)
 
     choice = StateFilter(DefectSG.measurement_choice)
     cb(measurement_add, choice, F.data == CB_MEAS_ADD)

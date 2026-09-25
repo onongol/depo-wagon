@@ -18,10 +18,6 @@ class DefectMessages:
         "<i>Type a new name to search again:</i>"
     )
 
-    RESPONSIBLE_EMPLOYEE_CONFIRMED = _(
-        "✅ Responsible employee: <b>{label}</b>\n\n📝 Enter a description (or skip):"
-    )
-
     # ── Edit from summary ────────────────────────────────────────────────────
 
     EDIT_SEVERITY = _("✏️ Select severity:")
