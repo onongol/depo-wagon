@@ -43,7 +43,10 @@ class DefectTypeScene(DefectScene, state=DefectSG.defect_type.state):
     async def receive(
         self, callback: CallbackQuery, callback_data: DefectTypeCB, state: FSMContext
     ) -> None:
-        """A human factor asks for its employee next, from Edit too."""
+        """A human factor asks for its employee next, from Edit too.
+
+        That list is a lookup: if it fails, the state stays here for these buttons.
+        """
         await callback.answer()
 
         dtype_value = callback_data.value
@@ -62,4 +65,8 @@ class DefectTypeScene(DefectScene, state=DefectSG.defect_type.state):
             await self.go_on(state, DefectSG.severity)
             return
 
-        await self.wizard.goto(DefectSG.responsible_employee)
+        try:
+            await self.wizard.goto(DefectSG.responsible_employee)
+        except Exception:
+            await state.set_state(DefectSG.defect_type)
+            raise

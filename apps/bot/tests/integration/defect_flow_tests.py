@@ -31,6 +31,7 @@ from apps.bot.callback_data import (
     VerdictCB,
 )
 from apps.bot.constants import SEVERITY_LABELS, UD_EDITING
+from apps.bot.errors import build_session_error_text
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.common.text import build_help_text
 from apps.bot.handlers.defect.responsible_employee.list import EMPLOYEE_PAGE_SIZE
@@ -846,6 +847,43 @@ class TestHumanFactorBranch:
         assert await state.get_state() == DefectSG.confirm.state
         assert UD_EDITING not in await state.get_data()
         assert (await load_defect(state)).responsible_employee_label == "U1 L"
+
+
+class TestAFailedEmployeeLookup:
+    @pytest.fixture(autouse=True)
+    def _no_swallowed_crash(self):
+        """These tests break the lookup on purpose."""
+        yield
+
+    @pytest.mark.usefixtures("flow")
+    async def test_keeps_the_type_step_for_its_buttons_to_retry(
+        self, dp, bot, session, state
+    ):
+        """aiogram moves the state before the list is drawn; the type step moves it back."""
+        await _to_the_type_step(dp, bot)
+
+        with patch(
+            "apps.bot.services.count_department_employees",
+            AsyncMock(side_effect=RuntimeError("db down")),
+        ):
+            await dp.feed_update(bot, make_callback_update(HUMAN_FACTOR))
+
+        assert await state.get_state() == DefectSG.defect_type.state
+        told = session.calls("sendMessage")[-1]
+        assert told.text == build_session_error_text().render()[0]
+
+        with (
+            patch(
+                "apps.bot.services.count_department_employees",
+                AsyncMock(return_value=0),
+            ),
+            patch(
+                "apps.bot.services.get_department_employees", AsyncMock(return_value=[])
+            ),
+        ):
+            await dp.feed_update(bot, make_callback_update(HUMAN_FACTOR))
+
+        assert await state.get_state() == DefectSG.responsible_employee.state
 
 
 class TestAlbum:
