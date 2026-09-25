@@ -50,13 +50,16 @@ from apps.bot.handlers.defect.responsible_employee import (
 from apps.bot.handlers.defect.responsible_employee.list import EMPLOYEE_PAGE_SIZE
 from apps.bot.handlers.defect.start import new_defect_start
 from apps.bot.handlers.defect.text import (
+    build_department_confirmed_text,
     build_wagon_not_found_text,
 )
 from apps.bot.handlers.defect.wagon import WagonScene
+from apps.bot.keyboards.defect import node_keyboard_for_department
 from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.states import DefectSG
 from apps.bot.tests.builders import make_callback, make_message
 from apps.bot.user_data import DefectData
+from apps.core.constants import Department
 from apps.defects.constants import DefectType
 
 WAGON_LOOKUP = "apps.bot.handlers.defect.wagon.services.get_wagon_by_number"
@@ -192,15 +195,18 @@ class TestReceiveDepartment:
 
         assert await state.get_state() == DefectSG.node.state
 
-    async def test_edits_the_message_in_place(self, state):
+    async def test_edits_the_message_into_the_node_step(self, state):
         await save_defect(state, DefectData())
         callback = make_callback()
 
         await DepartmentScene(wizard=MagicMock()).receive(
-            callback, DepartmentCB(value="bogie"), state
+            callback, DepartmentCB(value=Department.BOGIE), state
         )
 
-        callback.message.edit_text.assert_awaited_once()
+        callback.message.edit_text.assert_awaited_once_with(
+            **build_department_confirmed_text(Department.BOGIE.label).as_kwargs(),
+            reply_markup=node_keyboard_for_department(Department.BOGIE),
+        )
 
 
 class TestReceiveNode:

@@ -33,6 +33,7 @@ from .responsible_employee import show_responsible_employee_list
 from .scene import as_send_kwargs
 from .scenes import scene_for
 from .summary import show_summary
+from .text import build_department_confirmed_text
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -63,7 +64,7 @@ def _photo(defect: DefectData) -> tuple[str, InlineKeyboardMarkup]:
 # As each step first showed it; confirm and responsible_employee render async
 _SCREENS = {
     DefectSG.node.state: lambda d: (
-        str(M.DEPARTMENT_CONFIRMED).format(label=d.department_label),
+        build_department_confirmed_text(d.department_label),
         node_keyboard_for_department(d.department or ""),
     ),
     DefectSG.part_number.state: lambda _: (
