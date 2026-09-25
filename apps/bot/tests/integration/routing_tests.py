@@ -180,7 +180,10 @@ class TestPrecedenceDuringTheDefectFlow:
     @pytest.mark.usefixtures("stored_form")
     @pytest.mark.parametrize(
         "label",
-        [*sorted(MENU_TEXTS - {str(BTN_NEW_DEFECT)}), "/my_tasks", "/ask", "/support"],
+        [
+            *sorted(MENU_TEXTS - {str(BTN_NEW_DEFECT)}),
+            *("/start", "/my_tasks", "/ask", "/support", "/help"),
+        ],
     )
     @pytest.mark.parametrize(
         "step",
@@ -190,10 +193,10 @@ class TestPrecedenceDuringTheDefectFlow:
     async def test_a_menu_button_shows_the_step_again(
         self, dp, bot, state, step, label
     ):
-        """Never an answer at a text step; never a way out that drops the form.
+        """Never an answer at a text step, and never a way out: /cancel is that.
 
         The commands too: with the menu hidden, the Menu button's list is the way
-        to them, and each would wipe the form or leave it behind.
+        to them.
         """
         await state.set_state(step)
         before = await state.get_data()
@@ -223,19 +226,21 @@ class TestPrecedenceDuringTheDefectFlow:
         sent = [m.text for m in bot.session.calls("sendMessage")]
         assert sent == [build_ask_wagon_text().render()[0]]
 
-    async def test_start_still_works_mid_flow_and_leaves_the_flow_standing(
+    async def test_a_deep_link_mid_flow_still_reaches_the_link_handler(
         self, dp, bot, state, employee
     ):
-        """start_router precedes the flow, matching PTB's registration order."""
+        """Only a bare /start is left to the form; linking comes from the web app."""
         await self._enter_photo_step(dp, bot, state, employee)
 
-        with (
-            as_employee(None),
-            patch("apps.bot.handlers.start.start.services") as svc,
-        ):
-            svc.get_connect_url = MagicMock(return_value="https://x/telegram/")
-            await dp.feed_update(bot, make_message_update("/start", command=True))
+        with patch("apps.bot.handlers.start.start.services") as svc:
+            svc.resolve_link_token = AsyncMock(
+                return_value=(None, LinkStatus.INVALID_TOKEN)
+            )
+            await dp.feed_update(
+                bot, make_message_update("/start sometoken", command=True)
+            )
 
+        svc.resolve_link_token.assert_awaited_once_with("sometoken")
         assert await state.get_state() == DefectSG.photo.state
 
     async def test_a_link_button_mid_flow_reaches_the_link_handler(

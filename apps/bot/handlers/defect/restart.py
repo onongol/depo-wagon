@@ -25,9 +25,9 @@ async def defect_in_progress(message: Message) -> None:
 
 
 async def menu_button_mid_flow(message: Message, state: FSMContext) -> None:
-    """Any other menu button, or a command leading elsewhere, shows the step again.
+    """Every other menu button and command but /cancel shows the step again.
 
-    Each would drop the form or leave it behind; /cancel is the way out.
+    The form stays in front until it ends; /cancel is the way out of it.
     """
     if not await show_current_step(message.answer, state):
         await message.answer(**build_defect_continued_text().as_kwargs())
