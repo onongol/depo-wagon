@@ -46,6 +46,7 @@ from apps.bot.handlers.common.text import (
     build_help_text,
     build_unhandled_message_text,
 )
+from apps.bot.handlers.defect.resume import show_current_step
 from apps.bot.handlers.defect.text import (
     build_ask_wagon_text,
     build_defect_continued_text,
@@ -160,22 +161,59 @@ class TestPrecedenceDuringTheDefectFlow:
         assert session.calls("editMessageText") == []
         assert await state.get_state() == DefectSG.photo.state
 
+    FORM = DefectData(
+        wagon_id=3,
+        wagon_number="80035668",
+        department=Department.BOGIE.value,
+        department_label="Bogie",
+        defect_type_label="Crack",
+        severity_label="High",
+        current_measurement=MeasurementEntry(
+            dimension="depth", dimension_label="Depth"
+        ),
+    )
+
     @pytest.fixture
-    async def at_wagon_step(self, dp, bot, session, employee):
-        with as_employee(employee):
-            await dp.feed_update(bot, make_message_update("/new_defect", command=True))
-        session.clear()
+    async def stored_form(self, state):
+        await save_defect(state, self.FORM)
 
-    @pytest.mark.usefixtures("at_wagon_step")
+    @pytest.mark.usefixtures("stored_form")
     @pytest.mark.parametrize("label", sorted(MENU_TEXTS - {str(BTN_NEW_DEFECT)}))
-    async def test_no_menu_label_is_read_as_a_wagon_number(
-        self, dp, bot, session, state, label
+    @pytest.mark.parametrize(
+        "step",
+        [s for s in DefectSG.__states__ if s != DefectSG.saving],
+        ids=lambda s: s.state,
+    )
+    async def test_a_menu_button_shows_the_step_again(
+        self, dp, bot, state, step, label
     ):
-        await dp.feed_update(bot, make_message_update(label))
+        """Never an answer at a text step; never a way out that drops the form."""
+        await state.set_state(step)
+        before = await state.get_data()
+        screen = AsyncMock()
 
-        sent = [m.text for m in session.calls("sendMessage")]
+        with patch(RESP_SERVICES) as svc:
+            svc.count_department_employees = AsyncMock(return_value=0)
+            svc.get_department_employees = AsyncMock(return_value=[])
+            await dp.feed_update(bot, make_message_update(label))
+            after = await state.get_data()
+            await show_current_step(screen, state)
+
+        (sent,) = bot.session.calls("sendMessage")
+        shown = screen.await_args
+        expected = shown.kwargs.get("text") or shown.args[0]
+        assert sent.text == expected
+        assert await state.get_state() == step.state
+        assert after == before
+
+    @pytest.mark.usefixtures("stored_form")
+    async def test_at_the_wagon_step_it_asks_for_the_number_again(self, dp, bot, state):
+        await state.set_state(DefectSG.wagon_num)
+
+        await dp.feed_update(bot, make_message_update(str(BTN_OPEN_DEFECTS)))
+
+        sent = [m.text for m in bot.session.calls("sendMessage")]
         assert sent == [build_ask_wagon_text().render()[0]]
-        assert await state.get_state() == DefectSG.wagon_num.state
 
     async def test_start_still_works_mid_flow_and_leaves_the_flow_standing(
         self, dp, bot, state, employee

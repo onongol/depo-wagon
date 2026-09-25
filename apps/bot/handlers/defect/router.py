@@ -34,6 +34,7 @@ from apps.bot.callback_data import (
 )
 from apps.bot.constants import BTN_NEW_DEFECT
 from apps.bot.filters import NotACommand
+from apps.bot.keyboards.menu import MENU_TEXTS
 from apps.bot.middlewares import DefectFormMiddleware
 from apps.bot.states import DefectSG
 
@@ -62,7 +63,12 @@ from .responsible_employee import (
     select_responsible_employee,
     skip_responsible_employee,
 )
-from .restart import continue_defect, defect_in_progress, restart_defect
+from .restart import (
+    continue_defect,
+    defect_in_progress,
+    menu_button_mid_flow,
+    restart_defect,
+)
 from .severity import receive_severity
 from .start import new_defect_start
 from .verdict import receive_employee_verdict
@@ -77,15 +83,15 @@ def get_defect_flow_router() -> Router:
     msg = router.message.register
     cb = router.callback_query.register
 
-    # Outer, so a form from an older schema never reaches a step that would
-    # dereference the None load_defect returns for it.
+    # Outer, so no step is reached with a form that is stale or gone
     router.message.outer_middleware(DefectFormMiddleware())
     router.callback_query.outer_middleware(DefectFormMiddleware())
 
-    # Ahead of every text step, which would take the button for an answer
+    # Menu buttons ahead of every step; a text step would take one for an answer
     running = StateFilter(DefectSG)
     msg(defect_in_progress, running, Command("new_defect"))
     msg(defect_in_progress, running, F.text == str(BTN_NEW_DEFECT))
+    msg(menu_button_mid_flow, running, F.text.in_(MENU_TEXTS))
     cb(continue_defect, running, F.data == CB_DEFECT_CONTINUE)
     cb(restart_defect, running, F.data == CB_DEFECT_RESTART)
 
