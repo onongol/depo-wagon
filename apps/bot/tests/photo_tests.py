@@ -13,7 +13,12 @@ from apps.bot.handlers.defect.photo.receive import (
     PhotoScene,
     clear_last_photo_keyboard,
 )
-from apps.bot.messages import BotMessages as M
+from apps.bot.handlers.defect.text import (
+    build_album_receiving_text,
+    build_photo_received_text,
+    build_photo_too_large_text,
+    build_photos_attached_toast,
+)
 from apps.bot.tests.builders import (
     CHAT_ID,
     MESSAGE_ID,
@@ -119,6 +124,9 @@ class TestReceivePhoto:
 
         assert await _file_ids(state) == []
         assert UD_LAST_PHOTO_MSG not in await state.get_data()
+        message.answer.assert_awaited_once_with(
+            **build_photo_too_large_text().as_kwargs()
+        )
 
     async def test_a_lone_photo_is_answered_with_the_running_count(self, state):
         await save_defect(state, DefectData(photos=_photos("a")))
@@ -126,8 +134,8 @@ class TestReceivePhoto:
 
         await receive_photo(message, state, _make_bot())
 
-        text = message.answer.await_args.args[0]
-        assert text == str(M.PHOTO_RECEIVED).format(count=2)
+        text = message.answer.await_args.kwargs["text"]
+        assert text == build_photo_received_text(2).render()[0]
 
     async def test_the_answer_offers_done_rather_than_skip(self, state):
         await save_defect(state, DefectData())
@@ -152,7 +160,8 @@ class TestAlbum:
 
         assert await _file_ids(state) == ["p0", "p1", "p2"]
         assert [m.answer.await_count for m in messages] == [1, 0, 0]
-        assert messages[0].answer.await_args.args[0] == str(M.PHOTO_ALBUM_RECEIVING)
+        answered = messages[0].answer.await_args.kwargs["text"]
+        assert answered == build_album_receiving_text().render()[0]
 
     async def test_photos_handled_out_of_order_are_kept_in_message_order(self, state):
         await save_defect(state, DefectData())
@@ -194,7 +203,7 @@ class TestSkipPhoto:
 
         await skip_photo(callback, state)
 
-        callback.answer.assert_awaited_once_with(str(M.PHOTOS_ATTACHED).format(count=3))
+        callback.answer.assert_awaited_once_with(build_photos_attached_toast(3))
 
     async def test_skipping_without_photos_reports_nothing(self, state, callback):
         await save_defect(state, DefectData())

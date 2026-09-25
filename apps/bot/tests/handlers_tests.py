@@ -51,6 +51,7 @@ from apps.bot.handlers.defect.responsible_employee.list import EMPLOYEE_PAGE_SIZ
 from apps.bot.handlers.defect.severity import SeverityScene
 from apps.bot.handlers.defect.start import new_defect_start
 from apps.bot.handlers.defect.text import (
+    build_ask_measurement_text,
     build_defect_type_confirmed_text,
     build_part_number_confirmed_text,
     build_part_number_skipped_text,
@@ -58,6 +59,7 @@ from apps.bot.handlers.defect.text import (
 )
 from apps.bot.handlers.defect.wagon import WagonScene
 from apps.bot.keyboards.defect import severity_keyboard
+from apps.bot.keyboards.measurement import measurement_choice_keyboard
 from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
@@ -634,10 +636,15 @@ class TestAfterPhotos:
 
         defect = DefectData(defect_type=DefectType.WEAR)
         await save_defect(state, defect)
+        send = AsyncMock()
 
-        await after_photos(AsyncMock(), defect, state)
+        await after_photos(send, defect, state)
 
         assert await state.get_state() == DefectSG.measurement_choice.state
+        send.assert_awaited_once_with(
+            **build_ask_measurement_text().as_kwargs(),
+            reply_markup=measurement_choice_keyboard(),
+        )
 
 
 class TestMeasurementChoice:

@@ -4,7 +4,7 @@ from django.utils.translation import gettext_lazy as _
 class DefectMessages:
     """The whole step-by-step defect registration flow and AI results."""
 
-    # ── Responsible employee / severity ──────────────────────────────────────
+    # ── Responsible employee ─────────────────────────────────────────────────
 
     ASK_RESPONSIBLE_EMPLOYEE = _(
         "👤 Select the responsible employee:\n"
@@ -22,34 +22,12 @@ class DefectMessages:
         "✅ Responsible employee: <b>{label}</b>\n\n📝 Enter a description (or skip):"
     )
 
-    SEVERITY_CONFIRMED = _(
-        "✅ Severity: <b>{label}</b>\n\n📸 Send a photo of the defect (or skip):"
-    )
-
     # ── Edit from summary ────────────────────────────────────────────────────
 
     EDIT_SEVERITY = _("✏️ Select severity:")
     EDIT_DESCRIPTION = _("✏️ Enter the description (or skip):")
 
-    # ── Photo ────────────────────────────────────────────────────────────────
-
-    PHOTO_RECEIVED = _(
-        "✅ Photo {count} received.\n\n📸 Send another photo or press Done:"
-    )
-
-    PHOTO_ALBUM_RECEIVING = _(
-        "📸 Receiving the album.\n\nSend more photos or press Done when finished:"
-    )
-
-    PHOTOS_ATTACHED = _("✅ Photos attached: {count}")
-
-    PHOTO_TOO_LARGE = _(
-        "⚠️ Photo is too large (max 10 MB). Please send a smaller photo:"
-    )
-
     # ── Measurement sub-flow ─────────────────────────────────────────────────
-
-    ASK_MEASUREMENT = _("📐 Would you like to add a measurement?")
 
     ASK_DIMENSION = _("📏 Select the measurement dimension:")
 

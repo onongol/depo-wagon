@@ -11,8 +11,14 @@ from apps.bot.callback_data import CB_PHOTO_SKIP
 from apps.bot.constants import UD_LAST_MEDIA_GROUP, UD_LAST_PHOTO_MSG
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.defect.scene import DefectScene
+from apps.bot.handlers.defect.text import (
+    build_album_receiving_text,
+    build_photo_received_text,
+    build_photo_too_large_text,
+    build_photos_attached_toast,
+    build_severity_confirmed_text,
+)
 from apps.bot.keyboards.common import done_keyboard, skip_keyboard
-from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.bot.user_data import PhotoEntry
 from apps.defects.validators import MAX_PHOTO_BYTES
@@ -59,9 +65,9 @@ class PhotoScene(DefectScene, state=DefectSG.photo.state):
     @classmethod
     async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:
         if form.photos:
-            text = str(M.PHOTO_RECEIVED).format(count=len(form.photos))
+            text = build_photo_received_text(len(form.photos))
             return text, done_keyboard(CB_PHOTO_SKIP)
-        text = str(M.SEVERITY_CONFIRMED).format(label=form.severity_label)
+        text = build_severity_confirmed_text(form.severity_label)
         return text, skip_keyboard(CB_PHOTO_SKIP)
 
     @on.message(F.photo)
@@ -69,7 +75,7 @@ class PhotoScene(DefectScene, state=DefectSG.photo.state):
         photo = message.photo[-1]
 
         if photo.file_size and photo.file_size > MAX_PHOTO_BYTES:
-            await message.answer(str(M.PHOTO_TOO_LARGE))
+            await message.answer(**build_photo_too_large_text().as_kwargs())
             return
 
         defect = await load_defect(state)
@@ -85,13 +91,15 @@ class PhotoScene(DefectScene, state=DefectSG.photo.state):
             return
 
         if group:
-            text = str(M.PHOTO_ALBUM_RECEIVING)
+            text = build_album_receiving_text()
         else:
-            text = str(M.PHOTO_RECEIVED).format(count=len(defect.photos))
+            text = build_photo_received_text(len(defect.photos))
 
         # New, not an edit of one higher up: Done stays under the latest photo
         await clear_last_photo_keyboard(bot, state)
-        sent = await message.answer(text, reply_markup=done_keyboard(CB_PHOTO_SKIP))
+        sent = await message.answer(
+            **text.as_kwargs(), reply_markup=done_keyboard(CB_PHOTO_SKIP)
+        )
         await state.update_data(
             {
                 UD_LAST_PHOTO_MSG: [sent.chat.id, sent.message_id],
@@ -105,7 +113,5 @@ class PhotoScene(DefectScene, state=DefectSG.photo.state):
         defect = await load_defect(state)
         count = len(defect.photos)
 
-        await callback.answer(
-            str(M.PHOTOS_ATTACHED).format(count=count) if count else None
-        )
+        await callback.answer(build_photos_attached_toast(count) if count else None)
         await after_photos(callback.message.edit_text, defect, state)

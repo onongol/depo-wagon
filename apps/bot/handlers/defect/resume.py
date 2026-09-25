@@ -25,6 +25,7 @@ from .responsible_employee import show_responsible_employee_list
 from .scene import as_send_kwargs
 from .scenes import scene_for
 from .summary import show_summary
+from .text import build_ask_measurement_text
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -35,7 +36,7 @@ if TYPE_CHECKING:
 # As each step first showed it; confirm and responsible_employee render async
 _SCREENS = {
     DefectSG.measurement_choice.state: lambda d: (
-        str(M.ASK_MEASUREMENT),
+        build_ask_measurement_text(),
         measurement_next_keyboard()
         if d.measurements
         else measurement_choice_keyboard(),

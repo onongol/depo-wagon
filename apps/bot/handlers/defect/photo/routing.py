@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING
 
 from apps.bot.constants import UD_LAST_MEDIA_GROUP, UD_LAST_PHOTO_MSG, UD_RESP_SEARCH
+from apps.bot.handlers.defect.text import build_ask_measurement_text
 from apps.bot.keyboards.measurement import measurement_choice_keyboard
-from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.defects.constants import DefectType
 
@@ -33,5 +33,8 @@ async def after_photos(
         await state.set_state(DefectSG.responsible_employee)
         return
 
-    await send(str(M.ASK_MEASUREMENT), reply_markup=measurement_choice_keyboard())
+    await send(
+        **build_ask_measurement_text().as_kwargs(),
+        reply_markup=measurement_choice_keyboard(),
+    )
     await state.set_state(DefectSG.measurement_choice)

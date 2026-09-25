@@ -51,6 +51,7 @@ from apps.bot.handlers.defect.text import (
     build_defect_continued_text,
     build_defect_in_progress_text,
     build_new_defect_text,
+    build_photo_received_text,
     build_wagon_confirmed_text,
 )
 from apps.bot.handlers.start.link_errors import get_link_error_message
@@ -390,7 +391,7 @@ class TestNewDefectDuringARunningForm:
         await dp.feed_update(bot, make_callback_update(CB_DEFECT_CONTINUE))
 
         (edit,) = session.calls("editMessageText")
-        assert edit.text == str(M.PHOTO_RECEIVED).format(count=2)
+        assert edit.text == build_photo_received_text(2).render()[0]
         assert edit.reply_markup == done_keyboard(CB_PHOTO_SKIP)
 
     @pytest.mark.usefixtures("form")

@@ -33,6 +33,7 @@ from apps.bot.constants import SEVERITY_LABELS, UD_EDITING
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.common.text import build_help_text
 from apps.bot.handlers.defect.text import (
+    build_album_receiving_text,
     build_defect_type_confirmed_text,
     build_department_confirmed_text,
     build_edit_defect_type_text,
@@ -41,6 +42,8 @@ from apps.bot.handlers.defect.text import (
     build_node_confirmed_text,
     build_part_number_confirmed_text,
     build_part_number_skipped_text,
+    build_photos_attached_toast,
+    build_severity_confirmed_text,
     build_wagon_confirmed_text,
 )
 from apps.bot.keyboards.common import skip_keyboard
@@ -546,9 +549,8 @@ class TestTheSeverityStep:
         await dp.feed_update(bot, make_callback_update(SeverityCB(value="high").pack()))
 
         (edit,) = session.calls("editMessageText")
-        assert edit.text == str(M.SEVERITY_CONFIRMED).format(
-            label=SEVERITY_LABELS["high"]
-        )
+        expected = build_severity_confirmed_text(SEVERITY_LABELS["high"])
+        assert (edit.text, edit.entities) == expected.render()
         assert edit.reply_markup == skip_keyboard(CB_PHOTO_SKIP)
         assert await state.get_state() == DefectSG.photo.state
 
@@ -776,12 +778,12 @@ class TestAlbum:
         defect = await load_defect(state)
         assert [p.file_id for p in defect.photos] == ["file0", "file1", "file2"]
         answers = session.calls("sendMessage")
-        assert [a.text for a in answers] == [str(M.PHOTO_ALBUM_RECEIVING)]
+        assert [a.text for a in answers] == [build_album_receiving_text().render()[0]]
 
         await dp.feed_update(bot, make_callback_update(CB_PHOTO_SKIP))
 
         toast = session.calls("answerCallbackQuery")[-1]
-        assert toast.text == str(M.PHOTOS_ATTACHED).format(count=3)
+        assert toast.text == build_photos_attached_toast(3)
         assert await state.get_state() == DefectSG.measurement_choice.state
 
     async def test_a_lone_photo_is_acknowledged_immediately(
