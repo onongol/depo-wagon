@@ -677,6 +677,7 @@ class TestUnroutedUpdates:
         self, dp, bot, session, state, known
     ):
         """One state from each of ALL_GROUPS; each step there asks for text."""
+        await save_defect(state, DefectData(wagon_id=3))
         await state.set_state(known)
 
         await dp.feed_update(bot, make_photo_update("stray"))

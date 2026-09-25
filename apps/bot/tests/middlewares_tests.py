@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from aiogram.types import CallbackQuery, InaccessibleMessage, Message
 
+from apps.bot.messages import BotMessages as M
 from apps.bot.middlewares import CloseOldConnectionsMiddleware
 from apps.bot.states import DefectSG, SupportSG
 from apps.bot.tests.builders import make_bad_request
@@ -213,21 +214,21 @@ def _spec_callback() -> MagicMock:
     return callback
 
 
-class TestStaleSchemaMiddleware:
-    """Guards the steps that assign onto the form without a None check.
+class TestDefectFormMiddleware:
+    """The one None check for the whole flow: no step makes its own.
 
-    load_defect returns None for a form an older build wrote, and most of the
-    flow would dereference it. The reset therefore has to land before the
-    handler, which is why this is a middleware and not a guard inside a step.
+    load_defect returns None for a form an older build wrote or one that is
+    gone, and every step would dereference it. The reset therefore has to land
+    before the handler, which is why this is a middleware.
     """
 
     async def _call(self, state, event=None, handler=None):
-        from apps.bot.middlewares import StaleSchemaMiddleware
+        from apps.bot.middlewares import DefectFormMiddleware
 
         handler = handler or AsyncMock(return_value="handled")
         event = event if event is not None else _spec_message()
         data = {"state": state, "raw_state": await state.get_state()}
-        result = await StaleSchemaMiddleware()(handler, event, data)
+        result = await DefectFormMiddleware()(handler, event, data)
         return result, handler
 
     async def _store_stale_defect(self, state, at=DefectSG.node):
@@ -239,11 +240,37 @@ class TestStaleSchemaMiddleware:
         await state.update_data({UD_DEFECT: stored})
         await state.set_state(at)
 
-    async def test_passes_through_when_no_form_is_stored(self, state):
+    async def test_passes_through_outside_the_flow_when_no_form_is_stored(self, state):
         result, handler = await self._call(state)
 
         assert result == "handled"
         handler.assert_awaited_once()
+
+    async def test_a_step_without_its_form_is_never_reached(self, state):
+        """State and form keys expire apart, and a two-write exit can fail midway."""
+        await state.set_state(DefectSG.measurement_value)
+        message = _spec_message()
+
+        result, handler = await self._call(state, event=message)
+
+        assert result is None
+        handler.assert_not_awaited()
+        assert await state.get_state() is None
+        message.answer.assert_awaited_once_with(str(M.DEFECT_CANCELLED))
+
+    async def test_a_tap_without_its_form_replaces_the_keyboard(self, state):
+        await state.set_state(DefectSG.department)
+        callback = _spec_callback()
+
+        await self._call(state, event=callback)
+
+        callback.answer.assert_awaited_once_with()
+        callback.bot.edit_message_text.assert_awaited_once_with(
+            chat_id=callback.message.chat.id,
+            message_id=callback.message.message_id,
+            reply_markup=None,
+            text=str(M.DEFECT_CANCELLED),
+        )
 
     async def test_passes_through_a_form_this_build_wrote(self, state):
         from apps.bot.fsm import save_defect
@@ -298,8 +325,6 @@ class TestStaleSchemaMiddleware:
         assert await state.get_state() is None
 
     async def test_the_user_is_told_rather_than_left_guessing(self, state):
-        from apps.bot.messages import BotMessages as M
-
         await self._store_stale_defect(state)
         message = _spec_message()
 
@@ -308,8 +333,6 @@ class TestStaleSchemaMiddleware:
         message.answer.assert_awaited_once_with(str(M.FORM_OUTDATED))
 
     async def test_a_callback_is_answered_and_its_keyboard_replaced(self, state):
-        from apps.bot.messages import BotMessages as M
-
         await self._store_stale_defect(state)
         callback = _spec_callback()
 
@@ -325,8 +348,6 @@ class TestStaleSchemaMiddleware:
 
     async def test_a_failed_edit_still_reaches_the_user(self, state):
         """The message may be too old to edit — this fires at a deploy boundary."""
-        from apps.bot.messages import BotMessages as M
-
         await self._store_stale_defect(state)
         callback = _spec_callback()
         callback.bot.edit_message_text.side_effect = make_bad_request(

@@ -121,11 +121,9 @@ def _as_kwargs(content: str | Text) -> dict[str, Any]:
 
 
 async def show_current_step(send: Callable[..., Awaitable], state: FSMContext) -> bool:
-    """False when there is nothing to show: saving, or the form already gone."""
+    """False for saving, the one step with no screen of its own."""
     step = await state.get_state()
     defect = await load_defect(state)
-    if defect is None:
-        return False
 
     if step == DefectSG.confirm.state:
         await show_summary(send, state, defect)

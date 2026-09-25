@@ -15,10 +15,6 @@ _MAX_DESCRIPTION_LEN = 1000
 async def receive_description(message: Message, state: FSMContext) -> None:
     """Handle incoming description text."""
     defect = await load_defect(state)
-    if defect is None:
-        await message.answer(str(M.DEFECT_CANCELLED))
-        await state.set_state(None)
-        return
 
     text = message.text.strip()
     if len(text) > _MAX_DESCRIPTION_LEN:
@@ -40,10 +36,6 @@ async def skip_description(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.answer()
 
     defect = await load_defect(state)
-    if defect is None:
-        await callback.message.edit_text(str(M.DEFECT_CANCELLED))
-        await state.set_state(None)
-        return
 
     defect.description = ""
     await save_defect(state, defect)

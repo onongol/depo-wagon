@@ -26,7 +26,7 @@ async def save_defect(state: FSMContext, defect: DefectData) -> None:
 async def clear_defect_keys(state: FSMContext) -> None:
     """Drop every key the defect flow owns, leaving the state and other data alone.
 
-    Not state.clear(): StaleSchemaMiddleware drops a stale form under any state
+    Not state.clear(): DefectFormMiddleware drops a stale form under any state
     and must not end the AI chat or support session running there. aiogram has
     no delete-one-key primitive, hence the read-modify-write.
     """

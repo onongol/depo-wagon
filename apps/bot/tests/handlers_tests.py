@@ -278,14 +278,6 @@ class TestReceivePartNumber:
 
         assert await state.get_state() == DefectSG.defect_type.state
 
-    async def test_an_abandoned_form_ends_the_flow(self, state):
-        message = make_message("ABC")
-
-        await receive_part_number(message, state)
-
-        message.answer.assert_awaited_once_with(str(M.DEFECT_CANCELLED))
-        assert await state.get_state() is None
-
 
 class TestReceiveDefectType:
     async def test_saves_the_type_and_moves_to_severity(self, state):
@@ -381,16 +373,6 @@ class TestResponsibleEmployee:
 
         assert await state.get_state() == DefectSG.responsible_employee.state
 
-    async def test_paging_an_abandoned_form_ends_the_flow(self, state, picker):
-        callback = make_callback()
-
-        await page_responsible_employee(
-            callback, ResponsibleEmployeePageCB(page=1), state
-        )
-
-        callback.message.edit_text.assert_awaited_once_with(str(M.DEFECT_CANCELLED))
-        assert await state.get_state() is None
-
     async def test_select_records_the_employee(self, state, picker):
         picker.one.return_value = _make_employee(7, "Bold", "Bat")
         await self._seed(state)
@@ -431,17 +413,6 @@ class TestResponsibleEmployee:
 
         assert UD_RESP_SEARCH not in await state.get_data()
 
-    async def test_select_on_an_abandoned_form_ends_the_flow(self, state, picker):
-        callback = make_callback()
-
-        await select_responsible_employee(
-            callback, ResponsibleEmployeeCB(employee_id=7), state
-        )
-
-        picker.one.assert_not_called()
-        callback.message.edit_text.assert_awaited_once_with(str(M.DEFECT_CANCELLED))
-        assert await state.get_state() is None
-
 
 class TestSearchResponsibleEmployee:
     async def _seed(self, state):
@@ -477,14 +448,6 @@ class TestSearchResponsibleEmployee:
 
         message.answer.assert_awaited_once()
 
-    async def test_an_abandoned_form_ends_the_flow(self, state, picker):
-        message = make_message("Bold")
-
-        await search_responsible_employee(message, state)
-
-        message.answer.assert_awaited_once_with(str(M.DEFECT_CANCELLED))
-        assert await state.get_state() is None
-
 
 class TestEditFromSummary:
     async def test_routes_to_the_field_and_flags_edit_mode(self, state):
@@ -502,14 +465,6 @@ class TestEditFromSummary:
 
         assert await state.get_state() == DefectSG.confirm.state
         assert UD_EDITING not in await state.get_data()
-
-    async def test_an_abandoned_form_ends_the_flow(self, state):
-        callback = make_callback()
-
-        await start_edit(callback, EditCB(field="node"), state)
-
-        callback.message.edit_text.assert_awaited_once_with(str(M.DEFECT_CANCELLED))
-        assert await state.get_state() is None
 
     async def test_the_edited_field_returns_to_the_summary(self, state):
         await save_defect(state, DefectData(department="bogie"))

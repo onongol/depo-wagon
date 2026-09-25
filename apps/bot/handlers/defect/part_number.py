@@ -21,10 +21,6 @@ PART_NUMBER_MAX_LENGTH = 100
 async def receive_part_number(message: Message, state: FSMContext) -> None:
     """Handle part number text input."""
     defect = await load_defect(state)
-    if defect is None:
-        await message.answer(str(M.DEFECT_CANCELLED))
-        await state.set_state(None)
-        return
 
     part_number = message.text.strip()
     if len(part_number) > PART_NUMBER_MAX_LENGTH:
@@ -59,10 +55,6 @@ async def skip_part_number(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.answer()
 
     defect = await load_defect(state)
-    if defect is None:
-        await callback.message.edit_text(str(M.DEFECT_CANCELLED))
-        await state.set_state(None)
-        return
 
     defect.part_number = ""
     await save_defect(state, defect)

@@ -54,10 +54,6 @@ async def start_edit(
     await callback.answer()
 
     defect = await load_defect(state)
-    if defect is None:
-        await callback.message.edit_text(str(M.DEFECT_CANCELLED))
-        await state.set_state(None)
-        return
 
     step = _EDIT_STEPS.get(callback_data.field)
     if step is None:

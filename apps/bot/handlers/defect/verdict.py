@@ -41,7 +41,7 @@ async def receive_employee_verdict(
         await state.set_state(None)
         return
 
-    if defect and defect.defect_id:
+    if defect.defect_id:
         try:
             await services.save_employee_verdict(defect.defect_id, verdict_value)
         except Exception:

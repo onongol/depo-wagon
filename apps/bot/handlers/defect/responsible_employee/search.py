@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING
 
 from apps.bot.constants import UD_RESP_SEARCH
 from apps.bot.fsm import load_defect
-from apps.bot.messages import BotMessages as M
 
 from .list import show_responsible_employee_list
 
@@ -17,10 +16,6 @@ async def search_responsible_employee(message: Message, state: FSMContext) -> No
     Re-renders from page 0 as a new message, leaving the state where it is.
     """
     defect = await load_defect(state)
-    if defect is None:
-        await message.answer(str(M.DEFECT_CANCELLED))
-        await state.set_state(None)
-        return
 
     await state.update_data({UD_RESP_SEARCH: message.text.strip()})
     await show_responsible_employee_list(

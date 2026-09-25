@@ -52,10 +52,6 @@ async def page_responsible_employee(
     await callback.answer()
 
     defect = await load_defect(state)
-    if defect is None:
-        await callback.message.edit_text(str(M.DEFECT_CANCELLED))
-        await state.set_state(None)
-        return
 
     await show_responsible_employee_list(
         callback.message.edit_text,
@@ -76,10 +72,6 @@ async def select_responsible_employee(
     await callback.answer()
 
     defect = await load_defect(state)
-    if defect is None:
-        await callback.message.edit_text(str(M.DEFECT_CANCELLED))
-        await state.set_state(None)
-        return
 
     employee = await services.get_department_employee(
         callback_data.employee_id, defect.department

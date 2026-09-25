@@ -37,7 +37,12 @@ from apps.bot.tests.integration.conftest import (
 )
 from apps.bot.user_data import DefectData
 from apps.core.constants import Department
-from apps.defects.constants import DefectNode, DefectType, DefectVerdict
+from apps.defects.constants import (
+    DefectNode,
+    DefectType,
+    DefectVerdict,
+    MeasurementDimension,
+)
 
 WAGON_NUMBER = "60123456"
 
@@ -282,10 +287,10 @@ class TestConfirmingTwice:
 class TestAFormLeftOverFromAnEarlierBuild:
     """A deploy lands mid-flow and the stored form no longer matches the code.
 
-    Only six of the flow's steps check the None load_defect returns for it; the
-    rest assign onto the form. Without the middleware this walk ends in an
-    AttributeError: error_handler's generic session error, and the stale form
-    left in place to trip the next tap too — the assertions below pin the reset.
+    No step checks the None load_defect returns for it; they all assign onto the
+    form. Without the middleware this walk ends in an AttributeError:
+    error_handler's generic session error, and the stale form left in place to
+    trip the next tap too — the assertions below pin the reset.
     """
 
     async def _mid_flow_with_a_foreign_schema(self, dp, bot, state):
@@ -349,6 +354,36 @@ class TestAFormLeftOverFromAnEarlierBuild:
             build_help_text().render()[0]
         ]
         assert UD_DEFECT not in await state.get_data()
+
+
+class TestAStepWithoutItsForm:
+    """The state outlived the form: its key expired first, or an exit half-failed.
+
+    Before the middleware covered this, most steps raised AttributeError and
+    left the state in place to raise again on the next update.
+    """
+
+    @pytest.mark.parametrize("step", DefectSG.__states__, ids=lambda s: s.state)
+    async def test_a_message_ends_the_flow_instead_of_raising(
+        self, dp, bot, session, state, step
+    ):
+        await state.set_state(step)
+
+        await dp.feed_update(bot, make_message_update("12.5"))
+
+        sent = [m.text for m in session.calls("sendMessage")]
+        assert sent == [str(M.DEFECT_CANCELLED)]
+        assert await state.get_state() is None
+
+    async def test_a_tap_ends_it_too(self, dp, bot, session, state):
+        await state.set_state(DefectSG.measurement_dimension)
+        tap = DimensionCB(value=MeasurementDimension.DEPTH).pack()
+
+        await dp.feed_update(bot, make_callback_update(tap))
+
+        edits = [e.text for e in session.calls("editMessageText")]
+        assert edits == [str(M.DEFECT_CANCELLED)]
+        assert await state.get_state() is None
 
 
 class TestHumanFactorBranch:

@@ -83,7 +83,7 @@ async def receive_photo(message: Message, state: FSMContext, bot: Bot) -> None:
 async def skip_photo(callback: CallbackQuery, state: FSMContext) -> None:
     """Leave the photo step, reporting how many photos were attached."""
     defect = await load_defect(state)
-    count = len(defect.photos) if defect else 0
+    count = len(defect.photos)
 
     await callback.answer(str(M.PHOTOS_ATTACHED).format(count=count) if count else None)
     await after_photos(callback.message.edit_text, defect, state)

@@ -22,9 +22,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-async def _announce(event: TelegramObject) -> None:
-    text = str(M.FORM_OUTDATED)
-
+async def _announce(event: TelegramObject, text: str) -> None:
     if isinstance(event, Message):
         await event.answer(text)
         return
@@ -38,13 +36,13 @@ async def _announce(event: TelegramObject) -> None:
     await edit_or_send(event, text=text)
 
 
-class StaleSchemaMiddleware(BaseMiddleware):
-    """Drop a defect form an older build wrote, before any flow step loads it.
+class DefectFormMiddleware(BaseMiddleware):
+    """Inside DefectSG a step always has a form to load, so none checks for None.
 
     Outer runs ahead of StateFilter, so every feature's updates pass through.
-    Outside DefectSG the form is dropped silently and the update goes on;
-    inside it the update is swallowed, since a step would dereference None
-    and stale_callback would blame the button instead of the form.
+    A form an older build wrote is dropped wherever it is found, silently
+    outside DefectSG. Inside it, a dropped or missing form ends the flow here,
+    and stale_callback never gets to blame the button instead of the form.
     """
 
     async def __call__(
@@ -56,15 +54,18 @@ class StaleSchemaMiddleware(BaseMiddleware):
         state: FSMContext = data["state"]
         stored = (await state.get_data()).get(UD_DEFECT)
 
-        if not stored or is_current_schema(stored):
+        if stored and is_current_schema(stored):
             return await handler(event, data)
 
-        logger.info("Discarding a defect form written by an older state schema")
-        await clear_defect_keys(state)
+        if stored:
+            logger.info("Discarding a defect form written by an older state schema")
+            await clear_defect_keys(state)
 
         if data.get("raw_state") not in DefectSG.__all_states_names__:
             return await handler(event, data)
 
+        if not stored:
+            logger.warning("A defect step was reached without its form")
         await state.set_state(None)
-        await _announce(event)
+        await _announce(event, str(M.FORM_OUTDATED if stored else M.DEFECT_CANCELLED))
         return None
