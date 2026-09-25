@@ -29,7 +29,6 @@ from apps.bot.callback_data import (
     DefectTypeCB,
     DimensionCB,
     EditCB,
-    NodeCB,
     ResponsibleEmployeeCB,
     ResponsibleEmployeePageCB,
     SeverityCB,
@@ -56,7 +55,6 @@ from .measurement import (
     skip_norm_value,
     skip_unit,
 )
-from .node import receive_node
 from .part_number import receive_part_number, skip_part_number
 from .photo import receive_photo, skip_photo
 from .responsible_employee import (
@@ -107,8 +105,6 @@ def _plain_steps_router() -> Router:
     )
     cb(continue_defect, running, F.data == CB_DEFECT_CONTINUE)
     cb(restart_defect, running, F.data == CB_DEFECT_RESTART)
-
-    cb(receive_node, StateFilter(DefectSG.node), NodeCB.filter())
 
     msg(receive_part_number, StateFilter(DefectSG.part_number), *_TEXT)
     cb(

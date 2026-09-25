@@ -6,7 +6,6 @@ from apps.bot.fsm import load_defect
 from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.keyboards.defect import (
     defect_type_keyboard,
-    node_keyboard_for_department,
     severity_keyboard,
 )
 from apps.bot.messages import BotMessages as M
@@ -21,16 +20,11 @@ if TYPE_CHECKING:
 
 
 # Scenes draw their own edit prompt on entering
-_EDIT_SCENES = {"wagon": DefectSG.wagon_num}
+_EDIT_SCENES = {"wagon": DefectSG.wagon_num, "node": DefectSG.node}
 
 # field -> (prompt, keyboard built from the defect under edit, state to enter).
 # Keyboards are built per call: their callback payloads are per-message.
 _EDIT_STEPS = {
-    "node": (
-        M.EDIT_NODE,
-        lambda defect: node_keyboard_for_department(defect.department or ""),
-        DefectSG.node,
-    ),
     "part_number": (
         M.EDIT_PART_NUMBER,
         lambda _: skip_keyboard(CB_PART_NUMBER_SKIP),

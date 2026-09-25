@@ -35,7 +35,7 @@ from apps.bot.handlers.common.text import build_cancelled_text, build_help_text
 from apps.bot.handlers.defect.defect_type import receive_defect_type
 from apps.bot.handlers.defect.department import DepartmentScene
 from apps.bot.handlers.defect.edit import start_edit
-from apps.bot.handlers.defect.node import receive_node
+from apps.bot.handlers.defect.node import NodeScene
 from apps.bot.handlers.defect.part_number import (
     PART_NUMBER_MAX_LENGTH,
     receive_part_number,
@@ -48,18 +48,16 @@ from apps.bot.handlers.defect.responsible_employee import (
     skip_responsible_employee,
 )
 from apps.bot.handlers.defect.responsible_employee.list import EMPLOYEE_PAGE_SIZE
+from apps.bot.handlers.defect.severity import receive_severity
 from apps.bot.handlers.defect.start import new_defect_start
 from apps.bot.handlers.defect.text import (
-    build_department_confirmed_text,
     build_wagon_not_found_text,
 )
 from apps.bot.handlers.defect.wagon import WagonScene
-from apps.bot.keyboards.defect import node_keyboard_for_department
 from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.states import DefectSG
 from apps.bot.tests.builders import make_callback, make_message
 from apps.bot.user_data import DefectData
-from apps.core.constants import Department
 from apps.defects.constants import DefectType
 
 WAGON_LOOKUP = "apps.bot.handlers.defect.wagon.services.get_wagon_by_number"
@@ -178,7 +176,7 @@ class TestReceiveDepartment:
     async def test_saves_department_and_its_label(self, state):
         await save_defect(state, DefectData())
 
-        await DepartmentScene(wizard=MagicMock()).receive(
+        await DepartmentScene(wizard=AsyncMock()).receive(
             make_callback(), DepartmentCB(value="bogie"), state
         )
 
@@ -186,34 +184,23 @@ class TestReceiveDepartment:
         assert defect.department == "bogie"
         assert defect.department_label
 
-    async def test_moves_to_the_node_step(self, state):
+    async def test_goes_on_to_the_node_scene(self, state):
+        """Its screen is the node scene's to draw; see the flow tests."""
         await save_defect(state, DefectData())
+        scene = DepartmentScene(wizard=AsyncMock())
 
-        await DepartmentScene(wizard=MagicMock()).receive(
-            make_callback(), DepartmentCB(value="bogie"), state
-        )
+        await scene.receive(make_callback(), DepartmentCB(value="bogie"), state)
 
-        assert await state.get_state() == DefectSG.node.state
-
-    async def test_edits_the_message_into_the_node_step(self, state):
-        await save_defect(state, DefectData())
-        callback = make_callback()
-
-        await DepartmentScene(wizard=MagicMock()).receive(
-            callback, DepartmentCB(value=Department.BOGIE), state
-        )
-
-        callback.message.edit_text.assert_awaited_once_with(
-            **build_department_confirmed_text(Department.BOGIE.label).as_kwargs(),
-            reply_markup=node_keyboard_for_department(Department.BOGIE),
-        )
+        scene.wizard.goto.assert_awaited_once_with(DefectSG.node)
 
 
 class TestReceiveNode:
     async def test_saves_node_and_its_label(self, state):
         await save_defect(state, DefectData())
 
-        await receive_node(make_callback(), NodeCB(value="wheel"), state)
+        await NodeScene(wizard=AsyncMock()).receive(
+            make_callback(), NodeCB(value="wheel"), state
+        )
 
         defect = await load_defect(state)
         assert defect.node == "wheel"
@@ -222,9 +209,23 @@ class TestReceiveNode:
     async def test_moves_to_the_part_number_step(self, state):
         await save_defect(state, DefectData())
 
-        await receive_node(make_callback(), NodeCB(value="wheel"), state)
+        await NodeScene(wizard=AsyncMock()).receive(
+            make_callback(), NodeCB(value="wheel"), state
+        )
 
         assert await state.get_state() == DefectSG.part_number.state
+
+    async def test_an_edit_goes_back_to_the_summary(self, state):
+        await save_defect(state, DefectData(department="bogie"))
+        await state.update_data({UD_EDITING: True})
+        callback = make_callback()
+
+        wizard = AsyncMock(event=callback, update_type="callback_query")
+        await NodeScene(wizard=wizard).receive(callback, NodeCB(value="wheel"), state)
+
+        assert await state.get_state() == DefectSG.confirm.state
+        assert UD_EDITING not in await state.get_data()
+        callback.message.edit_text.assert_awaited_once()
 
 
 class TestReceivePartNumber:
@@ -449,12 +450,22 @@ class TestSearchResponsibleEmployee:
 
 class TestEditFromSummary:
     async def test_routes_to_the_field_and_flags_edit_mode(self, state):
-        await save_defect(state, DefectData(department="bogie"))
+        await save_defect(state, DefectData())
 
-        await start_edit(make_callback(), EditCB(field="node"), state, AsyncMock())
+        await start_edit(make_callback(), EditCB(field="severity"), state, AsyncMock())
 
         assert (await state.get_data())[UD_EDITING] is True
-        assert await state.get_state() == DefectSG.node.state
+        assert await state.get_state() == DefectSG.severity.state
+
+    async def test_a_field_that_is_a_scene_is_entered_as_one(self, state):
+        """The scene draws the edit prompt; see the flow tests."""
+        await save_defect(state, DefectData(department="bogie"))
+        scenes = AsyncMock()
+
+        await start_edit(make_callback(), EditCB(field="node"), state, scenes)
+
+        scenes.enter.assert_awaited_once_with(DefectSG.node)
+        assert (await state.get_data())[UD_EDITING] is True
 
     async def test_an_unknown_field_returns_to_the_summary(self, state):
         await save_defect(state, DefectData())
@@ -465,10 +476,10 @@ class TestEditFromSummary:
         assert UD_EDITING not in await state.get_data()
 
     async def test_the_edited_field_returns_to_the_summary(self, state):
-        await save_defect(state, DefectData(department="bogie"))
-        await start_edit(make_callback(), EditCB(field="node"), state, AsyncMock())
+        await save_defect(state, DefectData())
+        await start_edit(make_callback(), EditCB(field="severity"), state, AsyncMock())
 
-        await receive_node(make_callback(), NodeCB(value="wheel"), state)
+        await receive_severity(make_callback(), SeverityCB(value="high"), state)
 
         assert await state.get_state() == DefectSG.confirm.state
         assert UD_EDITING not in await state.get_data()

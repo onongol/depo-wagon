@@ -4,12 +4,12 @@ from aiogram.fsm.scene import on
 
 from apps.bot.callback_data import DepartmentCB
 from apps.bot.fsm import load_defect, save_defect
-from apps.bot.keyboards.defect import department_keyboard, node_keyboard_for_department
+from apps.bot.keyboards.defect import department_keyboard
 from apps.bot.states import DefectSG
 from apps.core.constants import Department
 
 from .scene import DefectScene
-from .text import build_department_confirmed_text, build_wagon_confirmed_text
+from .text import build_wagon_confirmed_text
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
@@ -43,8 +43,4 @@ class DepartmentScene(DefectScene, state=DefectSG.department.state):
         defect.department_label = dept_label
         await save_defect(state, defect)
 
-        await callback.message.edit_text(
-            **build_department_confirmed_text(dept_label).as_kwargs(),
-            reply_markup=node_keyboard_for_department(dept_value),
-        )
-        await state.set_state(DefectSG.node)
+        await self.wizard.goto(DefectSG.node)

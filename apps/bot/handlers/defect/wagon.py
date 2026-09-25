@@ -8,7 +8,6 @@ from apps.bot.fsm import load_defect, save_defect
 from apps.bot.states import DefectSG
 
 from .scene import STEP_TEXT, DefectScene
-from .summary import show_summary
 from .text import (
     build_edit_wagon_text,
     build_new_defect_text,
@@ -47,8 +46,7 @@ class WagonScene(DefectScene, state=DefectSG.wagon_num.state):
         defect.wagon_number = wagon.number
         await save_defect(state, defect)
 
-        if (await state.get_data()).get(UD_EDITING):
-            await show_summary(message.answer, state, defect)
+        if await self.back_to_summary_if_editing(state):
             return
 
         await self.wizard.goto(DefectSG.department)

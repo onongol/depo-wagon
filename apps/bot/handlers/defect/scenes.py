@@ -3,12 +3,13 @@
 from typing import TYPE_CHECKING
 
 from .department import DepartmentScene
+from .node import NodeScene
 from .wagon import WagonScene
 
 if TYPE_CHECKING:
     from .scene import DefectScene
 
-DEFECT_SCENES: tuple[type[DefectScene], ...] = (WagonScene, DepartmentScene)
+DEFECT_SCENES: tuple[type[DefectScene], ...] = (WagonScene, DepartmentScene, NodeScene)
 
 _BY_STATE = {scene.__scene_config__.state: scene for scene in DEFECT_SCENES}
 

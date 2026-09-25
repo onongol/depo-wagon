@@ -32,10 +32,11 @@ from apps.bot.constants import UD_EDITING
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.common.text import build_help_text
 from apps.bot.handlers.defect.text import (
+    build_department_confirmed_text,
     build_edit_wagon_text,
     build_wagon_confirmed_text,
 )
-from apps.bot.keyboards.defect import department_keyboard
+from apps.bot.keyboards.defect import department_keyboard, node_keyboard_for_department
 from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
@@ -382,6 +383,55 @@ class TestFromTheWagonStepToTheDepartment:
         assert (sent.text, sent.entities) == expected.render()
         assert sent.reply_markup == department_keyboard()
         assert await state.get_state() == DefectSG.department.state
+
+
+class TestFromTheDepartmentToTheNode:
+    async def test_the_node_scene_draws_its_screen_in_place(
+        self, dp, bot, session, state
+    ):
+        """A tap, so goto() enters by editing the department's message."""
+        await save_defect(state, DefectData(wagon_id=3))
+        await state.set_state(DefectSG.department)
+
+        await dp.feed_update(
+            bot, make_callback_update(DepartmentCB(value=Department.BOGIE).pack())
+        )
+
+        (edit,) = session.calls("editMessageText")
+        expected = build_department_confirmed_text(Department.BOGIE.label)
+        assert (edit.text, edit.entities) == expected.render()
+        assert edit.reply_markup == node_keyboard_for_department(Department.BOGIE)
+        assert await state.get_state() == DefectSG.node.state
+
+
+class TestEditingTheNode:
+    FORM = DefectData(wagon_id=1, department=Department.BOGIE, node="axle")
+
+    async def test_the_scene_offers_the_departments_nodes_in_place(
+        self, dp, bot, session, state
+    ):
+        await save_defect(state, self.FORM)
+        await state.set_state(DefectSG.confirm)
+
+        await dp.feed_update(bot, make_callback_update(EditCB(field="node").pack()))
+
+        (edit,) = session.calls("editMessageText")
+        assert edit.text == str(M.EDIT_NODE)
+        assert edit.reply_markup == node_keyboard_for_department(Department.BOGIE)
+        assert await state.get_state() == DefectSG.node.state
+
+    async def test_the_new_node_returns_to_the_summary(self, dp, bot, state):
+        await save_defect(state, self.FORM)
+        await state.set_state(DefectSG.confirm)
+        await dp.feed_update(bot, make_callback_update(EditCB(field="node").pack()))
+
+        await dp.feed_update(
+            bot, make_callback_update(NodeCB(value=DefectNode.WHEEL).pack())
+        )
+
+        assert await state.get_state() == DefectSG.confirm.state
+        assert UD_EDITING not in await state.get_data()
+        assert (await load_defect(state)).node == DefectNode.WHEEL
 
 
 class TestEditingTheWagon:
