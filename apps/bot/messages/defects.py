@@ -4,19 +4,6 @@ from django.utils.translation import gettext_lazy as _
 class DefectMessages:
     """The whole step-by-step defect registration flow and AI results."""
 
-    # ── Wagon ────────────────────────────────────────────────────────────────
-
-    WAGON_NUM_PROMPT = _(
-        "⬆️ Please enter the wagon number:\n<i>(e.g. 12345678)</i>\n\n"
-        "To exit, type /cancel."
-    )
-
-    WAGON_NOT_FOUND = _(
-        "❌ Wagon <code>{number}</code> not found.\n\nPlease check and try again:"
-    )
-
-    WAGON_CONFIRMED = _("✅ Wagon: <b>{number}</b>\n\nSelect the department:")
-
     # ── Department / node / part / type / severity ───────────────────────────
 
     DEPARTMENT_CONFIRMED = _("✅ Department: <b>{label}</b>\n\nSelect the defect node:")

@@ -49,13 +49,20 @@ from apps.bot.handlers.defect.responsible_employee import (
 )
 from apps.bot.handlers.defect.responsible_employee.list import EMPLOYEE_PAGE_SIZE
 from apps.bot.handlers.defect.start import new_defect_start
-from apps.bot.handlers.defect.text import build_new_defect_text
+from apps.bot.handlers.defect.text import (
+    build_new_defect_text,
+    build_wagon_confirmed_text,
+    build_wagon_not_found_text,
+)
 from apps.bot.handlers.defect.wagon import receive_wagon_number
+from apps.bot.keyboards.defect import department_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.bot.tests.builders import make_callback, make_message
 from apps.bot.user_data import DefectData
 from apps.defects.constants import DefectType
+
+WAGON_LOOKUP = "apps.bot.handlers.defect.wagon.services.get_wagon_by_number"
 
 
 def _make_employee(pk=1, first="Bat", last="Erdene"):
@@ -142,15 +149,40 @@ class TestReceiveWagonNumber:
         await save_defect(state, DefectData())
         message = make_message("Batbayar 99112233")
 
-        with patch(
-            "apps.bot.handlers.defect.wagon.services.get_wagon_by_number",
-            AsyncMock(side_effect=RuntimeError("db down")),
-        ):
+        with patch(WAGON_LOOKUP, AsyncMock(side_effect=RuntimeError("db down"))):
             await receive_wagon_number(message, state)
 
         message.answer.assert_awaited_once_with(str(M.SESSION_ERROR))
         assert "Failed to fetch a wagon" in caplog.text
         assert "Batbayar" not in caplog.text
+
+    async def test_an_unknown_number_is_echoed_as_typed(self, state):
+        """An entity, not HTML: markup in what the user typed needs no escaping."""
+        await save_defect(state, DefectData())
+        message = make_message("<b>80035668</b>")
+
+        with patch(WAGON_LOOKUP, AsyncMock(return_value=None)):
+            await receive_wagon_number(message, state)
+
+        message.answer.assert_awaited_once_with(
+            **build_wagon_not_found_text("<b>80035668</b>").as_kwargs()
+        )
+        assert await state.get_state() is None
+
+    async def test_a_known_number_moves_to_the_department_step(self, state):
+        await save_defect(state, DefectData())
+        message = make_message("80035668")
+        wagon = MagicMock(id=3, number="80035668")
+
+        with patch(WAGON_LOOKUP, AsyncMock(return_value=wagon)):
+            await receive_wagon_number(message, state)
+
+        message.answer.assert_awaited_once_with(
+            **build_wagon_confirmed_text("80035668").as_kwargs(),
+            reply_markup=department_keyboard(),
+        )
+        assert await state.get_state() == DefectSG.department.state
+        assert (await load_defect(state)).wagon_id == 3
 
 
 class TestReceiveDepartment:

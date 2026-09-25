@@ -1,7 +1,9 @@
 """Each step's screen, rebuilt from the form so Continue can show it again."""
 
 import html
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
+from aiogram.utils.formatting import Text
 
 from apps.bot.callback_data import (
     CB_DESC_SKIP,
@@ -29,6 +31,7 @@ from apps.bot.states import DefectSG
 
 from .responsible_employee import show_responsible_employee_list
 from .summary import show_summary
+from .text import build_ask_wagon_text, build_wagon_confirmed_text
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -58,9 +61,9 @@ def _photo(defect: DefectData) -> tuple[str, InlineKeyboardMarkup]:
 
 # As each step first showed it; confirm and responsible_employee render async
 _SCREENS = {
-    DefectSG.wagon_num.state: lambda _: (str(M.WAGON_NUM_PROMPT), None),
+    DefectSG.wagon_num.state: lambda _: (build_ask_wagon_text(), None),
     DefectSG.department.state: lambda d: (
-        str(M.WAGON_CONFIRMED).format(number=d.wagon_number),
+        build_wagon_confirmed_text(d.wagon_number),
         department_keyboard(),
     ),
     DefectSG.node.state: lambda d: (
@@ -110,6 +113,13 @@ _SCREENS = {
 }
 
 
+# HTML strings until every step's text has moved to a Text builder
+def _as_kwargs(content: str | Text) -> dict[str, Any]:
+    if isinstance(content, Text):
+        return content.as_kwargs()
+    return {"text": content, "parse_mode": M.PARSE_MODE}
+
+
 async def show_current_step(send: Callable[..., Awaitable], state: FSMContext) -> bool:
     """False when there is nothing to show: saving, or the form already gone."""
     step = await state.get_state()
@@ -122,8 +132,8 @@ async def show_current_step(send: Callable[..., Awaitable], state: FSMContext) -
     elif step == DefectSG.responsible_employee.state:
         await show_responsible_employee_list(send, state, defect.department)
     elif screen := _SCREENS.get(step):
-        text, keyboard = screen(defect)
-        await send(text, parse_mode=M.PARSE_MODE, reply_markup=keyboard)
+        content, keyboard = screen(defect)
+        await send(**_as_kwargs(content), reply_markup=keyboard)
     else:
         return False
 

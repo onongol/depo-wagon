@@ -1,4 +1,3 @@
-import html
 import logging
 from typing import TYPE_CHECKING
 
@@ -11,6 +10,11 @@ from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 
 from .summary import show_summary
+from .text import (
+    build_ask_wagon_text,
+    build_wagon_confirmed_text,
+    build_wagon_not_found_text,
+)
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
@@ -28,7 +32,7 @@ async def receive_wagon_number(message: Message, state: FSMContext) -> None:
     number = message.text.strip()
 
     if number in MENU_TEXTS:
-        await message.answer(str(M.WAGON_NUM_PROMPT), parse_mode=M.PARSE_MODE)
+        await message.answer(**build_ask_wagon_text().as_kwargs())
         return
 
     try:
@@ -39,10 +43,7 @@ async def receive_wagon_number(message: Message, state: FSMContext) -> None:
         return
 
     if not wagon:
-        await message.answer(
-            str(M.WAGON_NOT_FOUND).format(number=html.escape(number)),
-            parse_mode=M.PARSE_MODE,
-        )
+        await message.answer(**build_wagon_not_found_text(number).as_kwargs())
         return
 
     defect = await load_defect(state)
@@ -55,8 +56,7 @@ async def receive_wagon_number(message: Message, state: FSMContext) -> None:
         return
 
     await message.answer(
-        str(M.WAGON_CONFIRMED).format(number=wagon.number),
-        parse_mode=M.PARSE_MODE,
+        **build_wagon_confirmed_text(wagon.number).as_kwargs(),
         reply_markup=department_keyboard(),
     )
     await state.set_state(DefectSG.department)

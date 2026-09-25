@@ -47,15 +47,17 @@ from apps.bot.handlers.common.text import (
     build_unhandled_message_text,
 )
 from apps.bot.handlers.defect.text import (
+    build_ask_wagon_text,
     build_defect_continued_text,
     build_defect_in_progress_text,
     build_new_defect_text,
+    build_wagon_confirmed_text,
 )
 from apps.bot.handlers.start.link_errors import get_link_error_message
 from apps.bot.handlers.start.text import build_link_cancelled_text
 from apps.bot.handlers.support.utils import remember_request
 from apps.bot.keyboards.common import done_keyboard, skip_keyboard
-from apps.bot.keyboards.defect import defect_in_progress_keyboard
+from apps.bot.keyboards.defect import defect_in_progress_keyboard, department_keyboard
 from apps.bot.keyboards.menu import MENU_TEXTS
 from apps.bot.messages import BotMessages as M
 from apps.bot.middlewares import AI_CHAT_TIMEOUT
@@ -172,7 +174,7 @@ class TestPrecedenceDuringTheDefectFlow:
         await dp.feed_update(bot, make_message_update(label))
 
         sent = [m.text for m in session.calls("sendMessage")]
-        assert sent == [str(M.WAGON_NUM_PROMPT)]
+        assert sent == [build_ask_wagon_text().render()[0]]
         assert await state.get_state() == DefectSG.wagon_num.state
 
     async def test_start_still_works_mid_flow_and_leaves_the_flow_standing(
@@ -312,6 +314,19 @@ class TestNewDefectDuringARunningForm:
         (edit,) = session.calls("editMessageText")
         assert edit.text != build_defect_continued_text().render()[0]
         assert await state.get_state() == step.state
+
+    @pytest.mark.usefixtures("form")
+    async def test_the_department_step_shows_the_wagon_as_the_step_did(
+        self, dp, bot, session, state
+    ):
+        await state.set_state(DefectSG.department)
+
+        await dp.feed_update(bot, make_callback_update(CB_DEFECT_CONTINUE))
+
+        (edit,) = session.calls("editMessageText")
+        expected = build_wagon_confirmed_text(self.WAGON)
+        assert (edit.text, edit.entities) == expected.render()
+        assert edit.reply_markup == department_keyboard()
 
     async def test_the_photo_step_offers_done_once_a_photo_is_in(
         self, dp, bot, session, state
