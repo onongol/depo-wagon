@@ -18,7 +18,6 @@ from apps.bot.keyboards.common import done_keyboard, skip_keyboard
 from apps.bot.keyboards.confirm import employee_verdict_keyboard
 from apps.bot.keyboards.defect import (
     defect_type_keyboard,
-    department_keyboard,
     node_keyboard_for_department,
     severity_keyboard,
 )
@@ -34,7 +33,6 @@ from .responsible_employee import show_responsible_employee_list
 from .scene import as_send_kwargs
 from .scenes import scene_for
 from .summary import show_summary
-from .text import build_wagon_confirmed_text
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -64,10 +62,6 @@ def _photo(defect: DefectData) -> tuple[str, InlineKeyboardMarkup]:
 
 # As each step first showed it; confirm and responsible_employee render async
 _SCREENS = {
-    DefectSG.department.state: lambda d: (
-        build_wagon_confirmed_text(d.wagon_number),
-        department_keyboard(),
-    ),
     DefectSG.node.state: lambda d: (
         str(M.DEPARTMENT_CONFIRMED).format(label=d.department_label),
         node_keyboard_for_department(d.department or ""),

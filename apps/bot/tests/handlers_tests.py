@@ -33,7 +33,7 @@ from apps.bot.handlers.common.cancel import cancel
 from apps.bot.handlers.common.help import help_command
 from apps.bot.handlers.common.text import build_cancelled_text, build_help_text
 from apps.bot.handlers.defect.defect_type import receive_defect_type
-from apps.bot.handlers.defect.department import receive_department
+from apps.bot.handlers.defect.department import DepartmentScene
 from apps.bot.handlers.defect.edit import start_edit
 from apps.bot.handlers.defect.node import receive_node
 from apps.bot.handlers.defect.part_number import (
@@ -50,11 +50,9 @@ from apps.bot.handlers.defect.responsible_employee import (
 from apps.bot.handlers.defect.responsible_employee.list import EMPLOYEE_PAGE_SIZE
 from apps.bot.handlers.defect.start import new_defect_start
 from apps.bot.handlers.defect.text import (
-    build_wagon_confirmed_text,
     build_wagon_not_found_text,
 )
 from apps.bot.handlers.defect.wagon import WagonScene
-from apps.bot.keyboards.defect import department_keyboard
 from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.states import DefectSG
 from apps.bot.tests.builders import make_callback, make_message
@@ -160,19 +158,16 @@ class TestReceiveWagonNumber:
         )
         assert await state.get_state() is None
 
-    async def test_a_known_number_moves_to_the_department_step(self, state):
+    async def test_a_known_number_goes_on_to_the_department_scene(self, state):
+        """Its screen is the department scene's to draw; see the flow tests."""
         await save_defect(state, DefectData())
-        message = make_message("80035668")
+        scene = WagonScene(wizard=AsyncMock())
         wagon = MagicMock(id=3, number="80035668")
 
         with patch(WAGON_LOOKUP, AsyncMock(return_value=wagon)):
-            await WagonScene(wizard=MagicMock()).receive(message, state)
+            await scene.receive(make_message("80035668"), state)
 
-        message.answer.assert_awaited_once_with(
-            **build_wagon_confirmed_text("80035668").as_kwargs(),
-            reply_markup=department_keyboard(),
-        )
-        assert await state.get_state() == DefectSG.department.state
+        scene.wizard.goto.assert_awaited_once_with(DefectSG.department)
         assert (await load_defect(state)).wagon_id == 3
 
 
@@ -180,7 +175,9 @@ class TestReceiveDepartment:
     async def test_saves_department_and_its_label(self, state):
         await save_defect(state, DefectData())
 
-        await receive_department(make_callback(), DepartmentCB(value="bogie"), state)
+        await DepartmentScene(wizard=MagicMock()).receive(
+            make_callback(), DepartmentCB(value="bogie"), state
+        )
 
         defect = await load_defect(state)
         assert defect.department == "bogie"
@@ -189,7 +186,9 @@ class TestReceiveDepartment:
     async def test_moves_to_the_node_step(self, state):
         await save_defect(state, DefectData())
 
-        await receive_department(make_callback(), DepartmentCB(value="bogie"), state)
+        await DepartmentScene(wizard=MagicMock()).receive(
+            make_callback(), DepartmentCB(value="bogie"), state
+        )
 
         assert await state.get_state() == DefectSG.node.state
 
@@ -197,7 +196,9 @@ class TestReceiveDepartment:
         await save_defect(state, DefectData())
         callback = make_callback()
 
-        await receive_department(callback, DepartmentCB(value="bogie"), state)
+        await DepartmentScene(wizard=MagicMock()).receive(
+            callback, DepartmentCB(value="bogie"), state
+        )
 
         callback.message.edit_text.assert_awaited_once()
 

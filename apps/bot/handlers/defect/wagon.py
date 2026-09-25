@@ -5,7 +5,6 @@ from aiogram.fsm.scene import on
 from apps.bot import services
 from apps.bot.constants import UD_EDITING
 from apps.bot.fsm import load_defect, save_defect
-from apps.bot.keyboards.defect import department_keyboard
 from apps.bot.states import DefectSG
 
 from .scene import STEP_TEXT, DefectScene
@@ -13,7 +12,6 @@ from .summary import show_summary
 from .text import (
     build_edit_wagon_text,
     build_new_defect_text,
-    build_wagon_confirmed_text,
     build_wagon_not_found_text,
 )
 
@@ -53,8 +51,4 @@ class WagonScene(DefectScene, state=DefectSG.wagon_num.state):
             await show_summary(message.answer, state, defect)
             return
 
-        await message.answer(
-            **build_wagon_confirmed_text(wagon.number).as_kwargs(),
-            reply_markup=department_keyboard(),
-        )
-        await state.set_state(DefectSG.department)
+        await self.wizard.goto(DefectSG.department)

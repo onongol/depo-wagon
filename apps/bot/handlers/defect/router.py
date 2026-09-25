@@ -27,7 +27,6 @@ from apps.bot.callback_data import (
     CB_UNIT_SKIP,
     ConfirmCB,
     DefectTypeCB,
-    DepartmentCB,
     DimensionCB,
     EditCB,
     NodeCB,
@@ -45,7 +44,6 @@ from apps.bot.states import DefectSG
 from .cancel import cancel_defect_button, stale_callback
 from .confirm import confirm_defect
 from .defect_type import receive_defect_type
-from .department import receive_department
 from .description import receive_description, skip_description
 from .edit import start_edit
 from .measurement import (
@@ -110,7 +108,6 @@ def _plain_steps_router() -> Router:
     cb(continue_defect, running, F.data == CB_DEFECT_CONTINUE)
     cb(restart_defect, running, F.data == CB_DEFECT_RESTART)
 
-    cb(receive_department, StateFilter(DefectSG.department), DepartmentCB.filter())
     cb(receive_node, StateFilter(DefectSG.node), NodeCB.filter())
 
     msg(receive_part_number, StateFilter(DefectSG.part_number), *_TEXT)
