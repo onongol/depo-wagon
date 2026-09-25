@@ -226,9 +226,12 @@ class TestPlaceholderContract:
         assert not problems, "\n".join(problems)
 
     def test_the_catalogue_is_actually_populated(self):
-        """Guards the two tests above against silently scanning nothing."""
+        """Guards the two tests above against silently scanning nothing.
+
+        Not a count: messages/ shrinks with every step moved to a text builder.
+        """
         catalogue = _catalogue()
 
-        assert len(catalogue) > 50
+        assert catalogue
         assert any(fields for fields in catalogue.values())
         assert list(_format_calls())
