@@ -47,7 +47,6 @@ class DefectMessages:
 
     # ── Edit from summary ────────────────────────────────────────────────────
 
-    EDIT_WAGON = _("✏️ Enter the new wagon number:")
     EDIT_NODE = _("✏️ Select the node:")
     EDIT_PART_NUMBER = _("✏️ Enter the part number (or skip):")
     EDIT_DEFECT_TYPE = _("✏️ Select the defect type:")

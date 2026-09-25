@@ -6,12 +6,12 @@ from apps.bot import services
 from apps.bot.constants import UD_EDITING
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.keyboards.defect import department_keyboard
-from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 
 from .scene import STEP_TEXT, DefectScene
 from .summary import show_summary
 from .text import (
+    build_edit_wagon_text,
     build_new_defect_text,
     build_wagon_confirmed_text,
     build_wagon_not_found_text,
@@ -32,7 +32,7 @@ class WagonScene(DefectScene, state=DefectSG.wagon_num.state):
     @classmethod
     async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:
         if data.get(UD_EDITING):
-            return str(M.EDIT_WAGON), None
+            return build_edit_wagon_text(), None
         return build_new_defect_text(), None
 
     @on.message(*STEP_TEXT)

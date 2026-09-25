@@ -31,6 +31,7 @@ from apps.bot.callback_data import (
 from apps.bot.constants import UD_EDITING
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.common.text import build_help_text
+from apps.bot.handlers.defect.text import build_edit_wagon_text
 from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
@@ -376,7 +377,7 @@ class TestEditingTheWagon:
         await dp.feed_update(bot, make_callback_update(EditCB(field="wagon").pack()))
 
         edits = [e.text for e in session.calls("editMessageText")]
-        assert edits == [str(M.EDIT_WAGON)]
+        assert edits == [build_edit_wagon_text().render()[0]]
         assert await state.get_state() == DefectSG.wagon_num.state
         assert (await state.get_data())[UD_EDITING] is True
 
