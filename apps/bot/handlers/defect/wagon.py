@@ -1,4 +1,3 @@
-import logging
 from typing import TYPE_CHECKING
 
 from apps.bot import services
@@ -6,7 +5,6 @@ from apps.bot.constants import UD_EDITING
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.keyboards.defect import department_keyboard
 from apps.bot.keyboards.menu import MENU_TEXTS
-from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 
 from .summary import show_summary
@@ -20,8 +18,6 @@ if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
     from aiogram.types import Message
 
-logger = logging.getLogger(__name__)
-
 
 async def receive_wagon_number(message: Message, state: FSMContext) -> None:
     """Handle incoming wagon number text or menu buttons.
@@ -30,18 +26,11 @@ async def receive_wagon_number(message: Message, state: FSMContext) -> None:
     state is reached from the menu, so a stray tap is likely.
     """
     number = message.text.strip()
-
     if number in MENU_TEXTS:
         await message.answer(**build_ask_wagon_text().as_kwargs())
         return
 
-    try:
-        wagon = await services.get_wagon_by_number(number)
-    except Exception:
-        logger.exception("Failed to fetch a wagon by number")
-        await message.answer(str(M.SESSION_ERROR))
-        return
-
+    wagon = await services.get_wagon_by_number(number)
     if not wagon:
         await message.answer(**build_wagon_not_found_text(number).as_kwargs())
         return

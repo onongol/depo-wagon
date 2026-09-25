@@ -884,6 +884,34 @@ class TestAFailedAccountLink:
         assert session.calls("editMessageText") == []
 
 
+class TestAFailedWagonLookup:
+    """receive_wagon_number catches nothing itself; error_handler answers for it."""
+
+    @pytest.fixture
+    def _no_swallowed_crash(self):
+        """These tests break a handler on purpose."""
+        yield
+
+    async def test_the_user_can_retry_and_the_log_keeps_what_they_typed_out(
+        self, dp, bot, session, state, caplog
+    ):
+        await save_defect(state, DefectData())
+        await state.set_state(DefectSG.wagon_num)
+
+        with patch(
+            "apps.bot.handlers.defect.wagon.services.get_wagon_by_number",
+            AsyncMock(side_effect=RuntimeError("db down")),
+        ):
+            await dp.feed_update(bot, make_message_update("Batbayar 99112233"))
+
+        sent = [m.text for m in session.calls("sendMessage")]
+        assert sent == [build_session_error_text().render()[0]]
+        assert await state.get_state() == DefectSG.wagon_num.state
+        assert await load_defect(state) == DefectData()
+        assert "db down" in caplog.text
+        assert "Batbayar" not in caplog.text
+
+
 class TestHandlersThatNeedNoEmployee:
     """The lookup follows the handler's signature, so these must not trigger it."""
 

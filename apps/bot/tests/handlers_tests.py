@@ -145,17 +145,6 @@ class TestNewDefectStart:
 
 
 class TestReceiveWagonNumber:
-    async def test_a_failed_lookup_logs_nothing_the_user_typed(self, state, caplog):
-        await save_defect(state, DefectData())
-        message = make_message("Batbayar 99112233")
-
-        with patch(WAGON_LOOKUP, AsyncMock(side_effect=RuntimeError("db down"))):
-            await receive_wagon_number(message, state)
-
-        message.answer.assert_awaited_once_with(str(M.SESSION_ERROR))
-        assert "Failed to fetch a wagon" in caplog.text
-        assert "Batbayar" not in caplog.text
-
     async def test_an_unknown_number_is_echoed_as_typed(self, state):
         """An entity, not HTML: markup in what the user typed needs no escaping."""
         await save_defect(state, DefectData())
