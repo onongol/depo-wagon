@@ -54,13 +54,7 @@ async def clear_last_photo_keyboard(bot: Bot, state: FSMContext) -> None:
 
 
 class PhotoScene(DefectScene, state=DefectSG.photo.state):
-    """Photos until Done, which is Skip until the first one; the summary has no edit.
-
-    An album comes as separate updates with no end marker, taken one at a time
-    under the per-user FSM lock in no set order. So each photo is recorded as it
-    comes and only an album's first is answered: waiting for the rest cannot
-    work, as they queue behind the lock the waiter holds.
-    """
+    """Photos until Done; an album is answered once, as its photos queue behind the lock."""
 
     @classmethod
     async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:
@@ -95,8 +89,8 @@ class PhotoScene(DefectScene, state=DefectSG.photo.state):
         else:
             text = build_photo_received_text(len(defect.photos))
 
-        # New, not an edit of one higher up: Done stays under the latest photo
         await clear_last_photo_keyboard(bot, state)
+
         sent = await message.answer(
             **text.as_kwargs(), reply_markup=done_keyboard(CB_PHOTO_SKIP)
         )
