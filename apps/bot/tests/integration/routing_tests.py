@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from aiogram import Router
 from aiogram.fsm.storage.memory import SimpleEventIsolation
-from aiogram.types import Chat, Message, Update, User
+from aiogram.types import Chat, Message, ReplyKeyboardRemove, Update, User
 from django.db import OperationalError
 from django.test import override_settings
 
@@ -48,7 +48,6 @@ from apps.bot.handlers.common.text import (
 )
 from apps.bot.handlers.defect.resume import show_current_step
 from apps.bot.handlers.defect.text import (
-    build_ask_wagon_text,
     build_defect_continued_text,
     build_defect_in_progress_text,
     build_new_defect_text,
@@ -219,12 +218,14 @@ class TestPrecedenceDuringTheDefectFlow:
 
     @pytest.mark.usefixtures("stored_form")
     async def test_at_the_wagon_step_it_asks_for_the_number_again(self, dp, bot, state):
+        """A Scene: retake() draws the screen entering it drew, menu still hidden."""
         await state.set_state(DefectSG.wagon_num)
 
         await dp.feed_update(bot, make_message_update(str(BTN_OPEN_DEFECTS)))
 
-        sent = [m.text for m in bot.session.calls("sendMessage")]
-        assert sent == [build_ask_wagon_text().render()[0]]
+        (sent,) = bot.session.calls("sendMessage")
+        assert sent.text == build_new_defect_text().render()[0]
+        assert sent.reply_markup == ReplyKeyboardRemove()
 
     async def test_a_deep_link_mid_flow_still_reaches_the_link_handler(
         self, dp, bot, state, employee
@@ -404,9 +405,12 @@ class TestNewDefectDuringARunningForm:
         assert edits == [build_defect_continued_text().render()[0]]
 
     @pytest.mark.usefixtures("form")
-    async def test_start_over_opens_a_blank_form(self, dp, bot, session, state):
+    @pytest.mark.parametrize(
+        "step", [DefectSG.confirm, DefectSG.wagon_num], ids=["plain", "scene"]
+    )
+    async def test_start_over_opens_a_blank_form(self, dp, bot, session, state, step):
         """UD_EDITING surviving would send the next wagon number to the summary."""
-        await state.set_state(DefectSG.confirm)
+        await state.set_state(step)
 
         await dp.feed_update(bot, make_callback_update(CB_DEFECT_RESTART))
 

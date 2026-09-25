@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from aiogram.enums import ChatType
 from aiogram.exceptions import ClientDecodeError, TelegramAPIError
+from aiogram.fsm.scene import SceneRegistry
 from aiogram.fsm.storage.memory import MemoryStorage, SimpleEventIsolation
 from aiogram.types import Chat, Message, Update, User
 
@@ -287,33 +288,56 @@ class TestDefectRouterOrder:
 
         assert names.index("defect_flow") < names.index("tasks")
 
-    def test_the_flow_catch_all_is_registered_last_within_the_flow(self):
+    def test_the_scenes_come_before_the_plain_steps(self):
+        """A plain step's running block would claim a scene's menu buttons first."""
         from apps.bot.handlers.defect.router import get_defect_flow_router
 
-        router = get_defect_flow_router()
-        callbacks = [h.callback.__name__ for h in router.callback_query.handlers]
+        routers = get_defect_flow_router().sub_routers
 
-        assert callbacks[-1] == "stale_callback"
+        assert routers[-1].name == "defect_plain_steps"
+        assert all(r.name.startswith("Scene ") for r in routers[:-1])
+
+    def test_each_catch_all_is_registered_last_in_its_router(self):
+        from apps.bot.handlers.defect.router import get_defect_flow_router
+
+        for router in get_defect_flow_router().sub_routers:
+            last = router.callback_query.handlers[-1].callback
+            name = getattr(getattr(last, "handler", last), "callback", last).__name__
+            assert name in {"stale_callback", "absorb"}, router.name
 
     def test_every_defect_state_has_at_least_one_handler(self):
-        """Guards against a step losing its route during the conversion."""
+        """Guards against a step losing its route during the conversion.
+
+        A plain step filters each handler by state; a scene is its state.
+        """
         from aiogram.filters import StateFilter
 
         from apps.bot.handlers.defect.router import get_defect_flow_router
+        from apps.bot.handlers.defect.scenes import DEFECT_SCENES
         from apps.bot.states import DefectSG
 
-        router = get_defect_flow_router()
-        covered = set()
-        for observer in (router.message, router.callback_query):
+        covered = {scene.__scene_config__.state for scene in DEFECT_SCENES}
+        plain = get_defect_flow_router().sub_routers[-1]
+        for observer in (plain.message, plain.callback_query):
             for handler in observer.handlers:
                 for flt in handler.filters or ():
                     if isinstance(flt.callback, StateFilter):
-                        covered |= {
-                            s.state if hasattr(s, "state") else s
-                            for s in flt.callback.states
-                        }
+                        covered |= {getattr(s, "state", s) for s in flt.callback.states}
 
         # saving has no step of its own: the flow's catch-alls absorb what arrives.
         waiting = {DefectSG.saving.state}
         missing = {s.state for s in DefectSG.__states__} - covered - waiting
         assert not missing
+
+    def test_every_scene_is_registered_for_lookup(self, dispatcher):
+        """goto() and enter() find a scene by state through the registry."""
+        from apps.bot.handlers.defect.scenes import DEFECT_SCENES
+
+        registry = next(
+            m.__self__
+            for m in dispatcher.update.outer_middleware
+            if isinstance(getattr(m, "__self__", None), SceneRegistry)
+        )
+
+        for scene in DEFECT_SCENES:
+            assert registry.get(scene.__scene_config__.state) is scene

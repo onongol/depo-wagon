@@ -3,6 +3,10 @@
 Disjoint by state: the entry answers only outside DefectSG, and inside it the
 flow asks whether to continue or start over, so a running form is never wiped
 without the user choosing to.
+
+Mid-migration to Scenes: a step that is a Scene lives in its own router, ahead
+of the steps still written as plain handlers, and carries the shared handlers
+itself. The plain ones share theirs through the running block below.
 """
 
 from aiogram import F, Router
@@ -63,34 +67,40 @@ from .responsible_employee import (
     select_responsible_employee,
     skip_responsible_employee,
 )
-from .restart import (
-    continue_defect,
-    defect_in_progress,
-    menu_button_mid_flow,
-    restart_defect,
-)
+from .restart import continue_defect, menu_button_mid_flow, restart_defect
+from .scene import ask_about_the_open_form
+from .scenes import DEFECT_SCENES
 from .severity import receive_severity
 from .start import new_defect_start
 from .verdict import receive_employee_verdict
-from .wagon import receive_wagon_number
 
 _TEXT = (F.text, NotACommand())
 
 
 def get_defect_flow_router() -> Router:
-    """Every step, filtered by the state it belongs to."""
+    """Every step: the Scenes first, then the plain steps."""
     router = Router(name="defect_flow")
-    msg = router.message.register
-    cb = router.callback_query.register
 
     # Outer, so no step is reached with a form that is stale or gone
     router.message.outer_middleware(DefectFormMiddleware())
     router.callback_query.outer_middleware(DefectFormMiddleware())
 
+    router.include_routers(
+        *(scene.as_router() for scene in DEFECT_SCENES), _plain_steps_router()
+    )
+    return router
+
+
+def _plain_steps_router() -> Router:
+    """Every step not yet a Scene, filtered by the state it belongs to."""
+    router = Router(name="defect_plain_steps")
+    msg = router.message.register
+    cb = router.callback_query.register
+
     # Menu buttons ahead of every step; a text step would take one for an answer
     running = StateFilter(DefectSG)
-    msg(defect_in_progress, running, Command("new_defect"))
-    msg(defect_in_progress, running, F.text == str(BTN_NEW_DEFECT))
+    msg(ask_about_the_open_form, running, Command("new_defect"))
+    msg(ask_about_the_open_form, running, F.text == str(BTN_NEW_DEFECT))
     msg(menu_button_mid_flow, running, F.text.in_(MENU_TEXTS))
     msg(
         menu_button_mid_flow,
@@ -100,7 +110,6 @@ def get_defect_flow_router() -> Router:
     cb(continue_defect, running, F.data == CB_DEFECT_CONTINUE)
     cb(restart_defect, running, F.data == CB_DEFECT_RESTART)
 
-    msg(receive_wagon_number, StateFilter(DefectSG.wagon_num), *_TEXT)
     cb(receive_department, StateFilter(DefectSG.department), DepartmentCB.filter())
     cb(receive_node, StateFilter(DefectSG.node), NodeCB.filter())
 

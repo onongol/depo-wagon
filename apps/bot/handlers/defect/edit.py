@@ -14,15 +14,18 @@ from apps.bot.states import DefectSG
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
+    from aiogram.fsm.scene import ScenesManager
     from aiogram.types import CallbackQuery
 
     from apps.bot.callback_data import EditCB
 
 
+# Scenes draw their own edit prompt on entering
+_EDIT_SCENES = {"wagon": DefectSG.wagon_num}
+
 # field -> (prompt, keyboard built from the defect under edit, state to enter).
 # Keyboards are built per call: their callback payloads are per-message.
 _EDIT_STEPS = {
-    "wagon": (M.EDIT_WAGON, None, DefectSG.wagon_num),
     "node": (
         M.EDIT_NODE,
         lambda defect: node_keyboard_for_department(defect.department or ""),
@@ -48,10 +51,18 @@ _EDIT_STEPS = {
 
 
 async def start_edit(
-    callback: CallbackQuery, callback_data: EditCB, state: FSMContext
+    callback: CallbackQuery,
+    callback_data: EditCB,
+    state: FSMContext,
+    scenes: ScenesManager,
 ) -> None:
     """Render the chosen field's input and route to its state in edit mode."""
     await callback.answer()
+
+    if scene := _EDIT_SCENES.get(callback_data.field):
+        await state.update_data({UD_EDITING: True})
+        await scenes.enter(scene)
+        return
 
     defect = await load_defect(state)
 

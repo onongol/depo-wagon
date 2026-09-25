@@ -1,9 +1,10 @@
-"""Each step's screen, rebuilt from the form so Continue can show it again."""
+"""Each plain step's screen, rebuilt from the form so Continue can show it again.
+
+A step that is a Scene draws its own; the table shrinks as steps move.
+"""
 
 import html
-from typing import TYPE_CHECKING, Any
-
-from aiogram.utils.formatting import Text
+from typing import TYPE_CHECKING
 
 from apps.bot.callback_data import (
     CB_DESC_SKIP,
@@ -30,8 +31,10 @@ from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 
 from .responsible_employee import show_responsible_employee_list
+from .scene import as_send_kwargs
+from .scenes import scene_for
 from .summary import show_summary
-from .text import build_ask_wagon_text, build_wagon_confirmed_text
+from .text import build_wagon_confirmed_text
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -61,7 +64,6 @@ def _photo(defect: DefectData) -> tuple[str, InlineKeyboardMarkup]:
 
 # As each step first showed it; confirm and responsible_employee render async
 _SCREENS = {
-    DefectSG.wagon_num.state: lambda _: (build_ask_wagon_text(), None),
     DefectSG.department.state: lambda d: (
         build_wagon_confirmed_text(d.wagon_number),
         department_keyboard(),
@@ -113,25 +115,21 @@ _SCREENS = {
 }
 
 
-# HTML strings until every step's text has moved to a Text builder
-def _as_kwargs(content: str | Text) -> dict[str, Any]:
-    if isinstance(content, Text):
-        return content.as_kwargs()
-    return {"text": content, "parse_mode": M.PARSE_MODE}
-
-
 async def show_current_step(send: Callable[..., Awaitable], state: FSMContext) -> bool:
     """False for saving, the one step with no screen of its own."""
     step = await state.get_state()
     defect = await load_defect(state)
 
-    if step == DefectSG.confirm.state:
+    if scene := scene_for(step):
+        content, keyboard = await scene.screen(defect, await state.get_data())
+        await send(**as_send_kwargs(content), reply_markup=keyboard)
+    elif step == DefectSG.confirm.state:
         await show_summary(send, state, defect)
     elif step == DefectSG.responsible_employee.state:
         await show_responsible_employee_list(send, state, defect.department)
     elif screen := _SCREENS.get(step):
         content, keyboard = screen(defect)
-        await send(**_as_kwargs(content), reply_markup=keyboard)
+        await send(**as_send_kwargs(content), reply_markup=keyboard)
     else:
         return False
 

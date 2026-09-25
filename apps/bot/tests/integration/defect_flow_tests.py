@@ -23,10 +23,12 @@ from apps.bot.callback_data import (
     DefectTypeCB,
     DepartmentCB,
     DimensionCB,
+    EditCB,
     NodeCB,
     SeverityCB,
     VerdictCB,
 )
+from apps.bot.constants import UD_EDITING
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.common.text import build_help_text
 from apps.bot.keyboards.menu import main_menu_keyboard
@@ -296,9 +298,15 @@ class TestTheMenuWhileAFormIsOpen:
         (sent,) = session.calls("sendMessage")
         assert sent.reply_markup == ReplyKeyboardRemove()
 
-    async def test_the_cancel_button_brings_it_back(self, dp, bot, session, state):
+    @pytest.mark.parametrize(
+        "step", [DefectSG.department, DefectSG.wagon_num], ids=["plain", "scene"]
+    )
+    async def test_the_cancel_button_brings_it_back(
+        self, dp, bot, session, state, step
+    ):
+        """The scene leaves through exit(), whose action drops the form."""
         await save_defect(state, DefectData(wagon_id=3))
-        await state.set_state(DefectSG.department)
+        await state.set_state(step)
 
         await dp.feed_update(bot, make_callback_update(CB_CANCEL))
 
@@ -308,6 +316,8 @@ class TestTheMenuWhileAFormIsOpen:
             main_menu_keyboard(),
         )
         assert session.calls("editMessageReplyMarkup")
+        assert await state.get_state() is None
+        assert await load_defect(state) is None
 
     async def test_the_verdict_brings_it_back(self, dp, bot, session, state, flow):
         await save_defect(state, DefectData(wagon_id=3, defect_id=str(uuid.uuid4())))
@@ -350,6 +360,39 @@ class TestTheMenuWhileAFormIsOpen:
             main_menu_keyboard(),
         )
         assert await state.get_state() is None
+
+
+class TestEditingTheWagon:
+    """Edit ▸ Wagon enters the wagon scene from the summary, a plain step."""
+
+    FORM = DefectData(wagon_id=1, wagon_number="11111111", node="wheel")
+
+    async def test_the_scene_asks_for_the_new_number_in_place(
+        self, dp, bot, session, state
+    ):
+        await save_defect(state, self.FORM)
+        await state.set_state(DefectSG.confirm)
+
+        await dp.feed_update(bot, make_callback_update(EditCB(field="wagon").pack()))
+
+        edits = [e.text for e in session.calls("editMessageText")]
+        assert edits == [str(M.EDIT_WAGON)]
+        assert await state.get_state() == DefectSG.wagon_num.state
+        assert (await state.get_data())[UD_EDITING] is True
+
+    async def test_the_new_number_returns_to_the_summary(
+        self, dp, bot, session, state, flow
+    ):
+        await save_defect(state, self.FORM)
+        await state.set_state(DefectSG.confirm)
+        await dp.feed_update(bot, make_callback_update(EditCB(field="wagon").pack()))
+
+        await dp.feed_update(bot, make_message_update(WAGON_NUMBER))
+
+        assert await state.get_state() == DefectSG.confirm.state
+        assert UD_EDITING not in await state.get_data()
+        defect = await load_defect(state)
+        assert (defect.wagon_number, defect.node) == (WAGON_NUMBER, "wheel")
 
 
 class TestAFormLeftOverFromAnEarlierBuild:

@@ -7,7 +7,6 @@ a detached copy — the assertions read it back rather than holding a reference.
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from aiogram.types import ReplyKeyboardRemove
 from aiogram.utils.text_decorations import html_decoration
 
 from apps.bot.callback_data import (
@@ -51,11 +50,10 @@ from apps.bot.handlers.defect.responsible_employee import (
 from apps.bot.handlers.defect.responsible_employee.list import EMPLOYEE_PAGE_SIZE
 from apps.bot.handlers.defect.start import new_defect_start
 from apps.bot.handlers.defect.text import (
-    build_new_defect_text,
     build_wagon_confirmed_text,
     build_wagon_not_found_text,
 )
-from apps.bot.handlers.defect.wagon import receive_wagon_number
+from apps.bot.handlers.defect.wagon import WagonScene
 from apps.bot.keyboards.defect import department_keyboard
 from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.states import DefectSG
@@ -128,21 +126,20 @@ class TestHelpHandler:
 
 
 class TestNewDefectStart:
-    async def test_asks_for_the_wagon_number_with_the_menu_hidden(self, state):
-        message = make_message()
+    async def test_opens_a_blank_form_in_the_wagon_scene(self, state):
+        """The screen is the scene's to draw; see the flow tests for it."""
+        scenes = AsyncMock()
 
-        await new_defect_start(message, state, MagicMock())
+        await new_defect_start(make_message(), state, MagicMock(), scenes)
 
-        message.answer.assert_awaited_once_with(
-            **build_new_defect_text().as_kwargs(), reply_markup=ReplyKeyboardRemove()
-        )
-        assert await state.get_state() == DefectSG.wagon_num.state
+        scenes.enter.assert_awaited_once_with(DefectSG.wagon_num)
+        assert await load_defect(state) == DefectData()
 
     async def test_drops_what_an_abandoned_form_left_behind(self, state):
         """Edit, then /ask, then New Defect: the entry runs outside DefectSG."""
         await state.update_data({UD_EDITING: True, UD_RESP_SEARCH: "bat"})
 
-        await new_defect_start(make_message(), state, MagicMock())
+        await new_defect_start(make_message(), state, MagicMock(), AsyncMock())
 
         data = await state.get_data()
         assert UD_EDITING not in data
@@ -156,7 +153,7 @@ class TestReceiveWagonNumber:
         message = make_message("<b>80035668</b>")
 
         with patch(WAGON_LOOKUP, AsyncMock(return_value=None)):
-            await receive_wagon_number(message, state)
+            await WagonScene(wizard=MagicMock()).receive(message, state)
 
         message.answer.assert_awaited_once_with(
             **build_wagon_not_found_text("<b>80035668</b>").as_kwargs()
@@ -169,7 +166,7 @@ class TestReceiveWagonNumber:
         wagon = MagicMock(id=3, number="80035668")
 
         with patch(WAGON_LOOKUP, AsyncMock(return_value=wagon)):
-            await receive_wagon_number(message, state)
+            await WagonScene(wizard=MagicMock()).receive(message, state)
 
         message.answer.assert_awaited_once_with(
             **build_wagon_confirmed_text("80035668").as_kwargs(),
@@ -447,7 +444,7 @@ class TestEditFromSummary:
     async def test_routes_to_the_field_and_flags_edit_mode(self, state):
         await save_defect(state, DefectData(department="bogie"))
 
-        await start_edit(make_callback(), EditCB(field="node"), state)
+        await start_edit(make_callback(), EditCB(field="node"), state, AsyncMock())
 
         assert (await state.get_data())[UD_EDITING] is True
         assert await state.get_state() == DefectSG.node.state
@@ -455,14 +452,14 @@ class TestEditFromSummary:
     async def test_an_unknown_field_returns_to_the_summary(self, state):
         await save_defect(state, DefectData())
 
-        await start_edit(make_callback(), EditCB(field="nope"), state)
+        await start_edit(make_callback(), EditCB(field="nope"), state, AsyncMock())
 
         assert await state.get_state() == DefectSG.confirm.state
         assert UD_EDITING not in await state.get_data()
 
     async def test_the_edited_field_returns_to_the_summary(self, state):
         await save_defect(state, DefectData(department="bogie"))
-        await start_edit(make_callback(), EditCB(field="node"), state)
+        await start_edit(make_callback(), EditCB(field="node"), state, AsyncMock())
 
         await receive_node(make_callback(), NodeCB(value="wheel"), state)
 
