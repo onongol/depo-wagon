@@ -2,10 +2,9 @@ from typing import TYPE_CHECKING, Any
 
 from aiogram.fsm.scene import on
 
-from apps.bot.callback_data import CB_PART_NUMBER_SKIP, NodeCB
+from apps.bot.callback_data import NodeCB
 from apps.bot.constants import UD_EDITING
 from apps.bot.fsm import load_defect, save_defect
-from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.keyboards.defect import node_keyboard_for_department
 from apps.bot.states import DefectSG
 from apps.defects.constants import DefectNode
@@ -14,7 +13,6 @@ from .scene import DefectScene
 from .text import (
     build_department_confirmed_text,
     build_edit_node_text,
-    build_node_confirmed_text,
 )
 
 if TYPE_CHECKING:
@@ -52,11 +50,4 @@ class NodeScene(DefectScene, state=DefectSG.node.state):
         defect.node_label = node_label
         await save_defect(state, defect)
 
-        if await self.back_to_summary_if_editing(state):
-            return
-
-        await callback.message.edit_text(
-            **build_node_confirmed_text(node_label).as_kwargs(),
-            reply_markup=skip_keyboard(CB_PART_NUMBER_SKIP),
-        )
-        await state.set_state(DefectSG.part_number)
+        await self.go_on(state, DefectSG.part_number)

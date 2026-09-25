@@ -17,6 +17,7 @@ from apps.bot.callback_data import (
     CB_CANCEL,
     CB_MEAS_ADD,
     CB_MEAS_DONE,
+    CB_PART_NUMBER_SKIP,
     CB_PHOTO_SKIP,
     CB_RESP_EMP_SKIP,
     ConfirmCB,
@@ -35,9 +36,15 @@ from apps.bot.handlers.defect.text import (
     build_department_confirmed_text,
     build_edit_node_text,
     build_edit_wagon_text,
+    build_node_confirmed_text,
     build_wagon_confirmed_text,
 )
-from apps.bot.keyboards.defect import department_keyboard, node_keyboard_for_department
+from apps.bot.keyboards.common import skip_keyboard
+from apps.bot.keyboards.defect import (
+    defect_type_keyboard,
+    department_keyboard,
+    node_keyboard_for_department,
+)
 from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
@@ -433,6 +440,82 @@ class TestEditingTheNode:
         assert await state.get_state() == DefectSG.confirm.state
         assert UD_EDITING not in await state.get_data()
         assert (await load_defect(state)).node == DefectNode.WHEEL
+
+
+class TestThePartNumberStep:
+    """Skip is an empty part number and a goto(); the next scene says it was skipped."""
+
+    FORM = DefectData(wagon_id=1, department=Department.BOGIE, node_label="Wheel")
+
+    async def test_the_node_leads_to_it_in_place(self, dp, bot, session, state):
+        await save_defect(state, self.FORM)
+        await state.set_state(DefectSG.node)
+
+        await dp.feed_update(
+            bot, make_callback_update(NodeCB(value=DefectNode.WHEEL).pack())
+        )
+
+        (edit,) = session.calls("editMessageText")
+        expected = build_node_confirmed_text(DefectNode.WHEEL.label)
+        assert (edit.text, edit.entities) == expected.render()
+        assert edit.reply_markup == skip_keyboard(CB_PART_NUMBER_SKIP)
+        assert await state.get_state() == DefectSG.part_number.state
+
+    async def test_skip_says_so_and_offers_the_types(self, dp, bot, session, state):
+        await save_defect(state, self.FORM)
+        await state.set_state(DefectSG.part_number)
+
+        await dp.feed_update(bot, make_callback_update(CB_PART_NUMBER_SKIP))
+
+        (edit,) = session.calls("editMessageText")
+        assert edit.text == str(M.PART_NUMBER_SKIPPED)
+        assert edit.reply_markup == defect_type_keyboard()
+        assert await state.get_state() == DefectSG.defect_type.state
+        assert (await load_defect(state)).part_number == ""
+
+    async def test_a_typed_one_is_confirmed_escaped(self, dp, bot, session, state):
+        await save_defect(state, self.FORM)
+        await state.set_state(DefectSG.part_number)
+
+        await dp.feed_update(bot, make_message_update("<PN-42>"))
+
+        (sent,) = session.calls("sendMessage")
+        assert "&lt;PN-42&gt;" in sent.text
+        assert sent.reply_markup == defect_type_keyboard()
+        assert (await load_defect(state)).part_number == "<PN-42>"
+
+    async def test_skip_from_an_edit_clears_it_and_goes_back(self, dp, bot, state):
+        await save_defect(state, DefectData(wagon_id=1, part_number="PN-1"))
+        await state.set_state(DefectSG.confirm)
+        tap = EditCB(field="part_number").pack()
+        await dp.feed_update(bot, make_callback_update(tap))
+
+        await dp.feed_update(bot, make_callback_update(CB_PART_NUMBER_SKIP))
+
+        assert await state.get_state() == DefectSG.confirm.state
+        assert UD_EDITING not in await state.get_data()
+        assert (await load_defect(state)).part_number == ""
+
+
+class TestEditingTheDefectType:
+    async def test_the_scene_asks_and_the_answer_goes_back(
+        self, dp, bot, session, state
+    ):
+        await save_defect(state, DefectData(wagon_id=1, defect_type=DefectType.WEAR))
+        await state.set_state(DefectSG.confirm)
+
+        await dp.feed_update(
+            bot, make_callback_update(EditCB(field="defect_type").pack())
+        )
+        (edit,) = session.calls("editMessageText")
+        assert edit.text == str(M.EDIT_DEFECT_TYPE)
+        assert await state.get_state() == DefectSG.defect_type.state
+
+        tap = DefectTypeCB(value=DefectType.CRACK).pack()
+        await dp.feed_update(bot, make_callback_update(tap))
+
+        assert await state.get_state() == DefectSG.confirm.state
+        assert (await load_defect(state)).defect_type == DefectType.CRACK
 
 
 class TestEditingTheWagon:

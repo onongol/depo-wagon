@@ -3,13 +3,11 @@
 A step that is a Scene draws its own; the table shrinks as steps move.
 """
 
-import html
 from typing import TYPE_CHECKING
 
 from apps.bot.callback_data import (
     CB_DESC_SKIP,
     CB_NORM_SKIP,
-    CB_PART_NUMBER_SKIP,
     CB_PHOTO_SKIP,
     CB_UNIT_SKIP,
 )
@@ -17,7 +15,6 @@ from apps.bot.fsm import load_defect
 from apps.bot.keyboards.common import done_keyboard, skip_keyboard
 from apps.bot.keyboards.confirm import employee_verdict_keyboard
 from apps.bot.keyboards.defect import (
-    defect_type_keyboard,
     severity_keyboard,
 )
 from apps.bot.keyboards.measurement import (
@@ -42,15 +39,6 @@ if TYPE_CHECKING:
     from apps.bot.user_data import DefectData
 
 
-def _defect_type(defect: DefectData) -> tuple[str, InlineKeyboardMarkup]:
-    if defect.part_number:
-        part_number = html.escape(defect.part_number)
-        text = str(M.PART_NUMBER_CONFIRMED).format(part_number=part_number)
-    else:
-        text = str(M.PART_NUMBER_SKIPPED)
-    return text, defect_type_keyboard()
-
-
 def _photo(defect: DefectData) -> tuple[str, InlineKeyboardMarkup]:
     if defect.photos:
         text = str(M.PHOTO_RECEIVED).format(count=len(defect.photos))
@@ -61,11 +49,6 @@ def _photo(defect: DefectData) -> tuple[str, InlineKeyboardMarkup]:
 
 # As each step first showed it; confirm and responsible_employee render async
 _SCREENS = {
-    DefectSG.part_number.state: lambda _: (
-        str(M.PART_NUMBER_PROMPT),
-        skip_keyboard(CB_PART_NUMBER_SKIP),
-    ),
-    DefectSG.defect_type.state: _defect_type,
     DefectSG.severity.state: lambda d: (
         str(M.DEFECT_TYPE_CONFIRMED).format(label=d.defect_type_label),
         severity_keyboard(),

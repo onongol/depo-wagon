@@ -21,12 +21,10 @@ from apps.bot.callback_data import (
     CB_MEAS_DONE,
     CB_MEAS_SKIP,
     CB_NORM_SKIP,
-    CB_PART_NUMBER_SKIP,
     CB_PHOTO_SKIP,
     CB_RESP_EMP_SKIP,
     CB_UNIT_SKIP,
     ConfirmCB,
-    DefectTypeCB,
     DimensionCB,
     EditCB,
     ResponsibleEmployeeCB,
@@ -42,7 +40,6 @@ from apps.bot.states import DefectSG
 
 from .cancel import cancel_defect_button, stale_callback
 from .confirm import confirm_defect
-from .defect_type import receive_defect_type
 from .description import receive_description, skip_description
 from .edit import start_edit
 from .measurement import (
@@ -55,7 +52,6 @@ from .measurement import (
     skip_norm_value,
     skip_unit,
 )
-from .part_number import receive_part_number, skip_part_number
 from .photo import receive_photo, skip_photo
 from .responsible_employee import (
     page_responsible_employee,
@@ -106,14 +102,6 @@ def _plain_steps_router() -> Router:
     cb(continue_defect, running, F.data == CB_DEFECT_CONTINUE)
     cb(restart_defect, running, F.data == CB_DEFECT_RESTART)
 
-    msg(receive_part_number, StateFilter(DefectSG.part_number), *_TEXT)
-    cb(
-        skip_part_number,
-        StateFilter(DefectSG.part_number),
-        F.data == CB_PART_NUMBER_SKIP,
-    )
-
-    cb(receive_defect_type, StateFilter(DefectSG.defect_type), DefectTypeCB.filter())
     cb(receive_severity, StateFilter(DefectSG.severity), SeverityCB.filter())
 
     msg(receive_photo, StateFilter(DefectSG.photo), F.photo)

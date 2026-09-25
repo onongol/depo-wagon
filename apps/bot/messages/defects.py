@@ -6,8 +6,6 @@ class DefectMessages:
 
     # ── Part / type / severity ───────────────────────────────────────────────
 
-    PART_NUMBER_PROMPT = _("🔢 Enter the part number <i>(e.g. ABC-1234)</i> or skip:")
-
     PART_NUMBER_CONFIRMED = _(
         "✅ Part number: <b>{part_number}</b>\n\nSelect the defect type:"
     )

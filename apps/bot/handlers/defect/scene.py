@@ -24,6 +24,7 @@ from .text import build_defect_in_progress_text
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
+    from aiogram.fsm.state import State
     from aiogram.types import CallbackQuery, InlineKeyboardMarkup, Message
 
     from apps.bot.user_data import DefectData
@@ -75,6 +76,14 @@ class DefectScene(Scene):
         send = event.message.edit_text if on_a_button else event.answer
         await show_summary(send, state, await load_defect(state))
         return True
+
+    async def go_on(self, state: FSMContext, next_step: State) -> None:
+        """To the next step, whose scene draws its own screen; after an Edit, back.
+
+        Not after=After.goto(...): that destination is fixed, and an Edit's is not.
+        """
+        if not await self.back_to_summary_if_editing(state):
+            await self.wizard.goto(next_step)
 
     @on.message.enter()
     async def show_as_message(self, message: Message, state: FSMContext) -> None:

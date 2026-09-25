@@ -2,14 +2,22 @@
 
 from typing import TYPE_CHECKING
 
+from .defect_type import DefectTypeScene
 from .department import DepartmentScene
 from .node import NodeScene
+from .part_number import PartNumberScene
 from .wagon import WagonScene
 
 if TYPE_CHECKING:
     from .scene import DefectScene
 
-DEFECT_SCENES: tuple[type[DefectScene], ...] = (WagonScene, DepartmentScene, NodeScene)
+DEFECT_SCENES: tuple[type[DefectScene], ...] = (
+    WagonScene,
+    DepartmentScene,
+    NodeScene,
+    PartNumberScene,
+    DefectTypeScene,
+)
 
 _BY_STATE = {scene.__scene_config__.state: scene for scene in DEFECT_SCENES}
 

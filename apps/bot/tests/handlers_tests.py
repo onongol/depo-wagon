@@ -10,7 +10,6 @@ import pytest
 from aiogram.utils.text_decorations import html_decoration
 
 from apps.bot.callback_data import (
-    CB_PART_NUMBER_SKIP,
     DefectTypeCB,
     DepartmentCB,
     EditCB,
@@ -33,14 +32,13 @@ from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.common.cancel import cancel
 from apps.bot.handlers.common.help import help_command
 from apps.bot.handlers.common.text import build_cancelled_text, build_help_text
-from apps.bot.handlers.defect.defect_type import receive_defect_type
+from apps.bot.handlers.defect.defect_type import DefectTypeScene
 from apps.bot.handlers.defect.department import DepartmentScene
 from apps.bot.handlers.defect.edit import start_edit
 from apps.bot.handlers.defect.node import NodeScene
 from apps.bot.handlers.defect.part_number import (
     PART_NUMBER_MAX_LENGTH,
-    receive_part_number,
-    skip_part_number,
+    PartNumberScene,
 )
 from apps.bot.handlers.defect.responsible_employee import (
     page_responsible_employee,
@@ -52,12 +50,11 @@ from apps.bot.handlers.defect.responsible_employee.list import EMPLOYEE_PAGE_SIZ
 from apps.bot.handlers.defect.severity import receive_severity
 from apps.bot.handlers.defect.start import new_defect_start
 from apps.bot.handlers.defect.text import (
-    build_node_confirmed_text,
     build_wagon_not_found_text,
 )
 from apps.bot.handlers.defect.wagon import WagonScene
-from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.keyboards.menu import main_menu_keyboard
+from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.bot.tests.builders import make_callback, make_message
 from apps.bot.user_data import DefectData
@@ -209,19 +206,13 @@ class TestReceiveNode:
         assert defect.node == "wheel"
         assert defect.node_label
 
-    async def test_moves_to_the_part_number_step(self, state):
+    async def test_goes_on_to_the_part_number_scene(self, state):
         await save_defect(state, DefectData())
-        callback = make_callback()
+        scene = NodeScene(wizard=AsyncMock())
 
-        await NodeScene(wizard=AsyncMock()).receive(
-            callback, NodeCB(value=DefectNode.WHEEL), state
-        )
+        await scene.receive(make_callback(), NodeCB(value=DefectNode.WHEEL), state)
 
-        assert await state.get_state() == DefectSG.part_number.state
-        callback.message.edit_text.assert_awaited_once_with(
-            **build_node_confirmed_text(DefectNode.WHEEL.label).as_kwargs(),
-            reply_markup=skip_keyboard(CB_PART_NUMBER_SKIP),
-        )
+        scene.wizard.goto.assert_awaited_once_with(DefectSG.part_number)
 
     async def test_an_edit_goes_back_to_the_summary(self, state):
         await save_defect(state, DefectData(department="bogie"))
@@ -237,60 +228,82 @@ class TestReceiveNode:
 
 
 class TestReceivePartNumber:
+    """Its screen after is the defect type scene's; see the flow tests."""
+
     async def test_text_input_saves_the_part_number(self, state):
         await save_defect(state, DefectData())
 
-        await receive_part_number(make_message("ABC-1234"), state)
+        await PartNumberScene(wizard=AsyncMock()).receive(
+            make_message("ABC-1234"), state
+        )
 
         assert (await load_defect(state)).part_number == "ABC-1234"
 
-    async def test_text_input_moves_to_the_defect_type_step(self, state):
+    async def test_text_input_goes_on_to_the_defect_type_scene(self, state):
         await save_defect(state, DefectData())
+        scene = PartNumberScene(wizard=AsyncMock())
 
-        await receive_part_number(make_message("P-001"), state)
+        await scene.receive(make_message("P-001"), state)
 
-        assert await state.get_state() == DefectSG.defect_type.state
+        scene.wizard.goto.assert_awaited_once_with(DefectSG.defect_type)
 
     async def test_a_part_number_at_the_column_limit_is_saved(self, state):
         await save_defect(state, DefectData())
+        scene = PartNumberScene(wizard=AsyncMock())
 
-        await receive_part_number(make_message("x" * PART_NUMBER_MAX_LENGTH), state)
+        await scene.receive(make_message("x" * PART_NUMBER_MAX_LENGTH), state)
 
         assert (await load_defect(state)).part_number == "x" * PART_NUMBER_MAX_LENGTH
-        assert await state.get_state() == DefectSG.defect_type.state
+        scene.wizard.goto.assert_awaited_once()
 
     async def test_a_longer_part_number_is_asked_for_again(self, state):
         await save_defect(state, DefectData())
-        await state.set_state(DefectSG.part_number)
+        scene = PartNumberScene(wizard=AsyncMock())
         message = make_message("x" * (PART_NUMBER_MAX_LENGTH + 1))
 
-        await receive_part_number(message, state)
+        await scene.receive(message, state)
 
         assert (await load_defect(state)).part_number == ""
-        assert await state.get_state() == DefectSG.part_number.state
+        scene.wizard.goto.assert_not_awaited()
         reply = message.answer.await_args.args[0]
         assert f"{PART_NUMBER_MAX_LENGTH + 1}/{PART_NUMBER_MAX_LENGTH}" in reply
 
     async def test_skip_clears_the_part_number(self, state):
         await save_defect(state, DefectData(part_number="old"))
 
-        await skip_part_number(make_callback(), state)
+        await PartNumberScene(wizard=AsyncMock()).skip(make_callback(), state)
 
         assert (await load_defect(state)).part_number == ""
 
-    async def test_skip_moves_to_the_defect_type_step(self, state):
+    async def test_skip_goes_on_to_the_defect_type_scene(self, state):
         await save_defect(state, DefectData())
+        scene = PartNumberScene(wizard=AsyncMock())
 
-        await skip_part_number(make_callback(), state)
+        await scene.skip(make_callback(), state)
 
-        assert await state.get_state() == DefectSG.defect_type.state
+        scene.wizard.goto.assert_awaited_once_with(DefectSG.defect_type)
+
+    async def test_skip_after_an_edit_goes_back_to_the_summary(self, state):
+        """After=After.goto(...) could not: its destination would be fixed."""
+        await save_defect(state, DefectData(part_number="old"))
+        await state.update_data({UD_EDITING: True})
+        callback = make_callback()
+        scene = PartNumberScene(
+            wizard=AsyncMock(event=callback, update_type="callback_query")
+        )
+
+        await scene.skip(callback, state)
+
+        scene.wizard.goto.assert_not_awaited()
+        assert await state.get_state() == DefectSG.confirm.state
+        assert (await load_defect(state)).part_number == ""
 
 
 class TestReceiveDefectType:
     async def test_saves_the_type_and_moves_to_severity(self, state):
         await save_defect(state, DefectData())
 
-        await receive_defect_type(
+        await DefectTypeScene(wizard=AsyncMock()).receive(
             make_callback(), DefectTypeCB(value=DefectType.HUMAN_FACTOR), state
         )
 
@@ -301,7 +314,7 @@ class TestReceiveDefectType:
         await save_defect(state, DefectData())
         callback = make_callback()
 
-        await receive_defect_type(
+        await DefectTypeScene(wizard=AsyncMock()).receive(
             callback, DefectTypeCB(value=DefectType.HUMAN_FACTOR), state
         )
 
@@ -312,8 +325,17 @@ class TestReceiveDefectType:
     async def test_every_type_reaches_the_same_step(self, state):
         for value in DefectType.values:
             await save_defect(state, DefectData())
-            await receive_defect_type(make_callback(), DefectTypeCB(value=value), state)
+            await DefectTypeScene(wizard=AsyncMock()).receive(
+                make_callback(), DefectTypeCB(value=value), state
+            )
             assert await state.get_state() == DefectSG.severity.state
+
+    async def test_the_screen_says_whether_the_part_number_was_skipped(self):
+        typed, _ = await DefectTypeScene.screen(DefectData(part_number="PN-1"), {})
+        skipped, _ = await DefectTypeScene.screen(DefectData(), {})
+
+        assert "PN-1" in typed
+        assert skipped == str(M.PART_NUMBER_SKIPPED)
 
 
 class TestResponsibleEmployee:
@@ -659,12 +681,13 @@ class TestUserTextIsEscaped:
 
     async def test_the_part_number_is_escaped_but_stored_as_typed(self, state):
         await save_defect(state, DefectData())
-        message = make_message("<A&B>")
 
-        await receive_part_number(message, state)
+        await PartNumberScene(wizard=AsyncMock()).receive(make_message("<A&B>"), state)
+        form = await load_defect(state)
+        text, _ = await DefectTypeScene.screen(form, {})
 
-        assert "&lt;A&amp;B&gt;" in message.answer.await_args.args[0]
-        assert (await load_defect(state)).part_number == "<A&B>"
+        assert form.part_number == "<A&B>"
+        assert "&lt;A&amp;B&gt;" in text
 
     async def test_the_unit_is_escaped_but_stored_as_typed(self, state):
         from apps.bot.handlers.defect.measurement import receive_unit

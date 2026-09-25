@@ -46,7 +46,4 @@ class WagonScene(DefectScene, state=DefectSG.wagon_num.state):
         defect.wagon_number = wagon.number
         await save_defect(state, defect)
 
-        if await self.back_to_summary_if_editing(state):
-            return
-
-        await self.wizard.goto(DefectSG.department)
+        await self.go_on(state, DefectSG.department)
