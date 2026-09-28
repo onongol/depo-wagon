@@ -108,4 +108,4 @@ class PhotoScene(DefectScene, state=DefectSG.photo.state):
         count = len(defect.photos)
 
         await callback.answer(build_photos_attached_toast(count) if count else None)
-        await after_photos(self.wizard, callback.message.edit_text, defect, state)
+        await after_photos(self.wizard, defect, state)

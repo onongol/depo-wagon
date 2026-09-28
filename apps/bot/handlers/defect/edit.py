@@ -1,10 +1,7 @@
 from typing import TYPE_CHECKING
 
-from apps.bot.callback_data import CB_DESC_SKIP
 from apps.bot.constants import EDIT_RESPONSIBLE, UD_EDITING
 from apps.bot.fsm import load_defect
-from apps.bot.keyboards.common import skip_keyboard
-from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.defects.constants import DefectType
 
@@ -24,16 +21,7 @@ _EDIT_SCENES = {
     "defect_type": DefectSG.defect_type,
     EDIT_RESPONSIBLE: DefectSG.responsible_employee,
     "severity": DefectSG.severity,
-}
-
-# field -> (prompt, keyboard built from the defect under edit, state to enter).
-# Keyboards are built per call: their callback payloads are per-message.
-_EDIT_STEPS = {
-    "description": (
-        M.EDIT_DESCRIPTION,
-        lambda _: skip_keyboard(CB_DESC_SKIP),
-        DefectSG.desc,
-    ),
+    "description": DefectSG.desc,
 }
 
 
@@ -43,7 +31,7 @@ async def start_edit(
     state: FSMContext,
     scenes: ScenesManager,
 ) -> None:
-    """Render the chosen field's input and route to its state in edit mode."""
+    """Enter the chosen field's scene in edit mode."""
     await callback.answer()
 
     defect = await load_defect(state)
@@ -53,22 +41,10 @@ async def start_edit(
     if callback_data.field == EDIT_RESPONSIBLE and not human_factor:
         return
 
-    if scene := _EDIT_SCENES.get(callback_data.field):
-        await state.update_data({UD_EDITING: True})
-        await scenes.enter(scene)
-        return
-
-    step = _EDIT_STEPS.get(callback_data.field)
-    if step is None:
+    scene = _EDIT_SCENES.get(callback_data.field)
+    if scene is None:
         await state.set_state(DefectSG.confirm)
         return
 
     await state.update_data({UD_EDITING: True})
-
-    prompt, keyboard, target = step
-    await callback.message.edit_text(
-        str(prompt),
-        parse_mode=M.PARSE_MODE,
-        reply_markup=keyboard(defect) if keyboard else None,
-    )
-    await state.set_state(target)
+    await scenes.enter(scene)

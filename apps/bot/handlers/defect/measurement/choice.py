@@ -3,13 +3,7 @@ from typing import TYPE_CHECKING, Any
 from aiogram import F
 from aiogram.fsm.scene import on
 
-from apps.bot.callback_data import (
-    CB_DESC_SKIP,
-    CB_MEAS_BACK,
-    CB_MEAS_DONE,
-    CB_MEAS_SKIP,
-    DimensionCB,
-)
+from apps.bot.callback_data import CB_MEAS_BACK, CB_MEAS_DONE, CB_MEAS_SKIP, DimensionCB
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.defect.scene import STEP_TEXT, DefectScene
 from apps.bot.handlers.defect.text import (
@@ -17,12 +11,10 @@ from apps.bot.handlers.defect.text import (
     build_measurements_text,
     build_value_invalid_text,
 )
-from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.keyboards.measurement import (
     measurement_keyboard,
     measurement_value_keyboard,
 )
-from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.bot.user_data import MeasurementEntry
 from apps.defects.constants import DIMENSION_UNITS, MeasurementDimension
@@ -106,10 +98,6 @@ class MeasurementChoiceScene(DefectScene, state=DefectSG.measurement_choice.stat
         await self.show_as_message(message, state)
 
     @on.callback_query(F.data.in_({CB_MEAS_SKIP, CB_MEAS_DONE}))
-    async def done(self, callback: CallbackQuery, state: FSMContext) -> None:
+    async def done(self, callback: CallbackQuery) -> None:
         await callback.answer()
-
-        await callback.message.edit_text(
-            str(M.ASK_DESCRIPTION), reply_markup=skip_keyboard(CB_DESC_SKIP)
-        )
-        await state.set_state(DefectSG.desc)
+        await self.wizard.goto(DefectSG.desc)

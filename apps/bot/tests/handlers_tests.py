@@ -37,7 +37,7 @@ from apps.bot.handlers.common.help import help_command
 from apps.bot.handlers.common.text import build_cancelled_text, build_help_text
 from apps.bot.handlers.defect.defect_type import DefectTypeScene
 from apps.bot.handlers.defect.department import DepartmentScene
-from apps.bot.handlers.defect.description import receive_description
+from apps.bot.handlers.defect.description import DescriptionScene
 from apps.bot.handlers.defect.edit import start_edit
 from apps.bot.handlers.defect.measurement import MeasurementChoiceScene
 from apps.bot.handlers.defect.node import NodeScene
@@ -653,17 +653,7 @@ class TestSearchResponsibleEmployee:
 
 
 class TestEditFromSummary:
-    async def test_routes_to_the_field_and_flags_edit_mode(self, state):
-        await save_defect(state, DefectData())
-
-        await start_edit(
-            make_callback(), EditCB(field="description"), state, AsyncMock()
-        )
-
-        assert (await state.get_data())[UD_EDITING] is True
-        assert await state.get_state() == DefectSG.desc.state
-
-    async def test_a_field_that_is_a_scene_is_entered_as_one(self, state):
+    async def test_the_field_is_entered_as_a_scene(self, state):
         """The scene draws the edit prompt; see the flow tests."""
         await save_defect(state, DefectData(department="bogie"))
         scenes = AsyncMock()
@@ -698,17 +688,6 @@ class TestEditFromSummary:
         await save_defect(state, DefectData())
 
         await start_edit(make_callback(), EditCB(field="nope"), state, AsyncMock())
-
-        assert await state.get_state() == DefectSG.confirm.state
-        assert UD_EDITING not in await state.get_data()
-
-    async def test_the_edited_field_returns_to_the_summary(self, state):
-        await save_defect(state, DefectData())
-        await start_edit(
-            make_callback(), EditCB(field="description"), state, AsyncMock()
-        )
-
-        await receive_description(make_message("Cracked weld"), state)
 
         assert await state.get_state() == DefectSG.confirm.state
         assert UD_EDITING not in await state.get_data()
@@ -758,31 +737,22 @@ class TestAfterPhotos:
 
         defect = DefectData(defect_type=DefectType.HUMAN_FACTOR)
         await save_defect(state, defect)
-        send = AsyncMock()
         wizard = AsyncMock()
 
-        await after_photos(wizard, send, defect, state)
+        await after_photos(wizard, defect, state)
 
-        assert await state.get_state() == DefectSG.desc.state
-        send.assert_awaited_once_with(
-            str(M.ASK_DESCRIPTION),
-            parse_mode=M.PARSE_MODE,
-            reply_markup=skip_keyboard(CB_DESC_SKIP),
-        )
-        wizard.goto.assert_not_awaited()
+        wizard.goto.assert_awaited_once_with(DefectSG.desc)
 
     async def test_other_defect_types_go_to_the_measurement_scene(self, state):
         from apps.bot.handlers.defect.photo.routing import after_photos
 
         defect = DefectData(defect_type=DefectType.WEAR)
         await save_defect(state, defect)
-        send = AsyncMock()
         wizard = AsyncMock()
 
-        await after_photos(wizard, send, defect, state)
+        await after_photos(wizard, defect, state)
 
         wizard.goto.assert_awaited_once_with(DefectSG.measurement_choice)
-        send.assert_not_awaited()
 
 
 THICKNESS = MeasurementEntry(
@@ -892,17 +862,68 @@ class TestMeasurementChoiceScene:
         reply_markup = message.answer.await_args.kwargs["reply_markup"]
         assert reply_markup == measurement_keyboard(any_saved=False)
 
-    async def test_done_moves_on_to_the_description(self, state):
+    async def test_done_moves_on_to_the_description_scene(self):
+        scene = MeasurementChoiceScene(wizard=AsyncMock())
+
+        await scene.done(make_callback())
+
+        scene.wizard.goto.assert_awaited_once_with(DefectSG.desc)
+
+
+class TestDescriptionScene:
+    async def test_the_screen_asks_for_it_with_skip(self):
+        text, keyboard = await DescriptionScene.screen(DefectData(), {})
+
+        assert text == str(M.ASK_DESCRIPTION)
+        assert keyboard == skip_keyboard(CB_DESC_SKIP)
+
+    async def test_an_edit_asks_for_it_again(self):
+        text, keyboard = await DescriptionScene.screen(DefectData(), {UD_EDITING: True})
+
+        assert text == str(M.EDIT_DESCRIPTION)
+        assert keyboard == skip_keyboard(CB_DESC_SKIP)
+
+    async def test_a_typed_one_is_saved_and_the_summary_sent(self, state):
         await save_defect(state, DefectData())
+        message = make_message("  Cracked weld  ")
 
-        await MeasurementChoiceScene(wizard=AsyncMock()).done(make_callback(), state)
+        await DescriptionScene(wizard=AsyncMock()).receive(message, state)
 
+        assert (await load_defect(state)).description == "Cracked weld"
+        assert await state.get_state() == DefectSG.confirm.state
+        message.answer.assert_awaited_once()
+
+    async def test_a_longer_one_is_asked_for_again(self, state):
+        await save_defect(state, DefectData())
+        await state.set_state(DefectSG.desc)
+        message = make_message("x" * 1001)
+
+        await DescriptionScene(wizard=AsyncMock()).receive(message, state)
+
+        assert (await load_defect(state)).description == ""
         assert await state.get_state() == DefectSG.desc.state
+        assert "1001/1000" in message.answer.await_args.args[0]
 
-    async def test_done_does_not_need_a_form_in_state(self, state):
-        await MeasurementChoiceScene(wizard=AsyncMock()).done(make_callback(), state)
+    async def test_skip_clears_it_and_shows_the_summary_in_place(self, state):
+        await save_defect(state, DefectData(description="Old"))
+        callback = make_callback()
 
-        assert await state.get_state() == DefectSG.desc.state
+        await DescriptionScene(wizard=AsyncMock()).skip(callback, state)
+
+        assert (await load_defect(state)).description == ""
+        assert await state.get_state() == DefectSG.confirm.state
+        callback.message.edit_text.assert_awaited_once()
+
+    async def test_an_edit_returns_to_the_summary(self, state):
+        await save_defect(state, DefectData())
+        await state.update_data({UD_EDITING: True})
+
+        await DescriptionScene(wizard=AsyncMock()).receive(
+            make_message("Cracked weld"), state
+        )
+
+        assert await state.get_state() == DefectSG.confirm.state
+        assert UD_EDITING not in await state.get_data()
 
 
 class TestUserTextIsEscaped:

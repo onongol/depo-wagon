@@ -5,9 +5,7 @@ A step that is a Scene draws its own; the table shrinks as steps move.
 
 from typing import TYPE_CHECKING
 
-from apps.bot.callback_data import CB_DESC_SKIP
 from apps.bot.fsm import load_defect
-from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.keyboards.confirm import employee_verdict_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
@@ -24,10 +22,6 @@ if TYPE_CHECKING:
 
 # As each step first showed it; confirm renders async
 _SCREENS = {
-    DefectSG.desc.state: lambda _: (
-        str(M.ASK_DESCRIPTION),
-        skip_keyboard(CB_DESC_SKIP),
-    ),
     DefectSG.employee_verdict.state: lambda _: (
         str(M.ASK_EMPLOYEE_VERDICT),
         employee_verdict_keyboard(),

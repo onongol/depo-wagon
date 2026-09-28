@@ -326,7 +326,7 @@ class TestNewDefectDuringARunningForm:
         await dp.feed_update(bot, make_callback_update(CB_DEFECT_CONTINUE))
 
         (edit,) = session.calls("editMessageText")
-        assert edit.text == str(M.ASK_DESCRIPTION)
+        assert edit.text == str(M.EDIT_DESCRIPTION)
         assert edit.reply_markup == skip_keyboard(CB_DESC_SKIP)
         assert await state.get_state() == DefectSG.desc.state
         assert (await load_defect(state)).wagon_number == self.WAGON

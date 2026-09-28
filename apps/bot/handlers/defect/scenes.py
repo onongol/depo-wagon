@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from .defect_type import DefectTypeScene
 from .department import DepartmentScene
+from .description import DescriptionScene
 from .measurement import MeasurementChoiceScene
 from .node import NodeScene
 from .part_number import PartNumberScene
@@ -25,6 +26,7 @@ DEFECT_SCENES: tuple[type[DefectScene], ...] = (
     SeverityScene,
     PhotoScene,
     MeasurementChoiceScene,
+    DescriptionScene,
 )
 
 _BY_STATE = {scene.__scene_config__.state: scene for scene in DEFECT_SCENES}

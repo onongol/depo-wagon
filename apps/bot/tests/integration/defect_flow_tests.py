@@ -15,6 +15,7 @@ from aiogram.types import ReplyKeyboardRemove
 
 from apps.bot.callback_data import (
     CB_CANCEL,
+    CB_DESC_SKIP,
     CB_MEAS_BACK,
     CB_MEAS_DONE,
     CB_PART_NUMBER_SKIP,
@@ -639,6 +640,35 @@ class TestTheMeasurementCard:
         expected = build_ask_value_text("Thickness", "mm")
         assert (sent.text, sent.entities) == expected.render()
         assert sent.reply_markup == measurement_value_keyboard()
+
+
+class TestTheDescriptionStep:
+    async def test_done_on_the_card_leads_to_it_in_place(self, dp, bot, session, state):
+        await save_defect(state, DefectData(wagon_id=1))
+        await state.set_state(DefectSG.measurement_choice)
+
+        await dp.feed_update(bot, make_callback_update(CB_MEAS_DONE))
+
+        (edit,) = session.calls("editMessageText")
+        assert edit.text == str(M.ASK_DESCRIPTION)
+        assert edit.reply_markup == skip_keyboard(CB_DESC_SKIP)
+        assert await state.get_state() == DefectSG.desc.state
+
+    async def test_an_edit_asks_again_and_goes_back(self, dp, bot, session, state):
+        await save_defect(state, DefectData(wagon_id=1, description="Old"))
+        await state.set_state(DefectSG.confirm)
+
+        tap = EditCB(field="description").pack()
+        await dp.feed_update(bot, make_callback_update(tap))
+        (edit,) = session.calls("editMessageText")
+        assert edit.text == str(M.EDIT_DESCRIPTION)
+        assert await state.get_state() == DefectSG.desc.state
+
+        await dp.feed_update(bot, make_message_update("Cracked weld"))
+
+        assert await state.get_state() == DefectSG.confirm.state
+        assert (await load_defect(state)).description == "Cracked weld"
+        assert UD_EDITING not in await state.get_data()
 
 
 class TestEditingTheWagon:

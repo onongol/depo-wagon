@@ -16,28 +16,23 @@ from apps.bot.callback_data import (
     CB_CANCEL,
     CB_DEFECT_CONTINUE,
     CB_DEFECT_RESTART,
-    CB_DESC_SKIP,
     ConfirmCB,
     EditCB,
     VerdictCB,
 )
 from apps.bot.constants import BTN_NEW_DEFECT
-from apps.bot.filters import NotACommand
 from apps.bot.keyboards.menu import MENU_TEXTS
 from apps.bot.middlewares import DefectFormMiddleware
 from apps.bot.states import DefectSG
 
 from .cancel import cancel_defect_button, stale_callback
 from .confirm import confirm_defect
-from .description import receive_description, skip_description
 from .edit import start_edit
 from .restart import continue_defect, menu_button_mid_flow, restart_defect
 from .scene import ask_about_the_open_form
 from .scenes import DEFECT_SCENES
 from .start import new_defect_start
 from .verdict import receive_employee_verdict
-
-_TEXT = (F.text, NotACommand())
 
 
 def get_defect_flow_router() -> Router:
@@ -72,9 +67,6 @@ def _plain_steps_router() -> Router:
     )
     cb(continue_defect, running, F.data == CB_DEFECT_CONTINUE)
     cb(restart_defect, running, F.data == CB_DEFECT_RESTART)
-
-    msg(receive_description, StateFilter(DefectSG.desc), *_TEXT)
-    cb(skip_description, StateFilter(DefectSG.desc), F.data == CB_DESC_SKIP)
 
     cb(start_edit, StateFilter(DefectSG.confirm), EditCB.filter())
     # Split so that cancelling never loads the employee
