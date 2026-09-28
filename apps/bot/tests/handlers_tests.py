@@ -50,9 +50,12 @@ from apps.bot.handlers.defect.responsible_employee.list import EMPLOYEE_PAGE_SIZ
 from apps.bot.handlers.defect.severity import SeverityScene
 from apps.bot.handlers.defect.start import new_defect_start
 from apps.bot.handlers.defect.text import (
+    build_ask_description_text,
     build_ask_responsible_employee_text,
     build_ask_value_text,
     build_defect_type_confirmed_text,
+    build_description_too_long_text,
+    build_edit_description_text,
     build_measurements_text,
     build_part_number_confirmed_text,
     build_part_number_skipped_text,
@@ -874,13 +877,13 @@ class TestDescriptionScene:
     async def test_the_screen_asks_for_it_with_skip(self):
         text, keyboard = await DescriptionScene.screen(DefectData(), {})
 
-        assert text == str(M.ASK_DESCRIPTION)
+        assert text.render() == build_ask_description_text().render()
         assert keyboard == skip_keyboard(CB_DESC_SKIP)
 
     async def test_an_edit_asks_for_it_again(self):
         text, keyboard = await DescriptionScene.screen(DefectData(), {UD_EDITING: True})
 
-        assert text == str(M.EDIT_DESCRIPTION)
+        assert text.render() == build_edit_description_text().render()
         assert keyboard == skip_keyboard(CB_DESC_SKIP)
 
     async def test_a_typed_one_is_saved_and_the_summary_sent(self, state):
@@ -902,7 +905,9 @@ class TestDescriptionScene:
 
         assert (await load_defect(state)).description == ""
         assert await state.get_state() == DefectSG.desc.state
-        assert "1001/1000" in message.answer.await_args.args[0]
+        message.answer.assert_awaited_once_with(
+            **build_description_too_long_text(1001, 1000).as_kwargs()
+        )
 
     async def test_skip_clears_it_and_shows_the_summary_in_place(self, state):
         await save_defect(state, DefectData(description="Old"))

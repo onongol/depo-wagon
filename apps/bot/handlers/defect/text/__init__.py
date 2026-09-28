@@ -7,6 +7,11 @@ from .text_defect_type import (
     build_responsible_employee_skipped_text,
 )
 from .text_department import build_department_confirmed_text
+from .text_description import (
+    build_ask_description_text,
+    build_description_too_long_text,
+    build_edit_description_text,
+)
 from .text_measurement import (
     build_ask_value_text,
     build_measurements_text,
@@ -38,13 +43,16 @@ from .text_wagon import (
 
 __all__ = [
     "build_album_receiving_text",
+    "build_ask_description_text",
     "build_ask_responsible_employee_text",
     "build_ask_value_text",
     "build_defect_continued_text",
     "build_defect_in_progress_text",
     "build_defect_type_confirmed_text",
     "build_department_confirmed_text",
+    "build_description_too_long_text",
     "build_edit_defect_type_text",
+    "build_edit_description_text",
     "build_edit_node_text",
     "build_edit_part_number_text",
     "build_edit_wagon_text",

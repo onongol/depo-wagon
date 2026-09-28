@@ -7,15 +7,6 @@ class DefectMessages:
     # ── Edit from summary ────────────────────────────────────────────────────
 
     EDIT_SEVERITY = _("✏️ Select severity:")
-    EDIT_DESCRIPTION = _("✏️ Enter the description (or skip):")
-
-    # ── Description ──────────────────────────────────────────────────────────
-
-    ASK_DESCRIPTION = _("📝 Enter a description of the defect (or skip):")
-
-    DESCRIPTION_TOO_LONG = _(
-        "❌ Description is too long ({length}/{max} characters).\n\nPlease shorten it:"
-    )
 
     # ── Confirm + AI ─────────────────────────────────────────────────────────
 

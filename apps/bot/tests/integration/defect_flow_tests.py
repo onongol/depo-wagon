@@ -39,11 +39,13 @@ from apps.bot.handlers.common.text import build_help_text
 from apps.bot.handlers.defect.responsible_employee.list import EMPLOYEE_PAGE_SIZE
 from apps.bot.handlers.defect.text import (
     build_album_receiving_text,
+    build_ask_description_text,
     build_ask_responsible_employee_text,
     build_ask_value_text,
     build_defect_type_confirmed_text,
     build_department_confirmed_text,
     build_edit_defect_type_text,
+    build_edit_description_text,
     build_edit_node_text,
     build_edit_wagon_text,
     build_measurements_text,
@@ -650,7 +652,7 @@ class TestTheDescriptionStep:
         await dp.feed_update(bot, make_callback_update(CB_MEAS_DONE))
 
         (edit,) = session.calls("editMessageText")
-        assert edit.text == str(M.ASK_DESCRIPTION)
+        assert (edit.text, edit.entities) == build_ask_description_text().render()
         assert edit.reply_markup == skip_keyboard(CB_DESC_SKIP)
         assert await state.get_state() == DefectSG.desc.state
 
@@ -661,7 +663,7 @@ class TestTheDescriptionStep:
         tap = EditCB(field="description").pack()
         await dp.feed_update(bot, make_callback_update(tap))
         (edit,) = session.calls("editMessageText")
-        assert edit.text == str(M.EDIT_DESCRIPTION)
+        assert (edit.text, edit.entities) == build_edit_description_text().render()
         assert await state.get_state() == DefectSG.desc.state
 
         await dp.feed_update(bot, make_message_update("Cracked weld"))

@@ -50,6 +50,7 @@ from apps.bot.handlers.defect.resume import show_current_step
 from apps.bot.handlers.defect.text import (
     build_defect_continued_text,
     build_defect_in_progress_text,
+    build_edit_description_text,
     build_new_defect_text,
     build_photo_received_text,
     build_wagon_confirmed_text,
@@ -326,7 +327,7 @@ class TestNewDefectDuringARunningForm:
         await dp.feed_update(bot, make_callback_update(CB_DEFECT_CONTINUE))
 
         (edit,) = session.calls("editMessageText")
-        assert edit.text == str(M.EDIT_DESCRIPTION)
+        assert (edit.text, edit.entities) == build_edit_description_text().render()
         assert edit.reply_markup == skip_keyboard(CB_DESC_SKIP)
         assert await state.get_state() == DefectSG.desc.state
         assert (await load_defect(state)).wagon_number == self.WAGON
