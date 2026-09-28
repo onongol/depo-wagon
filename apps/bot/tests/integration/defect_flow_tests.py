@@ -848,6 +848,34 @@ class TestHumanFactorBranch:
         assert UD_EDITING not in await state.get_data()
         assert (await load_defect(state)).responsible_employee_label == "U1 L"
 
+    @pytest.mark.usefixtures("flow", "roster")
+    async def test_edit_type_to_a_human_factor_again_keeps_the_employee(
+        self, dp, bot, session, state
+    ):
+        await save_defect(
+            state,
+            DefectData(
+                wagon_id=3,
+                wagon_number=WAGON_NUMBER,
+                department=Department.BOGIE.value,
+                defect_type=DefectType.HUMAN_FACTOR,
+                defect_type_label="Human Factor",
+                responsible_employee_id=1,
+                responsible_employee_label="U1 L",
+            ),
+        )
+        await state.set_state(DefectSG.confirm)
+
+        await dp.feed_update(
+            bot, make_callback_update(EditCB(field="defect_type").pack())
+        )
+        await dp.feed_update(bot, make_callback_update(HUMAN_FACTOR))
+
+        assert await state.get_state() == DefectSG.confirm.state
+        assert UD_EDITING not in await state.get_data()
+        assert (await load_defect(state)).responsible_employee_id == 1
+        assert "U1 L" in session.calls("editMessageText")[-1].text
+
 
 class TestAFailedEmployeeLookup:
     @pytest.fixture(autouse=True)

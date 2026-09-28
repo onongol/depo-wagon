@@ -350,6 +350,30 @@ class TestReceiveDefectType:
         scene.wizard.goto.assert_awaited_once_with(DefectSG.responsible_employee)
         assert (await state.get_data())[UD_EDITING] is True
 
+    async def test_a_human_factor_again_keeps_the_employee_it_has(self, state):
+        """Its list would offer only Skip or another pick: either loses this one."""
+        await save_defect(
+            state,
+            DefectData(
+                defect_type=DefectType.HUMAN_FACTOR,
+                responsible_employee_id=5,
+                responsible_employee_label="X Y",
+            ),
+        )
+        await state.update_data({UD_EDITING: True})
+        callback = make_callback()
+        scene = DefectTypeScene(
+            wizard=AsyncMock(event=callback, update_type="callback_query")
+        )
+
+        await scene.receive(
+            callback, DefectTypeCB(value=DefectType.HUMAN_FACTOR), state
+        )
+
+        scene.wizard.goto.assert_not_awaited()
+        assert await state.get_state() == DefectSG.confirm.state
+        assert (await load_defect(state)).responsible_employee_id == 5
+
     async def test_another_type_drops_the_employee(self, state):
         """Edit ▸ Type away from a human factor must not save its employee."""
         await save_defect(
