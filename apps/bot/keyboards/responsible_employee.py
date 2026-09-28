@@ -5,11 +5,17 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from apps.bot.callback_data import (
     CB_NOOP,
+    CB_RESP_EMP_ALL,
     CB_RESP_EMP_SKIP,
     ResponsibleEmployeeCB,
     ResponsibleEmployeePageCB,
 )
-from apps.bot.constants import BTN_PAGE_NEXT, BTN_PAGE_PREV, BTN_SKIP
+from apps.bot.constants import (
+    BTN_ALL_EMPLOYEES,
+    BTN_PAGE_NEXT,
+    BTN_PAGE_PREV,
+    BTN_SKIP,
+)
 
 if TYPE_CHECKING:
     from aiogram.types import InlineKeyboardMarkup
@@ -49,6 +55,8 @@ def responsible_employee_keyboard(
     page_employees: list,
     page: int,
     total_pages: int,
+    *,
+    searching: bool = False,
 ) -> InlineKeyboardMarkup:
     """Build the inline keyboard for responsible employee selection with pagination."""
     builder = InlineKeyboardBuilder()
@@ -62,6 +70,12 @@ def responsible_employee_keyboard(
     if total_pages > 1:
         builder.attach(_pagination_row(page, total_pages))
 
+    if searching:
+        builder.row(
+            InlineKeyboardButton(
+                text=str(BTN_ALL_EMPLOYEES), callback_data=CB_RESP_EMP_ALL
+            )
+        )
     builder.row(
         InlineKeyboardButton(text=str(BTN_SKIP), callback_data=CB_RESP_EMP_SKIP)
     )

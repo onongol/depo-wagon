@@ -36,6 +36,9 @@ SEVERITY_LABELS = {value: str(label) for label, value in SEVERITY_CHOICES}
 BTN_PAGE_PREV = "◀️"
 BTN_PAGE_NEXT = "▶️"
 
+# Drops the picker's search
+BTN_ALL_EMPLOYEES = _("🔄 All employees")
+
 # Offered when New Defect is pressed while a form is already open
 BTN_CONTINUE = _("▶️ Continue")
 BTN_START_OVER = _("🔄 Start over")

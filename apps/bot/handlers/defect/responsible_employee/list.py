@@ -30,4 +30,7 @@ async def employee_list_screen(
     else:
         text = build_ask_responsible_employee_text(page + 1, total_pages, total)
 
-    return text, responsible_employee_keyboard(employees, page, total_pages)
+    keyboard = responsible_employee_keyboard(
+        employees, page, total_pages, searching=bool(search)
+    )
+    return text, keyboard

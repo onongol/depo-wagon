@@ -634,6 +634,16 @@ class TestSearchResponsibleEmployee:
 
         scene.wizard.retake.assert_awaited_once()
 
+    async def test_all_employees_drops_the_query_and_draws_the_step_again(self, state):
+        await save_defect(state, DefectData(department="bogie"))
+        await state.update_data({UD_RESP_SEARCH: "Bt"})
+        scene = ResponsibleEmployeeScene(wizard=AsyncMock())
+
+        await scene.show_all(make_callback(), state)
+
+        assert UD_RESP_SEARCH not in await state.get_data()
+        scene.wizard.retake.assert_awaited_once()
+
 
 class TestEditFromSummary:
     async def test_routes_to_the_field_and_flags_edit_mode(self, state):

@@ -5,6 +5,7 @@ from aiogram.fsm.scene import on
 
 from apps.bot import services
 from apps.bot.callback_data import (
+    CB_RESP_EMP_ALL,
     CB_RESP_EMP_SKIP,
     ResponsibleEmployeeCB,
     ResponsibleEmployeePageCB,
@@ -96,4 +97,11 @@ class ResponsibleEmployeeScene(DefectScene, state=DefectSG.responsible_employee.
     async def search(self, message: Message, state: FSMContext) -> None:
         """A typed name narrows the list, drawn anew from its first page."""
         await state.update_data({UD_RESP_SEARCH: message.text.strip()})
+        await self.wizard.retake()
+
+    @on.callback_query(F.data == CB_RESP_EMP_ALL)
+    async def show_all(self, callback: CallbackQuery, state: FSMContext) -> None:
+        """Drops the search: the whole department again, from its first page."""
+        await callback.answer()
+        await _clear_search(state)
         await self.wizard.retake()

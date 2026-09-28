@@ -19,6 +19,7 @@ from apps.bot.callback_data import (
     CB_MEAS_DONE,
     CB_PART_NUMBER_SKIP,
     CB_PHOTO_SKIP,
+    CB_RESP_EMP_ALL,
     CB_RESP_EMP_SKIP,
     ConfirmCB,
     DefectTypeCB,
@@ -37,6 +38,7 @@ from apps.bot.handlers.common.text import build_help_text
 from apps.bot.handlers.defect.responsible_employee.list import EMPLOYEE_PAGE_SIZE
 from apps.bot.handlers.defect.text import (
     build_album_receiving_text,
+    build_ask_responsible_employee_text,
     build_defect_type_confirmed_text,
     build_department_confirmed_text,
     build_edit_defect_type_text,
@@ -816,6 +818,24 @@ class TestHumanFactorBranch:
         )
         (sent,) = session.calls("sendMessage")
         assert "U1" in sent.text
+        assert await state.get_state() == DefectSG.responsible_employee.state
+
+    @pytest.mark.usefixtures("flow")
+    async def test_all_employees_undoes_a_search_that_found_nobody(
+        self, dp, bot, session, state, roster
+    ):
+        await self._up_to_the_type(dp, bot)
+        await dp.feed_update(bot, make_message_update("Bt"))
+        session.clear()
+
+        await dp.feed_update(bot, make_callback_update(CB_RESP_EMP_ALL))
+
+        roster.assert_awaited_with(
+            Department.BOGIE, "", limit=EMPLOYEE_PAGE_SIZE, offset=0
+        )
+        (edit,) = session.calls("editMessageText")
+        expected = build_ask_responsible_employee_text(1, 1, len(self.ROSTER))
+        assert (edit.text, edit.entities) == expected.render()
         assert await state.get_state() == DefectSG.responsible_employee.state
 
     @pytest.mark.usefixtures("flow", "roster")

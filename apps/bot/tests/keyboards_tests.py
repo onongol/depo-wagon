@@ -15,6 +15,7 @@ from apps.bot.callback_data import (
     TasksPageCB,
 )
 from apps.bot.constants import (
+    BTN_ALL_EMPLOYEES,
     BTN_ASK,
     BTN_BACK,
     BTN_CANCEL,
@@ -214,6 +215,19 @@ class TestResponsibleEmployeeKeyboard:
     def test_skip_button_always_present(self):
         kb = responsible_employee_keyboard([], page=0, total_pages=1)
         assert str(BTN_SKIP) in [btn.text for btn in _kb_buttons(kb)]
+
+    def test_a_search_can_be_dropped_above_skip(self):
+        kb = responsible_employee_keyboard([], page=0, total_pages=1, searching=True)
+
+        assert [[btn.text for btn in row] for row in kb.inline_keyboard[-2:]] == [
+            [str(BTN_ALL_EMPLOYEES)],
+            [str(BTN_SKIP)],
+        ]
+
+    def test_the_whole_list_has_nothing_to_drop(self):
+        kb = responsible_employee_keyboard([], page=0, total_pages=1)
+
+        assert str(BTN_ALL_EMPLOYEES) not in [btn.text for btn in _kb_buttons(kb)]
 
     def test_employee_buttons_use_correct_callback(self):
         kb = responsible_employee_keyboard([_make_employee(42)], page=0, total_pages=1)

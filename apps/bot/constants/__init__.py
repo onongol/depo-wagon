@@ -21,6 +21,7 @@ from .common import (
     UD_RESP_SEARCH,
 )
 from .defect import (
+    BTN_ALL_EMPLOYEES,
     BTN_CONTINUE,
     BTN_PAGE_NEXT,
     BTN_PAGE_PREV,
@@ -47,6 +48,7 @@ from .tasks import (
 
 __all__ = [
     "BTN_ADD",
+    "BTN_ALL_EMPLOYEES",
     "BTN_ASK",
     "BTN_BACK",
     "BTN_CANCEL",
