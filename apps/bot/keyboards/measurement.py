@@ -11,8 +11,6 @@ from apps.bot.callback_data import (
     DimensionCB,
 )
 from apps.bot.constants import BTN_BACK, BTN_CLEAR, BTN_DONE, BTN_SKIP
-from apps.bot.keyboards.common import cancel_row
-from apps.bot.keyboards.utils import build_grid_keyboard
 from apps.defects.constants import MeasurementDimension
 
 if TYPE_CHECKING:
@@ -26,27 +24,24 @@ def measurement_keyboard(
 
     Clear is for an Edit, which reopens the saved ones.
     """
-    footer = []
+    builder = InlineKeyboardBuilder()
+    for value, label in MeasurementDimension.choices:
+        builder.button(text=str(label), callback_data=DimensionCB(value=value))
+    builder.adjust(2)
+
     if clearable:
-        footer.append(
+        builder.row(
             InlineKeyboardButton(text=str(BTN_CLEAR), callback_data=CB_MEAS_CLEAR)
         )
     if any_saved:
-        footer.append(
+        builder.row(
             InlineKeyboardButton(text=str(BTN_DONE), callback_data=CB_MEAS_DONE)
         )
     else:
-        footer.append(
+        builder.row(
             InlineKeyboardButton(text=str(BTN_SKIP), callback_data=CB_MEAS_SKIP)
         )
-    return build_grid_keyboard(
-        [
-            (label, DimensionCB(value=value))
-            for value, label in MeasurementDimension.choices
-        ],
-        columns=2,
-        footer=[*footer, *cancel_row()],
-    )
+    return builder.as_markup()
 
 
 def measurement_value_keyboard() -> InlineKeyboardMarkup:

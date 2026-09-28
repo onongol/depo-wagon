@@ -4,6 +4,9 @@ from unittest.mock import MagicMock
 from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
 
 from apps.bot.callback_data import (
+    CB_DESC_SKIP,
+    CB_MEAS_CLEAR,
+    CB_MEAS_DONE,
     CB_STEP_BACK,
     DefectCardCB,
     DepartmentCB,
@@ -38,12 +41,12 @@ from apps.bot.constants import (
     TASKS_PAGE_SIZE,
 )
 from apps.bot.keyboards.common import (
-    clear_or_done_keyboard,
     skip_keyboard,
     with_back_button,
 )
 from apps.bot.keyboards.confirm import confirm_keyboard
 from apps.bot.keyboards.defect import department_keyboard, node_keyboard_for_department
+from apps.bot.keyboards.measurement import measurement_keyboard
 from apps.bot.keyboards.menu import MENU_TEXTS, main_menu_keyboard
 from apps.bot.keyboards.responsible_employee import responsible_employee_keyboard
 from apps.bot.keyboards.tasks import (
@@ -248,15 +251,23 @@ class TestWithBackButton:
     def _rows(self, markup):
         return [[b.callback_data for b in row] for row in markup.inline_keyboard]
 
-    def test_it_joins_a_lone_bottom_button(self):
-        rows = self._rows(with_back_button(skip_keyboard("skip")))
+    def test_it_goes_first_above_skip(self):
+        rows = self._rows(with_back_button(skip_keyboard(CB_DESC_SKIP)))
 
-        assert rows == [[CB_STEP_BACK, "skip"]]
+        assert rows == [[CB_STEP_BACK], [CB_DESC_SKIP]]
 
-    def test_it_gets_its_own_row_under_a_fuller_one(self):
-        rows = self._rows(with_back_button(clear_or_done_keyboard("clear", "done")))
+    def test_it_goes_under_the_choices_and_above_clear_and_done(self):
+        card = measurement_keyboard(any_saved=True, clearable=True)
 
-        assert rows == [["clear", "done"], [CB_STEP_BACK]]
+        rows = self._rows(with_back_button(card))
+
+        assert rows[-3:] == [[CB_STEP_BACK], [CB_MEAS_CLEAR], [CB_MEAS_DONE]]
+        assert all(len(row) == 2 for row in rows[:-3])
+
+    def test_under_choices_alone_it_goes_last(self):
+        rows = self._rows(with_back_button(department_keyboard()))
+
+        assert rows[-1] == [CB_STEP_BACK]
 
     def test_a_screen_without_buttons_gets_just_back(self):
         assert self._rows(with_back_button(None)) == [[CB_STEP_BACK]]

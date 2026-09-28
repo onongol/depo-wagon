@@ -13,7 +13,6 @@ from aiogram import F, Router
 from aiogram.filters import Command, StateFilter
 
 from apps.bot.callback_data import (
-    CB_CANCEL,
     CB_DEFECT_CONTINUE,
     CB_DEFECT_RESTART,
     VerdictCB,
@@ -23,7 +22,7 @@ from apps.bot.keyboards.menu import MENU_TEXTS
 from apps.bot.middlewares import DefectFormMiddleware
 from apps.bot.states import DefectSG
 
-from .cancel import cancel_defect_button, stale_callback
+from .cancel import stale_callback
 from .restart import continue_defect, menu_button_mid_flow, restart_defect
 from .scene import ask_about_the_open_form
 from .scenes import DEFECT_SCENES
@@ -70,8 +69,7 @@ def _plain_steps_router() -> Router:
         VerdictCB.filter(),
     )
 
-    # Fallbacks: the Cancel button, then any other tap. /cancel is the global router's.
-    cb(cancel_defect_button, StateFilter(DefectSG), F.data == CB_CANCEL)
+    # Any other tap; /cancel and the Cancel button are the global router's
     cb(stale_callback, StateFilter(DefectSG))
 
     return router

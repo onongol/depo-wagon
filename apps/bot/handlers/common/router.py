@@ -2,7 +2,7 @@ from aiogram import F, Router
 from aiogram.filters import Command, StateFilter
 
 from apps.bot.callback_data import CB_NOOP
-from apps.bot.constants import BTN_HELP
+from apps.bot.constants import BTN_CANCEL, BTN_HELP
 from apps.bot.states import ALL_GROUPS
 
 from .cancel import cancel
@@ -11,9 +11,10 @@ from .stale import noop_button, stale_button, unhandled_message
 
 
 def get_cancel_router() -> Router:
-    """/cancel, ahead of every flow so it wins by order, not by each flow's filters."""
+    """/cancel and Cancel, ahead of every flow: they win by order, not by filters."""
     router = Router(name="cancel")
     router.message.register(cancel, Command("cancel"))
+    router.message.register(cancel, F.text == str(BTN_CANCEL))
     return router
 
 

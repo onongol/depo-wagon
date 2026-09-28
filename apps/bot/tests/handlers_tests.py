@@ -579,7 +579,7 @@ class TestResponsibleEmployeeScene:
         callback.bot.edit_message_text.assert_awaited_once()
         scene.wizard.goto.assert_not_awaited()
 
-    async def test_a_turned_page_keeps_back(self, state, picker):
+    async def test_a_turned_page_keeps_back_above_skip(self, state, picker):
         await self._seed(state)
         callback = make_callback()
 
@@ -588,8 +588,10 @@ class TestResponsibleEmployeeScene:
         )
 
         keyboard = callback.bot.edit_message_text.await_args.kwargs["reply_markup"]
-        bottom = [b.callback_data for b in keyboard.inline_keyboard[-1]]
-        assert bottom == [CB_STEP_BACK, CB_RESP_EMP_SKIP]
+        bottom = [
+            [b.callback_data for b in row] for row in keyboard.inline_keyboard[-2:]
+        ]
+        assert bottom == [[CB_STEP_BACK], [CB_RESP_EMP_SKIP]]
 
     async def test_select_records_the_employee(self, state, picker):
         picker.one.return_value = _make_employee(7, "Bold", "Bat")

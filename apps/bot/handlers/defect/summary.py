@@ -7,7 +7,10 @@ from apps.bot.callback_data import ConfirmCB, EditCB
 from apps.bot.constants import EDIT_MEASUREMENTS, EDIT_RESPONSIBLE, UD_EDITING
 from apps.bot.fsm import drop_keys, load_defect
 from apps.bot.keyboards.confirm import confirm_keyboard
+from apps.bot.keyboards.menu import main_menu_keyboard
+from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
+from apps.bot.utils.screens import answer_anew
 from apps.defects.constants import DefectType
 
 from .confirm import confirm_defect
@@ -79,7 +82,11 @@ class SummaryScene(DefectScene, state=DefectSG.confirm.state):
     # Split from save so that cancelling never loads the employee
     @on.callback_query(ConfirmCB.filter(~F.confirmed))
     async def decline(self, callback: CallbackQuery) -> None:
-        await self.cancel(callback)
+        await callback.answer()
+        await self.wizard.exit()
+        await answer_anew(
+            callback, text=str(M.DEFECT_CANCELLED), reply_markup=main_menu_keyboard()
+        )
 
     @on.callback_query(ConfirmCB.filter(F.confirmed))
     async def save(

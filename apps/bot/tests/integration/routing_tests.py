@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from aiogram import Router
 from aiogram.fsm.storage.memory import SimpleEventIsolation
-from aiogram.types import Chat, Message, ReplyKeyboardRemove, Update, User
+from aiogram.types import Chat, Message, Update, User
 from django.db import OperationalError
 from django.test import override_settings
 
@@ -60,7 +60,7 @@ from apps.bot.handlers.start.text import build_link_cancelled_text
 from apps.bot.handlers.support.utils import remember_request
 from apps.bot.keyboards.common import done_keyboard, skip_keyboard, with_back_button
 from apps.bot.keyboards.defect import defect_in_progress_keyboard, department_keyboard
-from apps.bot.keyboards.menu import MENU_TEXTS, main_menu_keyboard
+from apps.bot.keyboards.menu import MENU_TEXTS, form_keyboard, main_menu_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.middlewares import AI_CHAT_TIMEOUT
 from apps.bot.states import AiChatSG, DefectSG, SupportSG
@@ -220,14 +220,14 @@ class TestPrecedenceDuringTheDefectFlow:
 
     @pytest.mark.usefixtures("stored_form")
     async def test_at_the_wagon_step_it_asks_for_the_number_again(self, dp, bot, state):
-        """A Scene: retake() draws the screen entering it drew, menu still hidden."""
+        """A Scene: retake() draws the screen entering it drew, Cancel in the menu's place."""
         await state.set_state(DefectSG.wagon_num)
 
         await dp.feed_update(bot, make_message_update(str(BTN_OPEN_DEFECTS)))
 
         (sent,) = bot.session.calls("sendMessage")
         assert sent.text == build_new_defect_text().render()[0]
-        assert sent.reply_markup == ReplyKeyboardRemove()
+        assert sent.reply_markup == form_keyboard()
 
     async def test_a_deep_link_mid_flow_still_reaches_the_link_handler(
         self, dp, bot, state, employee

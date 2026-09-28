@@ -11,7 +11,6 @@ from apps.bot.callback_data import (
     SeverityCB,
 )
 from apps.bot.constants import BTN_CONTINUE, BTN_START_OVER, SEVERITY_CHOICES
-from apps.bot.keyboards.common import cancel_row
 from apps.bot.keyboards.utils import build_grid_keyboard
 from apps.core.constants import Department
 from apps.defects.constants import DEPARTMENT_NODES, DefectNode, DefectType
@@ -31,7 +30,6 @@ def department_keyboard() -> InlineKeyboardMarkup:
     return build_grid_keyboard(
         [(label, DepartmentCB(value=value)) for value, label in Department.choices],
         columns=2,
-        footer=cancel_row(),
     )
 
 
@@ -40,7 +38,6 @@ def node_keyboard_for_department(department: str) -> InlineKeyboardMarkup:
     return build_grid_keyboard(
         [(node.label, NodeCB(value=node.value)) for node in nodes],
         columns=2,
-        footer=cancel_row(),
     )
 
 
@@ -48,7 +45,6 @@ def defect_type_keyboard() -> InlineKeyboardMarkup:
     return build_grid_keyboard(
         [(label, DefectTypeCB(value=value)) for value, label in DefectType.choices],
         columns=3,
-        footer=cancel_row(),
     )
 
 
@@ -56,5 +52,4 @@ def severity_keyboard() -> InlineKeyboardMarkup:
     return build_grid_keyboard(
         [(label, SeverityCB(value=value)) for label, value in SEVERITY_CHOICES],
         columns=1,
-        footer=cancel_row(),
     )

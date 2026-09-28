@@ -11,10 +11,8 @@ from contextlib import ExitStack
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from aiogram.types import ReplyKeyboardRemove
 
 from apps.bot.callback_data import (
-    CB_CANCEL,
     CB_DESC_SKIP,
     CB_MEAS_BACK,
     CB_MEAS_CLEAR,
@@ -35,10 +33,15 @@ from apps.bot.callback_data import (
     SeverityCB,
     VerdictCB,
 )
-from apps.bot.constants import EDIT_MEASUREMENTS, EDIT_RESPONSIBLE, UD_EDITING
+from apps.bot.constants import (
+    BTN_CANCEL,
+    EDIT_MEASUREMENTS,
+    EDIT_RESPONSIBLE,
+    UD_EDITING,
+)
 from apps.bot.errors import build_session_error_text
 from apps.bot.fsm import load_defect, save_defect
-from apps.bot.handlers.common.text import build_help_text
+from apps.bot.handlers.common.text import build_cancelled_text, build_help_text
 from apps.bot.handlers.defect.responsible_employee.list import EMPLOYEE_PAGE_SIZE
 from apps.bot.handlers.defect.text import (
     build_album_receiving_text,
@@ -74,7 +77,7 @@ from apps.bot.keyboards.measurement import (
     measurement_keyboard,
     measurement_value_keyboard,
 )
-from apps.bot.keyboards.menu import main_menu_keyboard
+from apps.bot.keyboards.menu import form_keyboard, main_menu_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.bot.tests.integration.conftest import (
@@ -324,32 +327,40 @@ class TestConfirmingTwice:
 
 
 class TestTheMenuWhileAFormIsOpen:
-    """Hidden on the way in, since no step takes it for an answer; back on the way out."""
+    """Swapped for the form's Cancel on the way in; back on the way out."""
 
-    async def test_the_way_in_hides_it(self, dp, bot, session, flow):
+    async def test_the_way_in_puts_cancel_in_its_place(self, dp, bot, session, flow):
         await dp.feed_update(bot, make_message_update("/new_defect", command=True))
 
         (sent,) = session.calls("sendMessage")
-        assert sent.reply_markup == ReplyKeyboardRemove()
+        assert sent.reply_markup == form_keyboard()
 
     @pytest.mark.parametrize(
-        "step", [DefectSG.department, DefectSG.wagon_num], ids=["plain", "scene"]
+        "step",
+        [
+            DefectSG.wagon_num,
+            DefectSG.part_number,
+            DefectSG.photo,
+            DefectSG.desc,
+            DefectSG.confirm,
+            DefectSG.employee_verdict,
+        ],
+        ids=lambda s: s.state,
     )
     async def test_the_cancel_button_brings_it_back(
         self, dp, bot, session, state, step
     ):
-        """The scene leaves through exit(), whose action drops the form."""
+        """It is /cancel by another name, so it ends the form at any step."""
         await save_defect(state, DefectData(wagon_id=3))
         await state.set_state(step)
 
-        await dp.feed_update(bot, make_callback_update(CB_CANCEL))
+        await dp.feed_update(bot, make_message_update(str(BTN_CANCEL)))
 
         (sent,) = session.calls("sendMessage")
         assert (sent.text, sent.reply_markup) == (
-            str(M.DEFECT_CANCELLED),
+            build_cancelled_text().render()[0],
             main_menu_keyboard(),
         )
-        assert session.calls("editMessageReplyMarkup")
         assert await state.get_state() is None
         assert await load_defect(state) is None
 
