@@ -179,9 +179,6 @@ class TestTheWholeFlow:
         assert await state.get_state() == DefectSG.measurement_value.state
 
         await text("12,5")
-        assert await state.get_state() == DefectSG.measurement_norm.state
-
-        await text("14")
         assert await state.get_state() == DefectSG.measurement_unit.state
 
         await text("mm")
@@ -205,7 +202,6 @@ class TestTheWholeFlow:
         assert defect.description == "Cracked weld near the flange"
         assert len(defect.measurements) == 1
         assert defect.measurements[0].value == 12.5
-        assert defect.measurements[0].norm_value == 14.0
         assert defect.measurements[0].unit == "mm"
 
         await tap(ConfirmCB(confirmed=True).pack())

@@ -12,7 +12,6 @@ def create_measurements_bulk(defect_id, measurements: list) -> None:
                 defect_id=defect_id,
                 dimension=measurement.dimension,
                 value=measurement.value,
-                norm_value=measurement.norm_value,
                 unit=measurement.unit,
             )
             for measurement in measurements

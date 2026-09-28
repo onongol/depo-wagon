@@ -19,10 +19,6 @@ class DefectMessages:
 
     VALUE_INVALID = _("❌ Please enter a number <i>(e.g. 12.5)</i>:")
 
-    ASK_NORM = _("📋 Enter the norm value (or skip):")
-
-    NORM_INVALID = _("❌ Please enter a number <i>(e.g. 10.0)</i> (or skip):")
-
     ASK_UNIT = _("📌 Enter the measurement unit <i>(e.g. mm, cm, °)</i> (or skip):")
 
     UNIT_TOO_LONG = _(

@@ -22,7 +22,6 @@ class DefectSG(StatesGroup):
     measurement_choice = State()
     measurement_dimension = State()
     measurement_value = State()
-    measurement_norm = State()
     measurement_unit = State()
     desc = State()
     confirm = State()

@@ -29,7 +29,6 @@ class TestMeasurementEntry:
             dimension="thickness",
             dimension_label="Thickness",
             value=12.5,
-            norm_value=14.0,
             unit="mm",
         )
 
@@ -41,14 +40,15 @@ class TestMeasurementEntry:
         assert isinstance(restored.value, float)
 
     def test_keeps_none_apart_from_zero(self):
-        entry = MeasurementEntry(value=0.0, norm_value=None)
-
-        restored = MeasurementEntry.model_validate(
-            _json_round_trip(entry.model_dump(mode="json"))
+        zero, unset = (
+            MeasurementEntry.model_validate(
+                _json_round_trip(entry.model_dump(mode="json"))
+            )
+            for entry in (MeasurementEntry(value=0.0), MeasurementEntry())
         )
 
-        assert restored.value == 0.0
-        assert restored.norm_value is None
+        assert zero.value == 0.0
+        assert unset.value is None
 
 
 class TestDefectData:
@@ -72,7 +72,7 @@ class TestDefectData:
             severity_label="Critical",
             description="Cracked weld",
             measurements=[
-                MeasurementEntry(dimension="thickness", value=12.5, norm_value=14.0),
+                MeasurementEntry(dimension="thickness", value=12.5),
                 MeasurementEntry(dimension="length", value=3.0, unit="mm"),
             ],
             photos=[

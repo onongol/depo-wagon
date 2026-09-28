@@ -5,11 +5,7 @@ A step that is a Scene draws its own; the table shrinks as steps move.
 
 from typing import TYPE_CHECKING
 
-from apps.bot.callback_data import (
-    CB_DESC_SKIP,
-    CB_NORM_SKIP,
-    CB_UNIT_SKIP,
-)
+from apps.bot.callback_data import CB_DESC_SKIP, CB_UNIT_SKIP
 from apps.bot.fsm import load_defect
 from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.keyboards.confirm import employee_verdict_keyboard
@@ -47,10 +43,6 @@ _SCREENS = {
     DefectSG.measurement_value.state: lambda d: (
         str(M.DIMENSION_CONFIRMED).format(label=d.current_measurement.dimension_label),
         None,
-    ),
-    DefectSG.measurement_norm.state: lambda _: (
-        str(M.ASK_NORM),
-        skip_keyboard(CB_NORM_SKIP),
     ),
     DefectSG.measurement_unit.state: lambda _: (
         str(M.ASK_UNIT),

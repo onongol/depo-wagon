@@ -45,7 +45,6 @@ class MeasurementEntry(BaseModel):
     dimension: str = ""
     dimension_label: str = ""
     value: float | None = None
-    norm_value: float | None = None
     unit: str = ""
 
 

@@ -90,15 +90,6 @@ def build_summary(defect: DefectData) -> str:
             if measurement.unit:
                 entry += f" {html.escape(measurement.unit)}"
 
-            if measurement.norm_value is not None:
-                norm_str = str(
-                    format_lazy(
-                        _("<i>(norm: {norm})</i>"),
-                        norm=html.escape(str(measurement.norm_value)),
-                    )
-                )
-                entry += " " + norm_str
-
             lines.append(entry)
 
     if defect.photos:
