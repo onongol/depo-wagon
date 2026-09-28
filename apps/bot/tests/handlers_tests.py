@@ -13,6 +13,8 @@ from apps.bot.callback_data import (
     CB_DESC_SKIP,
     CB_PHOTO_CLEAR,
     CB_PHOTO_SKIP,
+    CB_RESP_EMP_SKIP,
+    CB_STEP_BACK,
     DefectTypeCB,
     DepartmentCB,
     DimensionCB,
@@ -576,6 +578,18 @@ class TestResponsibleEmployeeScene:
 
         callback.bot.edit_message_text.assert_awaited_once()
         scene.wizard.goto.assert_not_awaited()
+
+    async def test_a_turned_page_keeps_back(self, state, picker):
+        await self._seed(state)
+        callback = make_callback()
+
+        await ResponsibleEmployeeScene(wizard=AsyncMock()).turn_page(
+            callback, ResponsibleEmployeePageCB(page=1), state
+        )
+
+        keyboard = callback.bot.edit_message_text.await_args.kwargs["reply_markup"]
+        bottom = [b.callback_data for b in keyboard.inline_keyboard[-1]]
+        assert bottom == [CB_STEP_BACK, CB_RESP_EMP_SKIP]
 
     async def test_select_records_the_employee(self, state, picker):
         picker.one.return_value = _make_employee(7, "Bold", "Bat")

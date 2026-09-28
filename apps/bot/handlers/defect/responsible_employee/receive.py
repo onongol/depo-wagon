@@ -87,8 +87,8 @@ class ResponsibleEmployeeScene(DefectScene, state=DefectSG.responsible_employee.
     ) -> None:
         await callback.answer()
 
-        content, keyboard = await self.screen(
-            await load_defect(state), await state.get_data(), callback_data.page
+        content, keyboard = await self.draw(
+            await load_defect(state), await state.get_data(), page=callback_data.page
         )
         await edit_or_send(callback, **as_send_kwargs(content), reply_markup=keyboard)
 

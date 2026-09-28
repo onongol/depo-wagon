@@ -80,9 +80,11 @@ class DefectScene(Scene):
         return cls.previous(form)
 
     @classmethod
-    async def draw(cls, form: DefectData, data: dict[str, Any]) -> Screen:
+    async def draw(
+        cls, form: DefectData, data: dict[str, Any], **screen_args: Any
+    ) -> Screen:
         """The screen with Back added wherever Back leads somewhere."""
-        content, keyboard = await cls.screen(form, data)
+        content, keyboard = await cls.screen(form, data, **screen_args)
         if cls.back_to(form, data):
             keyboard = with_back_button(keyboard)
         return content, keyboard
