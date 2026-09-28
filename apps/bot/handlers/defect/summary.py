@@ -5,6 +5,7 @@ from django.utils.text import format_lazy
 from django.utils.translation import gettext_lazy as _
 
 from apps.bot.constants import UD_EDITING
+from apps.bot.fsm import drop_keys
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 
@@ -27,9 +28,7 @@ async def show_summary(
     """
     from apps.bot.keyboards.confirm import confirm_keyboard
 
-    data = await state.get_data()
-    data.pop(UD_EDITING, None)
-    await state.set_data(data)
+    await drop_keys(state, UD_EDITING)
 
     await send(
         build_summary(defect),

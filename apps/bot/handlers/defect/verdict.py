@@ -5,7 +5,7 @@ from aiogram.exceptions import TelegramAPIError
 
 from apps.bot import services
 from apps.bot.constants import UD_DEFECT, VERDICT_LABELS
-from apps.bot.fsm import load_defect
+from apps.bot.fsm import drop_keys, load_defect
 from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.utils.screens import answer_anew
@@ -70,7 +70,5 @@ async def receive_employee_verdict(
         reply_markup=main_menu_keyboard(),
     )
 
-    data = await state.get_data()
-    data.pop(UD_DEFECT, None)
-    await state.set_data(data)
+    await drop_keys(state, UD_DEFECT)
     await state.set_state(None)

@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 
 from apps.bot.callback_data import CB_DESC_SKIP
 from apps.bot.constants import UD_LAST_MEDIA_GROUP, UD_LAST_PHOTO_MSG
+from apps.bot.fsm import drop_keys
 from apps.bot.handlers.defect.text import build_ask_measurement_text
 from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.keyboards.measurement import measurement_choice_keyboard
@@ -21,10 +22,7 @@ async def after_photos(
     send: Callable[..., Awaitable], defect: DefectData, state: FSMContext
 ) -> None:
     """A human factor has no measurements: straight on to the description."""
-    data = await state.get_data()
-    data.pop(UD_LAST_PHOTO_MSG, None)
-    data.pop(UD_LAST_MEDIA_GROUP, None)
-    await state.set_data(data)
+    await drop_keys(state, UD_LAST_PHOTO_MSG, UD_LAST_MEDIA_GROUP)
 
     if defect.defect_type == DefectType.HUMAN_FACTOR:
         await send(

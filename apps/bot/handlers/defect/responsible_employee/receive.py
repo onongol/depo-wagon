@@ -11,7 +11,7 @@ from apps.bot.callback_data import (
     ResponsibleEmployeePageCB,
 )
 from apps.bot.constants import UD_RESP_SEARCH
-from apps.bot.fsm import load_defect, save_defect
+from apps.bot.fsm import drop_keys, load_defect, save_defect
 from apps.bot.handlers.defect.scene import STEP_TEXT, DefectScene, as_send_kwargs
 from apps.bot.states import DefectSG
 from apps.bot.utils.screens import edit_or_send
@@ -24,12 +24,6 @@ if TYPE_CHECKING:
 
     from apps.bot.handlers.defect.scene import Screen
     from apps.bot.user_data import DefectData
-
-
-async def _clear_search(state: FSMContext) -> None:
-    data = await state.get_data()
-    data.pop(UD_RESP_SEARCH, None)
-    await state.set_data(data)
 
 
 class ResponsibleEmployeeScene(DefectScene, state=DefectSG.responsible_employee.state):
@@ -61,7 +55,7 @@ class ResponsibleEmployeeScene(DefectScene, state=DefectSG.responsible_employee.
         defect.responsible_employee_id = employee.id
         defect.responsible_employee_label = label
         await save_defect(state, defect)
-        await _clear_search(state)
+        await drop_keys(state, UD_RESP_SEARCH)
 
         await self.go_on(state, DefectSG.severity)
 
@@ -73,7 +67,7 @@ class ResponsibleEmployeeScene(DefectScene, state=DefectSG.responsible_employee.
         defect.responsible_employee_id = None
         defect.responsible_employee_label = None
         await save_defect(state, defect)
-        await _clear_search(state)
+        await drop_keys(state, UD_RESP_SEARCH)
 
         await self.go_on(state, DefectSG.severity)
 
@@ -103,5 +97,5 @@ class ResponsibleEmployeeScene(DefectScene, state=DefectSG.responsible_employee.
     async def show_all(self, callback: CallbackQuery, state: FSMContext) -> None:
         """Drops the search: the whole department again, from its first page."""
         await callback.answer()
-        await _clear_search(state)
+        await drop_keys(state, UD_RESP_SEARCH)
         await self.wizard.retake()
