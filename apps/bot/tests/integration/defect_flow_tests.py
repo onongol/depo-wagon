@@ -37,7 +37,6 @@ from apps.bot.errors import build_session_error_text
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.common.text import build_help_text
 from apps.bot.handlers.defect.responsible_employee.list import EMPLOYEE_PAGE_SIZE
-from apps.bot.handlers.defect.summary import build_summary
 from apps.bot.handlers.defect.text import (
     build_album_receiving_text,
     build_ask_description_text,
@@ -57,6 +56,7 @@ from apps.bot.handlers.defect.text import (
     build_part_number_skipped_text,
     build_photos_attached_toast,
     build_responsible_employee_confirmed_text,
+    build_summary_text,
     build_wagon_confirmed_text,
 )
 from apps.bot.keyboards.common import skip_keyboard
@@ -586,7 +586,8 @@ class TestTheSeverityStep:
         await dp.feed_update(bot, make_callback_update(SeverityCB(value="high").pack()))
 
         (edit,) = session.calls("editMessageText")
-        assert edit.text == build_summary(await load_defect(state))
+        expected = build_summary_text(await load_defect(state))
+        assert (edit.text, edit.entities) == expected.render()
         assert await state.get_state() == DefectSG.confirm.state
 
     async def test_an_edit_asks_again_and_goes_back(self, dp, bot, session, state):

@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 _EXAMPLE = _("(e.g. 12.5)")
 
 
-def _measurement_line(measurement: MeasurementEntry) -> Text:
+def build_measurement_line(measurement: MeasurementEntry) -> Text:
     line = Text(measurement.dimension_label, ": ", Bold(measurement.value))
     if measurement.unit:
         line = Text(line, " ", measurement.unit)
@@ -23,7 +23,7 @@ def build_measurements_text(measurements: list[MeasurementEntry]) -> Text:
     return as_list(
         as_marked_section(
             Text("📐 ", Bold(_("Measurements"), ":")),
-            *(_measurement_line(m) for m in measurements),
+            *(build_measurement_line(m) for m in measurements),
             marker="🔹 ",
         ),
         _("Choose a dimension to add another, or press Done:"),

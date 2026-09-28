@@ -66,6 +66,7 @@ from apps.bot.handlers.defect.text import (
     build_responsible_employee_confirmed_text,
     build_responsible_employee_search_text,
     build_responsible_employee_skipped_text,
+    build_summary_text,
     build_value_invalid_text,
     build_wagon_not_found_text,
 )
@@ -950,6 +951,23 @@ class TestDescriptionScene:
         scene.wizard.goto.assert_not_awaited()
 
 
+class TestSummaryText:
+    def test_a_blank_form_marks_the_required_fields_and_hides_the_rest(self):
+        rendered = build_summary_text(DefectData()).render()[0]
+
+        assert "Wagon: ?" in rendered
+        assert "Severity: ?" in rendered
+        assert "Part number" not in rendered
+        assert "Measurements" not in rendered
+
+    def test_measurements_are_listed_under_their_count(self):
+        gap = MeasurementEntry(dimension_label="Gap", value=3.0, unit="mm")
+
+        rendered = build_summary_text(DefectData(measurements=[gap])).render()[0]
+
+        assert "📐 Measurements: 1\n🔹 Gap: 3.0 mm" in rendered
+
+
 class TestUserTextIsEscaped:
     """Replies go out as HTML: text the bot did not write must not parse as tags."""
 
@@ -960,6 +978,15 @@ class TestUserTextIsEscaped:
         text, _ = await ResponsibleEmployeeScene.screen(form, {UD_RESP_SEARCH: "<b"})
 
         assert "<b>&lt;b</b>" in html_decoration.unparse(*text.render())
+
+    def test_what_the_summary_repeats(self):
+        """Entities, not HTML: the part number and description go out as typed."""
+        form = DefectData(part_number="<PN&1>", description="<b>weld</b>")
+
+        html = html_decoration.unparse(*build_summary_text(form).render())
+
+        assert "<b>&lt;PN&amp;1&gt;</b>" in html
+        assert "Description: &lt;b&gt;weld&lt;/b&gt;" in html
 
     async def test_the_responsible_employee_is_shown_as_stored(self, state, picker):
         """An entity, not HTML: the name goes out verbatim."""

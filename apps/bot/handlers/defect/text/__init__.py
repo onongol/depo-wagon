@@ -36,6 +36,7 @@ from .text_responsible_employee import (
 )
 from .text_restart import build_defect_continued_text, build_defect_in_progress_text
 from .text_start import build_new_defect_text
+from .text_summary import build_summary_text
 from .text_wagon import (
     build_edit_wagon_text,
     build_wagon_confirmed_text,
@@ -71,6 +72,7 @@ __all__ = [
     "build_responsible_employee_confirmed_text",
     "build_responsible_employee_search_text",
     "build_responsible_employee_skipped_text",
+    "build_summary_text",
     "build_value_invalid_text",
     "build_wagon_confirmed_text",
     "build_wagon_not_found_text",
