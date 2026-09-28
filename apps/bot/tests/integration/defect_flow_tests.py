@@ -179,9 +179,6 @@ class TestTheWholeFlow:
         assert await state.get_state() == DefectSG.measurement_value.state
 
         await text("12,5")
-        assert await state.get_state() == DefectSG.measurement_unit.state
-
-        await text("mm")
         assert await state.get_state() == DefectSG.measurement_choice.state
 
         await tap(CB_MEAS_DONE)

@@ -20,7 +20,6 @@ from apps.bot.callback_data import (
     CB_MEAS_ADD,
     CB_MEAS_DONE,
     CB_MEAS_SKIP,
-    CB_UNIT_SKIP,
     ConfirmCB,
     DimensionCB,
     EditCB,
@@ -41,8 +40,6 @@ from .measurement import (
     measurement_done,
     receive_dimension,
     receive_measurement_value,
-    receive_unit,
-    skip_unit,
 )
 from .restart import continue_defect, menu_button_mid_flow, restart_defect
 from .scene import ask_about_the_open_form
@@ -96,10 +93,6 @@ def _plain_steps_router() -> Router:
         DimensionCB.filter(),
     )
     msg(receive_measurement_value, StateFilter(DefectSG.measurement_value), *_TEXT)
-
-    unit = StateFilter(DefectSG.measurement_unit)
-    msg(receive_unit, unit, *_TEXT)
-    cb(skip_unit, unit, F.data == CB_UNIT_SKIP)
 
     msg(receive_description, StateFilter(DefectSG.desc), *_TEXT)
     cb(skip_description, StateFilter(DefectSG.desc), F.data == CB_DESC_SKIP)

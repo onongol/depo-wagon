@@ -809,48 +809,52 @@ class TestMeasurementChoice:
         assert await state.get_state() == DefectSG.desc.state
 
 
-class TestMeasurementUnit:
-    async def _receive(self, state, text):
-        from apps.bot.handlers.defect.measurement import receive_unit
+class TestMeasurementValue:
+    async def _receive(self, state, text, dimension="thickness"):
+        from apps.bot.handlers.defect.measurement import receive_measurement_value
         from apps.bot.user_data import MeasurementEntry
 
         await save_defect(
             state,
-            DefectData(
-                current_measurement=MeasurementEntry(dimension_label="Width", value=1.0)
-            ),
+            DefectData(current_measurement=MeasurementEntry(dimension=dimension)),
         )
-        await state.set_state(DefectSG.measurement_unit)
+        await state.set_state(DefectSG.measurement_value)
         message = make_message(text)
-        await receive_unit(message, state)
+        await receive_measurement_value(message, state)
         return message
 
-    async def test_a_unit_at_the_column_limit_is_saved(self, state):
-        from apps.bot.handlers.defect.measurement.unit import MAX_UNIT_LENGTH
+    async def test_the_unit_comes_from_the_dimension(self, state):
+        message = await self._receive(state, "12,5")
 
-        await self._receive(state, "x" * MAX_UNIT_LENGTH)
-
-        assert (await load_defect(state)).measurements[0].unit == "x" * MAX_UNIT_LENGTH
+        defect = await load_defect(state)
+        assert defect.measurements[0].value == 12.5
+        assert defect.measurements[0].unit == "mm"
+        assert defect.current_measurement is None
         assert await state.get_state() == DefectSG.measurement_choice.state
+        assert "12.5 mm" in message.answer.await_args.args[0]
 
-    async def test_a_longer_unit_is_asked_for_again(self, state):
-        from apps.bot.handlers.defect.measurement.unit import MAX_UNIT_LENGTH
+    async def test_other_has_no_unit(self, state):
+        await self._receive(state, "3", dimension="other")
 
-        message = await self._receive(state, "x" * (MAX_UNIT_LENGTH + 1))
+        assert (await load_defect(state)).measurements[0].unit == ""
+
+    async def test_a_non_number_is_asked_for_again(self, state):
+        await self._receive(state, "twelve")
 
         defect = await load_defect(state)
         assert defect.measurements == []
         assert defect.current_measurement is not None
-        assert await state.get_state() == DefectSG.measurement_unit.state
-        reply = message.answer.await_args.args[0]
-        assert f"{MAX_UNIT_LENGTH + 1}/{MAX_UNIT_LENGTH}" in reply
+        assert await state.get_state() == DefectSG.measurement_value.state
 
-    async def test_surrounding_whitespace_does_not_count(self, state):
-        from apps.bot.handlers.defect.measurement.unit import MAX_UNIT_LENGTH
+    def test_the_prompt_names_the_unit(self):
+        from apps.bot.handlers.defect.measurement.dimension import ask_value_text
+        from apps.bot.user_data import MeasurementEntry
 
-        await self._receive(state, f"  {'x' * MAX_UNIT_LENGTH}  ")
+        thickness = MeasurementEntry(dimension="thickness", dimension_label="Thickness")
+        other = MeasurementEntry(dimension="other", dimension_label="Other")
 
-        assert (await load_defect(state)).measurements[0].unit == "x" * MAX_UNIT_LENGTH
+        assert "<b>Thickness, mm</b>" in ask_value_text(thickness)
+        assert "<b>Other</b>" in ask_value_text(other)
 
 
 class TestUserTextIsEscaped:
@@ -863,23 +867,6 @@ class TestUserTextIsEscaped:
         text, _ = await ResponsibleEmployeeScene.screen(form, {UD_RESP_SEARCH: "<b"})
 
         assert "<b>&lt;b</b>" in html_decoration.unparse(*text.render())
-
-    async def test_the_unit_is_escaped_but_stored_as_typed(self, state):
-        from apps.bot.handlers.defect.measurement import receive_unit
-        from apps.bot.user_data import MeasurementEntry
-
-        await save_defect(
-            state,
-            DefectData(
-                current_measurement=MeasurementEntry(dimension_label="Width", value=1.0)
-            ),
-        )
-        message = make_message("<mm>")
-
-        await receive_unit(message, state)
-
-        assert "&lt;mm&gt;" in message.answer.await_args.args[0]
-        assert (await load_defect(state)).measurements[0].unit == "<mm>"
 
     async def test_the_responsible_employee_is_shown_as_stored(self, state, picker):
         """An entity, not HTML: the name goes out verbatim."""

@@ -28,7 +28,6 @@ class TestStateStringsArePinned:
             "DefectSG:measurement_choice",
             "DefectSG:measurement_dimension",
             "DefectSG:measurement_value",
-            "DefectSG:measurement_unit",
             "DefectSG:desc",
             "DefectSG:confirm",
             "DefectSG:saving",

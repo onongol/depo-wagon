@@ -1,10 +1,10 @@
 from typing import TYPE_CHECKING
 
-from apps.bot.callback_data import CB_UNIT_SKIP
 from apps.bot.fsm import load_defect, save_defect
-from apps.bot.keyboards.common import skip_keyboard
+from apps.bot.keyboards.measurement import measurement_next_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
+from apps.defects.constants import DIMENSION_UNITS
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
@@ -22,12 +22,21 @@ async def receive_measurement_value(message: Message, state: FSMContext) -> None
         return
 
     defect = await load_defect(state)
-    defect.current_measurement.value = value
+    current = defect.current_measurement
+    current.value = value
+    current.unit = DIMENSION_UNITS.get(current.dimension, "")
+    defect.measurements.append(current)
+    defect.current_measurement = None
     await save_defect(state, defect)
 
     await message.answer(
-        str(M.ASK_UNIT),
+        str(M.MEASUREMENT_SAVED).format(
+            count=len(defect.measurements),
+            label=current.dimension_label,
+            value=current.value,
+            unit=f" {current.unit}" if current.unit else "",
+        ),
         parse_mode=M.PARSE_MODE,
-        reply_markup=skip_keyboard(CB_UNIT_SKIP),
+        reply_markup=measurement_next_keyboard(),
     )
-    await state.set_state(DefectSG.measurement_unit)
+    await state.set_state(DefectSG.measurement_choice)

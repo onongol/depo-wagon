@@ -138,3 +138,15 @@ class MeasurementDimension(models.TextChoices):
     GAP = "gap", _("Gap")  # Зай
     ANGLE = "angle", _("Angle")  # Өнцөг
     OTHER = "other", _("Other")  # Бусад
+
+
+DIMENSION_UNITS = {
+    MeasurementDimension.LENGTH: "mm",
+    MeasurementDimension.WIDTH: "mm",
+    MeasurementDimension.DEPTH: "mm",
+    MeasurementDimension.DIAMETER: "mm",
+    MeasurementDimension.THICKNESS: "mm",
+    MeasurementDimension.GAP: "mm",
+    MeasurementDimension.ANGLE: "deg",
+    MeasurementDimension.OTHER: "",
+}
