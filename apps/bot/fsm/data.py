@@ -23,13 +23,12 @@ async def save_defect(state: FSMContext, defect: DefectData) -> None:
     await state.update_data({UD_DEFECT: defect.to_dict()})
 
 
-async def clear_defect_keys(state: FSMContext) -> None:
-    """Drop every key the defect flow owns, leaving the state and other data alone.
-
-    Not state.clear(): DefectFormMiddleware drops a stale form under any state
-    and must not end the AI chat or support session running there. aiogram has
-    no delete-one-key primitive, hence the read-modify-write.
-    """
+async def drop_keys(state: FSMContext, *keys: str) -> None:
+    """Read-modify-write: aiogram has no way to delete one key."""
     data = await state.get_data()
-    remaining = {k: v for k, v in data.items() if k not in DEFECT_USER_DATA_KEYS}
-    await state.set_data(remaining)
+    await state.set_data({k: v for k, v in data.items() if k not in keys})
+
+
+async def clear_defect_keys(state: FSMContext) -> None:
+    """Not state.clear(): the AI chat or support session may be running there."""
+    await drop_keys(state, *DEFECT_USER_DATA_KEYS)

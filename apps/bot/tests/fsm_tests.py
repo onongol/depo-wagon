@@ -20,7 +20,7 @@ from apps.bot.constants import (
     UD_EDITING,
     UD_RESP_SEARCH,
 )
-from apps.bot.fsm import clear_defect_keys, load_defect, save_defect
+from apps.bot.fsm import clear_defect_keys, drop_keys, load_defect, save_defect
 from apps.bot.fsm.storage import (
     FSM_LOCK_TIMEOUT,
     FSM_RETRIES,
@@ -93,6 +93,32 @@ class TestLoadAndSaveDefect:
         await save_defect(state, DefectData())
 
         assert (await state.get_data())[UD_AI_CHAT_HISTORY] == [{"q": "a"}]
+
+
+class TestDropKeys:
+    async def test_drops_only_the_keys_named(self, state):
+        await state.update_data(
+            {UD_RESP_SEARCH: "query", UD_EDITING: True, UD_AI_CHAT_HISTORY: []}
+        )
+
+        await drop_keys(state, UD_RESP_SEARCH, UD_EDITING)
+
+        assert await state.get_data() == {UD_AI_CHAT_HISTORY: []}
+
+    async def test_a_key_that_is_not_there_is_no_error(self, state):
+        await state.update_data({UD_EDITING: True})
+
+        await drop_keys(state, UD_RESP_SEARCH)
+
+        assert await state.get_data() == {UD_EDITING: True}
+
+    async def test_leaves_the_state_itself_untouched(self, state):
+        await state.set_state("DefectSG:responsible_employee")
+        await state.update_data({UD_RESP_SEARCH: "query"})
+
+        await drop_keys(state, UD_RESP_SEARCH)
+
+        assert await state.get_state() == "DefectSG:responsible_employee"
 
 
 class TestClearDefectKeys:
