@@ -1,13 +1,22 @@
 from typing import TYPE_CHECKING, Any
 
 from aiogram import BaseMiddleware
+from aiogram.fsm.scene import SceneHandlerWrapper
 
 from apps.bot import services
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
+    from aiogram.dispatcher.event.handler import HandlerObject
     from aiogram.types import TelegramObject
+
+
+def _takes_employee(handler: HandlerObject) -> bool:
+    """A scene's handler is wrapped, and the wrapper takes **kwargs."""
+    if isinstance(handler.callback, SceneHandlerWrapper):
+        return "employee" in handler.callback.handler.params
+    return "employee" in handler.params
 
 
 class EmployeeMiddleware(BaseMiddleware):
@@ -17,7 +26,7 @@ class EmployeeMiddleware(BaseMiddleware):
         event: TelegramObject,
         data: dict[str, Any],
     ) -> Any:
-        if "employee" not in data["handler"].params:
+        if not _takes_employee(data["handler"]):
             return await handler(event, data)
 
         user = data.get("event_from_user")

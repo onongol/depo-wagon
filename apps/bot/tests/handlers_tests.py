@@ -39,7 +39,6 @@ from apps.bot.handlers.common.text import build_cancelled_text, build_help_text
 from apps.bot.handlers.defect.defect_type import DefectTypeScene
 from apps.bot.handlers.defect.department import DepartmentScene
 from apps.bot.handlers.defect.description import DescriptionScene
-from apps.bot.handlers.defect.edit import start_edit
 from apps.bot.handlers.defect.measurement import MeasurementChoiceScene
 from apps.bot.handlers.defect.node import NodeScene
 from apps.bot.handlers.defect.part_number import (
@@ -51,6 +50,7 @@ from apps.bot.handlers.defect.responsible_employee import ResponsibleEmployeeSce
 from apps.bot.handlers.defect.responsible_employee.list import EMPLOYEE_PAGE_SIZE
 from apps.bot.handlers.defect.severity import SeverityScene
 from apps.bot.handlers.defect.start import new_defect_start
+from apps.bot.handlers.defect.summary import SummaryScene
 from apps.bot.handlers.defect.text import (
     build_ask_description_text,
     build_ask_responsible_employee_text,
@@ -72,6 +72,7 @@ from apps.bot.handlers.defect.text import (
 )
 from apps.bot.handlers.defect.wagon import WagonScene
 from apps.bot.keyboards.common import skip_keyboard
+from apps.bot.keyboards.confirm import confirm_keyboard
 from apps.bot.keyboards.defect import severity_keyboard
 from apps.bot.keyboards.measurement import (
     measurement_keyboard,
@@ -241,14 +242,11 @@ class TestReceiveNode:
     async def test_an_edit_goes_back_to_the_summary(self, state):
         await save_defect(state, DefectData(department="bogie"))
         await state.update_data({UD_EDITING: True})
-        callback = make_callback()
+        scene = NodeScene(wizard=AsyncMock())
 
-        wizard = AsyncMock(event=callback, update_type="callback_query")
-        await NodeScene(wizard=wizard).receive(callback, NodeCB(value="wheel"), state)
+        await scene.receive(make_callback(), NodeCB(value="wheel"), state)
 
-        assert await state.get_state() == DefectSG.confirm.state
-        assert UD_EDITING not in await state.get_data()
-        callback.message.edit_text.assert_awaited_once()
+        scene.wizard.goto.assert_awaited_once_with(DefectSG.confirm)
 
 
 class TestReceivePartNumber:
@@ -311,15 +309,11 @@ class TestReceivePartNumber:
         """After=After.goto(...) could not: its destination would be fixed."""
         await save_defect(state, DefectData(part_number="old"))
         await state.update_data({UD_EDITING: True})
-        callback = make_callback()
-        scene = PartNumberScene(
-            wizard=AsyncMock(event=callback, update_type="callback_query")
-        )
+        scene = PartNumberScene(wizard=AsyncMock())
 
-        await scene.skip(callback, state)
+        await scene.skip(make_callback(), state)
 
-        scene.wizard.goto.assert_not_awaited()
-        assert await state.get_state() == DefectSG.confirm.state
+        scene.wizard.goto.assert_awaited_once_with(DefectSG.confirm)
         assert (await load_defect(state)).part_number == ""
 
 
@@ -377,17 +371,13 @@ class TestReceiveDefectType:
             ),
         )
         await state.update_data({UD_EDITING: True})
-        callback = make_callback()
-        scene = DefectTypeScene(
-            wizard=AsyncMock(event=callback, update_type="callback_query")
-        )
+        scene = DefectTypeScene(wizard=AsyncMock())
 
         await scene.receive(
-            callback, DefectTypeCB(value=DefectType.HUMAN_FACTOR), state
+            make_callback(), DefectTypeCB(value=DefectType.HUMAN_FACTOR), state
         )
 
-        scene.wizard.goto.assert_not_awaited()
-        assert await state.get_state() == DefectSG.confirm.state
+        scene.wizard.goto.assert_awaited_once_with(DefectSG.confirm)
         assert (await load_defect(state)).responsible_employee_id == 5
 
     async def test_another_type_drops_the_employee(self, state):
@@ -473,30 +463,15 @@ class TestSeverityScene:
         assert text == str(M.EDIT_SEVERITY)
         assert keyboard == severity_keyboard()
 
-    async def test_saves_it_and_shows_the_summary_in_place(self, state):
+    async def test_saves_it_and_goes_on_to_the_summary(self, state):
+        """From an Edit as well: the summary is next either way."""
         await save_defect(state, DefectData())
-        callback = make_callback()
         scene = SeverityScene(wizard=AsyncMock())
 
-        await scene.receive(callback, SeverityCB(value="high"), state)
+        await scene.receive(make_callback(), SeverityCB(value="high"), state)
 
         assert (await load_defect(state)).severity == "high"
-        assert await state.get_state() == DefectSG.confirm.state
-        callback.message.edit_text.assert_awaited_once()
-        scene.wizard.goto.assert_not_awaited()
-
-    async def test_an_edit_goes_back_to_the_summary(self, state):
-        await save_defect(state, DefectData())
-        await state.update_data({UD_EDITING: True})
-        callback = make_callback()
-        wizard = AsyncMock(event=callback, update_type="callback_query")
-
-        await SeverityScene(wizard=wizard).receive(
-            callback, SeverityCB(value="high"), state
-        )
-
-        assert await state.get_state() == DefectSG.confirm.state
-        assert UD_EDITING not in await state.get_data()
+        scene.wizard.goto.assert_awaited_once_with(DefectSG.confirm)
 
 
 class TestResponsibleEmployeeScene:
@@ -612,15 +587,11 @@ class TestResponsibleEmployeeScene:
         picker.one.return_value = _make_employee(7, "Bold", "Bat")
         await self._seed(state)
         await state.update_data({UD_EDITING: True})
-        callback = make_callback()
-        scene = ResponsibleEmployeeScene(
-            wizard=AsyncMock(event=callback, update_type="callback_query")
-        )
+        scene = ResponsibleEmployeeScene(wizard=AsyncMock())
 
-        await scene.select(callback, ResponsibleEmployeeCB(employee_id=7), state)
+        await scene.select(make_callback(), ResponsibleEmployeeCB(employee_id=7), state)
 
-        scene.wizard.goto.assert_not_awaited()
-        assert await state.get_state() == DefectSG.confirm.state
+        scene.wizard.goto.assert_awaited_once_with(DefectSG.confirm)
         assert (await load_defect(state)).responsible_employee_id == 7
 
     async def test_select_redraws_the_list_when_the_employee_is_gone(
@@ -676,45 +647,71 @@ class TestSearchResponsibleEmployee:
         scene.wizard.retake.assert_awaited_once()
 
 
-class TestEditFromSummary:
-    async def test_the_field_is_entered_as_a_scene(self, state):
+class TestSummaryScene:
+    async def test_the_screen_is_the_summary_with_its_buttons(self):
+        form = DefectData(wagon_number="60123456", severity_label="High")
+
+        text, keyboard = await SummaryScene.screen(form, {})
+
+        assert text.render() == build_summary_text(form).render()
+        assert keyboard == confirm_keyboard(form)
+
+    async def test_entering_it_ends_an_edit(self, state):
+        await save_defect(state, DefectData())
+        await state.update_data({UD_EDITING: True})
+        callback = make_callback()
+
+        await SummaryScene(wizard=AsyncMock()).show_as_edit(callback, state)
+
+        assert UD_EDITING not in await state.get_data()
+        callback.bot.edit_message_text.assert_awaited_once()
+
+    async def test_edit_enters_the_fields_scene_in_edit_mode(self, state):
         """The scene draws the edit prompt; see the flow tests."""
         await save_defect(state, DefectData(department="bogie"))
-        scenes = AsyncMock()
+        scene = SummaryScene(wizard=AsyncMock())
 
-        await start_edit(make_callback(), EditCB(field="node"), state, scenes)
+        await scene.edit(make_callback(), EditCB(field="node"), state)
 
-        scenes.enter.assert_awaited_once_with(DefectSG.node)
+        scene.wizard.goto.assert_awaited_once_with(DefectSG.node)
         assert (await state.get_data())[UD_EDITING] is True
 
-    async def test_the_responsible_employee_opens_its_list(self, state):
+    async def test_edit_responsible_opens_its_list(self, state):
         await save_defect(state, DefectData(defect_type=DefectType.HUMAN_FACTOR))
-        scenes = AsyncMock()
+        scene = SummaryScene(wizard=AsyncMock())
 
-        await start_edit(make_callback(), EditCB(field=EDIT_RESPONSIBLE), state, scenes)
+        await scene.edit(make_callback(), EditCB(field=EDIT_RESPONSIBLE), state)
 
-        scenes.enter.assert_awaited_once_with(DefectSG.responsible_employee)
-        assert (await state.get_data())[UD_EDITING] is True
+        scene.wizard.goto.assert_awaited_once_with(DefectSG.responsible_employee)
 
     async def test_an_older_summary_cannot_give_another_type_an_employee(self, state):
         """Its Responsible button outlives a change of type to one without."""
         await save_defect(state, DefectData(defect_type=DefectType.WEAR))
-        await state.set_state(DefectSG.confirm)
-        scenes = AsyncMock()
+        scene = SummaryScene(wizard=AsyncMock())
 
-        await start_edit(make_callback(), EditCB(field=EDIT_RESPONSIBLE), state, scenes)
+        await scene.edit(make_callback(), EditCB(field=EDIT_RESPONSIBLE), state)
 
-        scenes.enter.assert_not_awaited()
-        assert await state.get_state() == DefectSG.confirm.state
+        scene.wizard.goto.assert_not_awaited()
         assert UD_EDITING not in await state.get_data()
 
-    async def test_an_unknown_field_returns_to_the_summary(self, state):
+    async def test_an_unknown_field_is_ignored(self, state):
         await save_defect(state, DefectData())
+        scene = SummaryScene(wizard=AsyncMock())
 
-        await start_edit(make_callback(), EditCB(field="nope"), state, AsyncMock())
+        await scene.edit(make_callback(), EditCB(field="nope"), state)
 
-        assert await state.get_state() == DefectSG.confirm.state
+        scene.wizard.goto.assert_not_awaited()
         assert UD_EDITING not in await state.get_data()
+
+    async def test_declining_cancels_the_form(self):
+        callback = make_callback()
+        callback.bot.edit_message_reply_markup = AsyncMock()
+        scene = SummaryScene(wizard=AsyncMock())
+
+        await scene.decline(callback)
+
+        scene.wizard.exit.assert_awaited_once()
+        callback.message.answer.assert_awaited_once()
 
 
 class TestUnlinkedEmployeeIsRefused:
@@ -941,14 +938,11 @@ class TestDescriptionScene:
     async def test_an_edit_returns_to_the_summary(self, state):
         await save_defect(state, DefectData())
         await state.update_data({UD_EDITING: True})
-        message = make_message("Cracked weld")
-        scene = DescriptionScene(wizard=AsyncMock(event=message, update_type="message"))
+        scene = DescriptionScene(wizard=AsyncMock())
 
-        await scene.receive(message, state)
+        await scene.receive(make_message("Cracked weld"), state)
 
-        assert await state.get_state() == DefectSG.confirm.state
-        assert UD_EDITING not in await state.get_data()
-        scene.wizard.goto.assert_not_awaited()
+        scene.wizard.goto.assert_awaited_once_with(DefectSG.confirm)
 
 
 class TestSummaryText:

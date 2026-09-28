@@ -443,6 +443,23 @@ class TestEmployeeMiddleware:
         lookup.assert_not_awaited()
         handler.assert_awaited_once()
 
+    async def test_looks_through_a_scene_handler_to_its_method(self):
+        """A scene wraps each handler in something that takes **kwargs."""
+        from aiogram.fsm.scene import SceneHandlerWrapper
+
+        from apps.bot.handlers.defect.summary import SummaryScene
+
+        save = SceneHandlerWrapper(SummaryScene, SummaryScene.save)
+        decline = SceneHandlerWrapper(SummaryScene, SummaryScene.decline)
+
+        _, _, saving, save_lookup = await self._call(save)
+        _, _, declining, decline_lookup = await self._call(decline)
+
+        assert saving["employee"] is None
+        save_lookup.assert_awaited_once_with(777)
+        assert "employee" not in declining
+        decline_lookup.assert_not_awaited()
+
     async def test_an_update_without_a_user_gets_none_without_a_lookup(self):
         _, handler, data, lookup = await self._call(_takes_employee, user_id=None)
 

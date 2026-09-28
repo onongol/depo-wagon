@@ -19,7 +19,6 @@ from apps.bot.states import DefectSG
 from apps.bot.utils.screens import answer_anew, edit_or_send
 
 from .start import open_blank_form
-from .summary import show_summary
 from .text import build_defect_in_progress_text
 
 if TYPE_CHECKING:
@@ -62,28 +61,15 @@ class DefectScene(Scene):
         """The step as entering it shows it, which is also what retake() shows."""
         raise NotImplementedError
 
-    async def back_to_summary_if_editing(self, state: FSMContext) -> bool:
-        """An answer given from Edit goes back to the summary, not on to the next step.
-
-        Not wizard.back(): the snapshot it restores holds the form before the edit.
-        """
-        if not (await state.get_data()).get(UD_EDITING):
-            return False
-
-        # By update type, as aiogram picks the enter action
-        event = self.wizard.event
-        on_a_button = self.wizard.update_type == "callback_query"
-        send = event.message.edit_text if on_a_button else event.answer
-        await show_summary(send, state, await load_defect(state))
-        return True
-
     async def go_on(self, state: FSMContext, next_step: State) -> None:
         """To the next step, whose scene draws its own screen; after an Edit, back.
 
         Not after=After.goto(...): that destination is fixed, and an Edit's is not.
+        Not wizard.back() either: the snapshot it restores holds the form before
+        the edit.
         """
-        if not await self.back_to_summary_if_editing(state):
-            await self.wizard.goto(next_step)
+        editing = (await state.get_data()).get(UD_EDITING)
+        await self.wizard.goto(DefectSG.confirm if editing else next_step)
 
     @on.message.enter()
     async def show_as_message(self, message: Message, state: FSMContext) -> None:

@@ -10,7 +10,6 @@ from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 
 from .scene import DefectScene
-from .summary import show_summary
 from .text import build_description_added_text, build_description_skipped_text
 
 if TYPE_CHECKING:
@@ -47,4 +46,4 @@ class SeverityScene(DefectScene, state=DefectSG.severity.state):
         defect.severity_label = sev_label
         await save_defect(state, defect)
 
-        await show_summary(callback.message.edit_text, state, defect)
+        await self.wizard.goto(DefectSG.confirm)

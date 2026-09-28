@@ -12,7 +12,6 @@ from apps.bot.states import DefectSG
 
 from .scene import as_send_kwargs
 from .scenes import scene_for
-from .summary import show_summary
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -20,7 +19,7 @@ if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
 
 
-# As each step first showed it; confirm renders async
+# As each step first showed it
 _SCREENS = {
     DefectSG.employee_verdict.state: lambda _: (
         str(M.ASK_EMPLOYEE_VERDICT),
@@ -37,8 +36,6 @@ async def show_current_step(send: Callable[..., Awaitable], state: FSMContext) -
     if scene := scene_for(step):
         content, keyboard = await scene.screen(defect, await state.get_data())
         await send(**as_send_kwargs(content), reply_markup=keyboard)
-    elif step == DefectSG.confirm.state:
-        await show_summary(send, state, defect)
     elif screen := _SCREENS.get(step):
         content, keyboard = screen(defect)
         await send(**as_send_kwargs(content), reply_markup=keyboard)
