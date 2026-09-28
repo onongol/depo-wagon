@@ -28,8 +28,8 @@ EDIT_FIELDS = (
     ("part_number", _("🔢 Part №")),
     ("defect_type", _("🏷️ Type")),
     (EDIT_RESPONSIBLE, _("👤 Responsible")),
-    ("severity", _("🔴 Severity")),
     ("description", _("📝 Description")),
+    ("severity", _("🌡️ Severity")),
 )
 
 BTN_NEW_DEFECT = _("📋 New Defect")
