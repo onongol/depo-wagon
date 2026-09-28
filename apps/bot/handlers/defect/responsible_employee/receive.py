@@ -20,6 +20,7 @@ from .list import employee_list_screen
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
+    from aiogram.fsm.state import State
     from aiogram.types import CallbackQuery, Message
 
     from apps.bot.handlers.defect.scene import Screen
@@ -38,6 +39,10 @@ class ResponsibleEmployeeScene(DefectScene, state=DefectSG.responsible_employee.
         await save_defect(state, defect)
         await drop_keys(state, UD_RESP_SEARCH)
         await self.go_on(state, DefectSG.photo)
+
+    @classmethod
+    def previous(cls, form: DefectData) -> State | None:
+        return DefectSG.defect_type
 
     @classmethod
     async def screen(

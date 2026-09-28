@@ -28,6 +28,7 @@ from apps.defects.constants import DIMENSION_UNITS, MeasurementDimension
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
+    from aiogram.fsm.state import State
     from aiogram.types import CallbackQuery, Message
 
     from apps.bot.handlers.defect.scene import Screen
@@ -41,6 +42,17 @@ class MeasurementChoiceScene(DefectScene, state=DefectSG.measurement_choice.stat
 
     A picked dimension is the form's current_measurement, not a state of its own.
     """
+
+    @classmethod
+    def previous(cls, form: DefectData) -> State | None:
+        return DefectSG.photo
+
+    @classmethod
+    def back_to(cls, form: DefectData, data: dict[str, Any]) -> State | None:
+        """While a number is asked for, the prompt's own Back returns to the card."""
+        if form.current_measurement:
+            return None
+        return super().back_to(form, data)
 
     @classmethod
     async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:

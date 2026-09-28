@@ -36,6 +36,7 @@ from .routing import after_photos
 if TYPE_CHECKING:
     from aiogram import Bot
     from aiogram.fsm.context import FSMContext
+    from aiogram.fsm.state import State
     from aiogram.types import CallbackQuery, Message
 
     from apps.bot.handlers.defect.scene import Screen
@@ -63,6 +64,12 @@ async def clear_last_photo_keyboard(bot: Bot, state: FSMContext) -> None:
 
 class PhotoScene(DefectScene, state=DefectSG.photo.state):
     """Photos until Done; an album is answered once, as its photos queue behind the lock."""
+
+    @classmethod
+    def previous(cls, form: DefectData) -> State | None:
+        if form.defect_type == DefectType.HUMAN_FACTOR:
+            return DefectSG.responsible_employee
+        return DefectSG.defect_type
 
     @classmethod
     async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:

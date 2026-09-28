@@ -8,6 +8,7 @@ from apps.bot.constants import UD_EDITING
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.states import DefectSG
+from apps.defects.constants import DefectType
 
 from .scene import STEP_TEXT, DefectScene
 from .text import (
@@ -18,6 +19,7 @@ from .text import (
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
+    from aiogram.fsm.state import State
     from aiogram.types import CallbackQuery, Message
 
     from apps.bot.user_data import DefectData
@@ -35,6 +37,13 @@ class DescriptionScene(DefectScene, state=DefectSG.desc.state):
         defect.description = description
         await save_defect(state, defect)
         await self.go_on(state, DefectSG.severity)
+
+    @classmethod
+    def previous(cls, form: DefectData) -> State | None:
+        """A human factor has no measurements."""
+        if form.defect_type == DefectType.HUMAN_FACTOR:
+            return DefectSG.photo
+        return DefectSG.measurement_choice
 
     @classmethod
     async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:

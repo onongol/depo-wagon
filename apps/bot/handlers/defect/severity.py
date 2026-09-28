@@ -14,6 +14,7 @@ from .text import build_description_added_text, build_description_skipped_text
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
+    from aiogram.fsm.state import State
     from aiogram.types import CallbackQuery
 
     from apps.bot.user_data import DefectData
@@ -23,6 +24,10 @@ if TYPE_CHECKING:
 
 class SeverityScene(DefectScene, state=DefectSG.severity.state):
     """Judged last, once the evidence is in; the summary comes next, from an Edit too."""
+
+    @classmethod
+    def previous(cls, form: DefectData) -> State | None:
+        return DefectSG.desc
 
     @classmethod
     async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:

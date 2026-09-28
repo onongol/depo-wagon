@@ -58,7 +58,7 @@ from apps.bot.handlers.defect.text import (
 from apps.bot.handlers.start.link_errors import get_link_error_message
 from apps.bot.handlers.start.text import build_link_cancelled_text
 from apps.bot.handlers.support.utils import remember_request
-from apps.bot.keyboards.common import done_keyboard, skip_keyboard
+from apps.bot.keyboards.common import done_keyboard, skip_keyboard, with_back_button
 from apps.bot.keyboards.defect import defect_in_progress_keyboard, department_keyboard
 from apps.bot.keyboards.menu import MENU_TEXTS, main_menu_keyboard
 from apps.bot.messages import BotMessages as M
@@ -328,7 +328,7 @@ class TestNewDefectDuringARunningForm:
 
         (edit,) = session.calls("editMessageText")
         assert (edit.text, edit.entities) == build_edit_description_text().render()
-        assert edit.reply_markup == skip_keyboard(CB_DESC_SKIP)
+        assert edit.reply_markup == with_back_button(skip_keyboard(CB_DESC_SKIP))
         assert await state.get_state() == DefectSG.desc.state
         assert (await load_defect(state)).wagon_number == self.WAGON
 
@@ -380,7 +380,7 @@ class TestNewDefectDuringARunningForm:
         (edit,) = session.calls("editMessageText")
         expected = build_wagon_confirmed_text(self.WAGON)
         assert (edit.text, edit.entities) == expected.render()
-        assert edit.reply_markup == department_keyboard()
+        assert edit.reply_markup == with_back_button(department_keyboard())
 
     async def test_the_photo_step_offers_done_once_a_photo_is_in(
         self, dp, bot, session, state
@@ -393,7 +393,7 @@ class TestNewDefectDuringARunningForm:
 
         (edit,) = session.calls("editMessageText")
         assert edit.text == build_photo_received_text(2).render()[0]
-        assert edit.reply_markup == done_keyboard(CB_PHOTO_SKIP)
+        assert edit.reply_markup == with_back_button(done_keyboard(CB_PHOTO_SKIP))
 
     @pytest.mark.usefixtures("form")
     async def test_continue_while_saving_just_says_carry_on(

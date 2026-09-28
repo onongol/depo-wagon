@@ -34,7 +34,7 @@ async def show_current_step(send: Callable[..., Awaitable], state: FSMContext) -
     defect = await load_defect(state)
 
     if scene := scene_for(step):
-        content, keyboard = await scene.screen(defect, await state.get_data())
+        content, keyboard = await scene.draw(defect, await state.get_data())
         await send(**as_send_kwargs(content), reply_markup=keyboard)
     elif screen := _SCREENS.get(step):
         content, keyboard = screen(defect)

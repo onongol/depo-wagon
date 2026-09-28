@@ -8,10 +8,16 @@ from aiogram.fsm.scene import Scene, on
 from aiogram.types import ReplyKeyboardRemove
 from aiogram.utils.formatting import Text
 
-from apps.bot.callback_data import CB_CANCEL, CB_DEFECT_CONTINUE, CB_DEFECT_RESTART
+from apps.bot.callback_data import (
+    CB_CANCEL,
+    CB_DEFECT_CONTINUE,
+    CB_DEFECT_RESTART,
+    CB_STEP_BACK,
+)
 from apps.bot.constants import BTN_NEW_DEFECT, UD_EDITING
 from apps.bot.filters import NotACommand
 from apps.bot.fsm import clear_defect_keys, load_defect
+from apps.bot.keyboards.common import with_back_button
 from apps.bot.keyboards.defect import defect_in_progress_keyboard
 from apps.bot.keyboards.menu import MENU_TEXTS, main_menu_keyboard
 from apps.bot.messages import BotMessages as M
@@ -61,6 +67,26 @@ class DefectScene(Scene):
         """The step as entering it shows it, which is also what retake() shows."""
         raise NotImplementedError
 
+    @classmethod
+    def previous(cls, form: DefectData) -> State | None:
+        """The step before this one on the way here; the first step has none."""
+        return None
+
+    @classmethod
+    def back_to(cls, form: DefectData, data: dict[str, Any]) -> State | None:
+        """Where Back leads: the previous step, or from an Edit the summary."""
+        if data.get(UD_EDITING):
+            return DefectSG.confirm
+        return cls.previous(form)
+
+    @classmethod
+    async def draw(cls, form: DefectData, data: dict[str, Any]) -> Screen:
+        """The screen with Back added wherever Back leads somewhere."""
+        content, keyboard = await cls.screen(form, data)
+        if cls.back_to(form, data):
+            keyboard = with_back_button(keyboard)
+        return content, keyboard
+
     async def go_on(self, state: FSMContext, next_step: State) -> None:
         """To the next step, whose scene draws its own screen; after an Edit, back.
 
@@ -73,7 +99,7 @@ class DefectScene(Scene):
 
     @on.message.enter()
     async def show_as_message(self, message: Message, state: FSMContext) -> None:
-        content, keyboard = await self.screen(
+        content, keyboard = await self.draw(
             await load_defect(state), await state.get_data()
         )
         # No step takes the menu for an answer, so a screen without buttons hides it
@@ -83,7 +109,7 @@ class DefectScene(Scene):
 
     @on.callback_query.enter()
     async def show_as_edit(self, callback: CallbackQuery, state: FSMContext) -> None:
-        content, keyboard = await self.screen(
+        content, keyboard = await self.draw(
             await load_defect(state), await state.get_data()
         )
         await edit_or_send(callback, **as_send_kwargs(content), reply_markup=keyboard)
@@ -118,6 +144,15 @@ class DefectScene(Scene):
             callback, text=str(M.DEFECT_CANCELLED), reply_markup=main_menu_keyboard()
         )
 
+    @on.callback_query(F.data == CB_STEP_BACK)
+    async def step_back(self, callback: CallbackQuery, state: FSMContext) -> None:
+        """Keeps the form: the step asked again shows it as it stands."""
+        await callback.answer()
+        target = self.back_to(await load_defect(state), await state.get_data())
+        if target:
+            await self.wizard.goto(target)
+
+    # After every handler above: aiogram registers a class's own in the order written
     @on.callback_query()
     async def absorb(self, callback: CallbackQuery) -> None:
         """Any other tap dies quietly, as stale_callback does for plain steps."""

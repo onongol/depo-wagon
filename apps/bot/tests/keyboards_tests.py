@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
 
 from apps.bot.callback_data import (
+    CB_STEP_BACK,
     DefectCardCB,
     DepartmentCB,
     EditCB,
@@ -35,6 +36,11 @@ from apps.bot.constants import (
     LIST_NUMBER_EMOJI,
     STATUS_TRANSITIONS,
     TASKS_PAGE_SIZE,
+)
+from apps.bot.keyboards.common import (
+    clear_or_done_keyboard,
+    skip_keyboard,
+    with_back_button,
 )
 from apps.bot.keyboards.confirm import confirm_keyboard
 from apps.bot.keyboards.defect import department_keyboard, node_keyboard_for_department
@@ -236,6 +242,24 @@ class TestResponsibleEmployeeKeyboard:
             btn.callback_data.startswith(ResponsibleEmployeeCB.__prefix__ + ":")
             for btn in _kb_buttons(kb)
         )
+
+
+class TestWithBackButton:
+    def _rows(self, markup):
+        return [[b.callback_data for b in row] for row in markup.inline_keyboard]
+
+    def test_it_joins_a_lone_bottom_button(self):
+        rows = self._rows(with_back_button(skip_keyboard("skip")))
+
+        assert rows == [[CB_STEP_BACK, "skip"]]
+
+    def test_it_gets_its_own_row_under_a_fuller_one(self):
+        rows = self._rows(with_back_button(clear_or_done_keyboard("clear", "done")))
+
+        assert rows == [["clear", "done"], [CB_STEP_BACK]]
+
+    def test_a_screen_without_buttons_gets_just_back(self):
+        assert self._rows(with_back_button(None)) == [[CB_STEP_BACK]]
 
 
 class TestConfirmKeyboard:

@@ -7,6 +7,7 @@ from apps.defects.constants import DefectStatus
 
 CB_NOOP = "noop"
 CB_CANCEL = "cancel"
+CB_STEP_BACK = "step_back"
 CB_PART_NUMBER_SKIP = "pn_skip"
 CB_RESP_EMP_SKIP = "emp_skip"
 CB_RESP_EMP_ALL = "emp_all"

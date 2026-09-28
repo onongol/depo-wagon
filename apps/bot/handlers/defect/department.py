@@ -13,6 +13,7 @@ from .text import build_wagon_confirmed_text
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
+    from aiogram.fsm.state import State
     from aiogram.types import CallbackQuery
 
     from apps.bot.user_data import DefectData
@@ -24,6 +25,10 @@ _DEPT_LABELS = dict(Department.choices)
 
 class DepartmentScene(DefectScene, state=DefectSG.department.state):
     """The department, picked from buttons; the summary has no edit for it."""
+
+    @classmethod
+    def previous(cls, form: DefectData) -> State | None:
+        return DefectSG.wagon_num
 
     @classmethod
     async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:

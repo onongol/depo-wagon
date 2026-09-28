@@ -18,6 +18,7 @@ from .text import (
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
+    from aiogram.fsm.state import State
     from aiogram.types import CallbackQuery, Message
 
     from apps.bot.user_data import DefectData
@@ -35,6 +36,10 @@ class PartNumberScene(DefectScene, state=DefectSG.part_number.state):
         defect.part_number = part_number
         await save_defect(state, defect)
         await self.go_on(state, DefectSG.defect_type)
+
+    @classmethod
+    def previous(cls, form: DefectData) -> State | None:
+        return DefectSG.node
 
     @classmethod
     async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:

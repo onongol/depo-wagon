@@ -17,6 +17,7 @@ from .text import (
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
+    from aiogram.fsm.state import State
     from aiogram.types import CallbackQuery
 
     from apps.bot.user_data import DefectData
@@ -28,6 +29,10 @@ _NODE_LABELS = dict(DefectNode.choices)
 
 class NodeScene(DefectScene, state=DefectSG.node.state):
     """The node, from the buttons for the department picked; Edit ▸ Node reopens it."""
+
+    @classmethod
+    def previous(cls, form: DefectData) -> State | None:
+        return DefectSG.department
 
     @classmethod
     async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:

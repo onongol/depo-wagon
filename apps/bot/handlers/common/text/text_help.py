@@ -3,6 +3,7 @@ from django.utils.translation import gettext_lazy as _
 
 from apps.bot.constants import (
     BTN_ASK,
+    BTN_BACK,
     BTN_CANCEL,
     BTN_NEW_DEFECT,
     BTN_OPEN_DEFECTS,
@@ -40,6 +41,7 @@ def build_help_text() -> Text:
                 " — ",
                 _("ask about wagon maintenance, tolerance norms and depot documents."),
             ),
+            Text(Bold(BTN_BACK), " — ", _("return to the previous step.")),
             Text(Bold(BTN_CANCEL), " — ", _("stop the current step at any time.")),
         ),
         Text(

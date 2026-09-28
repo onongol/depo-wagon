@@ -18,6 +18,7 @@ from .text import (
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
+    from aiogram.fsm.state import State
     from aiogram.types import CallbackQuery
 
     from apps.bot.user_data import DefectData
@@ -29,6 +30,10 @@ _DEFECT_TYPE_LABELS = dict(DefectType.choices)
 
 class DefectTypeScene(DefectScene, state=DefectSG.defect_type.state):
     """The defect type, from buttons; the screen first says how the part number went."""
+
+    @classmethod
+    def previous(cls, form: DefectData) -> State | None:
+        return DefectSG.part_number
 
     @classmethod
     async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:

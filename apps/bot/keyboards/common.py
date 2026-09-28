@@ -1,18 +1,36 @@
-from typing import TYPE_CHECKING
-
-from aiogram.types import InlineKeyboardButton
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from apps.bot.callback_data import CB_CANCEL, CB_LINK_CANCEL, LinkConfirmCB
-from apps.bot.constants import BTN_CANCEL, BTN_CLEAR, BTN_CONNECT, BTN_DONE, BTN_SKIP
-
-if TYPE_CHECKING:
-    from aiogram.types import InlineKeyboardMarkup
+from apps.bot.callback_data import (
+    CB_CANCEL,
+    CB_LINK_CANCEL,
+    CB_STEP_BACK,
+    LinkConfirmCB,
+)
+from apps.bot.constants import (
+    BTN_BACK,
+    BTN_CANCEL,
+    BTN_CLEAR,
+    BTN_CONNECT,
+    BTN_DONE,
+    BTN_SKIP,
+)
 
 
 def cancel_row() -> list[InlineKeyboardButton]:
     """Bottom row with a Cancel button to exit the conversation from any step."""
     return [InlineKeyboardButton(text=str(BTN_CANCEL), callback_data=CB_CANCEL)]
+
+
+def with_back_button(keyboard: InlineKeyboardMarkup | None) -> InlineKeyboardMarkup:
+    """Back joins a lone bottom button, such as Cancel or Skip, or gets its own row."""
+    back = InlineKeyboardButton(text=str(BTN_BACK), callback_data=CB_STEP_BACK)
+    rows = [list(row) for row in keyboard.inline_keyboard] if keyboard else []
+    if rows and len(rows[-1]) == 1:
+        rows[-1].insert(0, back)
+    else:
+        rows.append([back])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def skip_keyboard(callback_data: str) -> InlineKeyboardMarkup:

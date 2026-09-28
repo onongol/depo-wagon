@@ -74,9 +74,13 @@ from apps.bot.handlers.defect.text import (
     build_wagon_not_found_text,
 )
 from apps.bot.handlers.defect.wagon import WagonScene
-from apps.bot.keyboards.common import clear_or_done_keyboard, skip_keyboard
+from apps.bot.keyboards.common import (
+    clear_or_done_keyboard,
+    skip_keyboard,
+    with_back_button,
+)
 from apps.bot.keyboards.confirm import confirm_keyboard
-from apps.bot.keyboards.defect import severity_keyboard
+from apps.bot.keyboards.defect import department_keyboard, severity_keyboard
 from apps.bot.keyboards.measurement import (
     measurement_keyboard,
     measurement_value_keyboard,
@@ -650,6 +654,64 @@ class TestSearchResponsibleEmployee:
         scene.wizard.retake.assert_awaited_once()
 
 
+class TestBack:
+    HF = DefectData(defect_type=DefectType.HUMAN_FACTOR)
+    WEAR = DefectData(defect_type=DefectType.WEAR)
+
+    @pytest.mark.parametrize(
+        ("scene", "form", "previous"),
+        [
+            (WagonScene, WEAR, None),
+            (DepartmentScene, WEAR, DefectSG.wagon_num),
+            (NodeScene, WEAR, DefectSG.department),
+            (PartNumberScene, WEAR, DefectSG.node),
+            (DefectTypeScene, WEAR, DefectSG.part_number),
+            (ResponsibleEmployeeScene, HF, DefectSG.defect_type),
+            (PhotoScene, WEAR, DefectSG.defect_type),
+            (PhotoScene, HF, DefectSG.responsible_employee),
+            (MeasurementChoiceScene, WEAR, DefectSG.photo),
+            (DescriptionScene, WEAR, DefectSG.measurement_choice),
+            (DescriptionScene, HF, DefectSG.photo),
+            (SeverityScene, WEAR, DefectSG.desc),
+            (SummaryScene, WEAR, None),
+        ],
+    )
+    def test_each_step_goes_back_the_way_it_came(self, scene, form, previous):
+        assert scene.back_to(form, {}) == previous
+
+    def test_from_an_edit_it_goes_back_to_the_summary(self):
+        assert WagonScene.back_to(self.WEAR, {UD_EDITING: True}) == DefectSG.confirm
+
+    def test_a_number_being_asked_for_has_its_own_back(self):
+        form = DefectData(current_measurement=THICKNESS)
+
+        assert MeasurementChoiceScene.back_to(form, {}) is None
+
+    async def test_the_screen_gets_back_where_it_leads_somewhere(self):
+        _, first = await WagonScene.draw(self.WEAR, {})
+        _, second = await DepartmentScene.draw(self.WEAR, {})
+
+        assert first is None
+        assert second == with_back_button(department_keyboard())
+
+    async def test_back_goes_to_the_previous_step_and_keeps_the_form(self, state):
+        await save_defect(state, DefectData(department="bogie", node="wheel"))
+        scene = NodeScene(wizard=AsyncMock())
+
+        await scene.step_back(make_callback(), state)
+
+        scene.wizard.goto.assert_awaited_once_with(DefectSG.department)
+        assert (await load_defect(state)).node == "wheel"
+
+    async def test_back_from_the_first_step_does_nothing(self, state):
+        await save_defect(state, DefectData())
+        scene = WagonScene(wizard=AsyncMock())
+
+        await scene.step_back(make_callback(), state)
+
+        scene.wizard.goto.assert_not_awaited()
+
+
 class TestSummaryScene:
     async def test_the_screen_is_the_summary_with_its_buttons(self):
         form = DefectData(wagon_number="60123456", severity_label="High")
@@ -922,7 +984,7 @@ class TestMeasurementChoiceScene:
         assert defect.measurements == [THICKNESS.model_copy(update={"value": 12.5})]
         assert defect.current_measurement is None
         reply_markup = message.answer.await_args.kwargs["reply_markup"]
-        assert reply_markup == measurement_keyboard(any_saved=True)
+        assert reply_markup == with_back_button(measurement_keyboard(any_saved=True))
 
     async def test_a_non_number_is_asked_for_again(self, state):
         await save_defect(state, DefectData(current_measurement=THICKNESS))
@@ -946,7 +1008,7 @@ class TestMeasurementChoiceScene:
 
         assert (await load_defect(state)).measurements == []
         reply_markup = message.answer.await_args.kwargs["reply_markup"]
-        assert reply_markup == measurement_keyboard(any_saved=False)
+        assert reply_markup == with_back_button(measurement_keyboard(any_saved=False))
 
     async def test_done_moves_on_to_the_description_scene(self, state):
         scene = MeasurementChoiceScene(wizard=AsyncMock())

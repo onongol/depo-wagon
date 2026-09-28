@@ -24,6 +24,7 @@ from apps.bot.callback_data import (
     CB_PHOTO_SKIP,
     CB_RESP_EMP_ALL,
     CB_RESP_EMP_SKIP,
+    CB_STEP_BACK,
     ConfirmCB,
     DefectTypeCB,
     DepartmentCB,
@@ -62,7 +63,7 @@ from apps.bot.handlers.defect.text import (
     build_summary_text,
     build_wagon_confirmed_text,
 )
-from apps.bot.keyboards.common import skip_keyboard
+from apps.bot.keyboards.common import skip_keyboard, with_back_button
 from apps.bot.keyboards.defect import (
     defect_type_keyboard,
     department_keyboard,
@@ -408,7 +409,7 @@ class TestFromTheWagonStepToTheDepartment:
         (sent,) = session.calls("sendMessage")
         expected = build_wagon_confirmed_text(WAGON_NUMBER)
         assert (sent.text, sent.entities) == expected.render()
-        assert sent.reply_markup == department_keyboard()
+        assert sent.reply_markup == with_back_button(department_keyboard())
         assert await state.get_state() == DefectSG.department.state
 
 
@@ -427,7 +428,9 @@ class TestFromTheDepartmentToTheNode:
         (edit,) = session.calls("editMessageText")
         expected = build_department_confirmed_text(Department.BOGIE.label)
         assert (edit.text, edit.entities) == expected.render()
-        assert edit.reply_markup == node_keyboard_for_department(Department.BOGIE)
+        assert edit.reply_markup == with_back_button(
+            node_keyboard_for_department(Department.BOGIE)
+        )
         assert await state.get_state() == DefectSG.node.state
 
 
@@ -444,7 +447,9 @@ class TestEditingTheNode:
 
         (edit,) = session.calls("editMessageText")
         assert edit.text == build_edit_node_text().render()[0]
-        assert edit.reply_markup == node_keyboard_for_department(Department.BOGIE)
+        assert edit.reply_markup == with_back_button(
+            node_keyboard_for_department(Department.BOGIE)
+        )
         assert await state.get_state() == DefectSG.node.state
 
     async def test_the_new_node_returns_to_the_summary(self, dp, bot, state):
@@ -477,7 +482,7 @@ class TestThePartNumberStep:
         (edit,) = session.calls("editMessageText")
         expected = build_node_confirmed_text(DefectNode.WHEEL.label)
         assert (edit.text, edit.entities) == expected.render()
-        assert edit.reply_markup == skip_keyboard(CB_PART_NUMBER_SKIP)
+        assert edit.reply_markup == with_back_button(skip_keyboard(CB_PART_NUMBER_SKIP))
         assert await state.get_state() == DefectSG.part_number.state
 
     async def test_skip_says_so_and_offers_the_types(self, dp, bot, session, state):
@@ -488,7 +493,7 @@ class TestThePartNumberStep:
 
         (edit,) = session.calls("editMessageText")
         assert edit.text == build_part_number_skipped_text().render()[0]
-        assert edit.reply_markup == defect_type_keyboard()
+        assert edit.reply_markup == with_back_button(defect_type_keyboard())
         assert await state.get_state() == DefectSG.defect_type.state
         assert (await load_defect(state)).part_number == ""
 
@@ -501,7 +506,7 @@ class TestThePartNumberStep:
         (sent,) = session.calls("sendMessage")
         expected = build_part_number_confirmed_text("<PN-42>")
         assert (sent.text, sent.entities) == expected.render()
-        assert sent.reply_markup == defect_type_keyboard()
+        assert sent.reply_markup == with_back_button(defect_type_keyboard())
         assert (await load_defect(state)).part_number == "<PN-42>"
 
     async def test_skip_from_an_edit_clears_it_and_goes_back(self, dp, bot, state):
@@ -551,7 +556,7 @@ class TestFromTheTypeToThePhotos:
         (edit,) = session.calls("editMessageText")
         expected = build_defect_type_confirmed_text(DefectType.CRACK.label)
         assert (edit.text, edit.entities) == expected.render()
-        assert edit.reply_markup == skip_keyboard(CB_PHOTO_SKIP)
+        assert edit.reply_markup == with_back_button(skip_keyboard(CB_PHOTO_SKIP))
         assert await state.get_state() == DefectSG.photo.state
 
 
@@ -566,7 +571,7 @@ class TestTheSeverityStep:
 
         (sent,) = session.calls("sendMessage")
         assert (sent.text, sent.entities) == build_description_added_text().render()
-        assert sent.reply_markup == severity_keyboard()
+        assert sent.reply_markup == with_back_button(severity_keyboard())
         assert await state.get_state() == DefectSG.severity.state
 
     async def test_a_skipped_description_leads_to_it_in_place(
@@ -600,7 +605,7 @@ class TestTheSeverityStep:
         await dp.feed_update(bot, make_callback_update(EditCB(field="severity").pack()))
         (edit,) = session.calls("editMessageText")
         assert edit.text == str(M.EDIT_SEVERITY)
-        assert edit.reply_markup == severity_keyboard()
+        assert edit.reply_markup == with_back_button(severity_keyboard())
 
         await dp.feed_update(bot, make_callback_update(SeverityCB(value="high").pack()))
 
@@ -627,7 +632,9 @@ class TestTheMeasurementCard:
 
         (edit,) = session.calls("editMessageText")
         assert (edit.text, edit.entities) == build_measurements_text([]).render()
-        assert edit.reply_markup == measurement_keyboard(any_saved=False)
+        assert edit.reply_markup == with_back_button(
+            measurement_keyboard(any_saved=False)
+        )
         assert await state.get_state() == DefectSG.measurement_choice.state
 
     async def test_a_dimension_asks_for_its_number_in_place(
@@ -652,7 +659,9 @@ class TestTheMeasurementCard:
         (sent,) = session.calls("sendMessage")
         saved = self.THICKNESS.model_copy(update={"value": 12.5})
         assert (sent.text, sent.entities) == build_measurements_text([saved]).render()
-        assert sent.reply_markup == measurement_keyboard(any_saved=True)
+        assert sent.reply_markup == with_back_button(
+            measurement_keyboard(any_saved=True)
+        )
         assert await state.get_state() == DefectSG.measurement_choice.state
 
     async def test_back_returns_to_the_card_in_place(self, dp, bot, session, state):
@@ -686,7 +695,7 @@ class TestTheDescriptionStep:
 
         (edit,) = session.calls("editMessageText")
         assert (edit.text, edit.entities) == build_ask_description_text().render()
-        assert edit.reply_markup == skip_keyboard(CB_DESC_SKIP)
+        assert edit.reply_markup == with_back_button(skip_keyboard(CB_DESC_SKIP))
         assert await state.get_state() == DefectSG.desc.state
 
     async def test_an_edit_asks_again_and_goes_back(self, dp, bot, session, state):
@@ -760,7 +769,8 @@ class TestEditingTheMeasurements:
         await dp.feed_update(bot, make_callback_update(tap))
         (edit,) = session.calls("editMessageText")
         assert (edit.text, edit.entities) == build_measurements_text([old]).render()
-        assert edit.reply_markup == measurement_keyboard(any_saved=True, clearable=True)
+        card = measurement_keyboard(any_saved=True, clearable=True)
+        assert edit.reply_markup == with_back_button(card)
 
         await dp.feed_update(bot, make_callback_update(CB_MEAS_CLEAR))
         gap = DimensionCB(value=MeasurementDimension.GAP).pack()
@@ -772,6 +782,67 @@ class TestEditingTheMeasurements:
         saved = (await load_defect(state)).measurements
         assert saved == [self.GAP.model_copy(update={"value": 3.0})]
         assert UD_EDITING not in await state.get_data()
+
+
+class TestGoingBack:
+    FORM = DefectData(
+        wagon_id=1,
+        wagon_number=WAGON_NUMBER,
+        department=Department.BOGIE,
+        node=DefectNode.WHEEL,
+        defect_type=DefectType.WEAR,
+        description="Cracked weld",
+    )
+
+    async def test_back_walks_the_steps_in_reverse_and_keeps_the_form(
+        self, dp, bot, state
+    ):
+        await save_defect(state, self.FORM)
+        await state.set_state(DefectSG.severity)
+
+        visited = []
+        for _ in range(9):
+            await dp.feed_update(bot, make_callback_update(CB_STEP_BACK))
+            visited.append(await state.get_state())
+
+        assert visited == [
+            DefectSG.desc.state,
+            DefectSG.measurement_choice.state,
+            DefectSG.photo.state,
+            DefectSG.defect_type.state,
+            DefectSG.part_number.state,
+            DefectSG.node.state,
+            DefectSG.department.state,
+            DefectSG.wagon_num.state,
+            DefectSG.wagon_num.state,
+        ]
+        assert await load_defect(state) == self.FORM
+
+    async def test_the_step_is_redrawn_in_place_with_back(
+        self, dp, bot, session, state
+    ):
+        await save_defect(state, self.FORM)
+        await state.set_state(DefectSG.node)
+
+        await dp.feed_update(bot, make_callback_update(CB_STEP_BACK))
+
+        (edit,) = session.calls("editMessageText")
+        expected = build_wagon_confirmed_text(WAGON_NUMBER)
+        assert (edit.text, edit.entities) == expected.render()
+        assert edit.reply_markup == with_back_button(department_keyboard())
+
+    async def test_back_from_an_edit_returns_to_the_summary_unchanged(
+        self, dp, bot, state
+    ):
+        await save_defect(state, self.FORM)
+        await state.set_state(DefectSG.confirm)
+        await dp.feed_update(bot, make_callback_update(EditCB(field="node").pack()))
+
+        await dp.feed_update(bot, make_callback_update(CB_STEP_BACK))
+
+        assert await state.get_state() == DefectSG.confirm.state
+        assert UD_EDITING not in await state.get_data()
+        assert await load_defect(state) == self.FORM
 
 
 class TestEditingTheWagon:
@@ -980,7 +1051,7 @@ class TestHumanFactorBranch:
         edit = session.calls("editMessageText")[-1]
         expected = build_responsible_employee_confirmed_text("U1 L")
         assert (edit.text, edit.entities) == expected.render()
-        assert edit.reply_markup == skip_keyboard(CB_PHOTO_SKIP)
+        assert edit.reply_markup == with_back_button(skip_keyboard(CB_PHOTO_SKIP))
 
     @pytest.mark.usefixtures("flow", "roster")
     async def test_skipped_it_goes_on_through_the_photos_to_the_description(
