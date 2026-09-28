@@ -48,10 +48,12 @@ from apps.bot.handlers.defect.severity import SeverityScene
 from apps.bot.handlers.defect.start import new_defect_start
 from apps.bot.handlers.defect.text import (
     build_ask_measurement_text,
+    build_ask_responsible_employee_text,
     build_defect_type_confirmed_text,
     build_part_number_confirmed_text,
     build_part_number_skipped_text,
     build_responsible_employee_confirmed_text,
+    build_responsible_employee_search_text,
     build_responsible_employee_skipped_text,
     build_wagon_not_found_text,
 )
@@ -458,6 +460,25 @@ class TestResponsibleEmployeeScene:
             "coupler_brake", "bo", limit=EMPLOYEE_PAGE_SIZE, offset=0
         )
 
+    async def test_the_screen_numbers_the_first_page_of_all(self, picker):
+        total = 2 * EMPLOYEE_PAGE_SIZE + 1
+        picker.count.return_value = total
+
+        text, _ = await ResponsibleEmployeeScene.screen(DefectData(), {})
+
+        expected = build_ask_responsible_employee_text(1, 3, total)
+        assert text.render() == expected.render()
+
+    async def test_a_search_names_the_query_and_the_matches(self, picker):
+        picker.count.return_value = 2
+
+        text, _ = await ResponsibleEmployeeScene.screen(
+            DefectData(), {UD_RESP_SEARCH: "Bold"}
+        )
+
+        expected = build_responsible_employee_search_text("Bold", 2)
+        assert text.render() == expected.render()
+
     async def test_skip_goes_on_to_the_severity_scene(self, state):
         await self._seed(state)
         scene = ResponsibleEmployeeScene(wizard=AsyncMock())
@@ -780,11 +801,12 @@ class TestUserTextIsEscaped:
     """Replies go out as HTML: text the bot did not write must not parse as tags."""
 
     async def test_the_search_query(self, picker):
+        """An entity, not HTML: the query goes out as typed."""
         form = DefectData(department="bogie")
 
         text, _ = await ResponsibleEmployeeScene.screen(form, {UD_RESP_SEARCH: "<b"})
 
-        assert "&lt;b" in text
+        assert "<b>&lt;b</b>" in html_decoration.unparse(*text.render())
 
     async def test_the_unit_is_escaped_but_stored_as_typed(self, state):
         from apps.bot.handlers.defect.measurement import receive_unit

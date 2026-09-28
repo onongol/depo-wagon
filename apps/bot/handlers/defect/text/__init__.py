@@ -20,6 +20,10 @@ from .text_photo import (
     build_photos_attached_toast,
     build_severity_confirmed_text,
 )
+from .text_responsible_employee import (
+    build_ask_responsible_employee_text,
+    build_responsible_employee_search_text,
+)
 from .text_restart import build_defect_continued_text, build_defect_in_progress_text
 from .text_start import build_new_defect_text
 from .text_wagon import (
@@ -31,6 +35,7 @@ from .text_wagon import (
 __all__ = [
     "build_album_receiving_text",
     "build_ask_measurement_text",
+    "build_ask_responsible_employee_text",
     "build_defect_continued_text",
     "build_defect_in_progress_text",
     "build_defect_type_confirmed_text",
@@ -48,6 +53,7 @@ __all__ = [
     "build_photo_too_large_text",
     "build_photos_attached_toast",
     "build_responsible_employee_confirmed_text",
+    "build_responsible_employee_search_text",
     "build_responsible_employee_skipped_text",
     "build_severity_confirmed_text",
     "build_wagon_confirmed_text",

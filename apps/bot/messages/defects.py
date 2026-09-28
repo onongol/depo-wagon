@@ -4,20 +4,6 @@ from django.utils.translation import gettext_lazy as _
 class DefectMessages:
     """The whole step-by-step defect registration flow and AI results."""
 
-    # ── Responsible employee ─────────────────────────────────────────────────
-
-    ASK_RESPONSIBLE_EMPLOYEE = _(
-        "👤 Select the responsible employee:\n"
-        "📄 Page {page}/{total} • {count} employees\n"
-        "<i>Type a name to search:</i>"
-    )
-
-    ASK_RESPONSIBLE_EMPLOYEE_SEARCH = _(
-        "🔍 Search: <b>{query}</b>\n"
-        "Found {count} employee(s)\n"
-        "<i>Type a new name to search again:</i>"
-    )
-
     # ── Edit from summary ────────────────────────────────────────────────────
 
     EDIT_SEVERITY = _("✏️ Select severity:")
