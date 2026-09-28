@@ -1,11 +1,12 @@
 from typing import TYPE_CHECKING
 
 from apps.bot.callback_data import CB_DESC_SKIP
-from apps.bot.constants import UD_EDITING
+from apps.bot.constants import EDIT_RESPONSIBLE, UD_EDITING
 from apps.bot.fsm import load_defect
 from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
+from apps.defects.constants import DefectType
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
@@ -21,6 +22,7 @@ _EDIT_SCENES = {
     "node": DefectSG.node,
     "part_number": DefectSG.part_number,
     "defect_type": DefectSG.defect_type,
+    EDIT_RESPONSIBLE: DefectSG.responsible_employee,
     "severity": DefectSG.severity,
 }
 
@@ -44,12 +46,17 @@ async def start_edit(
     """Render the chosen field's input and route to its state in edit mode."""
     await callback.answer()
 
+    defect = await load_defect(state)
+
+    # An older summary's button, from before the type moved off a human factor
+    human_factor = defect.defect_type == DefectType.HUMAN_FACTOR
+    if callback_data.field == EDIT_RESPONSIBLE and not human_factor:
+        return
+
     if scene := _EDIT_SCENES.get(callback_data.field):
         await state.update_data({UD_EDITING: True})
         await scenes.enter(scene)
         return
-
-    defect = await load_defect(state)
 
     step = _EDIT_STEPS.get(callback_data.field)
     if step is None:

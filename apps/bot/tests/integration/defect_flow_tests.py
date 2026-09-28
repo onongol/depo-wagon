@@ -30,7 +30,7 @@ from apps.bot.callback_data import (
     SeverityCB,
     VerdictCB,
 )
-from apps.bot.constants import SEVERITY_LABELS, UD_EDITING
+from apps.bot.constants import EDIT_RESPONSIBLE, SEVERITY_LABELS, UD_EDITING
 from apps.bot.errors import build_session_error_text
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.common.text import build_help_text
@@ -875,6 +875,39 @@ class TestHumanFactorBranch:
         assert UD_EDITING not in await state.get_data()
         assert (await load_defect(state)).responsible_employee_id == 1
         assert "U1 L" in session.calls("editMessageText")[-1].text
+
+    @pytest.mark.usefixtures("flow", "roster")
+    async def test_edit_responsible_swaps_the_employee(self, dp, bot, session, state):
+        await save_defect(
+            state,
+            DefectData(
+                wagon_id=3,
+                wagon_number=WAGON_NUMBER,
+                department=Department.BOGIE.value,
+                defect_type=DefectType.HUMAN_FACTOR,
+                defect_type_label="Human Factor",
+                responsible_employee_id=2,
+                responsible_employee_label="U2 L",
+            ),
+        )
+        await state.set_state(DefectSG.confirm)
+
+        edit = EditCB(field=EDIT_RESPONSIBLE).pack()
+        await dp.feed_update(bot, make_callback_update(edit))
+        assert await state.get_state() == DefectSG.responsible_employee.state
+
+        await dp.feed_update(
+            bot, make_callback_update(ResponsibleEmployeeCB(employee_id=1).pack())
+        )
+
+        assert await state.get_state() == DefectSG.confirm.state
+        assert (await load_defect(state)).responsible_employee_id == 1
+        summary = session.calls("editMessageText")[-1]
+        assert "U1 L" in summary.text
+        buttons = [
+            b.callback_data for row in summary.reply_markup.inline_keyboard for b in row
+        ]
+        assert edit in buttons
 
 
 class TestAFailedEmployeeLookup:

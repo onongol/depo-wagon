@@ -18,12 +18,16 @@ DEFECT_USER_DATA_KEYS = (
     UD_EDITING,
 )
 
+# Human factor only
+EDIT_RESPONSIBLE = "responsible"
+
 # Fields offered for re-editing from the summary screen: (EditCB.field, button label)
 EDIT_FIELDS = (
     ("wagon", _("🚃 Wagon")),
     ("node", _("🔧 Node")),
     ("part_number", _("🔢 Part №")),
     ("defect_type", _("🏷️ Type")),
+    (EDIT_RESPONSIBLE, _("👤 Responsible")),
     ("severity", _("🔴 Severity")),
     ("description", _("📝 Description")),
 )

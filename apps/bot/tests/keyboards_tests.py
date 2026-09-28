@@ -6,6 +6,7 @@ from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
 from apps.bot.callback_data import (
     DefectCardCB,
     DepartmentCB,
+    EditCB,
     NodeCB,
     ResponsibleEmployeeCB,
     StatusAskCB,
@@ -27,10 +28,13 @@ from apps.bot.constants import (
     BTN_PAGE_PREV,
     BTN_PREV,
     BTN_SKIP,
+    EDIT_FIELDS,
+    EDIT_RESPONSIBLE,
     LIST_NUMBER_EMOJI,
     STATUS_TRANSITIONS,
     TASKS_PAGE_SIZE,
 )
+from apps.bot.keyboards.confirm import confirm_keyboard
 from apps.bot.keyboards.defect import department_keyboard, node_keyboard_for_department
 from apps.bot.keyboards.menu import MENU_TEXTS, main_menu_keyboard
 from apps.bot.keyboards.responsible_employee import responsible_employee_keyboard
@@ -41,8 +45,9 @@ from apps.bot.keyboards.tasks import (
     tasks_keyboard,
 )
 from apps.bot.tests.builders import unpacked
+from apps.bot.user_data import DefectData
 from apps.core.constants import Department
-from apps.defects.constants import DefectStatus
+from apps.defects.constants import DefectStatus, DefectType
 
 
 def _menu_texts(kb: ReplyKeyboardMarkup) -> list[str]:
@@ -216,6 +221,22 @@ class TestResponsibleEmployeeKeyboard:
             btn.callback_data.startswith(ResponsibleEmployeeCB.__prefix__ + ":")
             for btn in _kb_buttons(kb)
         )
+
+
+class TestConfirmKeyboard:
+    def _fields(self, defect):
+        return [cb.field for cb in unpacked(confirm_keyboard(defect), EditCB)]
+
+    def test_a_human_factor_offers_the_responsible_employee(self):
+        defect = DefectData(defect_type=DefectType.HUMAN_FACTOR)
+
+        assert self._fields(defect) == [key for key, _label in EDIT_FIELDS]
+
+    def test_any_other_type_does_not(self):
+        fields = self._fields(DefectData(defect_type=DefectType.WEAR))
+
+        assert EDIT_RESPONSIBLE not in fields
+        assert len(fields) == len(EDIT_FIELDS) - 1
 
 
 class TestTaskCallbackDataCarriesUuid:

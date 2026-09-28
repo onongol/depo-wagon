@@ -3,16 +3,28 @@ from typing import TYPE_CHECKING
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from apps.bot.callback_data import ConfirmCB, EditCB, VerdictCB
-from apps.bot.constants import BTN_CANCEL, BTN_SAVE, EDIT_FIELDS, VERDICT_CHOICES
+from apps.bot.constants import (
+    BTN_CANCEL,
+    BTN_SAVE,
+    EDIT_FIELDS,
+    EDIT_RESPONSIBLE,
+    VERDICT_CHOICES,
+)
 from apps.bot.keyboards.utils import build_grid_keyboard
+from apps.defects.constants import DefectType
 
 if TYPE_CHECKING:
     from aiogram.types import InlineKeyboardMarkup
 
+    from apps.bot.user_data import DefectData
 
-def confirm_keyboard() -> InlineKeyboardMarkup:
+
+def confirm_keyboard(defect: DefectData) -> InlineKeyboardMarkup:
+    human_factor = defect.defect_type == DefectType.HUMAN_FACTOR
     builder = InlineKeyboardBuilder()
     for key, label in EDIT_FIELDS:
+        if key == EDIT_RESPONSIBLE and not human_factor:
+            continue
         builder.button(text=str(label), callback_data=EditCB(field=key))
 
     builder.adjust(2)

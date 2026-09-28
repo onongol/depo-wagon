@@ -25,6 +25,7 @@ from apps.bot.constants import (
     BTN_NEW_DEFECT,
     BTN_OPEN_DEFECTS,
     BTN_SAVE,
+    EDIT_RESPONSIBLE,
     UD_DEFECT,
     UD_EDITING,
     UD_RESP_SEARCH,
@@ -654,6 +655,27 @@ class TestEditFromSummary:
 
         scenes.enter.assert_awaited_once_with(DefectSG.node)
         assert (await state.get_data())[UD_EDITING] is True
+
+    async def test_the_responsible_employee_opens_its_list(self, state):
+        await save_defect(state, DefectData(defect_type=DefectType.HUMAN_FACTOR))
+        scenes = AsyncMock()
+
+        await start_edit(make_callback(), EditCB(field=EDIT_RESPONSIBLE), state, scenes)
+
+        scenes.enter.assert_awaited_once_with(DefectSG.responsible_employee)
+        assert (await state.get_data())[UD_EDITING] is True
+
+    async def test_an_older_summary_cannot_give_another_type_an_employee(self, state):
+        """Its Responsible button outlives a change of type to one without."""
+        await save_defect(state, DefectData(defect_type=DefectType.WEAR))
+        await state.set_state(DefectSG.confirm)
+        scenes = AsyncMock()
+
+        await start_edit(make_callback(), EditCB(field=EDIT_RESPONSIBLE), state, scenes)
+
+        scenes.enter.assert_not_awaited()
+        assert await state.get_state() == DefectSG.confirm.state
+        assert UD_EDITING not in await state.get_data()
 
     async def test_an_unknown_field_returns_to_the_summary(self, state):
         await save_defect(state, DefectData())

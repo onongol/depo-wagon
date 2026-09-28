@@ -32,7 +32,9 @@ async def show_summary(
     await state.set_data(data)
 
     await send(
-        build_summary(defect), parse_mode=M.PARSE_MODE, reply_markup=confirm_keyboard()
+        build_summary(defect),
+        parse_mode=M.PARSE_MODE,
+        reply_markup=confirm_keyboard(defect),
     )
     await state.set_state(DefectSG.confirm)
 
