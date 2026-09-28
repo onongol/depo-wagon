@@ -9,11 +9,7 @@ from apps.bot.callback_data import CB_DESC_SKIP
 from apps.bot.fsm import load_defect
 from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.keyboards.confirm import employee_verdict_keyboard
-from apps.bot.keyboards.measurement import (
-    dimension_keyboard,
-    measurement_choice_keyboard,
-    measurement_next_keyboard,
-)
+from apps.bot.keyboards.measurement import dimension_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 
@@ -21,7 +17,6 @@ from .measurement.dimension import ask_value_text
 from .scene import as_send_kwargs
 from .scenes import scene_for
 from .summary import show_summary
-from .text import build_ask_measurement_text
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -31,12 +26,6 @@ if TYPE_CHECKING:
 
 # As each step first showed it; confirm renders async
 _SCREENS = {
-    DefectSG.measurement_choice.state: lambda d: (
-        build_ask_measurement_text(),
-        measurement_next_keyboard()
-        if d.measurements
-        else measurement_choice_keyboard(),
-    ),
     DefectSG.measurement_dimension.state: lambda _: (
         str(M.ASK_DIMENSION),
         dimension_keyboard(),

@@ -1,10 +1,9 @@
-from .choice import measurement_add, measurement_done
+from .choice import MeasurementChoiceScene
 from .dimension import receive_dimension
 from .value import receive_measurement_value
 
 __all__ = [
-    "measurement_add",
-    "measurement_done",
+    "MeasurementChoiceScene",
     "receive_dimension",
     "receive_measurement_value",
 ]

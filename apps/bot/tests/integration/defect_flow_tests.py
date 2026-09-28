@@ -38,6 +38,7 @@ from apps.bot.handlers.common.text import build_help_text
 from apps.bot.handlers.defect.responsible_employee.list import EMPLOYEE_PAGE_SIZE
 from apps.bot.handlers.defect.text import (
     build_album_receiving_text,
+    build_ask_measurement_text,
     build_ask_responsible_employee_text,
     build_defect_type_confirmed_text,
     build_department_confirmed_text,
@@ -59,6 +60,10 @@ from apps.bot.keyboards.defect import (
     node_keyboard_for_department,
     severity_keyboard,
 )
+from apps.bot.keyboards.measurement import (
+    measurement_choice_keyboard,
+    measurement_next_keyboard,
+)
 from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
@@ -68,7 +73,7 @@ from apps.bot.tests.integration.conftest import (
     make_message_update,
     make_photo_update,
 )
-from apps.bot.user_data import DefectData
+from apps.bot.user_data import DefectData, MeasurementEntry
 from apps.core.constants import Department
 from apps.defects.constants import (
     DefectNode,
@@ -567,6 +572,47 @@ class TestTheSeverityStep:
 
         assert await state.get_state() == DefectSG.confirm.state
         assert (await load_defect(state)).severity == "high"
+
+
+class TestTheMeasurementChoiceStep:
+    async def test_the_photos_lead_to_it_in_place(self, dp, bot, session, state):
+        await save_defect(state, DefectData(wagon_id=1, defect_type=DefectType.WEAR))
+        await state.set_state(DefectSG.photo)
+
+        await dp.feed_update(bot, make_callback_update(CB_PHOTO_SKIP))
+
+        (edit,) = session.calls("editMessageText")
+        assert (edit.text, edit.entities) == build_ask_measurement_text().render()
+        assert edit.reply_markup == measurement_choice_keyboard()
+        assert await state.get_state() == DefectSG.measurement_choice.state
+
+    async def test_a_value_brings_it_back_naming_the_measurement(
+        self, dp, bot, session, state
+    ):
+        current = MeasurementEntry(dimension="thickness", dimension_label="Thickness")
+        await save_defect(state, DefectData(wagon_id=1, current_measurement=current))
+        await state.set_state(DefectSG.measurement_value)
+
+        await dp.feed_update(bot, make_message_update("12,5"))
+
+        (sent,) = session.calls("sendMessage")
+        assert sent.text == str(M.MEASUREMENT_SAVED).format(
+            count=1, label="Thickness", value=12.5, unit=" mm"
+        )
+        assert sent.reply_markup == measurement_next_keyboard()
+        assert await state.get_state() == DefectSG.measurement_choice.state
+
+    async def test_a_menu_button_shows_it_again(self, dp, bot, session, state):
+        saved = MeasurementEntry(dimension_label="Gap", value=3.0, unit="mm")
+        await save_defect(state, DefectData(wagon_id=1, measurements=[saved]))
+        await state.set_state(DefectSG.measurement_choice)
+
+        await dp.feed_update(bot, make_message_update("/help", command=True))
+
+        (sent,) = session.calls("sendMessage")
+        assert "<b>Gap</b> = 3.0 mm" in sent.text
+        assert sent.reply_markup == measurement_next_keyboard()
+        assert await state.get_state() == DefectSG.measurement_choice.state
 
 
 class TestEditingTheWagon:
