@@ -11,6 +11,7 @@ from aiogram.utils.text_decorations import html_decoration
 
 from apps.bot.callback_data import (
     CB_DESC_SKIP,
+    CB_PHOTO_CLEAR,
     CB_PHOTO_SKIP,
     DefectTypeCB,
     DepartmentCB,
@@ -27,6 +28,7 @@ from apps.bot.constants import (
     BTN_NEW_DEFECT,
     BTN_OPEN_DEFECTS,
     BTN_SAVE,
+    EDIT_MEASUREMENTS,
     EDIT_RESPONSIBLE,
     UD_DEFECT,
     UD_EDITING,
@@ -60,6 +62,7 @@ from apps.bot.handlers.defect.text import (
     build_description_skipped_text,
     build_description_too_long_text,
     build_edit_description_text,
+    build_edit_photos_text,
     build_measurements_text,
     build_part_number_confirmed_text,
     build_part_number_skipped_text,
@@ -71,7 +74,7 @@ from apps.bot.handlers.defect.text import (
     build_wagon_not_found_text,
 )
 from apps.bot.handlers.defect.wagon import WagonScene
-from apps.bot.keyboards.common import skip_keyboard
+from apps.bot.keyboards.common import clear_or_done_keyboard, skip_keyboard
 from apps.bot.keyboards.confirm import confirm_keyboard
 from apps.bot.keyboards.defect import severity_keyboard
 from apps.bot.keyboards.measurement import (
@@ -82,7 +85,7 @@ from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.bot.tests.builders import make_callback, make_message
-from apps.bot.user_data import DefectData, MeasurementEntry
+from apps.bot.user_data import DefectData, MeasurementEntry, PhotoEntry
 from apps.defects.constants import DefectNode, DefectType
 
 WAGON_LOOKUP = "apps.bot.handlers.defect.wagon.services.get_wagon_by_number"
@@ -694,6 +697,28 @@ class TestSummaryScene:
         scene.wizard.goto.assert_not_awaited()
         assert UD_EDITING not in await state.get_data()
 
+    async def test_edit_photos_and_measurements_open_their_steps(self, state):
+        await save_defect(state, DefectData(defect_type=DefectType.WEAR))
+
+        for field, step in (
+            ("photos", DefectSG.photo),
+            (EDIT_MEASUREMENTS, DefectSG.measurement_choice),
+        ):
+            scene = SummaryScene(wizard=AsyncMock())
+            await scene.edit(make_callback(), EditCB(field=field), state)
+            scene.wizard.goto.assert_awaited_once_with(step)
+
+    async def test_an_older_summary_cannot_give_a_human_factor_measurements(
+        self, state
+    ):
+        """Its Measurements button outlives a change of type to a human factor."""
+        await save_defect(state, DefectData(defect_type=DefectType.HUMAN_FACTOR))
+        scene = SummaryScene(wizard=AsyncMock())
+
+        await scene.edit(make_callback(), EditCB(field=EDIT_MEASUREMENTS), state)
+
+        scene.wizard.goto.assert_not_awaited()
+
     async def test_an_unknown_field_is_ignored(self, state):
         await save_defect(state, DefectData())
         scene = SummaryScene(wizard=AsyncMock())
@@ -758,22 +783,62 @@ class TestAfterPhotos:
 
         defect = DefectData(defect_type=DefectType.HUMAN_FACTOR)
         await save_defect(state, defect)
-        wizard = AsyncMock()
+        scene = PhotoScene(wizard=AsyncMock())
 
-        await after_photos(wizard, defect, state)
+        await after_photos(scene, defect, state)
 
-        wizard.goto.assert_awaited_once_with(DefectSG.desc)
+        scene.wizard.goto.assert_awaited_once_with(DefectSG.desc)
 
     async def test_other_defect_types_go_to_the_measurement_scene(self, state):
         from apps.bot.handlers.defect.photo.routing import after_photos
 
         defect = DefectData(defect_type=DefectType.WEAR)
         await save_defect(state, defect)
-        wizard = AsyncMock()
+        scene = PhotoScene(wizard=AsyncMock())
 
-        await after_photos(wizard, defect, state)
+        await after_photos(scene, defect, state)
 
-        wizard.goto.assert_awaited_once_with(DefectSG.measurement_choice)
+        scene.wizard.goto.assert_awaited_once_with(DefectSG.measurement_choice)
+
+    async def test_an_edit_goes_back_to_the_summary(self, state):
+        from apps.bot.handlers.defect.photo.routing import after_photos
+
+        defect = DefectData(defect_type=DefectType.WEAR)
+        await save_defect(state, defect)
+        await state.update_data({UD_EDITING: True})
+        scene = PhotoScene(wizard=AsyncMock())
+
+        await after_photos(scene, defect, state)
+
+        scene.wizard.goto.assert_awaited_once_with(DefectSG.confirm)
+
+
+class TestEditingThePhotos:
+    PHOTO = PhotoEntry(file_id="AgAC", message_id=10)
+
+    async def test_the_screen_counts_them_and_offers_clear(self):
+        form = DefectData(photos=[self.PHOTO])
+
+        text, keyboard = await PhotoScene.screen(form, {UD_EDITING: True})
+
+        assert text.render() == build_edit_photos_text(1).render()
+        assert keyboard == clear_or_done_keyboard(CB_PHOTO_CLEAR, CB_PHOTO_SKIP)
+
+    async def test_with_none_it_offers_skip(self):
+        text, keyboard = await PhotoScene.screen(DefectData(), {UD_EDITING: True})
+
+        assert text.render() == build_edit_photos_text(0).render()
+        assert keyboard == skip_keyboard(CB_PHOTO_SKIP)
+
+    async def test_clear_drops_them_and_asks_again_in_place(self, state):
+        await save_defect(state, DefectData(photos=[self.PHOTO]))
+        await state.update_data({UD_EDITING: True})
+        callback = make_callback()
+
+        await PhotoScene(wizard=AsyncMock()).clear(callback, state)
+
+        assert (await load_defect(state)).photos == []
+        callback.bot.edit_message_text.assert_awaited_once()
 
 
 THICKNESS = MeasurementEntry(
@@ -883,12 +948,39 @@ class TestMeasurementChoiceScene:
         reply_markup = message.answer.await_args.kwargs["reply_markup"]
         assert reply_markup == measurement_keyboard(any_saved=False)
 
-    async def test_done_moves_on_to_the_description_scene(self):
+    async def test_done_moves_on_to_the_description_scene(self, state):
         scene = MeasurementChoiceScene(wizard=AsyncMock())
 
-        await scene.done(make_callback())
+        await scene.done(make_callback(), state)
 
         scene.wizard.goto.assert_awaited_once_with(DefectSG.desc)
+
+    async def test_an_edit_offers_clear_and_done_goes_back(self, state):
+        form = DefectData(measurements=[THICKNESS.model_copy(update={"value": 1.0})])
+        await save_defect(state, form)
+        await state.update_data({UD_EDITING: True})
+        scene = MeasurementChoiceScene(wizard=AsyncMock())
+
+        _, keyboard = await MeasurementChoiceScene.screen(form, {UD_EDITING: True})
+        await scene.done(make_callback(), state)
+
+        assert keyboard == measurement_keyboard(any_saved=True, clearable=True)
+        scene.wizard.goto.assert_awaited_once_with(DefectSG.confirm)
+
+    async def test_clear_drops_them_and_shows_the_card_in_place(self, state):
+        form = DefectData(
+            measurements=[THICKNESS.model_copy(update={"value": 1.0})],
+            current_measurement=THICKNESS,
+        )
+        await save_defect(state, form)
+        callback = make_callback()
+
+        await MeasurementChoiceScene(wizard=AsyncMock()).clear(callback, state)
+
+        defect = await load_defect(state)
+        assert defect.measurements == []
+        assert defect.current_measurement is None
+        callback.bot.edit_message_text.assert_awaited_once()
 
 
 class TestDescriptionScene:

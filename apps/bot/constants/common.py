@@ -20,6 +20,8 @@ DEFECT_USER_DATA_KEYS = (
 
 # Human factor only
 EDIT_RESPONSIBLE = "responsible"
+# Every type but a human factor
+EDIT_MEASUREMENTS = "measurements"
 
 # Fields offered for re-editing from the summary screen: (EditCB.field, button label)
 EDIT_FIELDS = (
@@ -28,6 +30,8 @@ EDIT_FIELDS = (
     ("part_number", _("🔢 Part №")),
     ("defect_type", _("🏷️ Type")),
     (EDIT_RESPONSIBLE, _("👤 Responsible")),
+    ("photos", _("📸 Photos")),
+    (EDIT_MEASUREMENTS, _("📐 Measurements")),
     ("description", _("📝 Description")),
     ("severity", _("🌡️ Severity")),
 )
@@ -41,3 +45,4 @@ BTN_SKIP = _("⏭ Skip")
 BTN_SAVE = _("✅ Save")
 BTN_CANCEL = _("❌ Cancel")
 BTN_DONE = _("✅ Done")
+BTN_CLEAR = _("🗑 Clear")

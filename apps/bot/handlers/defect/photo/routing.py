@@ -7,18 +7,18 @@ from apps.defects.constants import DefectType
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
-    from aiogram.fsm.scene import SceneWizard
 
+    from apps.bot.handlers.defect.scene import DefectScene
     from apps.bot.user_data import DefectData
 
 
 async def after_photos(
-    wizard: SceneWizard, defect: DefectData, state: FSMContext
+    scene: DefectScene, defect: DefectData, state: FSMContext
 ) -> None:
     """A human factor has no measurements: straight on to the description."""
     await drop_keys(state, UD_LAST_PHOTO_MSG, UD_LAST_MEDIA_GROUP)
 
     if defect.defect_type == DefectType.HUMAN_FACTOR:
-        await wizard.goto(DefectSG.desc)
+        await scene.go_on(state, DefectSG.desc)
     else:
-        await wizard.goto(DefectSG.measurement_choice)
+        await scene.go_on(state, DefectSG.measurement_choice)

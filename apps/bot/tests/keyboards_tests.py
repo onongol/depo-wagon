@@ -30,6 +30,7 @@ from apps.bot.constants import (
     BTN_PREV,
     BTN_SKIP,
     EDIT_FIELDS,
+    EDIT_MEASUREMENTS,
     EDIT_RESPONSIBLE,
     LIST_NUMBER_EMOJI,
     STATUS_TRANSITIONS,
@@ -241,16 +242,15 @@ class TestConfirmKeyboard:
     def _fields(self, defect):
         return [cb.field for cb in unpacked(confirm_keyboard(defect), EditCB)]
 
-    def test_a_human_factor_offers_the_responsible_employee(self):
-        defect = DefectData(defect_type=DefectType.HUMAN_FACTOR)
+    def test_a_human_factor_offers_the_employee_but_no_measurements(self):
+        fields = self._fields(DefectData(defect_type=DefectType.HUMAN_FACTOR))
 
-        assert self._fields(defect) == [key for key, _label in EDIT_FIELDS]
+        assert fields == [k for k, _label in EDIT_FIELDS if k != EDIT_MEASUREMENTS]
 
-    def test_any_other_type_does_not(self):
+    def test_any_other_type_offers_measurements_but_no_employee(self):
         fields = self._fields(DefectData(defect_type=DefectType.WEAR))
 
-        assert EDIT_RESPONSIBLE not in fields
-        assert len(fields) == len(EDIT_FIELDS) - 1
+        assert fields == [k for k, _label in EDIT_FIELDS if k != EDIT_RESPONSIBLE]
 
 
 class TestTaskCallbackDataCarriesUuid:

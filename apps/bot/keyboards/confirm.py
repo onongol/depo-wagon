@@ -7,6 +7,7 @@ from apps.bot.constants import (
     BTN_CANCEL,
     BTN_SAVE,
     EDIT_FIELDS,
+    EDIT_MEASUREMENTS,
     EDIT_RESPONSIBLE,
     VERDICT_CHOICES,
 )
@@ -24,6 +25,8 @@ def confirm_keyboard(defect: DefectData) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     for key, label in EDIT_FIELDS:
         if key == EDIT_RESPONSIBLE and not human_factor:
+            continue
+        if key == EDIT_MEASUREMENTS and human_factor:
             continue
         builder.button(text=str(label), callback_data=EditCB(field=key))
 

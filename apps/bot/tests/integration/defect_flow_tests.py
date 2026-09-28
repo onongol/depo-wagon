@@ -17,8 +17,10 @@ from apps.bot.callback_data import (
     CB_CANCEL,
     CB_DESC_SKIP,
     CB_MEAS_BACK,
+    CB_MEAS_CLEAR,
     CB_MEAS_DONE,
     CB_PART_NUMBER_SKIP,
+    CB_PHOTO_CLEAR,
     CB_PHOTO_SKIP,
     CB_RESP_EMP_ALL,
     CB_RESP_EMP_SKIP,
@@ -32,7 +34,7 @@ from apps.bot.callback_data import (
     SeverityCB,
     VerdictCB,
 )
-from apps.bot.constants import EDIT_RESPONSIBLE, UD_EDITING
+from apps.bot.constants import EDIT_MEASUREMENTS, EDIT_RESPONSIBLE, UD_EDITING
 from apps.bot.errors import build_session_error_text
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.common.text import build_help_text
@@ -49,6 +51,7 @@ from apps.bot.handlers.defect.text import (
     build_edit_defect_type_text,
     build_edit_description_text,
     build_edit_node_text,
+    build_edit_photos_text,
     build_edit_wagon_text,
     build_measurements_text,
     build_node_confirmed_text,
@@ -79,7 +82,7 @@ from apps.bot.tests.integration.conftest import (
     make_message_update,
     make_photo_update,
 )
-from apps.bot.user_data import DefectData, MeasurementEntry
+from apps.bot.user_data import DefectData, MeasurementEntry, PhotoEntry
 from apps.core.constants import Department
 from apps.defects.constants import (
     DefectNode,
@@ -700,6 +703,74 @@ class TestTheDescriptionStep:
 
         assert await state.get_state() == DefectSG.confirm.state
         assert (await load_defect(state)).description == "Cracked weld"
+        assert UD_EDITING not in await state.get_data()
+
+
+class TestEditingThePhotos:
+    """Edit reopens the photos there: more can be sent, or all cleared."""
+
+    PHOTO = PhotoEntry(file_id="AgAC", message_id=10)
+
+    async def _open(self, dp, bot, state):
+        form = DefectData(wagon_id=1, defect_type=DefectType.WEAR, photos=[self.PHOTO])
+        await save_defect(state, form)
+        await state.set_state(DefectSG.confirm)
+        await dp.feed_update(bot, make_callback_update(EditCB(field="photos").pack()))
+
+    async def test_it_counts_them_in_place(self, dp, bot, session, state):
+        await self._open(dp, bot, state)
+
+        (edit,) = session.calls("editMessageText")
+        assert (edit.text, edit.entities) == build_edit_photos_text(1).render()
+        assert await state.get_state() == DefectSG.photo.state
+
+    async def test_a_new_photo_joins_them_and_done_goes_back(self, dp, bot, state):
+        await self._open(dp, bot, state)
+
+        await dp.feed_update(bot, make_photo_update("AgAD", message_id=20))
+        await dp.feed_update(bot, make_callback_update(CB_PHOTO_SKIP))
+
+        assert await state.get_state() == DefectSG.confirm.state
+        photos = (await load_defect(state)).photos
+        assert [p.file_id for p in photos] == ["AgAC", "AgAD"]
+        assert UD_EDITING not in await state.get_data()
+
+    async def test_clear_then_done_goes_back_with_none(self, dp, bot, state):
+        await self._open(dp, bot, state)
+
+        await dp.feed_update(bot, make_callback_update(CB_PHOTO_CLEAR))
+        await dp.feed_update(bot, make_callback_update(CB_PHOTO_SKIP))
+
+        assert await state.get_state() == DefectSG.confirm.state
+        assert (await load_defect(state)).photos == []
+
+
+class TestEditingTheMeasurements:
+    GAP = MeasurementEntry(dimension="gap", dimension_label="Gap", unit="mm")
+
+    async def test_clear_then_a_new_one_then_done_goes_back(
+        self, dp, bot, session, state
+    ):
+        old = self.GAP.model_copy(update={"value": 9.0})
+        form = DefectData(wagon_id=1, defect_type=DefectType.WEAR, measurements=[old])
+        await save_defect(state, form)
+        await state.set_state(DefectSG.confirm)
+
+        tap = EditCB(field=EDIT_MEASUREMENTS).pack()
+        await dp.feed_update(bot, make_callback_update(tap))
+        (edit,) = session.calls("editMessageText")
+        assert (edit.text, edit.entities) == build_measurements_text([old]).render()
+        assert edit.reply_markup == measurement_keyboard(any_saved=True, clearable=True)
+
+        await dp.feed_update(bot, make_callback_update(CB_MEAS_CLEAR))
+        gap = DimensionCB(value=MeasurementDimension.GAP).pack()
+        await dp.feed_update(bot, make_callback_update(gap))
+        await dp.feed_update(bot, make_message_update("3"))
+        await dp.feed_update(bot, make_callback_update(CB_MEAS_DONE))
+
+        assert await state.get_state() == DefectSG.confirm.state
+        saved = (await load_defect(state)).measurements
+        assert saved == [self.GAP.model_copy(update={"value": 3.0})]
         assert UD_EDITING not in await state.get_data()
 
 

@@ -24,6 +24,16 @@ def build_photo_too_large_text() -> Text:
     return Text("⚠️ ", _("Photo is too large (max 10 MB). Please send a smaller photo:"))
 
 
+def build_edit_photos_text(count: int) -> Text:
+    if not count:
+        return Text("✏️ ", _("Send a photo of the defect (or skip):"))
+    return as_list(
+        Text("✏️ ", _("Photos attached:"), " ", count),
+        _("Send more photos, clear them, or press Done:"),
+        sep="\n\n",
+    )
+
+
 def build_photos_attached_toast(count: int) -> str:
     """Plain text: a callback answer carries no entities."""
     return f"✅ {_('Photos attached:')} {count}"

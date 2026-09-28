@@ -4,7 +4,7 @@ from aiogram.types import InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from apps.bot.callback_data import CB_CANCEL, CB_LINK_CANCEL, LinkConfirmCB
-from apps.bot.constants import BTN_CANCEL, BTN_CONNECT, BTN_DONE, BTN_SKIP
+from apps.bot.constants import BTN_CANCEL, BTN_CLEAR, BTN_CONNECT, BTN_DONE, BTN_SKIP
 
 if TYPE_CHECKING:
     from aiogram.types import InlineKeyboardMarkup
@@ -26,6 +26,14 @@ def done_keyboard(callback_data: str) -> InlineKeyboardMarkup:
     """Single 'Done' button carrying an already-packed payload."""
     builder = InlineKeyboardBuilder()
     builder.button(text=str(BTN_DONE), callback_data=callback_data)
+    return builder.as_markup()
+
+
+def clear_or_done_keyboard(clear: str, done: str) -> InlineKeyboardMarkup:
+    """Drop what an Edit reopened, or keep it and go back."""
+    builder = InlineKeyboardBuilder()
+    builder.button(text=str(BTN_CLEAR), callback_data=clear)
+    builder.button(text=str(BTN_DONE), callback_data=done)
     return builder.as_markup()
 
 

@@ -4,7 +4,7 @@ from aiogram import F
 from aiogram.fsm.scene import on
 
 from apps.bot.callback_data import ConfirmCB, EditCB
-from apps.bot.constants import EDIT_RESPONSIBLE, UD_EDITING
+from apps.bot.constants import EDIT_MEASUREMENTS, EDIT_RESPONSIBLE, UD_EDITING
 from apps.bot.fsm import drop_keys, load_defect
 from apps.bot.keyboards.confirm import confirm_keyboard
 from apps.bot.states import DefectSG
@@ -30,6 +30,8 @@ _EDIT_SCENES = {
     "part_number": DefectSG.part_number,
     "defect_type": DefectSG.defect_type,
     EDIT_RESPONSIBLE: DefectSG.responsible_employee,
+    "photos": DefectSG.photo,
+    EDIT_MEASUREMENTS: DefectSG.measurement_choice,
     "description": DefectSG.desc,
     "severity": DefectSG.severity,
 }
@@ -59,10 +61,12 @@ class SummaryScene(DefectScene, state=DefectSG.confirm.state):
         """The field's scene draws its own edit prompt and comes back here."""
         await callback.answer()
 
-        # An older summary's button, from before the type moved off a human factor
+        # An older summary's button, from before the type moved on or off a human factor
         defect = await load_defect(state)
         human_factor = defect.defect_type == DefectType.HUMAN_FACTOR
         if callback_data.field == EDIT_RESPONSIBLE and not human_factor:
+            return
+        if callback_data.field == EDIT_MEASUREMENTS and human_factor:
             return
 
         field_step = _EDIT_SCENES.get(callback_data.field)

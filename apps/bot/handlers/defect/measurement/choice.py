@@ -3,7 +3,14 @@ from typing import TYPE_CHECKING, Any
 from aiogram import F
 from aiogram.fsm.scene import on
 
-from apps.bot.callback_data import CB_MEAS_BACK, CB_MEAS_DONE, CB_MEAS_SKIP, DimensionCB
+from apps.bot.callback_data import (
+    CB_MEAS_BACK,
+    CB_MEAS_CLEAR,
+    CB_MEAS_DONE,
+    CB_MEAS_SKIP,
+    DimensionCB,
+)
+from apps.bot.constants import UD_EDITING
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.defect.scene import STEP_TEXT, DefectScene
 from apps.bot.handlers.defect.text import (
@@ -41,8 +48,10 @@ class MeasurementChoiceScene(DefectScene, state=DefectSG.measurement_choice.stat
             text = build_ask_value_text(current.dimension_label, current.unit)
             return text, measurement_value_keyboard()
 
+        any_saved = bool(form.measurements)
+        clearable = any_saved and bool(data.get(UD_EDITING))
         text = build_measurements_text(form.measurements)
-        return text, measurement_keyboard(any_saved=bool(form.measurements))
+        return text, measurement_keyboard(any_saved=any_saved, clearable=clearable)
 
     async def _set_current(
         self,
@@ -98,6 +107,17 @@ class MeasurementChoiceScene(DefectScene, state=DefectSG.measurement_choice.stat
         await self.show_as_message(message, state)
 
     @on.callback_query(F.data.in_({CB_MEAS_SKIP, CB_MEAS_DONE}))
-    async def done(self, callback: CallbackQuery) -> None:
+    async def done(self, callback: CallbackQuery, state: FSMContext) -> None:
         await callback.answer()
-        await self.wizard.goto(DefectSG.desc)
+        await self.go_on(state, DefectSG.desc)
+
+    @on.callback_query(F.data == CB_MEAS_CLEAR)
+    async def clear(self, callback: CallbackQuery, state: FSMContext) -> None:
+        """An Edit's way to drop a wrong measurement: all of them, then add again."""
+        await callback.answer()
+
+        defect = await load_defect(state)
+        defect.measurements = []
+        defect.current_measurement = None
+        await save_defect(state, defect)
+        await self.show_as_edit(callback, state)

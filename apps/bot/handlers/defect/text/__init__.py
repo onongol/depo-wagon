@@ -26,6 +26,7 @@ from .text_part_number import (
 )
 from .text_photo import (
     build_album_receiving_text,
+    build_edit_photos_text,
     build_photo_received_text,
     build_photo_too_large_text,
     build_photos_attached_toast,
@@ -59,6 +60,7 @@ __all__ = [
     "build_edit_description_text",
     "build_edit_node_text",
     "build_edit_part_number_text",
+    "build_edit_photos_text",
     "build_edit_wagon_text",
     "build_measurements_text",
     "build_new_defect_text",
