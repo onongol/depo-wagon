@@ -41,7 +41,7 @@ BTN_OPEN_DEFECTS = _("📊 Open Defects")
 BTN_ASK = _("🤖 AI Assistant")
 BTN_HELP = _("ℹ️ Help")
 
-BTN_SKIP = _("⏭ Skip")
+BTN_SKIP = _("⏭️ Skip")
 BTN_SAVE = _("✅ Save")
 BTN_CANCEL = _("❌ Cancel")
 BTN_DONE = _("✅ Done")
