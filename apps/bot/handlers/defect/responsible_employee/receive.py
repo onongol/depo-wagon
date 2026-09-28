@@ -29,9 +29,22 @@ if TYPE_CHECKING:
 class ResponsibleEmployeeScene(DefectScene, state=DefectSG.responsible_employee.state):
     """Human factor only: someone from the form's department, paged or searched by name."""
 
+    async def _record(
+        self, state: FSMContext, employee_id: int | None, label: str | None
+    ) -> None:
+        defect = await load_defect(state)
+        defect.responsible_employee_id = employee_id
+        defect.responsible_employee_label = label
+        await save_defect(state, defect)
+        await drop_keys(state, UD_RESP_SEARCH)
+        await self.go_on(state, DefectSG.severity)
+
     @classmethod
-    async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:
-        return await employee_list_screen(form.department, data.get(UD_RESP_SEARCH, ""))
+    async def screen(
+        cls, form: DefectData, data: dict[str, Any], page: int = 0
+    ) -> Screen:
+        search = data.get(UD_RESP_SEARCH, "")
+        return await employee_list_screen(form.department, search, page)
 
     @on.callback_query(ResponsibleEmployeeCB.filter())
     async def select(
@@ -52,24 +65,13 @@ class ResponsibleEmployeeScene(DefectScene, state=DefectSG.responsible_employee.
             return
 
         label = f"{employee.first_name} {employee.last_name}"
-        defect.responsible_employee_id = employee.id
-        defect.responsible_employee_label = label
-        await save_defect(state, defect)
-        await drop_keys(state, UD_RESP_SEARCH)
-
-        await self.go_on(state, DefectSG.severity)
+        await self._record(state, employee.id, label)
 
     @on.callback_query(F.data == CB_RESP_EMP_SKIP)
     async def skip(self, callback: CallbackQuery, state: FSMContext) -> None:
+        """No one, which also clears someone Edit ▸ Responsible reopened."""
         await callback.answer()
-
-        defect = await load_defect(state)
-        defect.responsible_employee_id = None
-        defect.responsible_employee_label = None
-        await save_defect(state, defect)
-        await drop_keys(state, UD_RESP_SEARCH)
-
-        await self.go_on(state, DefectSG.severity)
+        await self._record(state, None, None)
 
     @on.callback_query(ResponsibleEmployeePageCB.filter())
     async def turn_page(
@@ -80,10 +82,8 @@ class ResponsibleEmployeeScene(DefectScene, state=DefectSG.responsible_employee.
     ) -> None:
         await callback.answer()
 
-        defect = await load_defect(state)
-        search = (await state.get_data()).get(UD_RESP_SEARCH, "")
-        content, keyboard = await employee_list_screen(
-            defect.department, search, callback_data.page
+        content, keyboard = await self.screen(
+            await load_defect(state), await state.get_data(), callback_data.page
         )
         await edit_or_send(callback, **as_send_kwargs(content), reply_markup=keyboard)
 
