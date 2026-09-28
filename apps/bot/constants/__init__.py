@@ -1,6 +1,5 @@
 from .auth import BTN_CONNECT, LinkStatus
 from .common import (
-    BTN_ADD,
     BTN_ASK,
     BTN_CANCEL,
     BTN_DONE,
@@ -47,7 +46,6 @@ from .tasks import (
 )
 
 __all__ = [
-    "BTN_ADD",
     "BTN_ALL_EMPLOYEES",
     "BTN_ASK",
     "BTN_BACK",

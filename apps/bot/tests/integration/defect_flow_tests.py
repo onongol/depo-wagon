@@ -15,7 +15,7 @@ from aiogram.types import ReplyKeyboardRemove
 
 from apps.bot.callback_data import (
     CB_CANCEL,
-    CB_MEAS_ADD,
+    CB_MEAS_BACK,
     CB_MEAS_DONE,
     CB_PART_NUMBER_SKIP,
     CB_PHOTO_SKIP,
@@ -38,13 +38,14 @@ from apps.bot.handlers.common.text import build_help_text
 from apps.bot.handlers.defect.responsible_employee.list import EMPLOYEE_PAGE_SIZE
 from apps.bot.handlers.defect.text import (
     build_album_receiving_text,
-    build_ask_measurement_text,
     build_ask_responsible_employee_text,
+    build_ask_value_text,
     build_defect_type_confirmed_text,
     build_department_confirmed_text,
     build_edit_defect_type_text,
     build_edit_node_text,
     build_edit_wagon_text,
+    build_measurements_text,
     build_node_confirmed_text,
     build_part_number_confirmed_text,
     build_part_number_skipped_text,
@@ -61,8 +62,8 @@ from apps.bot.keyboards.defect import (
     severity_keyboard,
 )
 from apps.bot.keyboards.measurement import (
-    measurement_choice_keyboard,
-    measurement_next_keyboard,
+    measurement_keyboard,
+    measurement_value_keyboard,
 )
 from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.messages import BotMessages as M
@@ -177,11 +178,8 @@ class TestTheWholeFlow:
         await tap(CB_PHOTO_SKIP)
         assert await state.get_state() == DefectSG.measurement_choice.state
 
-        await tap(CB_MEAS_ADD)
-        assert await state.get_state() == DefectSG.measurement_dimension.state
-
         await tap(DimensionCB(value="thickness").pack())
-        assert await state.get_state() == DefectSG.measurement_value.state
+        assert await state.get_state() == DefectSG.measurement_choice.state
 
         await text("12,5")
         assert await state.get_state() == DefectSG.measurement_choice.state
@@ -574,7 +572,17 @@ class TestTheSeverityStep:
         assert (await load_defect(state)).severity == "high"
 
 
-class TestTheMeasurementChoiceStep:
+class TestTheMeasurementCard:
+    """One state throughout: the picked dimension waits in the form for its number."""
+
+    THICKNESS = MeasurementEntry(
+        dimension="thickness", dimension_label="Thickness", unit="mm"
+    )
+
+    async def _at_the_card(self, state, **form):
+        await save_defect(state, DefectData(wagon_id=1, **form))
+        await state.set_state(DefectSG.measurement_choice)
+
     async def test_the_photos_lead_to_it_in_place(self, dp, bot, session, state):
         await save_defect(state, DefectData(wagon_id=1, defect_type=DefectType.WEAR))
         await state.set_state(DefectSG.photo)
@@ -582,37 +590,55 @@ class TestTheMeasurementChoiceStep:
         await dp.feed_update(bot, make_callback_update(CB_PHOTO_SKIP))
 
         (edit,) = session.calls("editMessageText")
-        assert (edit.text, edit.entities) == build_ask_measurement_text().render()
-        assert edit.reply_markup == measurement_choice_keyboard()
+        assert (edit.text, edit.entities) == build_measurements_text([]).render()
+        assert edit.reply_markup == measurement_keyboard(any_saved=False)
         assert await state.get_state() == DefectSG.measurement_choice.state
 
-    async def test_a_value_brings_it_back_naming_the_measurement(
+    async def test_a_dimension_asks_for_its_number_in_place(
         self, dp, bot, session, state
     ):
-        current = MeasurementEntry(dimension="thickness", dimension_label="Thickness")
-        await save_defect(state, DefectData(wagon_id=1, current_measurement=current))
-        await state.set_state(DefectSG.measurement_value)
+        await self._at_the_card(state)
+
+        tap = DimensionCB(value=MeasurementDimension.THICKNESS).pack()
+        await dp.feed_update(bot, make_callback_update(tap))
+
+        (edit,) = session.calls("editMessageText")
+        expected = build_ask_value_text("Thickness", "mm")
+        assert (edit.text, edit.entities) == expected.render()
+        assert edit.reply_markup == measurement_value_keyboard()
+        assert (await load_defect(state)).current_measurement == self.THICKNESS
+
+    async def test_the_number_comes_back_as_a_new_card(self, dp, bot, session, state):
+        await self._at_the_card(state, current_measurement=self.THICKNESS)
 
         await dp.feed_update(bot, make_message_update("12,5"))
 
         (sent,) = session.calls("sendMessage")
-        assert sent.text == str(M.MEASUREMENT_SAVED).format(
-            count=1, label="Thickness", value=12.5, unit=" mm"
-        )
-        assert sent.reply_markup == measurement_next_keyboard()
+        saved = self.THICKNESS.model_copy(update={"value": 12.5})
+        assert (sent.text, sent.entities) == build_measurements_text([saved]).render()
+        assert sent.reply_markup == measurement_keyboard(any_saved=True)
         assert await state.get_state() == DefectSG.measurement_choice.state
 
-    async def test_a_menu_button_shows_it_again(self, dp, bot, session, state):
-        saved = MeasurementEntry(dimension_label="Gap", value=3.0, unit="mm")
-        await save_defect(state, DefectData(wagon_id=1, measurements=[saved]))
-        await state.set_state(DefectSG.measurement_choice)
+    async def test_back_returns_to_the_card_in_place(self, dp, bot, session, state):
+        await self._at_the_card(state, current_measurement=self.THICKNESS)
+
+        await dp.feed_update(bot, make_callback_update(CB_MEAS_BACK))
+
+        (edit,) = session.calls("editMessageText")
+        assert (edit.text, edit.entities) == build_measurements_text([]).render()
+        assert (await load_defect(state)).current_measurement is None
+
+    async def test_a_menu_button_keeps_the_picked_dimension(
+        self, dp, bot, session, state
+    ):
+        await self._at_the_card(state, current_measurement=self.THICKNESS)
 
         await dp.feed_update(bot, make_message_update("/help", command=True))
 
         (sent,) = session.calls("sendMessage")
-        assert "<b>Gap</b> = 3.0 mm" in sent.text
-        assert sent.reply_markup == measurement_next_keyboard()
-        assert await state.get_state() == DefectSG.measurement_choice.state
+        expected = build_ask_value_text("Thickness", "mm")
+        assert (sent.text, sent.entities) == expected.render()
+        assert sent.reply_markup == measurement_value_keyboard()
 
 
 class TestEditingTheWagon:
@@ -741,7 +767,7 @@ class TestAStepWithoutItsForm:
         assert await state.get_state() is None
 
     async def test_a_tap_ends_it_too(self, dp, bot, session, state):
-        await state.set_state(DefectSG.measurement_dimension)
+        await state.set_state(DefectSG.measurement_choice)
         tap = DimensionCB(value=MeasurementDimension.DEPTH).pack()
 
         await dp.feed_update(bot, make_callback_update(tap))

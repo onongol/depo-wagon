@@ -249,7 +249,7 @@ class TestDefectFormMiddleware:
 
     async def test_a_step_without_its_form_is_never_reached(self, state):
         """State and form keys expire apart, and a two-write exit can fail midway."""
-        await state.set_state(DefectSG.measurement_value)
+        await state.set_state(DefectSG.measurement_choice)
         message = _spec_message()
 
         result, handler = await self._call(state, event=message)

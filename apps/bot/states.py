@@ -20,8 +20,6 @@ class DefectSG(StatesGroup):
     severity = State()
     photo = State()
     measurement_choice = State()
-    measurement_dimension = State()
-    measurement_value = State()
     desc = State()
     confirm = State()
     saving = State()

@@ -35,7 +35,3 @@ def build_photo_too_large_text() -> Text:
 def build_photos_attached_toast(count: int) -> str:
     """Plain text: a callback answer carries no entities."""
     return f"✅ {_('Photos attached:')} {count}"
-
-
-def build_ask_measurement_text() -> Text:
-    return Text("📐 ", _("Would you like to add a measurement?"))

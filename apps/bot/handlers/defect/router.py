@@ -18,7 +18,6 @@ from apps.bot.callback_data import (
     CB_DEFECT_RESTART,
     CB_DESC_SKIP,
     ConfirmCB,
-    DimensionCB,
     EditCB,
     VerdictCB,
 )
@@ -32,7 +31,6 @@ from .cancel import cancel_defect_button, stale_callback
 from .confirm import confirm_defect
 from .description import receive_description, skip_description
 from .edit import start_edit
-from .measurement import receive_dimension, receive_measurement_value
 from .restart import continue_defect, menu_button_mid_flow, restart_defect
 from .scene import ask_about_the_open_form
 from .scenes import DEFECT_SCENES
@@ -74,13 +72,6 @@ def _plain_steps_router() -> Router:
     )
     cb(continue_defect, running, F.data == CB_DEFECT_CONTINUE)
     cb(restart_defect, running, F.data == CB_DEFECT_RESTART)
-
-    cb(
-        receive_dimension,
-        StateFilter(DefectSG.measurement_dimension),
-        DimensionCB.filter(),
-    )
-    msg(receive_measurement_value, StateFilter(DefectSG.measurement_value), *_TEXT)
 
     msg(receive_description, StateFilter(DefectSG.desc), *_TEXT)
     cb(skip_description, StateFilter(DefectSG.desc), F.data == CB_DESC_SKIP)

@@ -26,8 +26,6 @@ class TestStateStringsArePinned:
             "DefectSG:photo",
             "DefectSG:responsible_employee",
             "DefectSG:measurement_choice",
-            "DefectSG:measurement_dimension",
-            "DefectSG:measurement_value",
             "DefectSG:desc",
             "DefectSG:confirm",
             "DefectSG:saving",

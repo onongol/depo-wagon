@@ -13,6 +13,7 @@ from apps.bot.callback_data import (
     CB_DESC_SKIP,
     DefectTypeCB,
     DepartmentCB,
+    DimensionCB,
     EditCB,
     NodeCB,
     ResponsibleEmployeeCB,
@@ -49,28 +50,30 @@ from apps.bot.handlers.defect.responsible_employee.list import EMPLOYEE_PAGE_SIZ
 from apps.bot.handlers.defect.severity import SeverityScene
 from apps.bot.handlers.defect.start import new_defect_start
 from apps.bot.handlers.defect.text import (
-    build_ask_measurement_text,
     build_ask_responsible_employee_text,
+    build_ask_value_text,
     build_defect_type_confirmed_text,
+    build_measurements_text,
     build_part_number_confirmed_text,
     build_part_number_skipped_text,
     build_responsible_employee_confirmed_text,
     build_responsible_employee_search_text,
     build_responsible_employee_skipped_text,
+    build_value_invalid_text,
     build_wagon_not_found_text,
 )
 from apps.bot.handlers.defect.wagon import WagonScene
 from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.keyboards.defect import severity_keyboard
 from apps.bot.keyboards.measurement import (
-    measurement_choice_keyboard,
-    measurement_next_keyboard,
+    measurement_keyboard,
+    measurement_value_keyboard,
 )
 from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.bot.tests.builders import make_callback, make_message
-from apps.bot.user_data import DefectData
+from apps.bot.user_data import DefectData, MeasurementEntry
 from apps.defects.constants import DefectNode, DefectType
 
 WAGON_LOOKUP = "apps.bot.handlers.defect.wagon.services.get_wagon_by_number"
@@ -782,40 +785,112 @@ class TestAfterPhotos:
         send.assert_not_awaited()
 
 
+THICKNESS = MeasurementEntry(
+    dimension="thickness", dimension_label="Thickness", unit="mm"
+)
+
+
 class TestMeasurementChoiceScene:
-    async def test_the_first_screen_asks_whether_to_add_one(self):
+    async def test_before_any_the_card_offers_the_dimensions_and_skip(self):
         text, keyboard = await MeasurementChoiceScene.screen(DefectData(), {})
 
-        assert text.render() == build_ask_measurement_text().render()
-        assert keyboard == measurement_choice_keyboard()
+        assert text.render() == build_measurements_text([]).render()
+        assert keyboard == measurement_keyboard(any_saved=False)
 
-    async def test_after_one_the_screen_names_it_and_offers_done(self):
-        from apps.bot.user_data import MeasurementEntry
-
+    async def test_the_card_lists_what_is_saved_and_offers_done(self):
         form = DefectData(
             measurements=[
                 MeasurementEntry(dimension_label="Width", value=3.0),
-                MeasurementEntry(dimension_label="Thickness", value=12.5, unit="mm"),
+                THICKNESS.model_copy(update={"value": 12.5}),
             ]
         )
 
         text, keyboard = await MeasurementChoiceScene.screen(form, {})
 
-        assert "Measurement 2 saved" in text
-        assert "<b>Thickness</b> = 12.5 mm" in text
-        assert keyboard == measurement_next_keyboard()
+        rendered = text.render()[0]
+        assert "🔹 Width: 3.0\n🔹 Thickness: 12.5 mm" in rendered
+        assert keyboard == measurement_keyboard(any_saved=True)
 
-    async def test_add_starts_a_measurement_and_asks_for_the_dimension(self, state):
-        from apps.bot.user_data import MeasurementEntry
+    async def test_a_picked_dimension_asks_for_its_number(self):
+        form = DefectData(current_measurement=THICKNESS)
 
+        text, keyboard = await MeasurementChoiceScene.screen(form, {})
+
+        assert text.render() == build_ask_value_text("Thickness", "mm").render()
+        assert keyboard == measurement_value_keyboard()
+
+    def test_the_prompt_names_the_unit_when_there_is_one(self):
+        assert (
+            build_ask_value_text("Thickness", "mm")
+            .render()[0]
+            .startswith("📏 Thickness, mm\n")
+        )
+        assert build_ask_value_text("Other", "").render()[0].startswith("📏 Other\n")
+
+    async def test_a_dimension_is_held_with_its_unit_and_asked_in_place(self, state):
         await save_defect(state, DefectData())
         callback = make_callback()
 
-        await MeasurementChoiceScene(wizard=AsyncMock()).add(callback, state)
+        await MeasurementChoiceScene(wizard=AsyncMock()).pick(
+            callback, DimensionCB(value="thickness"), state
+        )
 
-        assert (await load_defect(state)).current_measurement == MeasurementEntry()
-        assert await state.get_state() == DefectSG.measurement_dimension.state
-        callback.answer.assert_awaited_once()
+        assert (await load_defect(state)).current_measurement == THICKNESS
+        callback.bot.edit_message_text.assert_awaited_once()
+
+    async def test_other_has_no_unit(self, state):
+        await save_defect(state, DefectData())
+
+        await MeasurementChoiceScene(wizard=AsyncMock()).pick(
+            make_callback(), DimensionCB(value="other"), state
+        )
+
+        assert (await load_defect(state)).current_measurement.unit == ""
+
+    async def test_back_drops_the_picked_dimension(self, state):
+        await save_defect(state, DefectData(current_measurement=THICKNESS))
+        callback = make_callback()
+
+        await MeasurementChoiceScene(wizard=AsyncMock()).back(callback, state)
+
+        assert (await load_defect(state)).current_measurement is None
+        callback.bot.edit_message_text.assert_awaited_once()
+
+    async def test_the_number_is_saved_and_the_card_sent_anew(self, state):
+        await save_defect(state, DefectData(current_measurement=THICKNESS))
+        message = make_message("12,5")
+
+        await MeasurementChoiceScene(wizard=AsyncMock()).receive(message, state)
+
+        defect = await load_defect(state)
+        assert defect.measurements == [THICKNESS.model_copy(update={"value": 12.5})]
+        assert defect.current_measurement is None
+        reply_markup = message.answer.await_args.kwargs["reply_markup"]
+        assert reply_markup == measurement_keyboard(any_saved=True)
+
+    async def test_a_non_number_is_asked_for_again(self, state):
+        await save_defect(state, DefectData(current_measurement=THICKNESS))
+        message = make_message("twelve")
+
+        await MeasurementChoiceScene(wizard=AsyncMock()).receive(message, state)
+
+        defect = await load_defect(state)
+        assert defect.measurements == []
+        assert defect.current_measurement == THICKNESS
+        message.answer.assert_awaited_once_with(
+            **build_value_invalid_text().as_kwargs(),
+            reply_markup=measurement_value_keyboard(),
+        )
+
+    async def test_text_before_a_dimension_shows_the_card_again(self, state):
+        await save_defect(state, DefectData())
+        message = make_message("12")
+
+        await MeasurementChoiceScene(wizard=AsyncMock()).receive(message, state)
+
+        assert (await load_defect(state)).measurements == []
+        reply_markup = message.answer.await_args.kwargs["reply_markup"]
+        assert reply_markup == measurement_keyboard(any_saved=False)
 
     async def test_done_moves_on_to_the_description(self, state):
         await save_defect(state, DefectData())
@@ -828,54 +903,6 @@ class TestMeasurementChoiceScene:
         await MeasurementChoiceScene(wizard=AsyncMock()).done(make_callback(), state)
 
         assert await state.get_state() == DefectSG.desc.state
-
-
-class TestMeasurementValue:
-    async def _receive(self, state, text, dimension="thickness"):
-        from apps.bot.handlers.defect.measurement import receive_measurement_value
-        from apps.bot.user_data import MeasurementEntry
-
-        await save_defect(
-            state,
-            DefectData(current_measurement=MeasurementEntry(dimension=dimension)),
-        )
-        await state.set_state(DefectSG.measurement_value)
-        scenes = AsyncMock()
-        await receive_measurement_value(make_message(text), state, scenes)
-        return scenes
-
-    async def test_the_unit_comes_from_the_dimension(self, state):
-        scenes = await self._receive(state, "12,5")
-
-        defect = await load_defect(state)
-        assert defect.measurements[0].value == 12.5
-        assert defect.measurements[0].unit == "mm"
-        assert defect.current_measurement is None
-        scenes.enter.assert_awaited_once_with(DefectSG.measurement_choice)
-
-    async def test_other_has_no_unit(self, state):
-        await self._receive(state, "3", dimension="other")
-
-        assert (await load_defect(state)).measurements[0].unit == ""
-
-    async def test_a_non_number_is_asked_for_again(self, state):
-        scenes = await self._receive(state, "twelve")
-
-        defect = await load_defect(state)
-        assert defect.measurements == []
-        assert defect.current_measurement is not None
-        assert await state.get_state() == DefectSG.measurement_value.state
-        scenes.enter.assert_not_awaited()
-
-    def test_the_prompt_names_the_unit(self):
-        from apps.bot.handlers.defect.measurement.dimension import ask_value_text
-        from apps.bot.user_data import MeasurementEntry
-
-        thickness = MeasurementEntry(dimension="thickness", dimension_label="Thickness")
-        other = MeasurementEntry(dimension="other", dimension_label="Other")
-
-        assert "<b>Thickness, mm</b>" in ask_value_text(thickness)
-        assert "<b>Other</b>" in ask_value_text(other)
 
 
 class TestUserTextIsEscaped:

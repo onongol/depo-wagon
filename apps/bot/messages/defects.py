@@ -9,20 +9,6 @@ class DefectMessages:
     EDIT_SEVERITY = _("✏️ Select severity:")
     EDIT_DESCRIPTION = _("✏️ Enter the description (or skip):")
 
-    # ── Measurement sub-flow ─────────────────────────────────────────────────
-
-    ASK_DIMENSION = _("📏 Select the measurement dimension:")
-
-    DIMENSION_CONFIRMED = _(
-        "✅ Dimension: <b>{label}</b>\n\nEnter the measurement value <i>(e.g. 12.5)</i>:"
-    )
-
-    VALUE_INVALID = _("❌ Please enter a number <i>(e.g. 12.5)</i>:")
-
-    MEASUREMENT_SAVED = _(
-        "✅ Measurement {count} saved: <b>{label}</b> = {value}{unit}\n\nAdd another?"
-    )
-
     # ── Description ──────────────────────────────────────────────────────────
 
     ASK_DESCRIPTION = _("📝 Enter a description of the defect (or skip):")
