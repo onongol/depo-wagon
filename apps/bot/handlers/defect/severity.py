@@ -8,14 +8,10 @@ from apps.bot.fsm import load_defect, save_defect
 from apps.bot.keyboards.defect import severity_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
-from apps.defects.constants import DefectType
 
 from .scene import DefectScene
-from .text import (
-    build_defect_type_confirmed_text,
-    build_responsible_employee_confirmed_text,
-    build_responsible_employee_skipped_text,
-)
+from .summary import show_summary
+from .text import build_description_added_text, build_description_skipped_text
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
@@ -27,24 +23,15 @@ if TYPE_CHECKING:
 
 
 class SeverityScene(DefectScene, state=DefectSG.severity.state):
-    """The severity, from buttons; Edit ▸ Severity reopens it.
-
-    A human factor comes here from the employee step, and the screen says how it went.
-    """
+    """Judged last, once the evidence is in; the summary comes next, from an Edit too."""
 
     @classmethod
     async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:
         if data.get(UD_EDITING):
             return str(M.EDIT_SEVERITY), severity_keyboard()
-        if form.defect_type != DefectType.HUMAN_FACTOR:
-            text = build_defect_type_confirmed_text(form.defect_type_label)
-        elif form.responsible_employee_label:
-            text = build_responsible_employee_confirmed_text(
-                form.responsible_employee_label
-            )
-        else:
-            text = build_responsible_employee_skipped_text()
-        return text, severity_keyboard()
+        if form.description:
+            return build_description_added_text(), severity_keyboard()
+        return build_description_skipped_text(), severity_keyboard()
 
     @on.callback_query(SeverityCB.filter())
     async def receive(
@@ -60,4 +47,4 @@ class SeverityScene(DefectScene, state=DefectSG.severity.state):
         defect.severity_label = sev_label
         await save_defect(state, defect)
 
-        await self.go_on(state, DefectSG.photo)
+        await show_summary(callback.message.edit_text, state, defect)

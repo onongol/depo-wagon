@@ -10,7 +10,6 @@ from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.states import DefectSG
 
 from .scene import STEP_TEXT, DefectScene
-from .summary import show_summary
 from .text import (
     build_ask_description_text,
     build_description_too_long_text,
@@ -18,8 +17,6 @@ from .text import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable
-
     from aiogram.fsm.context import FSMContext
     from aiogram.types import CallbackQuery, Message
 
@@ -31,15 +28,13 @@ _MAX_DESCRIPTION_LEN = 1000
 
 
 class DescriptionScene(DefectScene, state=DefectSG.desc.state):
-    """Typed or skipped, the summary comes next, from an Edit as well."""
+    """Typed or skipped; the severity's screen says which it was."""
 
-    async def _record(
-        self, send: Callable[..., Awaitable], state: FSMContext, description: str
-    ) -> None:
+    async def _record(self, state: FSMContext, description: str) -> None:
         defect = await load_defect(state)
         defect.description = description
         await save_defect(state, defect)
-        await show_summary(send, state, defect)
+        await self.go_on(state, DefectSG.severity)
 
     @classmethod
     async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:
@@ -55,10 +50,10 @@ class DescriptionScene(DefectScene, state=DefectSG.desc.state):
             await message.answer(**too_long.as_kwargs())
             return
 
-        await self._record(message.answer, state, text)
+        await self._record(state, text)
 
     @on.callback_query(F.data == CB_DESC_SKIP)
     async def skip(self, callback: CallbackQuery, state: FSMContext) -> None:
         """A skip is an empty description, which also clears one an Edit reopened."""
         await callback.answer()
-        await self._record(callback.message.edit_text, state, "")
+        await self._record(state, "")

@@ -9,6 +9,8 @@ from .text_defect_type import (
 from .text_department import build_department_confirmed_text
 from .text_description import (
     build_ask_description_text,
+    build_description_added_text,
+    build_description_skipped_text,
     build_description_too_long_text,
     build_edit_description_text,
 )
@@ -27,7 +29,6 @@ from .text_photo import (
     build_photo_received_text,
     build_photo_too_large_text,
     build_photos_attached_toast,
-    build_severity_confirmed_text,
 )
 from .text_responsible_employee import (
     build_ask_responsible_employee_text,
@@ -50,6 +51,8 @@ __all__ = [
     "build_defect_in_progress_text",
     "build_defect_type_confirmed_text",
     "build_department_confirmed_text",
+    "build_description_added_text",
+    "build_description_skipped_text",
     "build_description_too_long_text",
     "build_edit_defect_type_text",
     "build_edit_description_text",
@@ -68,7 +71,6 @@ __all__ = [
     "build_responsible_employee_confirmed_text",
     "build_responsible_employee_search_text",
     "build_responsible_employee_skipped_text",
-    "build_severity_confirmed_text",
     "build_value_invalid_text",
     "build_wagon_confirmed_text",
     "build_wagon_not_found_text",

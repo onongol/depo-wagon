@@ -11,6 +11,7 @@ from aiogram.utils.text_decorations import html_decoration
 
 from apps.bot.callback_data import (
     CB_DESC_SKIP,
+    CB_PHOTO_SKIP,
     DefectTypeCB,
     DepartmentCB,
     DimensionCB,
@@ -45,6 +46,7 @@ from apps.bot.handlers.defect.part_number import (
     PART_NUMBER_MAX_LENGTH,
     PartNumberScene,
 )
+from apps.bot.handlers.defect.photo import PhotoScene
 from apps.bot.handlers.defect.responsible_employee import ResponsibleEmployeeScene
 from apps.bot.handlers.defect.responsible_employee.list import EMPLOYEE_PAGE_SIZE
 from apps.bot.handlers.defect.severity import SeverityScene
@@ -54,6 +56,8 @@ from apps.bot.handlers.defect.text import (
     build_ask_responsible_employee_text,
     build_ask_value_text,
     build_defect_type_confirmed_text,
+    build_description_added_text,
+    build_description_skipped_text,
     build_description_too_long_text,
     build_edit_description_text,
     build_measurements_text,
@@ -328,15 +332,15 @@ class TestReceiveDefectType:
 
         assert (await load_defect(state)).defect_type == DefectType.HUMAN_FACTOR
 
-    async def test_every_other_type_goes_on_to_the_severity_scene(self, state):
-        """Its screen is the severity scene's to draw; see TestSeverityScene."""
+    async def test_every_other_type_goes_on_to_the_photo_scene(self, state):
+        """Its screen is the photo scene's to draw; see TestPhotoSceneScreen."""
         for value in set(DefectType.values) - {DefectType.HUMAN_FACTOR}:
             await save_defect(state, DefectData())
             scene = DefectTypeScene(wizard=AsyncMock())
 
             await scene.receive(make_callback(), DefectTypeCB(value=value), state)
 
-            scene.wizard.goto.assert_awaited_once_with(DefectSG.severity)
+            scene.wizard.goto.assert_awaited_once_with(DefectSG.photo)
 
     async def test_a_human_factor_goes_on_to_the_employee_scene(self, state):
         await save_defect(state, DefectData())
@@ -423,31 +427,44 @@ class TestReceiveDefectType:
         assert text.render() == build_part_number_confirmed_text("<A&B>").render()
 
 
-class TestSeverityScene:
-    async def test_the_screen_names_the_type_and_offers_the_levels(self):
+class TestPhotoSceneScreen:
+    async def test_it_names_the_type(self):
         form = DefectData(defect_type_label="Crack")
 
-        text, keyboard = await SeverityScene.screen(form, {})
+        text, keyboard = await PhotoScene.screen(form, {})
 
         assert text.render() == build_defect_type_confirmed_text("Crack").render()
-        assert keyboard == severity_keyboard()
+        assert keyboard == skip_keyboard(CB_PHOTO_SKIP)
 
-    async def test_after_a_human_factor_the_screen_names_the_employee(self):
+    async def test_after_a_human_factor_it_names_the_employee(self):
         form = DefectData(
             defect_type=DefectType.HUMAN_FACTOR, responsible_employee_label="Bold Bat"
         )
 
-        text, _ = await SeverityScene.screen(form, {})
+        text, _ = await PhotoScene.screen(form, {})
 
         expected = build_responsible_employee_confirmed_text("Bold Bat")
         assert text.render() == expected.render()
 
-    async def test_after_a_human_factor_the_screen_says_it_was_skipped(self):
+    async def test_after_a_human_factor_it_says_the_employee_was_skipped(self):
         form = DefectData(defect_type=DefectType.HUMAN_FACTOR)
 
-        text, _ = await SeverityScene.screen(form, {})
+        text, _ = await PhotoScene.screen(form, {})
 
         assert text.render() == build_responsible_employee_skipped_text().render()
+
+
+class TestSeverityScene:
+    async def test_the_screen_says_a_description_was_added(self):
+        text, keyboard = await SeverityScene.screen(DefectData(description="x"), {})
+
+        assert text.render() == build_description_added_text().render()
+        assert keyboard == severity_keyboard()
+
+    async def test_the_screen_says_the_description_was_skipped(self):
+        text, _ = await SeverityScene.screen(DefectData(), {})
+
+        assert text.render() == build_description_skipped_text().render()
 
     async def test_an_edit_asks_for_it_again(self):
         text, keyboard = await SeverityScene.screen(DefectData(), {UD_EDITING: True})
@@ -455,14 +472,17 @@ class TestSeverityScene:
         assert text == str(M.EDIT_SEVERITY)
         assert keyboard == severity_keyboard()
 
-    async def test_saves_it_and_goes_on_to_the_photo_scene(self, state):
+    async def test_saves_it_and_shows_the_summary_in_place(self, state):
         await save_defect(state, DefectData())
+        callback = make_callback()
         scene = SeverityScene(wizard=AsyncMock())
 
-        await scene.receive(make_callback(), SeverityCB(value="high"), state)
+        await scene.receive(callback, SeverityCB(value="high"), state)
 
         assert (await load_defect(state)).severity == "high"
-        scene.wizard.goto.assert_awaited_once_with(DefectSG.photo)
+        assert await state.get_state() == DefectSG.confirm.state
+        callback.message.edit_text.assert_awaited_once()
+        scene.wizard.goto.assert_not_awaited()
 
     async def test_an_edit_goes_back_to_the_summary(self, state):
         await save_defect(state, DefectData())
@@ -514,13 +534,13 @@ class TestResponsibleEmployeeScene:
         expected = build_responsible_employee_search_text("Bold", 2)
         assert text.render() == expected.render()
 
-    async def test_skip_goes_on_to_the_severity_scene(self, state):
+    async def test_skip_goes_on_to_the_photo_scene(self, state):
         await self._seed(state)
         scene = ResponsibleEmployeeScene(wizard=AsyncMock())
 
         await scene.skip(make_callback(), state)
 
-        scene.wizard.goto.assert_awaited_once_with(DefectSG.severity)
+        scene.wizard.goto.assert_awaited_once_with(DefectSG.photo)
 
     async def test_skip_records_no_employee(self, state):
         await save_defect(
@@ -585,7 +605,7 @@ class TestResponsibleEmployeeScene:
         defect = await load_defect(state)
         assert defect.responsible_employee_id == 7
         assert defect.responsible_employee_label == "Bold Bat"
-        scene.wizard.goto.assert_awaited_once_with(DefectSG.severity)
+        scene.wizard.goto.assert_awaited_once_with(DefectSG.photo)
 
     async def test_select_after_an_edit_goes_back_to_the_summary(self, state, picker):
         picker.one.return_value = _make_employee(7, "Bold", "Bat")
@@ -886,15 +906,14 @@ class TestDescriptionScene:
         assert text.render() == build_edit_description_text().render()
         assert keyboard == skip_keyboard(CB_DESC_SKIP)
 
-    async def test_a_typed_one_is_saved_and_the_summary_sent(self, state):
+    async def test_a_typed_one_is_saved_and_the_severity_asked(self, state):
         await save_defect(state, DefectData())
-        message = make_message("  Cracked weld  ")
+        scene = DescriptionScene(wizard=AsyncMock())
 
-        await DescriptionScene(wizard=AsyncMock()).receive(message, state)
+        await scene.receive(make_message("  Cracked weld  "), state)
 
         assert (await load_defect(state)).description == "Cracked weld"
-        assert await state.get_state() == DefectSG.confirm.state
-        message.answer.assert_awaited_once()
+        scene.wizard.goto.assert_awaited_once_with(DefectSG.severity)
 
     async def test_a_longer_one_is_asked_for_again(self, state):
         await save_defect(state, DefectData())
@@ -909,26 +928,26 @@ class TestDescriptionScene:
             **build_description_too_long_text(1001, 1000).as_kwargs()
         )
 
-    async def test_skip_clears_it_and_shows_the_summary_in_place(self, state):
+    async def test_skip_clears_it_and_asks_the_severity(self, state):
         await save_defect(state, DefectData(description="Old"))
-        callback = make_callback()
+        scene = DescriptionScene(wizard=AsyncMock())
 
-        await DescriptionScene(wizard=AsyncMock()).skip(callback, state)
+        await scene.skip(make_callback(), state)
 
         assert (await load_defect(state)).description == ""
-        assert await state.get_state() == DefectSG.confirm.state
-        callback.message.edit_text.assert_awaited_once()
+        scene.wizard.goto.assert_awaited_once_with(DefectSG.severity)
 
     async def test_an_edit_returns_to_the_summary(self, state):
         await save_defect(state, DefectData())
         await state.update_data({UD_EDITING: True})
+        message = make_message("Cracked weld")
+        scene = DescriptionScene(wizard=AsyncMock(event=message, update_type="message"))
 
-        await DescriptionScene(wizard=AsyncMock()).receive(
-            make_message("Cracked weld"), state
-        )
+        await scene.receive(message, state)
 
         assert await state.get_state() == DefectSG.confirm.state
         assert UD_EDITING not in await state.get_data()
+        scene.wizard.goto.assert_not_awaited()
 
 
 class TestUserTextIsEscaped:
@@ -953,7 +972,7 @@ class TestUserTextIsEscaped:
             make_callback(), ResponsibleEmployeeCB(employee_id=7), state
         )
         form = await load_defect(state)
-        text, _ = await SeverityScene.screen(form, {})
+        text, _ = await PhotoScene.screen(form, {})
 
         assert form.responsible_employee_label == "<b>Bold Bat"
         assert "<b>Bold Bat" in text.render()[0]

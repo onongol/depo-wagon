@@ -63,7 +63,7 @@ class DefectTypeScene(DefectScene, state=DefectSG.defect_type.state):
         await save_defect(state, defect)
 
         if not human_factor or defect.responsible_employee_id:
-            await self.go_on(state, DefectSG.severity)
+            await self.go_on(state, DefectSG.photo)
             return
 
         try:

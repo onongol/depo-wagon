@@ -32,11 +32,12 @@ from apps.bot.callback_data import (
     SeverityCB,
     VerdictCB,
 )
-from apps.bot.constants import EDIT_RESPONSIBLE, SEVERITY_LABELS, UD_EDITING
+from apps.bot.constants import EDIT_RESPONSIBLE, UD_EDITING
 from apps.bot.errors import build_session_error_text
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.common.text import build_help_text
 from apps.bot.handlers.defect.responsible_employee.list import EMPLOYEE_PAGE_SIZE
+from apps.bot.handlers.defect.summary import build_summary
 from apps.bot.handlers.defect.text import (
     build_album_receiving_text,
     build_ask_description_text,
@@ -44,6 +45,8 @@ from apps.bot.handlers.defect.text import (
     build_ask_value_text,
     build_defect_type_confirmed_text,
     build_department_confirmed_text,
+    build_description_added_text,
+    build_description_skipped_text,
     build_edit_defect_type_text,
     build_edit_description_text,
     build_edit_node_text,
@@ -54,7 +57,6 @@ from apps.bot.handlers.defect.text import (
     build_part_number_skipped_text,
     build_photos_attached_toast,
     build_responsible_employee_confirmed_text,
-    build_severity_confirmed_text,
     build_wagon_confirmed_text,
 )
 from apps.bot.keyboards.common import skip_keyboard
@@ -173,9 +175,6 @@ class TestTheWholeFlow:
         assert await state.get_state() == DefectSG.defect_type.state
 
         await tap(DefectTypeCB(value=DefectType.WEAR).pack())
-        assert await state.get_state() == DefectSG.severity.state
-
-        await tap(SeverityCB(value="critical").pack())
         assert await state.get_state() == DefectSG.photo.state
 
         await tap(CB_PHOTO_SKIP)
@@ -191,6 +190,9 @@ class TestTheWholeFlow:
         assert await state.get_state() == DefectSG.desc.state
 
         await text("Cracked weld near the flange")
+        assert await state.get_state() == DefectSG.severity.state
+
+        await tap(SeverityCB(value="critical").pack())
         assert await state.get_state() == DefectSG.confirm.state
 
         # Everything typed along the way survived every round trip.
@@ -234,12 +236,12 @@ class TestTheWholeFlow:
         await dp.feed_update(
             bot, make_callback_update(DefectTypeCB(value=DefectType.WEAR).pack())
         )
-        await dp.feed_update(
-            bot, make_callback_update(SeverityCB(value="critical").pack())
-        )
         await dp.feed_update(bot, make_callback_update(CB_PHOTO_SKIP))
         await dp.feed_update(bot, make_callback_update(CB_MEAS_DONE))
         await dp.feed_update(bot, make_message_update("A description"))
+        await dp.feed_update(
+            bot, make_callback_update(SeverityCB(value="critical").pack())
+        )
         await dp.feed_update(
             bot, make_callback_update(ConfirmCB(confirmed=True).pack())
         )
@@ -262,12 +264,12 @@ class TestTheWholeFlow:
         await dp.feed_update(
             bot, make_callback_update(DefectTypeCB(value=DefectType.WEAR).pack())
         )
-        await dp.feed_update(
-            bot, make_callback_update(SeverityCB(value="critical").pack())
-        )
         await dp.feed_update(bot, make_callback_update(CB_PHOTO_SKIP))
         await dp.feed_update(bot, make_callback_update(CB_MEAS_DONE))
         await dp.feed_update(bot, make_message_update("A description"))
+        await dp.feed_update(
+            bot, make_callback_update(SeverityCB(value="critical").pack())
+        )
         assert await state.get_state() == DefectSG.confirm.state
 
         await dp.feed_update(
@@ -533,8 +535,10 @@ class TestEditingTheDefectType:
         assert (await load_defect(state)).defect_type == DefectType.CRACK
 
 
-class TestTheSeverityStep:
-    async def test_the_type_leads_to_it_in_place(self, dp, bot, session, state):
+class TestFromTheTypeToThePhotos:
+    async def test_the_type_leads_to_the_photo_step_in_place(
+        self, dp, bot, session, state
+    ):
         await save_defect(state, DefectData(wagon_id=1))
         await state.set_state(DefectSG.defect_type)
 
@@ -544,21 +548,46 @@ class TestTheSeverityStep:
         (edit,) = session.calls("editMessageText")
         expected = build_defect_type_confirmed_text(DefectType.CRACK.label)
         assert (edit.text, edit.entities) == expected.render()
-        assert edit.reply_markup == severity_keyboard()
+        assert edit.reply_markup == skip_keyboard(CB_PHOTO_SKIP)
+        assert await state.get_state() == DefectSG.photo.state
+
+
+class TestTheSeverityStep:
+    """Last, after the description; the summary comes next."""
+
+    async def test_a_description_leads_to_it(self, dp, bot, session, state):
+        await save_defect(state, DefectData(wagon_id=1))
+        await state.set_state(DefectSG.desc)
+
+        await dp.feed_update(bot, make_message_update("Cracked weld"))
+
+        (sent,) = session.calls("sendMessage")
+        assert (sent.text, sent.entities) == build_description_added_text().render()
+        assert sent.reply_markup == severity_keyboard()
         assert await state.get_state() == DefectSG.severity.state
 
-    async def test_it_leads_to_the_photo_step_in_place(self, dp, bot, session, state):
-        """Skip until the first photo; the photo scene draws that itself."""
+    async def test_a_skipped_description_leads_to_it_in_place(
+        self, dp, bot, session, state
+    ):
+        await save_defect(state, DefectData(wagon_id=1))
+        await state.set_state(DefectSG.desc)
+
+        await dp.feed_update(bot, make_callback_update(CB_DESC_SKIP))
+
+        (edit,) = session.calls("editMessageText")
+        expected = build_description_skipped_text()
+        assert (edit.text, edit.entities) == expected.render()
+        assert await state.get_state() == DefectSG.severity.state
+
+    async def test_it_leads_to_the_summary_in_place(self, dp, bot, session, state):
         await save_defect(state, DefectData(wagon_id=1))
         await state.set_state(DefectSG.severity)
 
         await dp.feed_update(bot, make_callback_update(SeverityCB(value="high").pack()))
 
         (edit,) = session.calls("editMessageText")
-        expected = build_severity_confirmed_text(SEVERITY_LABELS["high"])
-        assert (edit.text, edit.entities) == expected.render()
-        assert edit.reply_markup == skip_keyboard(CB_PHOTO_SKIP)
-        assert await state.get_state() == DefectSG.photo.state
+        assert edit.text == build_summary(await load_defect(state))
+        assert await state.get_state() == DefectSG.confirm.state
 
     async def test_an_edit_asks_again_and_goes_back(self, dp, bot, session, state):
         await save_defect(state, DefectData(wagon_id=1, severity="low"))
@@ -867,21 +896,19 @@ class TestHumanFactorBranch:
         ]
 
     @pytest.mark.usefixtures("flow", "roster")
-    async def test_the_pick_is_named_on_the_severity_screen(
-        self, dp, bot, session, state
-    ):
+    async def test_the_pick_is_named_on_the_photo_screen(self, dp, bot, session, state):
         await self._up_to_the_type(dp, bot)
 
         await dp.feed_update(
             bot, make_callback_update(ResponsibleEmployeeCB(employee_id=1).pack())
         )
 
-        assert await state.get_state() == DefectSG.severity.state
+        assert await state.get_state() == DefectSG.photo.state
         assert (await load_defect(state)).responsible_employee_label == "U1 L"
         edit = session.calls("editMessageText")[-1]
         expected = build_responsible_employee_confirmed_text("U1 L")
         assert (edit.text, edit.entities) == expected.render()
-        assert edit.reply_markup == severity_keyboard()
+        assert edit.reply_markup == skip_keyboard(CB_PHOTO_SKIP)
 
     @pytest.mark.usefixtures("flow", "roster")
     async def test_skipped_it_goes_on_through_the_photos_to_the_description(
@@ -891,11 +918,8 @@ class TestHumanFactorBranch:
         await self._up_to_the_type(dp, bot)
 
         await dp.feed_update(bot, make_callback_update(CB_RESP_EMP_SKIP))
-        assert await state.get_state() == DefectSG.severity.state
+        assert await state.get_state() == DefectSG.photo.state
 
-        await dp.feed_update(
-            bot, make_callback_update(SeverityCB(value="critical").pack())
-        )
         await dp.feed_update(bot, make_callback_update(CB_PHOTO_SKIP))
 
         assert await state.get_state() == DefectSG.desc.state
@@ -1079,9 +1103,6 @@ class TestAlbum:
         await dp.feed_update(bot, make_message_update("PN-42"))
         await dp.feed_update(
             bot, make_callback_update(DefectTypeCB(value=DefectType.WEAR).pack())
-        )
-        await dp.feed_update(
-            bot, make_callback_update(SeverityCB(value="critical").pack())
         )
         assert await state.get_state() == DefectSG.photo.state
 

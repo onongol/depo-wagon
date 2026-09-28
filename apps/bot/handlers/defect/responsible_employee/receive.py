@@ -37,7 +37,7 @@ class ResponsibleEmployeeScene(DefectScene, state=DefectSG.responsible_employee.
         defect.responsible_employee_label = label
         await save_defect(state, defect)
         await drop_keys(state, UD_RESP_SEARCH)
-        await self.go_on(state, DefectSG.severity)
+        await self.go_on(state, DefectSG.photo)
 
     @classmethod
     async def screen(

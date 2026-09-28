@@ -13,14 +13,17 @@ from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.defect.scene import DefectScene
 from apps.bot.handlers.defect.text import (
     build_album_receiving_text,
+    build_defect_type_confirmed_text,
     build_photo_received_text,
     build_photo_too_large_text,
     build_photos_attached_toast,
-    build_severity_confirmed_text,
+    build_responsible_employee_confirmed_text,
+    build_responsible_employee_skipped_text,
 )
 from apps.bot.keyboards.common import done_keyboard, skip_keyboard
 from apps.bot.states import DefectSG
 from apps.bot.user_data import PhotoEntry
+from apps.defects.constants import DefectType
 from apps.defects.validators import MAX_PHOTO_BYTES
 
 from .routing import after_photos
@@ -61,7 +64,14 @@ class PhotoScene(DefectScene, state=DefectSG.photo.state):
         if form.photos:
             text = build_photo_received_text(len(form.photos))
             return text, done_keyboard(CB_PHOTO_SKIP)
-        text = build_severity_confirmed_text(form.severity_label)
+        if form.defect_type != DefectType.HUMAN_FACTOR:
+            text = build_defect_type_confirmed_text(form.defect_type_label)
+        elif form.responsible_employee_label:
+            text = build_responsible_employee_confirmed_text(
+                form.responsible_employee_label
+            )
+        else:
+            text = build_responsible_employee_skipped_text()
         return text, skip_keyboard(CB_PHOTO_SKIP)
 
     @on.message(F.photo)

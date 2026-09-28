@@ -15,10 +15,11 @@ def build_help_text() -> Text:
     steps = (
         Text(_("Tap"), " ", Bold(BTN_NEW_DEFECT)),
         _("Enter 🚃 the wagon number"),
-        _("Choose department, node, type and severity"),
+        _("Choose department, node and type"),
         _("Attach 📸 photos"),
         _("Enter 📐 measurements"),
         _("Add a 📝 description defect and details"),
+        _("Choose the severity"),
         _("Review the summary — tap a field to ✏️ edit it"),
         Text(_("Tap"), " ", Bold(BTN_SAVE)),
         _("Wait for the 🤖 AI analysis, then submit your own verdict"),
