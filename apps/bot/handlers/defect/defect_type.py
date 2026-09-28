@@ -56,6 +56,7 @@ class DefectTypeScene(DefectScene, state=DefectSG.defect_type.state):
         defect = await load_defect(state)
         defect.defect_type = dtype_value
         defect.defect_type_label = dtype_label
+
         if not human_factor:
             defect.responsible_employee_id = None
             defect.responsible_employee_label = None
