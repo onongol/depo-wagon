@@ -30,6 +30,12 @@ PART_NUMBER_MAX_LENGTH = 100
 class PartNumberScene(DefectScene, state=DefectSG.part_number.state):
     """Typed or skipped; the defect type's screen says which it was."""
 
+    async def _record(self, state: FSMContext, part_number: str) -> None:
+        defect = await load_defect(state)
+        defect.part_number = part_number
+        await save_defect(state, defect)
+        await self.go_on(state, DefectSG.defect_type)
+
     @classmethod
     async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:
         keyboard = skip_keyboard(CB_PART_NUMBER_SKIP)
@@ -57,9 +63,3 @@ class PartNumberScene(DefectScene, state=DefectSG.part_number.state):
         """A skip is an empty part number, which also clears one an Edit reopened."""
         await callback.answer()
         await self._record(state, "")
-
-    async def _record(self, state: FSMContext, part_number: str) -> None:
-        defect = await load_defect(state)
-        defect.part_number = part_number
-        await save_defect(state, defect)
-        await self.go_on(state, DefectSG.defect_type)
