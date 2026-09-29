@@ -912,12 +912,12 @@ class TestUnlinkedEmployeeIsRefused:
         scene = SavingScene(wizard=AsyncMock())
 
         with patch(
-            "apps.bot.handlers.defect.confirm.handler.register_defect",
+            "apps.bot.handlers.defect.confirm.handler.persist_defect",
             AsyncMock(),
-        ) as register:
+        ) as persist:
             await scene.save(make_callback(), state, bot, None)
 
-        register.assert_not_called()
+        persist.assert_not_called()
         scene.wizard.exit.assert_awaited_once()
 
 

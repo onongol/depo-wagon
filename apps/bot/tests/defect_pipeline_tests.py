@@ -4,18 +4,27 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from aiogram.exceptions import TelegramForbiddenError
 
+from apps.bot.fsm import load_defect
 from apps.bot.handlers.defect.confirm.pipeline import (
     PersistResult,
+    alert_decommission,
+    persist_defect,
     register_defect,
     run_ai_analysis,
 )
+from apps.bot.handlers.defect.confirm.result import send_result
 from apps.bot.handlers.defect.notifications import notify_decommission
 from apps.bot.handlers.defect.text import (
     build_recommendation_text,
     build_result_messages,
     build_result_text,
 )
+from apps.bot.keyboards.menu import main_menu_keyboard
+from apps.bot.tests.builders import CHAT_ID, MESSAGE_ID, make_message
 from apps.bot.user_data import AIResult, DefectData, MeasurementEntry, PhotoEntry
+from apps.defects.constants import DefectVerdict
+
+PIPELINE = "apps.bot.handlers.defect.confirm.pipeline"
 
 
 def _make_defect_data(**kwargs):
@@ -151,7 +160,8 @@ class TestRegisterDefect:
         with (
             patch("apps.bot.handlers.defect.confirm.pipeline.services") as svc,
             patch(
-                "apps.bot.handlers.defect.confirm.pipeline._PHOTO_FETCH_TIMEOUT", 0.05
+                "apps.bot.handlers.defect.confirm.pipeline._PHOTO_FETCH_TIMEOUT",
+                0.05,
             ),
         ):
             svc.create_defect = AsyncMock(return_value=_make_saved_defect())
@@ -251,7 +261,10 @@ class TestRunAiAnalysis:
 
         with (
             patch("apps.bot.handlers.defect.confirm.pipeline.analyze_defect", hang),
-            patch("apps.bot.handlers.defect.confirm.pipeline._ANALYSIS_TIMEOUT", 0.01),
+            patch(
+                "apps.bot.handlers.defect.confirm.pipeline._ANALYSIS_TIMEOUT",
+                0.01,
+            ),
         ):
             result = await run_ai_analysis(
                 _make_defect_data(), defect_id="id-1", photo_bytes=[]
@@ -295,6 +308,92 @@ class TestRunAiAnalysis:
             await run_ai_analysis(_make_defect_data(), defect_id="id-1", photo_bytes=[])
 
         svc.update_defect_ai_result.assert_not_awaited()
+
+
+class TestPersistDefect:
+    async def test_records_the_new_id_in_the_form(self, state, bot):
+        form = _make_defect_data()
+        saved = PersistResult(defect=_make_saved_defect("id-5"), photo_bytes=[])
+
+        with patch(f"{PIPELINE}.register_defect", AsyncMock(return_value=saved)):
+            result = await persist_defect(state, form, MagicMock(), bot)
+
+        assert result is saved
+        assert (await load_defect(state)).defect_id == "id-5"
+
+    async def test_a_failed_save_raises_and_records_nothing(self, state, bot):
+        failing = AsyncMock(side_effect=RuntimeError("db down"))
+
+        with (
+            patch(f"{PIPELINE}.register_defect", failing),
+            pytest.raises(RuntimeError),
+        ):
+            await persist_defect(state, _make_defect_data(), MagicMock(), bot)
+
+        assert await load_defect(state) is None
+
+
+class TestAlertDecommission:
+    async def test_a_decommission_verdict_alerts(self, bot):
+        form = DefectData(verdict=DefectVerdict.DECOMMISSION)
+        employee = MagicMock()
+
+        with patch(f"{PIPELINE}.notify_decommission", AsyncMock()) as notify:
+            await alert_decommission(bot, employee, form)
+
+        notify.assert_awaited_once_with(bot, employee, form)
+
+    @pytest.mark.parametrize(
+        "verdict", [DefectVerdict.OK, DefectVerdict.REPAIR_NOW, None]
+    )
+    async def test_any_other_verdict_does_not(self, bot, verdict):
+        with patch(f"{PIPELINE}.notify_decommission", AsyncMock()) as notify:
+            await alert_decommission(bot, MagicMock(), DefectData(verdict=verdict))
+
+        notify.assert_not_called()
+
+    async def test_a_failed_alert_is_logged_not_raised(self, bot, caplog):
+        form = DefectData(verdict=DefectVerdict.DECOMMISSION, defect_id="id-5")
+        failing = AsyncMock(side_effect=RuntimeError("telegram down"))
+
+        with patch(f"{PIPELINE}.notify_decommission", failing):
+            await alert_decommission(bot, MagicMock(), form)
+
+        assert "Decommission alert failed for id-5" in caplog.text
+
+
+class TestSendResult:
+    AI = AIResult(
+        defect_class="Rim wear",
+        confidence=0.8,
+        verdict="repair_soon",
+        rag_recommendation="Replace the pad",
+    )
+
+    async def test_one_message_with_the_menu_and_the_progress_goes(self, bot):
+        progress = make_message()
+        bot.delete_message = AsyncMock()
+
+        await send_result(bot, progress, self.AI)
+
+        (sent,) = progress.answer.await_args_list
+        (expected,) = build_result_messages(self.AI)
+        assert sent.kwargs["text"] == expected.render()[0]
+        assert sent.kwargs["reply_markup"] == main_menu_keyboard()
+        bot.delete_message.assert_awaited_once_with(
+            chat_id=CHAT_ID, message_id=MESSAGE_ID
+        )
+
+    async def test_what_does_not_fit_follows_without_the_menu(self, bot):
+        progress = make_message()
+        bot.delete_message = AsyncMock()
+        ai = self.AI.model_copy(update={"rag_recommendation": "x" * 4000})
+
+        await send_result(bot, progress, ai)
+
+        first, second = progress.answer.await_args_list
+        assert first.kwargs["reply_markup"] == main_menu_keyboard()
+        assert "reply_markup" not in second.kwargs
 
 
 class TestNotifyDecommission:

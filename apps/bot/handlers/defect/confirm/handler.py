@@ -7,24 +7,22 @@ from aiogram.fsm.scene import Scene, on
 
 from apps.bot.callback_data import CB_DEFECT_CONTINUE, CB_DEFECT_RESTART
 from apps.bot.constants import BTN_NEW_DEFECT, UD_SCREEN
-from apps.bot.fsm import clear_defect_keys, drop_keys, load_defect, save_defect
-from apps.bot.handlers.defect.notifications import notify_decommission
+from apps.bot.fsm import clear_defect_keys, drop_keys, load_defect
 from apps.bot.handlers.defect.scene import ask_about_the_open_form
 from apps.bot.handlers.defect.start import open_blank_form
 from apps.bot.handlers.defect.text import (
     build_ai_analyzing_text,
     build_defect_continued_text,
-    build_result_messages,
     build_save_failed_text,
     build_saving_text,
 )
 from apps.bot.keyboards.menu import MENU_TEXTS, main_menu_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
-from apps.bot.utils.screens import answer_anew, edit_or_send, take_down
-from apps.defects.constants import DefectVerdict
+from apps.bot.utils.screens import answer_anew, edit_or_send
 
-from .pipeline import register_defect, run_ai_analysis
+from .pipeline import alert_decommission, persist_defect, run_ai_analysis
+from .result import send_result
 
 if TYPE_CHECKING:
     from aiogram import Bot
@@ -54,17 +52,19 @@ class SavingScene(Scene, state=DefectSG.saving.state):
     ) -> None:
         await callback.answer()
         await drop_keys(state, UD_SCREEN)
+        progress = callback.message
 
-        defect_data = await load_defect(state)
         if not employee:
-            await callback.message.edit_text(str(M.NOT_REGISTERED))
+            await progress.edit_text(str(M.NOT_REGISTERED))
             await self.wizard.exit()
             return
 
-        await callback.message.edit_text(**build_saving_text().as_kwargs())
+        defect_data = await load_defect(state)
+
+        await progress.edit_text(**build_saving_text().as_kwargs())
 
         try:
-            registered = await register_defect(defect_data, employee, bot)
+            saved = await persist_defect(state, defect_data, employee, bot)
         except Exception:
             logger.exception("Failed to save defect")
             await answer_anew(
@@ -75,31 +75,14 @@ class SavingScene(Scene, state=DefectSG.saving.state):
             await self.wizard.exit()
             return
 
-        defect_data.defect_id = str(registered.defect.id)
-        await save_defect(state, defect_data)
+        await alert_decommission(bot, employee, defect_data)
 
-        if defect_data.verdict == DefectVerdict.DECOMMISSION:
-            try:
-                await notify_decommission(bot, employee, defect_data)
-            except Exception:
-                logger.exception(
-                    "Decommission alert failed for %s", defect_data.defect_id
-                )
-
-        await callback.message.edit_text(**build_ai_analyzing_text().as_kwargs())
+        await progress.edit_text(**build_ai_analyzing_text().as_kwargs())
         ai_result = await run_ai_analysis(
-            defect_data, registered.defect.id, registered.photo_bytes
+            defect_data, saved.defect.id, saved.photo_bytes
         )
 
-        first, *rest = build_result_messages(ai_result)
-        await callback.message.answer(
-            **first.as_kwargs(), reply_markup=main_menu_keyboard()
-        )
-        await take_down(bot, [callback.message.chat.id, callback.message.message_id])
-
-        for text in rest:
-            await callback.message.answer(**text.as_kwargs())
-
+        await send_result(bot, progress, ai_result)
         await self.wizard.exit()
 
     @on.message(Command("new_defect"))

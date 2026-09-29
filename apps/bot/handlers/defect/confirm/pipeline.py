@@ -5,11 +5,15 @@ from typing import TYPE_CHECKING
 
 from apps.ai_service.analysis import analyze_defect
 from apps.bot import services
+from apps.bot.fsm import save_defect
+from apps.bot.handlers.defect.notifications import notify_decommission
+from apps.defects.constants import DefectVerdict
 
 if TYPE_CHECKING:
     import uuid
 
     from aiogram import Bot
+    from aiogram.fsm.context import FSMContext
 
     from apps.bot.user_data import DefectData
     from apps.core.models import Employee
@@ -78,6 +82,28 @@ async def register_defect(
             logger.warning("Measurements save failed: %s", exc, exc_info=True)
 
     return PersistResult(defect=saved_defect, photo_bytes=all_photo_bytes)
+
+
+async def persist_defect(
+    state: FSMContext, defect_data: DefectData, employee: Employee, bot: Bot
+) -> PersistResult:
+    """Save the defect and record its id in the form; raises as register_defect does."""
+    registered = await register_defect(defect_data, employee, bot)
+    defect_data.defect_id = str(registered.defect.id)
+    await save_defect(state, defect_data)
+    return registered
+
+
+async def alert_decommission(
+    bot: Bot, employee: Employee, defect_data: DefectData
+) -> None:
+    """Alert managers to a decommission verdict; a failure must not stop the AI."""
+    if defect_data.verdict != DefectVerdict.DECOMMISSION:
+        return
+    try:
+        await notify_decommission(bot, employee, defect_data)
+    except Exception:
+        logger.exception("Decommission alert failed for %s", defect_data.defect_id)
 
 
 async def run_ai_analysis(
