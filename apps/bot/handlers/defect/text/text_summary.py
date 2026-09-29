@@ -40,7 +40,7 @@ def build_summary_text(defect: DefectData) -> Text:
         fields.append(Text("📸 ", _("Photos:"), " ", len(defect.photos)))
     if defect.description:
         fields.append(Text("📝 ", _("Description:"), " ", defect.description))
-    fields.append(_field("🔴", _("Severity:"), defect.severity_label))
+    fields.append(_field("🌡️", _("Severity:"), defect.severity_label))
 
     return as_list(
         Text("📋 ", Bold(_("Defect Summary — please review:"))),
