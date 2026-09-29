@@ -1,7 +1,6 @@
 from .text_confirm import (
     build_ai_analyzing_text,
     build_recommendation_text,
-    build_registration_done_text,
     build_result_text,
     build_save_failed_text,
     build_saving_text,
@@ -89,7 +88,6 @@ __all__ = [
     "build_photo_too_large_text",
     "build_photos_attached_toast",
     "build_recommendation_text",
-    "build_registration_done_text",
     "build_responsible_employee_search_text",
     "build_result_text",
     "build_review_heading",

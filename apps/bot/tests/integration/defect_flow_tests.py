@@ -72,7 +72,7 @@ from apps.bot.handlers.defect.text import (
     build_edit_wagon_text,
     build_editing_heading,
     build_photos_attached_toast,
-    build_registration_done_text,
+    build_result_text,
     build_review_heading,
     build_save_failed_text,
     build_save_question_text,
@@ -100,7 +100,7 @@ from apps.bot.tests.integration.conftest import (
     make_message_update,
     make_photo_update,
 )
-from apps.bot.user_data import DefectData, MeasurementEntry, PhotoEntry
+from apps.bot.user_data import AIResult, DefectData, MeasurementEntry, PhotoEntry
 from apps.core.constants import Department
 from apps.defects.constants import (
     DefectNode,
@@ -151,7 +151,7 @@ def flow(employee, wagon):
                 AsyncMock(return_value=saved),
             )
         )
-        p(
+        analysis = p(
             patch(
                 "apps.bot.handlers.defect.confirm.handler.run_ai_analysis",
                 AsyncMock(return_value=None),
@@ -165,6 +165,7 @@ def flow(employee, wagon):
         )
 
         yield MagicMock(
+            analysis=analysis,
             lookup=lookup,
             notify=notify,
             register=register,
@@ -410,7 +411,36 @@ class TestTheMenuWhileAFormIsOpen:
         assert await state.get_state() is None
         assert await load_defect(state) is None
 
-    async def test_a_finished_save_brings_it_back(self, dp, bot, session, state, flow):
+    async def test_a_finished_save_brings_it_back_with_the_result(
+        self, dp, bot, session, state, flow
+    ):
+        """The progress message makes way for the result, which carries the menu."""
+        await save_defect(state, DefectData(wagon_id=3, verdict=DefectVerdict.OK))
+        await state.set_state(DefectSG.confirm)
+        update = make_callback_update(ConfirmCB(confirmed=True).pack())
+
+        await dp.feed_update(bot, update)
+
+        (sent,) = session.calls("sendMessage")
+        result = build_result_text(flow.saved.defect.id, DefectVerdict.OK, None)
+        assert (sent.text, sent.reply_markup) == (
+            result.render()[0],
+            main_menu_keyboard(),
+        )
+        deleted = [d.message_id for d in session.calls("deleteMessage")]
+        assert deleted == [update.callback_query.message.message_id]
+        assert await state.get_state() is None
+        assert await load_defect(state) is None
+
+    async def test_the_recommendation_follows_the_result(
+        self, dp, bot, session, state, flow
+    ):
+        flow.analysis.return_value = AIResult(
+            defect_class="Rim wear",
+            confidence=0.8,
+            verdict=DefectVerdict.REPAIR_SOON,
+            rag_recommendation="Replace the pad",
+        )
         await save_defect(state, DefectData(wagon_id=3, verdict=DefectVerdict.OK))
         await state.set_state(DefectSG.confirm)
 
@@ -418,13 +448,11 @@ class TestTheMenuWhileAFormIsOpen:
             bot, make_callback_update(ConfirmCB(confirmed=True).pack())
         )
 
-        last = session.calls("sendMessage")[-1]
-        assert (last.text, last.reply_markup) == (
-            build_registration_done_text().render()[0],
-            main_menu_keyboard(),
-        )
-        assert await state.get_state() is None
-        assert await load_defect(state) is None
+        card, recommendation = session.calls("sendMessage")
+        assert card.reply_markup == main_menu_keyboard()
+        assert "AI verdict: Repair Soon" in card.text
+        assert recommendation.text.endswith("Replace the pad")
+        assert recommendation.reply_markup is None
 
     async def test_a_failed_save_brings_it_back(self, dp, bot, session, state, flow):
         flow.register.side_effect = RuntimeError("db down")
@@ -597,7 +625,7 @@ class TestOneScreen:
 
 
 class TestTheFormEndsCleanly:
-    """An exit takes the screen off the chat; the save keeps it for its result."""
+    """An exit takes the screen off the chat; the save leaves its result behind."""
 
     async def _open(self, dp, bot, state):
         await dp.feed_update(bot, make_message_update("/new_defect", command=True))
@@ -654,19 +682,19 @@ class TestTheFormEndsCleanly:
         assert session.calls("editMessageText")[-1].message_id == screen
         assert session.calls("deleteMessage") == []
 
-    async def test_the_save_keeps_the_screen_for_its_result(
+    async def test_the_save_leaves_its_result_behind(
         self, dp, bot, session, state, flow
     ):
+        """Only the progress message goes; nothing after it takes the result down."""
         await save_defect(state, DefectData(wagon_id=3))
         await state.set_state(DefectSG.confirm)
         await state.update_data({UD_SCREEN: [CHAT_ID, 500]})
+        update = make_callback_update(ConfirmCB(confirmed=True).pack())
 
-        await dp.feed_update(
-            bot, make_callback_update(ConfirmCB(confirmed=True).pack())
-        )
+        await dp.feed_update(bot, update)
         await dp.feed_update(bot, make_message_update("/cancel", command=True))
 
-        assert self._deleted(session) == []
+        assert self._deleted(session) == [update.callback_query.message.message_id]
         assert UD_SCREEN not in await state.get_data()
 
 

@@ -21,10 +21,6 @@ def build_save_failed_text() -> Text:
     return Text("❌ ", _("An error occurred. Please try again."))
 
 
-def build_registration_done_text() -> Text:
-    return Text("📋 ", _("Registration complete."))
-
-
 def _verdict_line(label, value: str | None) -> Text:
     """An unknown value still renders."""
     emoji, name = VERDICT_TEXT.get(value, ("ℹ️", "-"))
