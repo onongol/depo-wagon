@@ -40,6 +40,7 @@ from .text_screen import (
     build_stray_input_text,
 )
 from .text_severity import build_ask_severity_text, build_edit_severity_text
+from .text_verdict import build_ask_verdict_text, build_edit_verdict_text
 from .text_wagon import (
     build_ask_wagon_text,
     build_edit_wagon_text,
@@ -59,6 +60,7 @@ __all__ = [
     "build_ask_responsible_employee_text",
     "build_ask_severity_text",
     "build_ask_value_text",
+    "build_ask_verdict_text",
     "build_ask_wagon_text",
     "build_defect_continued_text",
     "build_defect_in_progress_text",
@@ -69,6 +71,7 @@ __all__ = [
     "build_edit_part_number_text",
     "build_edit_photos_text",
     "build_edit_severity_text",
+    "build_edit_verdict_text",
     "build_edit_wagon_text",
     "build_editing_heading",
     "build_fields",

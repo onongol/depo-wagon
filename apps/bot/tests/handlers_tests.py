@@ -24,6 +24,7 @@ from apps.bot.callback_data import (
     ResponsibleEmployeeCB,
     ResponsibleEmployeePageCB,
     SeverityCB,
+    VerdictCB,
 )
 from apps.bot.constants import (
     BTN_ASK,
@@ -67,11 +68,13 @@ from apps.bot.handlers.defect.text import (
     build_ask_responsible_employee_text,
     build_ask_severity_text,
     build_ask_value_text,
+    build_ask_verdict_text,
     build_description_too_long_text,
     build_edit_description_text,
     build_edit_node_text,
     build_edit_photos_text,
     build_edit_severity_text,
+    build_edit_verdict_text,
     build_editing_heading,
     build_responsible_employee_search_text,
     build_review_heading,
@@ -80,6 +83,7 @@ from apps.bot.handlers.defect.text import (
     build_value_invalid_text,
     build_wagon_not_found_text,
 )
+from apps.bot.handlers.defect.verdict import VerdictScene
 from apps.bot.handlers.defect.wagon import WagonScene
 from apps.bot.keyboards.common import (
     clear_or_done_keyboard,
@@ -87,7 +91,7 @@ from apps.bot.keyboards.common import (
     skip_keyboard,
     with_step_buttons,
 )
-from apps.bot.keyboards.confirm import confirm_keyboard
+from apps.bot.keyboards.confirm import confirm_keyboard, employee_verdict_keyboard
 from apps.bot.keyboards.defect import (
     defect_type_keyboard,
     department_keyboard,
@@ -107,7 +111,7 @@ from apps.bot.tests.builders import (
     make_message,
 )
 from apps.bot.user_data import DefectData, MeasurementEntry, PhotoEntry
-from apps.defects.constants import DefectNode, DefectType
+from apps.defects.constants import DefectNode, DefectType, DefectVerdict
 
 WAGON_LOOKUP = "apps.bot.handlers.defect.wagon.services.get_wagon_by_number"
 
@@ -495,14 +499,57 @@ class TestSeverityScene:
         assert text.render() == build_edit_severity_text().render()
         assert keyboard == severity_keyboard()
 
-    async def test_saves_it_and_goes_on_to_the_summary(self, state):
-        """From an Edit as well: the summary is next either way."""
+    async def test_saves_it_and_goes_on_to_the_verdict(self, state):
         await save_defect(state, DefectData())
         scene = SeverityScene(wizard=AsyncMock())
 
         await scene.receive(make_callback(), SeverityCB(value="high"), state)
 
         assert (await load_defect(state)).severity == "high"
+        scene.wizard.goto.assert_awaited_once_with(DefectSG.employee_verdict)
+
+    async def test_an_edit_returns_to_the_summary(self, state):
+        await save_defect(state, DefectData())
+        await state.update_data({UD_EDITING: True})
+        scene = SeverityScene(wizard=AsyncMock())
+
+        await scene.receive(make_callback(), SeverityCB(value="high"), state)
+
+        scene.wizard.goto.assert_awaited_once_with(DefectSG.confirm)
+
+
+class TestVerdictScene:
+    async def test_the_screen_asks_for_it(self):
+        text, keyboard = await VerdictScene.screen(DefectData(), {})
+
+        assert text.render() == build_ask_verdict_text().render()
+        assert keyboard == employee_verdict_keyboard()
+
+    async def test_the_severity_is_listed_above_it(self):
+        form = DefectData(severity_label="🟠 High")
+
+        text, _ = await VerdictScene.draw(form, {})
+
+        assert "🌡️ Severity: 🟠 High" in text.render()[0]
+
+    async def test_an_edit_asks_for_it_again(self):
+        text, keyboard = await VerdictScene.screen(DefectData(), {UD_EDITING: True})
+
+        assert text.render() == build_edit_verdict_text().render()
+        assert keyboard == employee_verdict_keyboard()
+
+    async def test_saves_it_and_goes_on_to_the_summary(self, state):
+        """From an Edit as well: the summary is next either way."""
+        await save_defect(state, DefectData())
+        scene = VerdictScene(wizard=AsyncMock())
+
+        await scene.receive(
+            make_callback(), VerdictCB(value=DefectVerdict.REPAIR_NOW), state
+        )
+
+        defect = await load_defect(state)
+        assert defect.verdict == DefectVerdict.REPAIR_NOW
+        assert defect.verdict_label == "🟠 Repair Now"
         scene.wizard.goto.assert_awaited_once_with(DefectSG.confirm)
 
 
@@ -712,6 +759,7 @@ class TestBack:
             (DescriptionScene, WEAR, DefectSG.measurement_choice),
             (DescriptionScene, HF, DefectSG.photo),
             (SeverityScene, WEAR, DefectSG.desc),
+            (VerdictScene, WEAR, DefectSG.severity),
             (SummaryScene, WEAR, None),
         ],
     )
@@ -869,25 +917,6 @@ class TestUnlinkedEmployeeIsRefused:
             await confirm_defect(make_callback(), state, bot, None)
 
         register.assert_not_called()
-        assert await state.get_state() is None
-
-    async def test_verdict_is_not_recorded_without_an_employee(self, state, bot):
-        from apps.bot.callback_data import VerdictCB
-        from apps.bot.handlers.defect.verdict import receive_employee_verdict
-        from apps.defects.constants import DefectVerdict
-
-        await save_defect(state, DefectData(defect_id="1"))
-
-        with patch("apps.bot.handlers.defect.verdict.services") as svc:
-            await receive_employee_verdict(
-                make_callback(),
-                VerdictCB(value=DefectVerdict.DECOMMISSION),
-                state,
-                bot,
-                None,
-            )
-
-        svc.save_employee_verdict.assert_not_called()
         assert await state.get_state() is None
 
 
@@ -1189,14 +1218,16 @@ class TestScreenText:
             (PhotoScene, HF, 7),
             (DescriptionScene, HF, 8),
             (SeverityScene, HF, 9),
+            (VerdictScene, HF, 10),
+            (VerdictScene, WEAR, 10),
         ],
     )
-    async def test_the_heading_counts_nine_steps_on_either_branch(
+    async def test_the_heading_counts_ten_steps_on_either_branch(
         self, scene, form, step
     ):
         text, _ = await scene.draw(form, {})
 
-        assert text.render()[0].startswith(build_step_heading(step, 9).render()[0])
+        assert text.render()[0].startswith(build_step_heading(step, 10).render()[0])
 
     async def test_a_step_not_reached_yet_is_not_listed(self):
         text, _ = await NodeScene.draw(DefectData(wagon_number="1"), {})

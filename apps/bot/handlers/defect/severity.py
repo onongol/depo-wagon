@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 
 class SeverityScene(DefectScene, state=DefectSG.severity.state):
-    """Judged last, once the evidence is in; the summary comes next, from an Edit too."""
+    """Judged once the evidence is in; the verdict is asked next."""
 
     @classmethod
     def previous(cls, form: DefectData) -> State | None:
@@ -48,4 +48,4 @@ class SeverityScene(DefectScene, state=DefectSG.severity.state):
         defect.severity_label = sev_label
         await save_defect(state, defect)
 
-        await self.wizard.goto(DefectSG.confirm)
+        await self.go_on(state, DefectSG.employee_verdict)

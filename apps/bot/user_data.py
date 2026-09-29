@@ -3,7 +3,7 @@ from typing import Any, Self
 from pydantic import BaseModel, ConfigDict, Field
 
 # Bump on a renamed field or a changed type.
-STATE_SCHEMA_VERSION = 2
+STATE_SCHEMA_VERSION = 3
 
 _SCHEMA_KEY = "_schema"
 
@@ -71,6 +71,8 @@ class DefectData(_StampedModel):
     defect_type_label: str | None = None
     severity: str | None = None
     severity_label: str | None = None
+    verdict: str | None = None
+    verdict_label: str | None = None
     description: str = ""
     measurements: list[MeasurementEntry] = Field(default_factory=list)
     photos: list[PhotoEntry] = Field(default_factory=list)

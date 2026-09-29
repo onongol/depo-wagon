@@ -1,7 +1,7 @@
 """Typed access to the defect form held in FSM state.
 
 A load/save pair, not a context manager: confirm saves mid-handler, and a save
-on exit would restore the form the verdict and decline paths just dropped.
+on exit would restore the form the save and decline paths just dropped.
 """
 
 from typing import TYPE_CHECKING

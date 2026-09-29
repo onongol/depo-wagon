@@ -35,6 +35,7 @@ def create_defect(defect_data: DefectData, *, employee_id):
         node=defect_data.node,
         defect_type=defect_data.defect_type,
         severity=defect_data.severity,
+        verdict=defect_data.verdict or "",
         description=defect_data.description,
         inspector_id=employee_id,
         department=defect_data.department or "",
@@ -107,15 +108,3 @@ def update_defect_status(
 
         defect.set_status(status)
         return build_defect_card(defect_id, employee=employee)
-
-
-@sync_to_async
-def save_employee_verdict(defect_id, verdict: str) -> None:
-    defect = _load_defect(defect_id, "save_employee_verdict")
-
-    if defect is None:
-        return
-
-    defect.verdict = verdict
-
-    defect.save(update_fields=["verdict"])

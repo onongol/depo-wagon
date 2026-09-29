@@ -35,6 +35,7 @@ _EDIT_SCENES = {
     EDIT_MEASUREMENTS: DefectSG.measurement_choice,
     "description": DefectSG.desc,
     "severity": DefectSG.severity,
+    "verdict": DefectSG.employee_verdict,
 }
 
 

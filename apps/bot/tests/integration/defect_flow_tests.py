@@ -60,6 +60,7 @@ from apps.bot.handlers.defect.text import (
     build_ask_responsible_employee_text,
     build_ask_severity_text,
     build_ask_value_text,
+    build_ask_verdict_text,
     build_ask_wagon_text,
     build_defect_in_progress_text,
     build_edit_defect_type_text,
@@ -67,6 +68,7 @@ from apps.bot.handlers.defect.text import (
     build_edit_node_text,
     build_edit_photos_text,
     build_edit_severity_text,
+    build_edit_verdict_text,
     build_edit_wagon_text,
     build_editing_heading,
     build_photos_attached_toast,
@@ -75,6 +77,7 @@ from apps.bot.handlers.defect.text import (
     build_step_heading,
 )
 from apps.bot.keyboards.common import skip_keyboard, with_step_buttons
+from apps.bot.keyboards.confirm import employee_verdict_keyboard
 from apps.bot.keyboards.defect import (
     defect_type_keyboard,
     department_keyboard,
@@ -152,15 +155,18 @@ def flow(employee, wagon):
                 AsyncMock(return_value=None),
             )
         )
-        verdict_services = MagicMock()
-        verdict_services.save_employee_verdict = AsyncMock()
-        p(patch("apps.bot.handlers.defect.verdict.services", verdict_services))
+        notify = p(
+            patch(
+                "apps.bot.handlers.defect.confirm.handler.notify_decommission",
+                AsyncMock(),
+            )
+        )
 
         yield MagicMock(
             lookup=lookup,
+            notify=notify,
             register=register,
             saved=saved,
-            verdict_services=verdict_services,
             wagon_services=wagon_services,
         )
 
@@ -209,6 +215,9 @@ class TestTheWholeFlow:
         assert await state.get_state() == DefectSG.severity.state
 
         await tap(SeverityCB(value="critical").pack())
+        assert await state.get_state() == DefectSG.employee_verdict.state
+
+        await tap(VerdictCB(value=DefectVerdict.REPAIR_NOW).pack())
         assert await state.get_state() == DefectSG.confirm.state
 
         # Everything typed along the way survived every round trip.
@@ -220,21 +229,19 @@ class TestTheWholeFlow:
         assert defect.part_number == "PN-42"
         assert defect.defect_type == DefectType.WEAR
         assert defect.severity == "critical"
+        assert defect.verdict == DefectVerdict.REPAIR_NOW
         assert defect.description == "Cracked weld near the flange"
         assert len(defect.measurements) == 1
         assert defect.measurements[0].value == 12.5
         assert defect.measurements[0].unit == "mm"
 
         await tap(ConfirmCB(confirmed=True).pack())
-        assert await state.get_state() == DefectSG.employee_verdict.state
+        assert await state.get_state() is None
+        assert await load_defect(state) is None
         flow.register.assert_awaited_once()
 
-        await tap(VerdictCB(value=DefectVerdict.REPAIR_NOW).pack())
-        assert await state.get_state() is None
-        flow.verdict_services.save_employee_verdict.assert_awaited_once()
-
-        # Only start, confirm and verdict take the employee
-        assert flow.lookup.await_count == 3
+        # Only start and confirm take the employee
+        assert flow.lookup.await_count == 2
 
     async def test_the_saved_form_reaches_the_persistence_call(
         self, dp, bot, state, flow
@@ -259,6 +266,9 @@ class TestTheWholeFlow:
             bot, make_callback_update(SeverityCB(value="critical").pack())
         )
         await dp.feed_update(
+            bot, make_callback_update(VerdictCB(value=DefectVerdict.REPAIR_NOW).pack())
+        )
+        await dp.feed_update(
             bot, make_callback_update(ConfirmCB(confirmed=True).pack())
         )
 
@@ -266,6 +276,7 @@ class TestTheWholeFlow:
         assert persisted.wagon_number == WAGON_NUMBER
         assert persisted.part_number == "PN-42"
         assert persisted.description == "A description"
+        assert persisted.verdict == DefectVerdict.REPAIR_NOW
 
     async def test_declining_at_the_summary_drops_the_form(self, dp, bot, state, flow):
         await dp.feed_update(bot, make_message_update("/new_defect", command=True))
@@ -285,6 +296,9 @@ class TestTheWholeFlow:
         await dp.feed_update(bot, make_message_update("A description"))
         await dp.feed_update(
             bot, make_callback_update(SeverityCB(value="critical").pack())
+        )
+        await dp.feed_update(
+            bot, make_callback_update(VerdictCB(value=DefectVerdict.OK).pack())
         )
         assert await state.get_state() == DefectSG.confirm.state
 
@@ -317,7 +331,7 @@ class TestConfirmingTwice:
         )
 
         assert seen == [DefectSG.saving.state]
-        assert await state.get_state() == DefectSG.employee_verdict.state
+        assert await state.get_state() is None
 
     async def test_a_confirm_tap_while_saving_is_absorbed(
         self, dp, bot, session, state, flow
@@ -342,13 +356,19 @@ class TestTheMenuWhileAFormIsOpen:
         await dp.feed_update(bot, make_message_update("/new_defect", command=True))
 
         (step,) = session.calls("sendMessage")
-        assert step.text.startswith(build_step_heading(1, 9).render()[0])
+        assert step.text.startswith(build_step_heading(1, 10).render()[0])
         assert step.text.endswith(build_ask_wagon_text().render()[0])
         assert step.reply_markup == with_step_buttons(None, back=False)
 
     @pytest.mark.parametrize(
         "step",
-        [DefectSG.wagon_num, DefectSG.part_number, DefectSG.photo, DefectSG.desc],
+        [
+            DefectSG.wagon_num,
+            DefectSG.part_number,
+            DefectSG.photo,
+            DefectSG.desc,
+            DefectSG.employee_verdict,
+        ],
         ids=lambda s: s.state,
     )
     async def test_the_cancel_button_brings_it_back(
@@ -375,7 +395,6 @@ class TestTheMenuWhileAFormIsOpen:
     async def test_slash_cancel_brings_it_back_at_any_step(
         self, dp, bot, session, state, step
     ):
-        """The verdict has no Cancel button; /cancel still ends the form there."""
         await save_defect(state, DefectData(wagon_id=3))
         await state.set_state(step)
 
@@ -389,15 +408,21 @@ class TestTheMenuWhileAFormIsOpen:
         assert await state.get_state() is None
         assert await load_defect(state) is None
 
-    async def test_the_verdict_brings_it_back(self, dp, bot, session, state, flow):
-        await save_defect(state, DefectData(wagon_id=3, defect_id=str(uuid.uuid4())))
-        await state.set_state(DefectSG.employee_verdict)
+    async def test_a_finished_save_brings_it_back(self, dp, bot, session, state, flow):
+        await save_defect(state, DefectData(wagon_id=3, verdict=DefectVerdict.OK))
+        await state.set_state(DefectSG.confirm)
 
         await dp.feed_update(
-            bot, make_callback_update(VerdictCB(value=DefectVerdict.OK).pack())
+            bot, make_callback_update(ConfirmCB(confirmed=True).pack())
         )
 
-        assert session.calls("sendMessage")[-1].reply_markup == main_menu_keyboard()
+        last = session.calls("sendMessage")[-1]
+        assert (last.text, last.reply_markup) == (
+            str(M.REGISTRATION_DONE),
+            main_menu_keyboard(),
+        )
+        assert await state.get_state() is None
+        assert await load_defect(state) is None
 
     async def test_a_failed_save_brings_it_back(self, dp, bot, session, state, flow):
         flow.register.side_effect = RuntimeError("db down")
@@ -415,20 +440,40 @@ class TestTheMenuWhileAFormIsOpen:
         )
         assert await state.get_state() is None
 
-    async def test_a_failed_verdict_brings_it_back(self, dp, bot, session, state, flow):
-        flow.verdict_services.save_employee_verdict.side_effect = RuntimeError("down")
-        await save_defect(state, DefectData(wagon_id=3, defect_id=str(uuid.uuid4())))
-        await state.set_state(DefectSG.employee_verdict)
 
+class TestTheDecommissionAlert:
+    """Sent once the defect is saved, ahead of the AI."""
+
+    async def _save(self, dp, bot, state, verdict):
+        await save_defect(state, DefectData(wagon_id=3, verdict=verdict))
+        await state.set_state(DefectSG.confirm)
         await dp.feed_update(
-            bot, make_callback_update(VerdictCB(value=DefectVerdict.OK).pack())
+            bot, make_callback_update(ConfirmCB(confirmed=True).pack())
         )
 
-        (sent,) = session.calls("sendMessage")
-        assert (sent.text, sent.reply_markup) == (
-            str(M.SESSION_ERROR),
-            main_menu_keyboard(),
-        )
+    async def test_a_decommission_verdict_sends_it(
+        self, dp, bot, state, flow, employee
+    ):
+        await self._save(dp, bot, state, DefectVerdict.DECOMMISSION)
+
+        flow.notify.assert_awaited_once()
+        _, alerted_by, form = flow.notify.await_args.args
+        assert alerted_by is employee
+        assert form.verdict == DefectVerdict.DECOMMISSION
+
+    async def test_any_other_verdict_does_not(self, dp, bot, state, flow):
+        await self._save(dp, bot, state, DefectVerdict.REPAIR_NOW)
+
+        flow.notify.assert_not_called()
+
+    async def test_a_failed_alert_still_ends_with_the_menu(
+        self, dp, bot, session, state, flow
+    ):
+        flow.notify.side_effect = RuntimeError("telegram down")
+
+        await self._save(dp, bot, state, DefectVerdict.DECOMMISSION)
+
+        assert session.calls("sendMessage")[-1].reply_markup == main_menu_keyboard()
         assert await state.get_state() is None
 
 
@@ -466,6 +511,7 @@ class TestOneScreen:
         await tap(CB_MEAS_DONE)
         await text("Cracked weld near the flange")
         await tap(SeverityCB(value="critical").pack())
+        await tap(VerdictCB(value=DefectVerdict.REPAIR_NOW).pack())
         assert await state.get_state() == DefectSG.confirm.state
 
         assert len(session.calls("sendMessage")) == 1
@@ -793,7 +839,7 @@ class TestFromTheTypeToThePhotos:
 
 
 class TestTheSeverityStep:
-    """Last, after the description; the summary comes next."""
+    """After the description; the verdict comes next."""
 
     async def test_a_description_leads_to_it(self, dp, bot, session, state):
         await save_defect(state, DefectData(wagon_id=1))
@@ -820,17 +866,19 @@ class TestTheSeverityStep:
         assert edit.text.endswith(build_ask_severity_text().render()[0])
         assert await state.get_state() == DefectSG.severity.state
 
-    async def test_it_leads_to_the_summary_in_place(self, dp, bot, session, state):
+    async def test_it_leads_to_the_verdict_in_place(self, dp, bot, session, state):
         await save_defect(state, DefectData(wagon_id=1))
         await state.set_state(DefectSG.severity)
 
         await dp.feed_update(bot, make_callback_update(SeverityCB(value="high").pack()))
 
         (edit,) = session.calls("editMessageText")
-        assert edit.text.startswith(build_review_heading().render()[0])
         assert "🌡️ Severity: 🟠 High" in edit.text
-        assert edit.text.endswith(build_save_question_text().render()[0])
-        assert await state.get_state() == DefectSG.confirm.state
+        assert edit.text.endswith(build_ask_verdict_text().render()[0])
+        assert edit.reply_markup == with_step_buttons(
+            employee_verdict_keyboard(), back=True
+        )
+        assert await state.get_state() == DefectSG.employee_verdict.state
 
     async def test_an_edit_asks_again_and_goes_back(self, dp, bot, session, state):
         await save_defect(state, DefectData(wagon_id=1, severity="low"))
@@ -845,6 +893,46 @@ class TestTheSeverityStep:
 
         assert await state.get_state() == DefectSG.confirm.state
         assert (await load_defect(state)).severity == "high"
+
+
+class TestTheVerdictStep:
+    """Last in the form, so the AI's verdict is not seen before it."""
+
+    async def test_it_leads_to_the_summary_in_place(self, dp, bot, session, state):
+        await save_defect(state, DefectData(wagon_id=1))
+        await state.set_state(DefectSG.employee_verdict)
+
+        tap = VerdictCB(value=DefectVerdict.REPAIR_SOON).pack()
+        await dp.feed_update(bot, make_callback_update(tap))
+
+        (edit,) = session.calls("editMessageText")
+        assert edit.text.startswith(build_review_heading().render()[0])
+        assert "👨‍🔧 Verdict: 🟡 Repair Soon" in edit.text
+        assert edit.text.endswith(build_save_question_text().render()[0])
+        assert await state.get_state() == DefectSG.confirm.state
+
+    async def test_an_edit_asks_again_and_goes_back(self, dp, bot, session, state):
+        form = DefectData(wagon_id=1, verdict=DefectVerdict.OK, verdict_label="✅ OK")
+        await save_defect(state, form)
+        await state.set_state(DefectSG.confirm)
+
+        await dp.feed_update(bot, make_callback_update(EditCB(field="verdict").pack()))
+        (edit,) = session.calls("editMessageText")
+        assert edit.text.endswith(build_edit_verdict_text().render()[0])
+
+        tap = VerdictCB(value=DefectVerdict.DECOMMISSION).pack()
+        await dp.feed_update(bot, make_callback_update(tap))
+
+        assert await state.get_state() == DefectSG.confirm.state
+        assert (await load_defect(state)).verdict == DefectVerdict.DECOMMISSION
+
+    async def test_back_returns_to_the_severity(self, dp, bot, session, state):
+        await save_defect(state, DefectData(wagon_id=1))
+        await state.set_state(DefectSG.employee_verdict)
+
+        await dp.feed_update(bot, make_callback_update(CB_STEP_BACK))
+
+        assert await state.get_state() == DefectSG.severity.state
 
 
 class TestTheMeasurementCard:

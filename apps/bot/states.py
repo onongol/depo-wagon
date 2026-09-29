@@ -21,9 +21,9 @@ class DefectSG(StatesGroup):
     measurement_choice = State()
     desc = State()
     severity = State()
+    employee_verdict = State()
     confirm = State()
     saving = State()
-    employee_verdict = State()
 
 
 class SupportSG(StatesGroup):

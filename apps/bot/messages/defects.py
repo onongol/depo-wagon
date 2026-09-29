@@ -14,6 +14,8 @@ class DefectMessages:
         "✅ <b>Defect registered successfully!</b>\n🆔 <code>{short_id}...</code>\n"
     )
 
+    EMPLOYEE_VERDICT = _("{verdict_emoji} Your verdict: <code>{verdict}</code>\n")
+
     AI_RESULT = _(
         "\n🤖 <b>AI Analysis:</b>\n"
         "📌 {defect_class}\n"
@@ -27,7 +29,7 @@ class DefectMessages:
 
     AI_UNAVAILABLE = _("\nℹ️ AI analysis is not available.")
 
-    ASK_EMPLOYEE_VERDICT = _("\n\n👨‍🔧 <b>Your verdict:</b>")
+    REGISTRATION_DONE = _("📋 Registration complete.")
 
     SAVE_FAILED = _("❌ An error occurred. Please try again.")
 
@@ -38,9 +40,7 @@ class DefectMessages:
         "could not be carried over.\n\nSorry — please start it again."
     )
 
-    # ── Employee verdict ─────────────────────────────────────────────────────
-
-    VERDICT_DONE = _("<b>Your verdict:</b> {label}\n\n📋 Registration complete.")
+    # ── Decommission ─────────────────────────────────────────────────────────
 
     DECOMMISSION_ALERT = _(
         "🔴 <b>Decommission Proposal</b>\n\n"

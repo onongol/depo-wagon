@@ -35,6 +35,7 @@ EDIT_FIELDS = (
     (EDIT_MEASUREMENTS, _("📐 Measurements")),
     ("description", _("📝 Description")),
     ("severity", _("🌡️ Severity")),
+    ("verdict", _("👨‍🔧 Verdict")),
 )
 
 BTN_NEW_DEFECT = _("📋 New Defect")

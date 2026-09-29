@@ -1,13 +1,14 @@
 import logging
 from typing import TYPE_CHECKING
 
-from apps.bot.constants import UD_SCREEN
+from apps.bot.constants import UD_DEFECT, UD_SCREEN
 from apps.bot.fsm import drop_keys, load_defect, save_defect
-from apps.bot.keyboards.confirm import employee_verdict_keyboard
+from apps.bot.handlers.defect.notifications import notify_decommission
 from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.bot.utils.screens import answer_anew
+from apps.defects.constants import DefectVerdict
 
 from .formatters import build_recommendation_text, build_result_text
 from .pipeline import register_defect, run_ai_analysis
@@ -57,6 +58,12 @@ async def confirm_defect(
     defect_data.defect_id = str(registered.defect.id)
     await save_defect(state, defect_data)
 
+    if defect_data.verdict == DefectVerdict.DECOMMISSION:
+        try:
+            await notify_decommission(bot, employee, defect_data)
+        except Exception:
+            logger.exception("Decommission alert failed for %s", defect_data.defect_id)
+
     # Non-critical: an AI failure must not undo the save above
     await callback.message.edit_text(str(M.AI_ANALYZING))
     ai_result = await run_ai_analysis(
@@ -64,7 +71,8 @@ async def confirm_defect(
     )
 
     await callback.message.edit_text(
-        build_result_text(registered.defect.id, ai_result), parse_mode=M.PARSE_MODE
+        build_result_text(registered.defect.id, defect_data.verdict, ai_result),
+        parse_mode=M.PARSE_MODE,
     )
 
     recommendation = build_recommendation_text(ai_result)
@@ -72,8 +80,7 @@ async def confirm_defect(
         await callback.message.answer(recommendation, parse_mode=M.PARSE_MODE)
 
     await callback.message.answer(
-        str(M.ASK_EMPLOYEE_VERDICT),
-        parse_mode=M.PARSE_MODE,
-        reply_markup=employee_verdict_keyboard(),
+        str(M.REGISTRATION_DONE), reply_markup=main_menu_keyboard()
     )
-    await state.set_state(DefectSG.employee_verdict)
+    await drop_keys(state, UD_DEFECT)
+    await state.set_state(None)

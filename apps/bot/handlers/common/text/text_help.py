@@ -20,10 +20,10 @@ def build_help_text() -> Text:
         _("Attach 📸 photos"),
         _("Enter 📐 measurements"),
         _("Add a 📝 description defect and details"),
-        _("Choose the severity"),
+        _("Choose the severity and give 👨‍🔧 your verdict"),
         _("Review the summary — tap a field to ✏️ edit it"),
         Text(_("Tap"), " ", Bold(BTN_SAVE)),
-        _("Wait for the 🤖 AI analysis, then submit your own verdict"),
+        _("Wait for the 🤖 AI analysis"),
     )
     return as_list(
         Text("🤖 ", Bold(_("Wagon Defect Registration Bot"))),

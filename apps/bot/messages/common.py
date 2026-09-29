@@ -13,7 +13,3 @@ class CommonMessages:
     BOT_SHORT_DESCRIPTION = _(
         "Register and track wagon defects with photos, measurements and AI analysis."
     )
-
-    SESSION_ERROR = _(
-        "⚠️ Something went wrong. Try again, or send /cancel to start over."
-    )

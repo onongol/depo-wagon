@@ -1,6 +1,5 @@
 from .defect import (
     create_defect,
-    save_employee_verdict,
     update_defect_ai_result,
     update_defect_status,
 )
@@ -42,7 +41,6 @@ __all__ = [
     "queue_defect_photos",
     "remember_pending_link",
     "resolve_link_token",
-    "save_employee_verdict",
     "update_defect_ai_result",
     "update_defect_status",
 ]

@@ -65,6 +65,7 @@ def build_fields(form: DefectData, behind: Collection[str]) -> list[Text]:
         (DefectSG.photo, "📸", _("Photos:"), len(form.photos) or None),
         (DefectSG.desc, "📝", _("Description:"), form.description or None),
         (DefectSG.severity, "🌡️", _("Severity:"), _bold(form.severity_label)),
+        (DefectSG.employee_verdict, "👨‍🔧", _("Verdict:"), _bold(form.verdict_label)),
     )
     return [
         Text(emoji, " ", label, " ", _SKIPPED if value is None else value)

@@ -12,6 +12,7 @@ from .photo import PhotoScene
 from .responsible_employee import ResponsibleEmployeeScene
 from .severity import SeverityScene
 from .summary import SummaryScene
+from .verdict import VerdictScene
 from .wagon import WagonScene
 
 if TYPE_CHECKING:
@@ -30,6 +31,7 @@ DEFECT_SCENES: tuple[type[DefectScene], ...] = (
     MeasurementChoiceScene,
     DescriptionScene,
     SeverityScene,
+    VerdictScene,
     SummaryScene,
 )
 
@@ -41,11 +43,11 @@ def scene_for(state: str | None) -> type[DefectScene] | None:
 
 
 def walk(form: DefectData, upto: type[DefectScene] | None = None) -> list[str]:
-    """The steps walked to reach upto, or the whole walk, which ends at the severity.
+    """The steps walked to reach upto, or the whole walk, which ends at the verdict.
 
     previous() already follows the branch a human factor takes.
     """
-    last = upto or SeverityScene
+    last = upto or VerdictScene
     steps = [] if upto else [last.__scene_config__.state]
     step = last.previous(form)
     while step is not None:

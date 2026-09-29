@@ -3,13 +3,16 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from aiogram.exceptions import TelegramForbiddenError
 
+from apps.bot.handlers.defect.confirm.formatters import build_result_text
 from apps.bot.handlers.defect.confirm.pipeline import (
     PersistResult,
     register_defect,
     run_ai_analysis,
 )
 from apps.bot.handlers.defect.notifications import notify_decommission
-from apps.bot.user_data import DefectData, MeasurementEntry, PhotoEntry
+from apps.bot.messages import BotMessages as M
+from apps.bot.user_data import AIResult, DefectData, MeasurementEntry, PhotoEntry
+from apps.defects.constants import DefectVerdict
 
 
 def _make_defect_data(**kwargs):
@@ -375,3 +378,26 @@ class TestNotifyDecommission:
             )
             await notify_decommission(context.bot, employee=employee, defect=None)
         context.bot.send_message.assert_awaited_once()
+
+
+class TestBuildResultText:
+    AI = AIResult(defect_class="Rim wear", confidence=0.8, verdict="repair_soon")
+
+    def test_both_verdicts_on_lines_of_their_own(self):
+        text = build_result_text("uuid-001", DefectVerdict.REPAIR_NOW, self.AI)
+
+        lines = text.splitlines()
+        assert "🟠 Your verdict: <code>Repair Now</code>" in lines
+        assert "🟡 AI verdict: <code>Repair Soon</code>" in lines
+
+    def test_they_are_shown_when_they_agree(self):
+        text = build_result_text("uuid-001", DefectVerdict.REPAIR_SOON, self.AI)
+
+        assert "Your verdict: <code>Repair Soon</code>" in text
+        assert "AI verdict: <code>Repair Soon</code>" in text
+
+    def test_without_the_ai_the_inspector_verdict_stays(self):
+        text = build_result_text("uuid-001", DefectVerdict.OK, None)
+
+        assert "✅ Your verdict: <code>OK</code>" in text
+        assert text.endswith(str(M.AI_UNAVAILABLE))
