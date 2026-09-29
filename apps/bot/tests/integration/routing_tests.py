@@ -55,6 +55,7 @@ from apps.bot.handlers.defect.text import (
     build_defect_continued_text,
     build_defect_in_progress_text,
     build_edit_description_text,
+    build_stray_input_text,
 )
 from apps.bot.handlers.defect.wagon import WagonScene
 from apps.bot.handlers.start.link_errors import get_link_error_message
@@ -320,9 +321,10 @@ class TestNewDefectDuringARunningForm:
         with as_employee(None):
             await dp.feed_update(bot, update)
 
-        sent = bot.session.calls("sendMessage")
-        assert [m.text for m in sent] == [build_defect_in_progress_text().render()[0]]
-        assert sent[0].reply_markup == defect_in_progress_keyboard()
+        (sent,) = bot.session.calls("sendMessage")
+        assert sent.text.endswith(build_defect_in_progress_text().render()[0])
+        assert sent.reply_markup == defect_in_progress_keyboard()
+        assert bot.session.calls("deleteMessage") == []
         assert await state.get_state() == step.state
         assert (await load_defect(state)).wagon_number == self.WAGON
 
@@ -723,29 +725,46 @@ class TestUnroutedUpdates:
         assert bot.session.requests == []
         lookup.assert_not_awaited()
 
-    async def test_the_wrong_content_type_mid_form_stays_silent(
+    async def test_the_wrong_content_type_mid_form_gets_a_hint_on_the_screen(
         self, dp, bot, session, state, employee
     ):
-        """The photo step asks for a photo. Typing at it must not end the form."""
+        """The photo step asks for a photo. Typing at it must not end the form.
+
+        Not an answer, so it stays; the screen goes under it and says so.
+        """
         with as_employee(employee):
             await dp.feed_update(bot, make_message_update(str(BTN_NEW_DEFECT)))
         await state.set_state(DefectSG.photo)
+        _, old_screen = (await state.get_data())[UD_SCREEN]
         session.clear()
 
         await dp.feed_update(bot, make_message_update("not a photo"))
 
-        assert session.requests == []
+        (sent,) = session.calls("sendMessage")
+        assert build_stray_input_text().render()[0] in sent.text
+        assert [d.message_id for d in session.calls("deleteMessage")] == [old_screen]
         assert await state.get_state() == DefectSG.photo.state
 
+    async def test_a_stray_photo_mid_form_stays_and_gets_the_screen_under_it(
+        self, dp, bot, session, state
+    ):
+        await save_defect(state, DefectData(wagon_id=3))
+        await state.set_state(DefectSG.desc)
+
+        await dp.feed_update(bot, make_photo_update("stray"))
+
+        (sent,) = session.calls("sendMessage")
+        assert build_stray_input_text().render()[0] in sent.text
+        assert (await load_defect(state)).photos == []
+        assert await state.get_state() == DefectSG.desc.state
+
     @pytest.mark.parametrize(
-        "known",
-        [DefectSG.desc, SupportSG.message, AiChatSG.chatting],
-        ids=lambda s: s.state,
+        "known", [SupportSG.message, AiChatSG.chatting], ids=lambda s: s.state
     )
-    async def test_every_group_keeps_its_state_through_a_stray_photo(
+    async def test_every_other_group_keeps_its_state_through_a_stray_photo(
         self, dp, bot, session, state, known
     ):
-        """One state from each of ALL_GROUPS; each step there asks for text."""
+        """One state from each of the other groups; each step there asks for text."""
         await save_defect(state, DefectData(wagon_id=3))
         await state.set_state(known)
 

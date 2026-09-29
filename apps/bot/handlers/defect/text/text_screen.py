@@ -32,6 +32,10 @@ def build_save_question_text() -> Text:
     return Text(_("Save?"))
 
 
+def build_stray_input_text() -> Text:
+    return Text("👇 ", _("This step doesn't take that. Please answer below."))
+
+
 def _bold(value: str | None) -> Bold | None:
     return Bold(value) if value else None
 

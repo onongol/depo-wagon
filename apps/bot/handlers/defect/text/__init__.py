@@ -37,6 +37,7 @@ from .text_screen import (
     build_save_question_text,
     build_screen_text,
     build_step_heading,
+    build_stray_input_text,
 )
 from .text_severity import build_ask_severity_text, build_edit_severity_text
 from .text_start import build_new_defect_text
@@ -82,6 +83,7 @@ __all__ = [
     "build_save_question_text",
     "build_screen_text",
     "build_step_heading",
+    "build_stray_input_text",
     "build_value_invalid_text",
     "build_wagon_not_found_text",
 ]

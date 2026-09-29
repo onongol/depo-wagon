@@ -30,6 +30,7 @@ from .text import (
     build_fields,
     build_screen_text,
     build_step_heading,
+    build_stray_input_text,
 )
 
 if TYPE_CHECKING:
@@ -125,15 +126,27 @@ class DefectScene(Scene):
         notice: Text | None = None,
         **screen_args: Any,
     ) -> Screen:
-        """The form so far, a notice such as an error, then the step's question."""
+        """The step's question and buttons, under the form so far."""
         question, keyboard = await cls.screen(form, data, **screen_args)
-        text = build_screen_text(
+        text = cls.compose(form, data, question, notice=notice)
+        return text, cls.step_buttons(form, data, keyboard)
+
+    @classmethod
+    def compose(
+        cls,
+        form: DefectData,
+        data: dict[str, Any],
+        question: Text,
+        *,
+        notice: Text | None = None,
+    ) -> Text:
+        """The heading, the form so far, a notice such as an error, the question."""
+        return build_screen_text(
             cls.heading(form, data),
             build_fields(form, cls.behind(form, data)),
             question,
             notice=notice,
         )
-        return text, cls.step_buttons(form, data, keyboard)
 
     async def go_on(self, state: FSMContext, next_step: State) -> None:
         """To the next step, whose scene draws its own screen; after an Edit, back.
@@ -183,8 +196,18 @@ class DefectScene(Scene):
 
     @on.message(Command("new_defect"))
     @on.message(F.text == str(BTN_NEW_DEFECT))
-    async def new_defect(self, message: Message) -> None:
-        await ask_about_the_open_form(message)
+    async def new_defect(self, message: Message, state: FSMContext) -> None:
+        """Ask rather than wipe the open form, on its screen, under the command."""
+        form, data = await load_defect(state), await state.get_data()
+        text = self.compose(form, data, build_defect_in_progress_text())
+        await show_screen(
+            message.bot,
+            state,
+            message.chat.id,
+            below=True,
+            reply_markup=defect_in_progress_keyboard(),
+            **text.as_kwargs(),
+        )
 
     @on.message(F.text.in_(MENU_TEXTS))
     @on.message(Command("start", "my_tasks", "ask", "support", "help"))
@@ -194,6 +217,13 @@ class DefectScene(Scene):
         Not an answer, so it stays, and the screen is sent again under it.
         """
         await self.show_as_message(message, state, below=True)
+
+    # After every message handler above and each step's own
+    @on.message()
+    async def stray(self, message: Message, state: FSMContext) -> None:
+        """Nothing this step takes: it stays, and the screen goes under it."""
+        notice = build_stray_input_text()
+        await self.show_as_message(message, state, notice=notice, below=True)
 
     @on.callback_query(F.data == CB_DEFECT_CONTINUE)
     async def carry_on(self, callback: CallbackQuery) -> None:

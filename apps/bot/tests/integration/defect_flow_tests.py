@@ -15,6 +15,7 @@ from aiogram.types import ReplyKeyboardRemove
 
 from apps.bot.callback_data import (
     CB_CANCEL,
+    CB_DEFECT_CONTINUE,
     CB_DEFECT_RESTART,
     CB_DESC_SKIP,
     CB_MEAS_BACK,
@@ -62,6 +63,7 @@ from apps.bot.handlers.defect.text import (
     build_ask_severity_text,
     build_ask_value_text,
     build_ask_wagon_text,
+    build_defect_in_progress_text,
     build_edit_defect_type_text,
     build_edit_description_text,
     build_edit_node_text,
@@ -504,6 +506,27 @@ class TestOneScreen:
         assert sent.text == step.render()[0]
         assert [d.message_id for d in session.calls("deleteMessage")] == [500]
         assert await state.get_state() == DefectSG.part_number.state
+
+    async def test_new_defect_mid_form_asks_on_the_screen_and_continue_redraws_it(
+        self, dp, bot, session, state, flow
+    ):
+        await dp.feed_update(bot, make_message_update("/new_defect", command=True))
+        await dp.feed_update(bot, make_message_update(WAGON_NUMBER))
+        session.clear()
+
+        await dp.feed_update(bot, make_message_update("/new_defect", command=True))
+
+        (asked,) = session.calls("sendMessage")
+        assert f"🚃 Wagon: {WAGON_NUMBER}" in asked.text
+        assert asked.text.endswith(build_defect_in_progress_text().render()[0])
+        _, screen = (await state.get_data())[UD_SCREEN]
+
+        await dp.feed_update(bot, make_callback_update(CB_DEFECT_CONTINUE))
+
+        edit = session.calls("editMessageText")[-1]
+        assert edit.message_id == screen
+        assert edit.text.endswith(build_ask_department_text().render()[0])
+        assert await state.get_state() == DefectSG.department.state
 
     async def test_a_screen_the_user_deleted_is_sent_anew(
         self, dp, bot, session, state, flow
