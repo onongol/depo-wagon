@@ -11,8 +11,8 @@ from apps.bot.states import DefectSG
 from apps.defects.constants import DefectType
 
 from .confirm import confirm_defect
-from .scene import DefectScene
-from .text import build_summary_text
+from .scene import DefectScene, walked
+from .text import build_review_heading, build_save_question_text
 
 if TYPE_CHECKING:
     from aiogram import Bot
@@ -43,7 +43,17 @@ class SummaryScene(DefectScene, state=DefectSG.confirm.state):
 
     @classmethod
     async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:
-        return build_summary_text(form), confirm_keyboard(form)
+        return build_save_question_text(), confirm_keyboard(form)
+
+    @classmethod
+    def heading(cls, form: DefectData, data: dict[str, Any]) -> Text:
+        return build_review_heading()
+
+    @classmethod
+    def behind(cls, form: DefectData, data: dict[str, Any]) -> list[str]:
+        """The whole walk: a field left empty on the way shows as skipped."""
+        _, whole = walked(cls, form)
+        return whole
 
     @classmethod
     def step_buttons(

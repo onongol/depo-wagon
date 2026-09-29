@@ -10,11 +10,7 @@ from apps.bot.states import DefectSG
 from apps.defects.constants import DefectType
 
 from .scene import DefectScene
-from .text import (
-    build_edit_defect_type_text,
-    build_part_number_confirmed_text,
-    build_part_number_skipped_text,
-)
+from .text import build_ask_defect_type_text, build_edit_defect_type_text
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
@@ -29,7 +25,7 @@ _DEFECT_TYPE_LABELS = dict(DefectType.choices)
 
 
 class DefectTypeScene(DefectScene, state=DefectSG.defect_type.state):
-    """The defect type, from buttons; the screen first says how the part number went."""
+    """The defect type, from buttons; a human factor asks for the employee next."""
 
     @classmethod
     def previous(cls, form: DefectData) -> State | None:
@@ -40,9 +36,7 @@ class DefectTypeScene(DefectScene, state=DefectSG.defect_type.state):
         keyboard = defect_type_keyboard()
         if data.get(UD_EDITING):
             return build_edit_defect_type_text(), keyboard
-        if form.part_number:
-            return build_part_number_confirmed_text(form.part_number), keyboard
-        return build_part_number_skipped_text(), keyboard
+        return build_ask_defect_type_text(), keyboard
 
     @on.callback_query(DefectTypeCB.filter())
     async def receive(

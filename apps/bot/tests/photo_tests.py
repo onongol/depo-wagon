@@ -12,7 +12,7 @@ from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.defect.photo.receive import PhotoScene
 from apps.bot.handlers.defect.text import (
     build_album_receiving_text,
-    build_photo_received_text,
+    build_ask_more_photos_text,
     build_photo_too_large_text,
     build_photos_attached_toast,
 )
@@ -88,15 +88,17 @@ class TestReceivePhoto:
 
         assert await _file_ids(state) == []
         too_large = build_photo_too_large_text().render()[0]
-        assert _screen_text(message).startswith(too_large)
+        assert too_large in _screen_text(message)
 
-    async def test_a_lone_photo_gets_the_running_count(self, state):
+    async def test_the_screen_counts_the_photos(self, state):
         await save_defect(state, DefectData(photos=_photos("a")))
         message = _make_photo_message()
 
         await receive_photo(message, state)
 
-        assert _screen_text(message) == build_photo_received_text(2).render()[0]
+        screen = _screen_text(message)
+        assert "📸 Photos: 2" in screen
+        assert screen.endswith(build_ask_more_photos_text().render()[0])
 
     async def test_the_screen_offers_done_rather_than_skip(self, state):
         await save_defect(state, DefectData())
@@ -122,7 +124,7 @@ class TestAlbum:
         assert await _file_ids(state) == ["p0", "p1", "p2"]
         assert [m.bot.send_message.await_count for m in messages] == [1, 0, 0]
         receiving = build_album_receiving_text().render()[0]
-        assert _screen_text(messages[0]).startswith(receiving)
+        assert receiving in _screen_text(messages[0])
 
     async def test_photos_handled_out_of_order_are_kept_in_message_order(self, state):
         await save_defect(state, DefectData())

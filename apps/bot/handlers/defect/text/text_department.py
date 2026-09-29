@@ -1,10 +1,6 @@
-from aiogram.utils.formatting import Bold, Text, as_list
+from aiogram.utils.formatting import Text
 from django.utils.translation import gettext_lazy as _
 
 
-def build_department_confirmed_text(label: str) -> Text:
-    return as_list(
-        Text("✅ ", _("Department:"), " ", Bold(label)),
-        _("Select the defect node:"),
-        sep="\n\n",
-    )
+def build_ask_department_text() -> Text:
+    return Text("🏭 ", _("Select the department:"))

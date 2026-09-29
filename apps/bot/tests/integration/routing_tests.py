@@ -49,13 +49,14 @@ from apps.bot.handlers.common.text import (
 )
 from apps.bot.handlers.defect.resume import show_current_step
 from apps.bot.handlers.defect.text import (
+    build_ask_department_text,
+    build_ask_more_photos_text,
     build_ask_wagon_text,
     build_defect_continued_text,
     build_defect_in_progress_text,
     build_edit_description_text,
-    build_photo_received_text,
-    build_wagon_confirmed_text,
 )
+from apps.bot.handlers.defect.wagon import WagonScene
 from apps.bot.handlers.start.link_errors import get_link_error_message
 from apps.bot.handlers.start.text import build_link_cancelled_text
 from apps.bot.handlers.support.utils import remember_request
@@ -231,7 +232,7 @@ class TestPrecedenceDuringTheDefectFlow:
         await dp.feed_update(bot, make_message_update(str(BTN_OPEN_DEFECTS)))
 
         (sent,) = bot.session.calls("sendMessage")
-        assert sent.text == build_ask_wagon_text().render()[0]
+        assert sent.text.endswith(build_ask_wagon_text().render()[0])
         assert sent.reply_markup == with_step_buttons(None, back=False)
 
     async def test_a_deep_link_mid_flow_still_reaches_the_link_handler(
@@ -332,7 +333,7 @@ class TestNewDefectDuringARunningForm:
         await dp.feed_update(bot, make_callback_update(CB_DEFECT_CONTINUE))
 
         (edit,) = session.calls("editMessageText")
-        assert (edit.text, edit.entities) == build_edit_description_text().render()
+        assert edit.text.endswith(build_edit_description_text().render()[0])
         assert edit.reply_markup == with_step_buttons(
             skip_keyboard(CB_DESC_SKIP), back=True
         )
@@ -385,8 +386,8 @@ class TestNewDefectDuringARunningForm:
         await dp.feed_update(bot, make_callback_update(CB_DEFECT_CONTINUE))
 
         (edit,) = session.calls("editMessageText")
-        expected = build_wagon_confirmed_text(self.WAGON)
-        assert (edit.text, edit.entities) == expected.render()
+        assert f"🚃 Wagon: {self.WAGON}" in edit.text
+        assert edit.text.endswith(build_ask_department_text().render()[0])
         assert edit.reply_markup == with_step_buttons(department_keyboard(), back=True)
 
     async def test_the_photo_step_offers_done_once_a_photo_is_in(
@@ -399,7 +400,8 @@ class TestNewDefectDuringARunningForm:
         await dp.feed_update(bot, make_callback_update(CB_DEFECT_CONTINUE))
 
         (edit,) = session.calls("editMessageText")
-        assert edit.text == build_photo_received_text(2).render()[0]
+        assert "📸 Photos: 2" in edit.text
+        assert edit.text.endswith(build_ask_more_photos_text().render()[0])
         assert edit.reply_markup == with_step_buttons(
             done_keyboard(CB_PHOTO_SKIP), back=True
         )
@@ -425,8 +427,9 @@ class TestNewDefectDuringARunningForm:
 
         await dp.feed_update(bot, make_callback_update(CB_DEFECT_RESTART))
 
-        edits = [e.text for e in session.calls("editMessageText")]
-        assert edits == [build_ask_wagon_text().render()[0]]
+        (edit,) = session.calls("editMessageText")
+        blank, _ = await WagonScene.draw(DefectData(), {})
+        assert edit.text == blank.render()[0]
         assert await state.get_state() == DefectSG.wagon_num.state
         assert await load_defect(state) == DefectData()
         assert UD_EDITING not in await state.get_data()

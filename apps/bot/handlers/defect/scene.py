@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any
 from aiogram import F
 from aiogram.filters import Command
 from aiogram.fsm.scene import Scene, on
-from aiogram.utils.formatting import Text, as_list
+from aiogram.utils.formatting import Text
 
 from apps.bot.callback_data import (
     CB_CANCEL,
@@ -24,7 +24,13 @@ from apps.bot.states import DefectSG
 from apps.bot.utils.screens import answer_anew, show_screen
 
 from .start import open_blank_form
-from .text import build_defect_in_progress_text
+from .text import (
+    build_defect_in_progress_text,
+    build_editing_heading,
+    build_fields,
+    build_screen_text,
+    build_step_heading,
+)
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
@@ -46,6 +52,13 @@ def as_send_kwargs(content: Text | str) -> dict[str, Any]:
     return {"text": content, "parse_mode": M.PARSE_MODE}
 
 
+def walked(scene: type[DefectScene], form: DefectData) -> tuple[list[str], list[str]]:
+    """The steps before this one, and the whole walk."""
+    from .scenes import walk  # scenes.py imports every step, and each step this module
+
+    return walk(form, upto=scene), walk(form)
+
+
 async def ask_about_the_open_form(message: Message) -> None:
     """New Defect while a form is open: ask rather than wipe it."""
     await message.answer(
@@ -63,7 +76,7 @@ class DefectScene(Scene):
 
     @classmethod
     async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:
-        """The step as entering it shows it, which is also what retake() shows."""
+        """The step's question and buttons; draw() puts the form above them."""
         raise NotImplementedError
 
     @classmethod
@@ -77,6 +90,20 @@ class DefectScene(Scene):
         if data.get(UD_EDITING):
             return DefectSG.confirm
         return cls.previous(form)
+
+    @classmethod
+    def heading(cls, form: DefectData, data: dict[str, Any]) -> Text:
+        """Which step of the walk this is; under an Edit, that the summary changes."""
+        if data.get(UD_EDITING):
+            return build_editing_heading()
+        before, whole = walked(cls, form)
+        return build_step_heading(len(before) + 1, len(whole))
+
+    @classmethod
+    def behind(cls, form: DefectData, data: dict[str, Any]) -> list[str]:
+        """Steps whose field shows even when empty, as skipped."""
+        before, whole = walked(cls, form)
+        return whole if data.get(UD_EDITING) else before
 
     @classmethod
     def step_buttons(
@@ -98,11 +125,15 @@ class DefectScene(Scene):
         notice: Text | None = None,
         **screen_args: Any,
     ) -> Screen:
-        """The screen with its step buttons, and a notice such as an error on top."""
-        content, keyboard = await cls.screen(form, data, **screen_args)
-        if notice:
-            content = as_list(notice, content, sep="\n\n")
-        return content, cls.step_buttons(form, data, keyboard)
+        """The form so far, a notice such as an error, then the step's question."""
+        question, keyboard = await cls.screen(form, data, **screen_args)
+        text = build_screen_text(
+            cls.heading(form, data),
+            build_fields(form, cls.behind(form, data)),
+            question,
+            notice=notice,
+        )
+        return text, cls.step_buttons(form, data, keyboard)
 
     async def go_on(self, state: FSMContext, next_step: State) -> None:
         """To the next step, whose scene draws its own screen; after an Edit, back.

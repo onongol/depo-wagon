@@ -15,6 +15,8 @@ from .summary import SummaryScene
 from .wagon import WagonScene
 
 if TYPE_CHECKING:
+    from apps.bot.user_data import DefectData
+
     from .scene import DefectScene
 
 DEFECT_SCENES: tuple[type[DefectScene], ...] = (
@@ -36,3 +38,17 @@ _BY_STATE = {scene.__scene_config__.state: scene for scene in DEFECT_SCENES}
 
 def scene_for(state: str | None) -> type[DefectScene] | None:
     return _BY_STATE.get(state)
+
+
+def walk(form: DefectData, upto: type[DefectScene] | None = None) -> list[str]:
+    """The steps walked to reach upto, or the whole walk, which ends at the severity.
+
+    previous() already follows the branch a human factor takes.
+    """
+    last = upto or SeverityScene
+    steps = [] if upto else [last.__scene_config__.state]
+    step = last.previous(form)
+    while step is not None:
+        steps.insert(0, step.state)
+        step = _BY_STATE[step.state].previous(form)
+    return steps

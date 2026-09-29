@@ -31,7 +31,7 @@ _MAX_DESCRIPTION_LEN = 1000
 
 
 class DescriptionScene(DefectScene, state=DefectSG.desc.state):
-    """Typed or skipped; the severity's screen says which it was."""
+    """Typed or skipped; from the next step on, a skipped one shows as a dash."""
 
     async def _record(self, state: FSMContext, description: str) -> None:
         defect = await load_defect(state)

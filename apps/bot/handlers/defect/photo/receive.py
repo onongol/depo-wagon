@@ -11,13 +11,11 @@ from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.defect.scene import DefectScene
 from apps.bot.handlers.defect.text import (
     build_album_receiving_text,
-    build_defect_type_confirmed_text,
+    build_ask_more_photos_text,
+    build_ask_photo_text,
     build_edit_photos_text,
-    build_photo_received_text,
     build_photo_too_large_text,
     build_photos_attached_toast,
-    build_responsible_employee_confirmed_text,
-    build_responsible_employee_skipped_text,
 )
 from apps.bot.keyboards.common import (
     clear_or_done_keyboard,
@@ -53,21 +51,13 @@ class PhotoScene(DefectScene, state=DefectSG.photo.state):
     async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:
         if data.get(UD_EDITING):
             if not form.photos:
-                return build_edit_photos_text(0), skip_keyboard(CB_PHOTO_SKIP)
+                text = build_edit_photos_text(any_attached=False)
+                return text, skip_keyboard(CB_PHOTO_SKIP)
             keyboard = clear_or_done_keyboard(CB_PHOTO_CLEAR, CB_PHOTO_SKIP)
-            return build_edit_photos_text(len(form.photos)), keyboard
+            return build_edit_photos_text(any_attached=True), keyboard
         if form.photos:
-            text = build_photo_received_text(len(form.photos))
-            return text, done_keyboard(CB_PHOTO_SKIP)
-        if form.defect_type != DefectType.HUMAN_FACTOR:
-            text = build_defect_type_confirmed_text(form.defect_type_label)
-        elif form.responsible_employee_label:
-            text = build_responsible_employee_confirmed_text(
-                form.responsible_employee_label
-            )
-        else:
-            text = build_responsible_employee_skipped_text()
-        return text, skip_keyboard(CB_PHOTO_SKIP)
+            return build_ask_more_photos_text(), done_keyboard(CB_PHOTO_SKIP)
+        return build_ask_photo_text(), skip_keyboard(CB_PHOTO_SKIP)
 
     @on.message(F.photo)
     async def receive(self, message: Message, state: FSMContext) -> None:

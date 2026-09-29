@@ -9,7 +9,7 @@ from apps.bot.states import DefectSG
 from apps.core.constants import Department
 
 from .scene import DefectScene
-from .text import build_wagon_confirmed_text
+from .text import build_ask_department_text
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
@@ -32,7 +32,7 @@ class DepartmentScene(DefectScene, state=DefectSG.department.state):
 
     @classmethod
     async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:
-        return build_wagon_confirmed_text(form.wagon_number), department_keyboard()
+        return build_ask_department_text(), department_keyboard()
 
     @on.callback_query(DepartmentCB.filter())
     async def receive(

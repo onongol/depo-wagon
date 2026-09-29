@@ -12,8 +12,8 @@ from apps.bot.utils.screens import delete_input
 
 from .scene import STEP_TEXT, DefectScene
 from .text import (
+    build_ask_part_number_text,
     build_edit_part_number_text,
-    build_node_confirmed_text,
     build_part_number_too_long_text,
 )
 
@@ -30,7 +30,7 @@ PART_NUMBER_MAX_LENGTH = 100
 
 
 class PartNumberScene(DefectScene, state=DefectSG.part_number.state):
-    """Typed or skipped; the defect type's screen says which it was."""
+    """Typed or skipped; from the next step on, a skipped one shows as a dash."""
 
     async def _record(self, state: FSMContext, part_number: str) -> None:
         defect = await load_defect(state)
@@ -47,7 +47,7 @@ class PartNumberScene(DefectScene, state=DefectSG.part_number.state):
         keyboard = skip_keyboard(CB_PART_NUMBER_SKIP)
         if data.get(UD_EDITING):
             return build_edit_part_number_text(), keyboard
-        return build_node_confirmed_text(form.node_label), keyboard
+        return build_ask_part_number_text(), keyboard
 
     @on.message(*STEP_TEXT)
     async def receive(self, message: Message, state: FSMContext) -> None:

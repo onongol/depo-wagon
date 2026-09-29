@@ -6,11 +6,10 @@ from apps.bot.callback_data import SeverityCB
 from apps.bot.constants import SEVERITY_LABELS, UD_EDITING
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.keyboards.defect import severity_keyboard
-from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 
 from .scene import DefectScene
-from .text import build_description_added_text, build_description_skipped_text
+from .text import build_ask_severity_text, build_edit_severity_text
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
@@ -32,10 +31,8 @@ class SeverityScene(DefectScene, state=DefectSG.severity.state):
     @classmethod
     async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:
         if data.get(UD_EDITING):
-            return str(M.EDIT_SEVERITY), severity_keyboard()
-        if form.description:
-            return build_description_added_text(), severity_keyboard()
-        return build_description_skipped_text(), severity_keyboard()
+            return build_edit_severity_text(), severity_keyboard()
+        return build_ask_severity_text(), severity_keyboard()
 
     @on.callback_query(SeverityCB.filter())
     async def receive(

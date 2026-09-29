@@ -14,8 +14,8 @@ from apps.bot.constants import UD_EDITING
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.defect.scene import STEP_TEXT, DefectScene
 from apps.bot.handlers.defect.text import (
+    build_ask_measurement_text,
     build_ask_value_text,
-    build_measurements_text,
     build_value_invalid_text,
 )
 from apps.bot.keyboards.measurement import (
@@ -39,7 +39,7 @@ _DIM_LABELS = dict(MeasurementDimension.choices)
 
 
 class MeasurementChoiceScene(DefectScene, state=DefectSG.measurement_choice.state):
-    """One card: a dimension, then its number; the card lists what is saved.
+    """One card: a dimension, then its number; the fields above list what is saved.
 
     A picked dimension is the form's current_measurement, not a state of its own.
     """
@@ -63,7 +63,7 @@ class MeasurementChoiceScene(DefectScene, state=DefectSG.measurement_choice.stat
 
         any_saved = bool(form.measurements)
         clearable = any_saved and bool(data.get(UD_EDITING))
-        text = build_measurements_text(form.measurements)
+        text = build_ask_measurement_text(any_saved=any_saved)
         return text, measurement_keyboard(any_saved=any_saved, clearable=clearable)
 
     async def _set_current(

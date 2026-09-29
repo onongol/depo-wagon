@@ -10,10 +10,7 @@ from apps.bot.states import DefectSG
 from apps.defects.constants import DefectNode
 
 from .scene import DefectScene
-from .text import (
-    build_department_confirmed_text,
-    build_edit_node_text,
-)
+from .text import build_ask_node_text, build_edit_node_text
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
@@ -39,7 +36,7 @@ class NodeScene(DefectScene, state=DefectSG.node.state):
         keyboard = node_keyboard_for_department(form.department or "")
         if data.get(UD_EDITING):
             return build_edit_node_text(), keyboard
-        return build_department_confirmed_text(form.department_label), keyboard
+        return build_ask_node_text(), keyboard
 
     @on.callback_query(NodeCB.filter())
     async def receive(

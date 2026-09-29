@@ -4,10 +4,6 @@ from django.utils.translation import gettext_lazy as _
 class DefectMessages:
     """The whole step-by-step defect registration flow and AI results."""
 
-    # ── Edit from summary ────────────────────────────────────────────────────
-
-    EDIT_SEVERITY = _("✏️ Select severity:")
-
     # ── Confirm + AI ─────────────────────────────────────────────────────────
 
     SAVING = _("⏳ Saving...")

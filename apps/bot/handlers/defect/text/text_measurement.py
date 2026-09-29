@@ -1,13 +1,6 @@
 from typing import TYPE_CHECKING
 
-from aiogram.utils.formatting import (
-    Bold,
-    Code,
-    Italic,
-    Text,
-    as_list,
-    as_marked_section,
-)
+from aiogram.utils.formatting import Bold, Code, Italic, Text, as_list
 from django.utils.translation import gettext_lazy as _
 
 if TYPE_CHECKING:
@@ -23,19 +16,10 @@ def build_measurement_line(measurement: MeasurementEntry) -> Text:
     return line
 
 
-def build_measurements_text(measurements: list[MeasurementEntry]) -> Text:
-    if not measurements:
-        return Text("📐 ", _("Choose a dimension to add a measurement, or skip:"))
-
-    return as_list(
-        as_marked_section(
-            Text("📐 ", Bold(_("Measurements"), ":")),
-            *(build_measurement_line(m) for m in measurements),
-            marker="🔹 ",
-        ),
-        _("Choose a dimension to add another, or press Done:"),
-        sep="\n\n",
-    )
+def build_ask_measurement_text(*, any_saved: bool) -> Text:
+    if any_saved:
+        return Text("📐 ", _("Choose a dimension to add another, or press Done:"))
+    return Text("📐 ", _("Choose a dimension to add a measurement, or skip:"))
 
 
 def build_ask_value_text(label: str, unit: str) -> Text:

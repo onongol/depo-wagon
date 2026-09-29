@@ -59,40 +59,47 @@ from apps.bot.handlers.defect.severity import SeverityScene
 from apps.bot.handlers.defect.start import new_defect_start
 from apps.bot.handlers.defect.summary import SummaryScene
 from apps.bot.handlers.defect.text import (
+    build_ask_defect_type_text,
+    build_ask_department_text,
     build_ask_description_text,
+    build_ask_measurement_text,
+    build_ask_more_photos_text,
+    build_ask_photo_text,
     build_ask_responsible_employee_text,
+    build_ask_severity_text,
     build_ask_value_text,
-    build_defect_type_confirmed_text,
-    build_description_added_text,
-    build_description_skipped_text,
     build_description_too_long_text,
     build_edit_description_text,
+    build_edit_node_text,
     build_edit_photos_text,
-    build_measurements_text,
+    build_edit_severity_text,
+    build_editing_heading,
     build_new_defect_text,
-    build_part_number_confirmed_text,
-    build_part_number_skipped_text,
-    build_responsible_employee_confirmed_text,
     build_responsible_employee_search_text,
-    build_responsible_employee_skipped_text,
-    build_summary_text,
+    build_review_heading,
+    build_save_question_text,
+    build_step_heading,
     build_value_invalid_text,
     build_wagon_not_found_text,
 )
 from apps.bot.handlers.defect.wagon import WagonScene
 from apps.bot.keyboards.common import (
     clear_or_done_keyboard,
+    done_keyboard,
     skip_keyboard,
     with_step_buttons,
 )
 from apps.bot.keyboards.confirm import confirm_keyboard
-from apps.bot.keyboards.defect import department_keyboard, severity_keyboard
+from apps.bot.keyboards.defect import (
+    defect_type_keyboard,
+    department_keyboard,
+    severity_keyboard,
+)
 from apps.bot.keyboards.measurement import (
     measurement_keyboard,
     measurement_value_keyboard,
 )
 from apps.bot.keyboards.menu import main_menu_keyboard
-from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.bot.tests.builders import (
     CHAT_ID,
@@ -430,12 +437,11 @@ class TestReceiveDefectType:
         assert defect.responsible_employee_id is None
         assert defect.responsible_employee_label is None
 
-    async def test_the_screen_says_whether_the_part_number_was_skipped(self):
-        typed, _ = await DefectTypeScene.screen(DefectData(part_number="PN-1"), {})
-        skipped, _ = await DefectTypeScene.screen(DefectData(), {})
+    async def test_the_screen_asks_for_the_type(self):
+        text, keyboard = await DefectTypeScene.screen(DefectData(), {})
 
-        assert "PN-1" in typed.render()[0]
-        assert skipped.render() == build_part_number_skipped_text().render()
+        assert text.render() == build_ask_defect_type_text().render()
+        assert keyboard == defect_type_keyboard()
 
     async def test_the_part_number_is_shown_as_typed(self, state):
         """An entity, not HTML: markup in what the user typed needs no escaping."""
@@ -443,55 +449,60 @@ class TestReceiveDefectType:
 
         await PartNumberScene(wizard=AsyncMock()).receive(make_message("<A&B>"), state)
         form = await load_defect(state)
-        text, _ = await DefectTypeScene.screen(form, {})
+        text, _ = await DefectTypeScene.draw(form, {})
 
         assert form.part_number == "<A&B>"
-        assert text.render() == build_part_number_confirmed_text("<A&B>").render()
+        assert "🔢 Part number: <A&B>" in text.render()[0]
 
 
 class TestPhotoSceneScreen:
-    async def test_it_names_the_type(self):
-        form = DefectData(defect_type_label="Crack")
+    async def test_before_any_it_asks_for_one_with_skip(self):
+        text, keyboard = await PhotoScene.screen(DefectData(), {})
+
+        assert text.render() == build_ask_photo_text().render()
+        assert keyboard == skip_keyboard(CB_PHOTO_SKIP)
+
+    async def test_after_one_it_asks_for_more_with_done(self):
+        form = DefectData(photos=[PhotoEntry(file_id="a", message_id=1)])
 
         text, keyboard = await PhotoScene.screen(form, {})
 
-        assert text.render() == build_defect_type_confirmed_text("Crack").render()
-        assert keyboard == skip_keyboard(CB_PHOTO_SKIP)
+        assert text.render() == build_ask_more_photos_text().render()
+        assert keyboard == done_keyboard(CB_PHOTO_SKIP)
 
-    async def test_after_a_human_factor_it_names_the_employee(self):
+    async def test_after_a_human_factor_the_fields_name_the_employee(self):
         form = DefectData(
             defect_type=DefectType.HUMAN_FACTOR, responsible_employee_label="Bold Bat"
         )
 
-        text, _ = await PhotoScene.screen(form, {})
+        text, _ = await PhotoScene.draw(form, {})
 
-        expected = build_responsible_employee_confirmed_text("Bold Bat")
-        assert text.render() == expected.render()
+        assert "👤 Responsible: Bold Bat" in text.render()[0]
 
-    async def test_after_a_human_factor_it_says_the_employee_was_skipped(self):
+    async def test_after_a_human_factor_a_skipped_employee_is_a_dash(self):
         form = DefectData(defect_type=DefectType.HUMAN_FACTOR)
 
-        text, _ = await PhotoScene.screen(form, {})
+        text, _ = await PhotoScene.draw(form, {})
 
-        assert text.render() == build_responsible_employee_skipped_text().render()
+        assert "👤 Responsible: —" in text.render()[0]
 
 
 class TestSeverityScene:
-    async def test_the_screen_says_a_description_was_added(self):
-        text, keyboard = await SeverityScene.screen(DefectData(description="x"), {})
+    async def test_the_screen_asks_for_it(self):
+        text, keyboard = await SeverityScene.screen(DefectData(), {})
 
-        assert text.render() == build_description_added_text().render()
+        assert text.render() == build_ask_severity_text().render()
         assert keyboard == severity_keyboard()
 
-    async def test_the_screen_says_the_description_was_skipped(self):
-        text, _ = await SeverityScene.screen(DefectData(), {})
+    async def test_a_skipped_description_is_a_dash_above_it(self):
+        text, _ = await SeverityScene.draw(DefectData(), {})
 
-        assert text.render() == build_description_skipped_text().render()
+        assert "📝 Description: —" in text.render()[0]
 
     async def test_an_edit_asks_for_it_again(self):
         text, keyboard = await SeverityScene.screen(DefectData(), {UD_EDITING: True})
 
-        assert text == str(M.EDIT_SEVERITY)
+        assert text.render() == build_edit_severity_text().render()
         assert keyboard == severity_keyboard()
 
     async def test_saves_it_and_goes_on_to_the_summary(self, state):
@@ -758,12 +769,16 @@ class TestBack:
 
 
 class TestSummaryScene:
-    async def test_the_screen_is_the_summary_with_its_buttons(self):
+    async def test_the_screen_is_the_whole_form_and_its_buttons(self):
         form = DefectData(wagon_number="60123456", severity_label="High")
 
-        text, keyboard = await SummaryScene.screen(form, {})
+        text, keyboard = await SummaryScene.draw(form, {})
 
-        assert text.render() == build_summary_text(form).render()
+        rendered = text.render()[0]
+        assert rendered.startswith(build_review_heading().render()[0])
+        assert "🚃 Wagon: 60123456" in rendered
+        assert "🔢 Part number: —" in rendered
+        assert rendered.endswith(build_save_question_text().render()[0])
         assert keyboard == confirm_keyboard(form)
 
     async def test_entering_it_ends_an_edit(self, state):
@@ -928,13 +943,13 @@ class TestEditingThePhotos:
 
         text, keyboard = await PhotoScene.screen(form, {UD_EDITING: True})
 
-        assert text.render() == build_edit_photos_text(1).render()
+        assert text.render() == build_edit_photos_text(any_attached=True).render()
         assert keyboard == clear_or_done_keyboard(CB_PHOTO_CLEAR, CB_PHOTO_SKIP)
 
     async def test_with_none_it_offers_skip(self):
         text, keyboard = await PhotoScene.screen(DefectData(), {UD_EDITING: True})
 
-        assert text.render() == build_edit_photos_text(0).render()
+        assert text.render() == build_edit_photos_text(any_attached=False).render()
         assert keyboard == skip_keyboard(CB_PHOTO_SKIP)
 
     async def test_clear_drops_them_and_asks_again_in_place(self, state):
@@ -957,10 +972,10 @@ class TestMeasurementChoiceScene:
     async def test_before_any_the_card_offers_the_dimensions_and_skip(self):
         text, keyboard = await MeasurementChoiceScene.screen(DefectData(), {})
 
-        assert text.render() == build_measurements_text([]).render()
+        assert text.render() == build_ask_measurement_text(any_saved=False).render()
         assert keyboard == measurement_keyboard(any_saved=False)
 
-    async def test_the_card_lists_what_is_saved_and_offers_done(self):
+    async def test_the_fields_list_what_is_saved_and_the_card_offers_done(self):
         form = DefectData(
             measurements=[
                 MeasurementEntry(dimension_label="Width", value=3.0),
@@ -968,10 +983,11 @@ class TestMeasurementChoiceScene:
             ]
         )
 
-        text, keyboard = await MeasurementChoiceScene.screen(form, {})
+        text, _ = await MeasurementChoiceScene.draw(form, {})
+        _, keyboard = await MeasurementChoiceScene.screen(form, {})
 
         rendered = text.render()[0]
-        assert "🔹 Width: 3.0\n🔹 Thickness: 12.5 mm" in rendered
+        assert "📐 Measurements: 2\n🔹 Width: 3.0\n🔹 Thickness: 12.5 mm" in rendered
         assert keyboard == measurement_keyboard(any_saved=True)
 
     async def test_a_picked_dimension_asks_for_its_number(self):
@@ -1161,21 +1177,81 @@ class TestDescriptionScene:
         scene.wizard.goto.assert_awaited_once_with(DefectSG.confirm)
 
 
-class TestSummaryText:
-    def test_a_blank_form_marks_the_required_fields_and_hides_the_rest(self):
-        rendered = build_summary_text(DefectData()).render()[0]
+class TestScreenText:
+    """The heading, the form so far, a notice, then the step's question."""
 
-        assert "Wagon: ?" in rendered
-        assert "Severity: ?" in rendered
+    WEAR = DefectData(defect_type=DefectType.WEAR)
+    HF = DefectData(defect_type=DefectType.HUMAN_FACTOR)
+
+    @pytest.mark.usefixtures("picker")
+    @pytest.mark.parametrize(
+        ("scene", "form", "step"),
+        [
+            (WagonScene, WEAR, 1),
+            (DepartmentScene, WEAR, 2),
+            (DefectTypeScene, WEAR, 5),
+            (PhotoScene, WEAR, 6),
+            (MeasurementChoiceScene, WEAR, 7),
+            (ResponsibleEmployeeScene, HF, 6),
+            (PhotoScene, HF, 7),
+            (DescriptionScene, HF, 8),
+            (SeverityScene, HF, 9),
+        ],
+    )
+    async def test_the_heading_counts_nine_steps_on_either_branch(
+        self, scene, form, step
+    ):
+        text, _ = await scene.draw(form, {})
+
+        assert text.render()[0].startswith(build_step_heading(step, 9).render()[0])
+
+    async def test_a_step_not_reached_yet_is_not_listed(self):
+        text, _ = await NodeScene.draw(DefectData(wagon_number="1"), {})
+
+        rendered = text.render()[0]
+        assert "🚃 Wagon: 1" in rendered
         assert "Part number" not in rendered
-        assert "Measurements" not in rendered
+        assert "Severity" not in rendered
 
-    def test_measurements_are_listed_under_their_count(self):
+    async def test_a_step_behind_that_was_skipped_is_a_dash(self):
+        text, _ = await DefectTypeScene.draw(DefectData(wagon_number="1"), {})
+
+        assert "🔢 Part number: —" in text.render()[0]
+
+    async def test_an_answer_kept_after_back_is_still_listed(self):
+        form = DefectData(wagon_number="1", severity_label="🟠 High")
+
+        text, _ = await NodeScene.draw(form, {})
+
+        assert "🌡️ Severity: 🟠 High" in text.render()[0]
+
+    async def test_an_edit_lists_the_whole_form(self):
+        data = {UD_EDITING: True}
+
+        text, _ = await NodeScene.draw(DefectData(wagon_number="1"), data)
+
+        rendered = text.render()[0]
+        assert rendered.startswith(build_editing_heading().render()[0])
+        assert "🌡️ Severity: —" in rendered
+        assert rendered.endswith(build_edit_node_text().render()[0])
+
+    async def test_a_notice_goes_between_the_form_and_the_question(self):
+        notice = build_wagon_not_found_text("0000")
+        form = DefectData(wagon_number="1")
+
+        text, _ = await DepartmentScene.draw(form, {}, notice=notice)
+
+        rendered = text.render()[0]
+        question = build_ask_department_text().render()[0]
+        assert rendered.index("Wagon: 1") < rendered.index("0000")
+        assert rendered.endswith(question)
+
+    async def test_measurements_are_listed_under_their_count(self):
         gap = MeasurementEntry(dimension_label="Gap", value=3.0, unit="mm")
 
-        rendered = build_summary_text(DefectData(measurements=[gap])).render()[0]
+        text, _ = await SummaryScene.draw(DefectData(measurements=[gap]), {})
 
-        assert "📐 Measurements: 1\n🔹 Gap: 3.0 mm" in rendered
+        assert "📐 Measurements: 1\n🔹 Gap: 3.0 mm" in text.render()[0]
 
 
 class TestUserTextIsEscaped:
@@ -1189,11 +1265,12 @@ class TestUserTextIsEscaped:
 
         assert "<b>&lt;b</b>" in html_decoration.unparse(*text.render())
 
-    def test_what_the_summary_repeats(self):
+    async def test_what_the_summary_repeats(self):
         """Entities, not HTML: the part number and description go out as typed."""
         form = DefectData(part_number="<PN&1>", description="<b>weld</b>")
 
-        html = html_decoration.unparse(*build_summary_text(form).render())
+        text, _ = await SummaryScene.draw(form, {})
+        html = html_decoration.unparse(*text.render())
 
         assert "<b>&lt;PN&amp;1&gt;</b>" in html
         assert "Description: &lt;b&gt;weld&lt;/b&gt;" in html
@@ -1209,7 +1286,7 @@ class TestUserTextIsEscaped:
             make_callback(), ResponsibleEmployeeCB(employee_id=7), state
         )
         form = await load_defect(state)
-        text, _ = await PhotoScene.screen(form, {})
+        text, _ = await PhotoScene.draw(form, {})
 
         assert form.responsible_employee_label == "<b>Bold Bat"
         assert "<b>Bold Bat" in text.render()[0]
