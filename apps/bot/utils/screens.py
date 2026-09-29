@@ -4,7 +4,8 @@ from typing import TYPE_CHECKING, Any
 
 from aiogram.exceptions import TelegramBadRequest
 
-from apps.bot.constants import UD_SCREEN
+from apps.bot.constants import UD_FORM_HEADER, UD_SCREEN
+from apps.bot.fsm import drop_keys
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -134,6 +135,21 @@ async def show_screen(
     await state.update_data({UD_SCREEN: [chat_id, sent.message_id]})
     if screen and below:
         await take_down(bot, screen)
+
+
+async def close_screen(
+    bot: Bot, state: FSMContext, *, keep_screen: bool = False
+) -> None:
+    """Take the form's screen and its header off the chat as the form ends.
+
+    keep_screen is for the save, which turns the screen into its result.
+    """
+    data = await state.get_data()
+    keys = (UD_FORM_HEADER,) if keep_screen else (UD_FORM_HEADER, UD_SCREEN)
+    for key in keys:
+        if message := data.get(key):
+            await take_down(bot, message)
+    await drop_keys(state, UD_FORM_HEADER, UD_SCREEN)
 
 
 async def take_down(bot: Bot, screen: list[int]) -> None:

@@ -12,7 +12,7 @@ from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.bot.user_data import is_current_schema
-from apps.bot.utils.screens import answer_anew
+from apps.bot.utils.screens import answer_anew, close_screen
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -61,6 +61,7 @@ class DefectFormMiddleware(BaseMiddleware):
 
         if stored:
             logger.info("Discarding a defect form written by an older state schema")
+            await close_screen(event.bot, state)
             await clear_defect_keys(state)
 
         if data.get("raw_state") not in DefectSG.__all_states_names__:

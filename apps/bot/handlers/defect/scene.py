@@ -21,7 +21,7 @@ from apps.bot.keyboards.defect import defect_in_progress_keyboard
 from apps.bot.keyboards.menu import MENU_TEXTS, main_menu_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
-from apps.bot.utils.screens import answer_anew, show_screen
+from apps.bot.utils.screens import close_screen, show_screen
 
 from .start import open_blank_form
 from .text import (
@@ -208,10 +208,13 @@ class DefectScene(Scene):
 
     @on.callback_query(F.data == CB_CANCEL)
     async def cancel(self, callback: CallbackQuery) -> None:
+        """exit() takes the screen off the chat, so the menu comes in a message."""
         await callback.answer()
         await self.wizard.exit()
-        await answer_anew(
-            callback, text=str(M.DEFECT_CANCELLED), reply_markup=main_menu_keyboard()
+        await callback.bot.send_message(
+            callback.from_user.id,
+            text=str(M.DEFECT_CANCELLED),
+            reply_markup=main_menu_keyboard(),
         )
 
     @on.callback_query(F.data == CB_STEP_BACK)
@@ -231,7 +234,8 @@ class DefectScene(Scene):
     @on.message.exit()
     @on.callback_query.exit()
     async def drop_the_form(
-        self, _event: Message | CallbackQuery, state: FSMContext
+        self, event: Message | CallbackQuery, state: FSMContext
     ) -> None:
-        """exit() only clears the state; the form is ours to drop."""
+        """exit() only clears the state; the form and its screen are ours to drop."""
+        await close_screen(event.bot, state)
         await clear_defect_keys(state)

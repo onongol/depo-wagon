@@ -6,7 +6,7 @@ from apps.bot.keyboards.confirm import employee_verdict_keyboard
 from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
-from apps.bot.utils.screens import answer_anew
+from apps.bot.utils.screens import answer_anew, close_screen
 
 from .formatters import build_recommendation_text, build_result_text
 from .pipeline import register_defect, run_ai_analysis
@@ -32,6 +32,9 @@ async def confirm_defect(
         await callback.message.edit_text(str(M.NOT_REGISTERED))
         await state.set_state(None)
         return
+
+    # The screen becomes the result, so nothing may take it down after this
+    await close_screen(bot, state, keep_screen=True)
 
     # Critical: a failure here means nothing was saved
     await callback.message.edit_text(str(M.SAVING))

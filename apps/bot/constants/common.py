@@ -5,8 +5,9 @@ UD_DEFECT = "defect"
 UD_RESP_SEARCH = "_resp_search"
 UD_LAST_MEDIA_GROUP = "_last_media_group"
 UD_EDITING = "_editing"
-# [chat_id, message_id] of the defect form's one screen
+# [chat_id, message_id] of the defect form's one screen, and of the header above it
 UD_SCREEN = "_screen"
+UD_FORM_HEADER = "_form_header"
 UD_AI_CHAT_HISTORY = "_ai_chat_history"
 UD_AI_CHAT_LAST = "_ai_chat_last"
 
@@ -17,6 +18,7 @@ DEFECT_USER_DATA_KEYS = (
     UD_LAST_MEDIA_GROUP,
     UD_EDITING,
     UD_SCREEN,
+    UD_FORM_HEADER,
 )
 
 # Human factor only

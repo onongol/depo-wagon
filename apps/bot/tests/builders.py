@@ -31,7 +31,7 @@ def make_bot() -> MagicMock:
 
 def make_message(text: str | None = None, *, user_id: int = USER_ID) -> MagicMock:
     message = MagicMock()
-    message.answer = AsyncMock()
+    message.answer = AsyncMock(return_value=MagicMock(message_id=SENT_ID))
     message.reply = AsyncMock()
     message.edit_text = AsyncMock()
     message.edit_reply_markup = AsyncMock()

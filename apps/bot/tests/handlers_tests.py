@@ -100,6 +100,7 @@ from apps.bot.keyboards.measurement import (
     measurement_value_keyboard,
 )
 from apps.bot.keyboards.menu import main_menu_keyboard
+from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.bot.tests.builders import (
     CHAT_ID,
@@ -852,13 +853,16 @@ class TestSummaryScene:
 
     async def test_declining_cancels_the_form(self):
         callback = make_callback()
-        callback.bot.edit_message_reply_markup = AsyncMock()
         scene = SummaryScene(wizard=AsyncMock())
 
         await scene.decline(callback)
 
         scene.wizard.exit.assert_awaited_once()
-        callback.message.answer.assert_awaited_once()
+        sent = callback.bot.send_message.await_args.kwargs
+        assert (sent["text"], sent["reply_markup"]) == (
+            str(M.DEFECT_CANCELLED),
+            main_menu_keyboard(),
+        )
 
 
 class TestUnlinkedEmployeeIsRefused:
