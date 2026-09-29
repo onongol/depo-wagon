@@ -44,7 +44,7 @@ def node_keyboard_for_department(department: str) -> InlineKeyboardMarkup:
 def defect_type_keyboard() -> InlineKeyboardMarkup:
     return build_grid_keyboard(
         [(label, DefectTypeCB(value=value)) for value, label in DefectType.choices],
-        columns=3,
+        columns=2,
     )
 
 
