@@ -104,13 +104,12 @@ class MeasurementChoiceScene(DefectScene, state=DefectSG.measurement_choice.stat
             await self.show_as_message(message, state)
             return
 
+        typed = message.text.strip()
         try:
-            current.value = float(message.text.strip().replace(",", "."))
+            current.value = float(typed.replace(",", "."))
         except ValueError:
-            await message.answer(
-                **build_value_invalid_text().as_kwargs(),
-                reply_markup=measurement_value_keyboard(),
-            )
+            notice = build_value_invalid_text(typed)
+            await self.show_as_message(message, state, notice=notice)
             return
 
         defect.measurements.append(current)

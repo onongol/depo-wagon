@@ -35,6 +35,7 @@ from apps.bot.constants import (
     BTN_OPEN_DEFECTS,
     UD_AI_CHAT_LAST,
     UD_EDITING,
+    UD_SCREEN,
     LinkStatus,
 )
 from apps.bot.dispatcher import _BOT_COMMANDS, _routers, make_dispatcher
@@ -216,7 +217,8 @@ class TestPrecedenceDuringTheDefectFlow:
         expected = shown.kwargs.get("text") or shown.args[0]
         assert sent.text == expected
         assert await state.get_state() == step.state
-        assert after == before
+        # The screen drawn is the only thing stored
+        assert {k: v for k, v in after.items() if k != UD_SCREEN} == before
 
     @pytest.mark.usefixtures("stored_form")
     async def test_at_the_wagon_step_it_asks_for_the_number_again(self, dp, bot, state):

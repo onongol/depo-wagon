@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any
 from aiogram import F
 from aiogram.filters import Command
 from aiogram.fsm.scene import Scene, on
-from aiogram.utils.formatting import Text
+from aiogram.utils.formatting import Text, as_list
 
 from apps.bot.callback_data import (
     CB_CANCEL,
@@ -21,7 +21,7 @@ from apps.bot.keyboards.defect import defect_in_progress_keyboard
 from apps.bot.keyboards.menu import MENU_TEXTS, main_menu_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
-from apps.bot.utils.screens import answer_anew, edit_or_send
+from apps.bot.utils.screens import answer_anew, delete_input, show_screen
 
 from .start import open_blank_form
 from .text import build_defect_in_progress_text
@@ -79,13 +79,30 @@ class DefectScene(Scene):
         return cls.previous(form)
 
     @classmethod
-    async def draw(
-        cls, form: DefectData, data: dict[str, Any], **screen_args: Any
-    ) -> Screen:
-        """The screen with Cancel, and Back wherever Back leads somewhere."""
-        content, keyboard = await cls.screen(form, data, **screen_args)
+    def step_buttons(
+        cls,
+        form: DefectData,
+        data: dict[str, Any],
+        keyboard: InlineKeyboardMarkup | None,
+    ) -> InlineKeyboardMarkup | None:
+        """Cancel, and Back wherever Back leads somewhere."""
         back = cls.back_to(form, data) is not None
-        return content, with_step_buttons(keyboard, back=back)
+        return with_step_buttons(keyboard, back=back)
+
+    @classmethod
+    async def draw(
+        cls,
+        form: DefectData,
+        data: dict[str, Any],
+        *,
+        notice: Text | None = None,
+        **screen_args: Any,
+    ) -> Screen:
+        """The screen with its step buttons, and a notice such as an error on top."""
+        content, keyboard = await cls.screen(form, data, **screen_args)
+        if notice:
+            content = as_list(notice, content, sep="\n\n")
+        return content, cls.step_buttons(form, data, keyboard)
 
     async def go_on(self, state: FSMContext, next_step: State) -> None:
         """To the next step, whose scene draws its own screen; after an Edit, back.
@@ -98,18 +115,42 @@ class DefectScene(Scene):
         await self.wizard.goto(DefectSG.confirm if editing else next_step)
 
     @on.message.enter()
-    async def show_as_message(self, message: Message, state: FSMContext) -> None:
+    async def show_as_message(
+        self,
+        message: Message,
+        state: FSMContext,
+        *,
+        notice: Text | None = None,
+        below: bool = False,
+    ) -> None:
+        """What the user typed leaves the chat; below keeps it, the screen under it."""
+        if not below:
+            await delete_input(message)
         content, keyboard = await self.draw(
-            await load_defect(state), await state.get_data()
+            await load_defect(state), await state.get_data(), notice=notice
         )
-        await message.answer(**as_send_kwargs(content), reply_markup=keyboard)
+        await show_screen(
+            message.bot,
+            state,
+            message.chat.id,
+            below=below,
+            reply_markup=keyboard,
+            **as_send_kwargs(content),
+        )
 
     @on.callback_query.enter()
     async def show_as_edit(self, callback: CallbackQuery, state: FSMContext) -> None:
         content, keyboard = await self.draw(
             await load_defect(state), await state.get_data()
         )
-        await edit_or_send(callback, **as_send_kwargs(content), reply_markup=keyboard)
+        await show_screen(
+            callback.bot,
+            state,
+            callback.from_user.id,
+            tapped=callback.message,
+            reply_markup=keyboard,
+            **as_send_kwargs(content),
+        )
 
     @on.message(Command("new_defect"))
     @on.message(F.text == str(BTN_NEW_DEFECT))

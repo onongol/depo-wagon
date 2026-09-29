@@ -16,6 +16,17 @@ from aiogram.methods import EditMessageText
 CHAT_ID = 12345
 USER_ID = 12345
 MESSAGE_ID = 1
+SENT_ID = 2
+
+
+def make_bot() -> MagicMock:
+    """Every API method a screen uses; a sent message comes back as SENT_ID."""
+    bot = MagicMock()
+    bot.send_message = AsyncMock(return_value=MagicMock(message_id=SENT_ID))
+    bot.edit_message_text = AsyncMock()
+    bot.edit_message_reply_markup = AsyncMock()
+    bot.delete_message = AsyncMock()
+    return bot
 
 
 def make_message(text: str | None = None, *, user_id: int = USER_ID) -> MagicMock:
@@ -24,6 +35,8 @@ def make_message(text: str | None = None, *, user_id: int = USER_ID) -> MagicMoc
     message.reply = AsyncMock()
     message.edit_text = AsyncMock()
     message.edit_reply_markup = AsyncMock()
+    message.delete = AsyncMock()
+    message.bot = make_bot()
     message.text = text
     message.message_id = MESSAGE_ID
     message.chat.id = CHAT_ID
@@ -37,8 +50,7 @@ def make_callback(data: str | None = None, *, user_id: int = USER_ID) -> MagicMo
     callback.data = data
     callback.from_user.id = user_id
     callback.message = make_message()
-    callback.bot.edit_message_text = AsyncMock()
-    callback.bot.send_message = AsyncMock()
+    callback.bot = make_bot()
     return callback
 
 

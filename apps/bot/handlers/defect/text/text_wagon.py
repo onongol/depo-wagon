@@ -11,11 +11,7 @@ def build_edit_wagon_text() -> Text:
 
 
 def build_wagon_not_found_text(number: str) -> Text:
-    return as_list(
-        Text("❌ ", _("Wagon not found:"), " ", Code(number)),
-        _("Please check and try again:"),
-        sep="\n\n",
-    )
+    return Text("❌ ", _("Wagon not found:"), " ", Code(number))
 
 
 def build_wagon_confirmed_text(number: str) -> Text:

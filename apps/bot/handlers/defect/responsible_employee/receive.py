@@ -14,7 +14,7 @@ from apps.bot.constants import UD_RESP_SEARCH
 from apps.bot.fsm import drop_keys, load_defect, save_defect
 from apps.bot.handlers.defect.scene import STEP_TEXT, DefectScene, as_send_kwargs
 from apps.bot.states import DefectSG
-from apps.bot.utils.screens import edit_or_send
+from apps.bot.utils.screens import show_screen
 
 from .list import employee_list_screen
 
@@ -90,7 +90,14 @@ class ResponsibleEmployeeScene(DefectScene, state=DefectSG.responsible_employee.
         content, keyboard = await self.draw(
             await load_defect(state), await state.get_data(), page=callback_data.page
         )
-        await edit_or_send(callback, **as_send_kwargs(content), reply_markup=keyboard)
+        await show_screen(
+            callback.bot,
+            state,
+            callback.from_user.id,
+            tapped=callback.message,
+            reply_markup=keyboard,
+            **as_send_kwargs(content),
+        )
 
     @on.message(*STEP_TEXT)
     async def search(self, message: Message, state: FSMContext) -> None:

@@ -55,10 +55,8 @@ class PartNumberScene(DefectScene, state=DefectSG.part_number.state):
             too_long = build_part_number_too_long_text(
                 len(part_number), PART_NUMBER_MAX_LENGTH
             )
-            await message.answer(
-                **too_long.as_kwargs(),
-                reply_markup=skip_keyboard(CB_PART_NUMBER_SKIP),
-            )
+            # Left in the chat to be copied and shortened
+            await self.show_as_message(message, state, notice=too_long, below=True)
             return
 
         await self._record(state, part_number)

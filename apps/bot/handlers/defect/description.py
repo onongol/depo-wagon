@@ -56,7 +56,8 @@ class DescriptionScene(DefectScene, state=DefectSG.desc.state):
         text = message.text.strip()
         if len(text) > _MAX_DESCRIPTION_LEN:
             too_long = build_description_too_long_text(len(text), _MAX_DESCRIPTION_LEN)
-            await message.answer(**too_long.as_kwargs())
+            # Left in the chat to be copied and shortened
+            await self.show_as_message(message, state, notice=too_long, below=True)
             return
 
         await self._record(state, text)

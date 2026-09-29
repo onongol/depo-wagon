@@ -14,11 +14,7 @@ def build_edit_description_text() -> Text:
 
 
 def build_description_too_long_text(length: int, limit: int) -> Text:
-    return as_list(
-        Text("❌ ", str(_TOO_LONG).format(length=length, max=limit)),
-        _("Please shorten it:"),
-        sep="\n\n",
-    )
+    return Text("❌ ", str(_TOO_LONG).format(length=length, max=limit))
 
 
 def build_description_added_text() -> Text:

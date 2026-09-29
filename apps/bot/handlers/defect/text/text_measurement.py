@@ -1,6 +1,13 @@
 from typing import TYPE_CHECKING
 
-from aiogram.utils.formatting import Bold, Italic, Text, as_list, as_marked_section
+from aiogram.utils.formatting import (
+    Bold,
+    Code,
+    Italic,
+    Text,
+    as_list,
+    as_marked_section,
+)
 from django.utils.translation import gettext_lazy as _
 
 if TYPE_CHECKING:
@@ -39,5 +46,5 @@ def build_ask_value_text(label: str, unit: str) -> Text:
     )
 
 
-def build_value_invalid_text() -> Text:
-    return Text("❌ ", _("Please enter a number"), " ", Italic(_EXAMPLE), ":")
+def build_value_invalid_text(typed: str) -> Text:
+    return Text("❌ ", _("Not a number:"), " ", Code(typed))

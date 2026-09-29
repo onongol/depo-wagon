@@ -17,7 +17,7 @@ from .text import build_summary_text
 if TYPE_CHECKING:
     from aiogram import Bot
     from aiogram.fsm.context import FSMContext
-    from aiogram.types import CallbackQuery, Message
+    from aiogram.types import CallbackQuery, InlineKeyboardMarkup, Message
 
     from apps.bot.user_data import DefectData
     from apps.core.models import Employee
@@ -45,11 +45,14 @@ class SummaryScene(DefectScene, state=DefectSG.confirm.state):
         return build_summary_text(form), confirm_keyboard(form)
 
     @classmethod
-    async def draw(
-        cls, form: DefectData, data: dict[str, Any], **screen_args: Any
-    ) -> Screen:
+    def step_buttons(
+        cls,
+        form: DefectData,
+        data: dict[str, Any],
+        keyboard: InlineKeyboardMarkup | None,
+    ) -> InlineKeyboardMarkup | None:
         """Its Cancel is its own, under Save, and no step comes before it."""
-        return await cls.screen(form, data, **screen_args)
+        return keyboard
 
     @on.message.enter()
     async def show_as_message(self, message: Message, state: FSMContext) -> None:

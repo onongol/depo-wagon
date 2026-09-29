@@ -35,7 +35,12 @@ from apps.bot.callback_data import (
     SeverityCB,
     VerdictCB,
 )
-from apps.bot.constants import EDIT_MEASUREMENTS, EDIT_RESPONSIBLE, UD_EDITING
+from apps.bot.constants import (
+    EDIT_MEASUREMENTS,
+    EDIT_RESPONSIBLE,
+    UD_EDITING,
+    UD_SCREEN,
+)
 from apps.bot.errors import build_session_error_text
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.common.text import build_cancelled_text, build_help_text
@@ -80,6 +85,7 @@ from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.bot.tests.integration.conftest import (
+    CHAT_ID,
     as_employee,
     make_callback_update,
     make_message_update,
@@ -426,6 +432,81 @@ class TestTheMenuWhileAFormIsOpen:
             main_menu_keyboard(),
         )
         assert await state.get_state() is None
+
+
+class TestOneScreen:
+    """After the header, every step is drawn into one message; typing leaves none."""
+
+    async def test_the_walk_edits_one_message_and_deletes_every_answer(
+        self, dp, bot, state, flow, wagon
+    ):
+        """Wrong answers too: the screen names them."""
+        session = bot.session
+        lookup = flow.wagon_services.get_wagon_by_number
+        lookup.side_effect = lambda number: wagon if number == WAGON_NUMBER else None
+        typed = []
+
+        async def text(value, **kwargs):
+            update = make_message_update(value, **kwargs)
+            typed.append(update.message.message_id)
+            await dp.feed_update(bot, update)
+
+        async def tap(payload):
+            await dp.feed_update(bot, make_callback_update(payload))
+
+        await text("/new_defect", command=True)
+        await text("0000")
+        await text(WAGON_NUMBER)
+        await tap(DepartmentCB(value=Department.BOGIE).pack())
+        await tap(NodeCB(value=DefectNode.WHEEL).pack())
+        await text("PN-42")
+        await tap(DefectTypeCB(value=DefectType.WEAR).pack())
+        await tap(CB_PHOTO_SKIP)
+        await tap(DimensionCB(value="thickness").pack())
+        await text("twelve")
+        await text("12,5")
+        await tap(CB_MEAS_DONE)
+        await text("Cracked weld near the flange")
+        await tap(SeverityCB(value="critical").pack())
+        assert await state.get_state() == DefectSG.confirm.state
+
+        header, screen = session.calls("sendMessage")
+        assert header.reply_markup == ReplyKeyboardRemove()
+        _, screen_id = (await state.get_data())[UD_SCREEN]
+        edited = {edit.message_id for edit in session.calls("editMessageText")}
+        assert edited == {screen_id}
+        deleted = [d.message_id for d in session.calls("deleteMessage")]
+        assert deleted == typed
+
+    async def test_a_screen_the_user_deleted_is_sent_anew(
+        self, dp, bot, session, state, flow
+    ):
+        await dp.feed_update(bot, make_message_update("/new_defect", command=True))
+        _, first = (await state.get_data())[UD_SCREEN]
+        session.refuse("editMessageText", "Bad Request: message to edit not found")
+
+        await dp.feed_update(bot, make_message_update(WAGON_NUMBER))
+
+        assert await state.get_state() == DefectSG.department.state
+        sent = session.calls("sendMessage")[-1]
+        assert sent.text == build_wagon_confirmed_text(WAGON_NUMBER).render()[0]
+        _, second = (await state.get_data())[UD_SCREEN]
+        assert second != first
+
+    async def test_an_over_long_description_stays_and_the_screen_goes_under_it(
+        self, dp, bot, session, state
+    ):
+        await save_defect(state, DefectData(wagon_id=1))
+        await state.set_state(DefectSG.desc)
+        await state.update_data({UD_SCREEN: [CHAT_ID, 500]})
+
+        await dp.feed_update(bot, make_message_update("x" * 1001))
+
+        assert await state.get_state() == DefectSG.desc.state
+        (sent,) = session.calls("sendMessage")
+        assert "1001/1000" in sent.text
+        (deleted,) = session.calls("deleteMessage")
+        assert deleted.message_id == 500
 
 
 class TestFromTheWagonStepToTheDepartment:
@@ -1113,19 +1194,23 @@ class TestHumanFactorBranch:
         assert (await load_defect(state)).responsible_employee_id is None
 
     @pytest.mark.usefixtures("flow")
-    async def test_a_typed_name_narrows_the_list_in_a_new_message(
+    async def test_a_typed_name_narrows_the_list_in_place(
         self, dp, bot, session, state, roster
     ):
         await self._up_to_the_type(dp, bot)
         session.clear()
+        typed = make_message_update("U1")
 
-        await dp.feed_update(bot, make_message_update("U1"))
+        await dp.feed_update(bot, typed)
 
         roster.assert_awaited_with(
             Department.BOGIE, "U1", limit=EMPLOYEE_PAGE_SIZE, offset=0
         )
-        (sent,) = session.calls("sendMessage")
-        assert "U1" in sent.text
+        (deleted,) = session.calls("deleteMessage")
+        assert deleted.message_id == typed.message.message_id
+        assert session.calls("sendMessage") == []
+        (edit,) = session.calls("editMessageText")
+        assert "U1" in edit.text
         assert await state.get_state() == DefectSG.responsible_employee.state
 
     @pytest.mark.usefixtures("flow")

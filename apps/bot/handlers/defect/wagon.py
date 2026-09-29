@@ -38,7 +38,8 @@ class WagonScene(DefectScene, state=DefectSG.wagon_num.state):
         number = message.text.strip()
         wagon = await services.get_wagon_by_number(number)
         if not wagon:
-            await message.answer(**build_wagon_not_found_text(number).as_kwargs())
+            notice = build_wagon_not_found_text(number)
+            await self.show_as_message(message, state, notice=notice)
             return
 
         defect = await load_defect(state)

@@ -37,6 +37,7 @@ from apps.bot.constants import (
     UD_DEFECT,
     UD_EDITING,
     UD_RESP_SEARCH,
+    UD_SCREEN,
 )
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.common.cancel import cancel
@@ -93,7 +94,12 @@ from apps.bot.keyboards.measurement import (
 from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
-from apps.bot.tests.builders import make_callback, make_message
+from apps.bot.tests.builders import (
+    CHAT_ID,
+    SENT_ID,
+    make_callback,
+    make_message,
+)
 from apps.bot.user_data import DefectData, MeasurementEntry, PhotoEntry
 from apps.defects.constants import DefectNode, DefectType
 
@@ -192,7 +198,7 @@ class TestNewDefectStart:
 
 
 class TestReceiveWagonNumber:
-    async def test_an_unknown_number_is_echoed_as_typed(self, state):
+    async def test_an_unknown_number_is_named_on_the_screen(self, state):
         """An entity, not HTML: markup in what the user typed needs no escaping."""
         await save_defect(state, DefectData())
         message = make_message("<b>80035668</b>")
@@ -200,9 +206,11 @@ class TestReceiveWagonNumber:
         with patch(WAGON_LOOKUP, AsyncMock(return_value=None)):
             await WagonScene(wizard=MagicMock()).receive(message, state)
 
-        message.answer.assert_awaited_once_with(
-            **build_wagon_not_found_text("<b>80035668</b>").as_kwargs()
-        )
+        message.delete.assert_awaited_once()
+        notice = build_wagon_not_found_text("<b>80035668</b>")
+        content, _ = await WagonScene.draw(DefectData(), {}, notice=notice)
+        sent = message.bot.send_message.await_args.kwargs
+        assert (sent["text"], sent["entities"]) == content.render()
         assert await state.get_state() is None
 
     async def test_a_known_number_goes_on_to_the_department_scene(self, state):
@@ -299,7 +307,8 @@ class TestReceivePartNumber:
         assert (await load_defect(state)).part_number == "x" * PART_NUMBER_MAX_LENGTH
         scene.wizard.goto.assert_awaited_once()
 
-    async def test_a_longer_part_number_is_asked_for_again(self, state):
+    async def test_a_longer_part_number_stays_and_the_screen_goes_under_it(self, state):
+        """Left in the chat, to be copied and shortened."""
         await save_defect(state, DefectData())
         scene = PartNumberScene(wizard=AsyncMock())
         message = make_message("x" * (PART_NUMBER_MAX_LENGTH + 1))
@@ -308,8 +317,9 @@ class TestReceivePartNumber:
 
         assert (await load_defect(state)).part_number == ""
         scene.wizard.goto.assert_not_awaited()
-        reply = message.answer.await_args.kwargs["text"]
-        assert f"{PART_NUMBER_MAX_LENGTH + 1}/{PART_NUMBER_MAX_LENGTH}" in reply
+        message.delete.assert_not_awaited()
+        screen = message.bot.send_message.await_args.kwargs["text"]
+        assert f"{PART_NUMBER_MAX_LENGTH + 1}/{PART_NUMBER_MAX_LENGTH}" in screen
 
     async def test_skip_clears_the_part_number(self, state):
         await save_defect(state, DefectData(part_number="old"))
@@ -1009,7 +1019,7 @@ class TestMeasurementChoiceScene:
         assert (await load_defect(state)).current_measurement is None
         callback.bot.edit_message_text.assert_awaited_once()
 
-    async def test_the_number_is_saved_and_the_card_sent_anew(self, state):
+    async def test_the_number_is_saved_and_the_card_shown_again(self, state):
         await save_defect(state, DefectData(current_measurement=THICKNESS))
         message = make_message("12,5")
 
@@ -1018,12 +1028,13 @@ class TestMeasurementChoiceScene:
         defect = await load_defect(state)
         assert defect.measurements == [THICKNESS.model_copy(update={"value": 12.5})]
         assert defect.current_measurement is None
-        reply_markup = message.answer.await_args.kwargs["reply_markup"]
+        message.delete.assert_awaited_once()
+        reply_markup = message.bot.send_message.await_args.kwargs["reply_markup"]
         assert reply_markup == with_step_buttons(
             measurement_keyboard(any_saved=True), back=True
         )
 
-    async def test_a_non_number_is_asked_for_again(self, state):
+    async def test_a_non_number_is_named_on_the_prompt(self, state):
         await save_defect(state, DefectData(current_measurement=THICKNESS))
         message = make_message("twelve")
 
@@ -1032,10 +1043,13 @@ class TestMeasurementChoiceScene:
         defect = await load_defect(state)
         assert defect.measurements == []
         assert defect.current_measurement == THICKNESS
-        message.answer.assert_awaited_once_with(
-            **build_value_invalid_text().as_kwargs(),
-            reply_markup=measurement_value_keyboard(),
-        )
+        message.delete.assert_awaited_once()
+        notice = build_value_invalid_text("twelve")
+        content, keyboard = await MeasurementChoiceScene.draw(defect, {}, notice=notice)
+        sent = message.bot.send_message.await_args.kwargs
+        assert (sent["text"], sent["entities"]) == content.render()
+        assert sent["reply_markup"] == keyboard
+        assert keyboard == with_step_buttons(measurement_value_keyboard(), back=False)
 
     async def test_text_before_a_dimension_shows_the_card_again(self, state):
         await save_defect(state, DefectData())
@@ -1044,7 +1058,8 @@ class TestMeasurementChoiceScene:
         await MeasurementChoiceScene(wizard=AsyncMock()).receive(message, state)
 
         assert (await load_defect(state)).measurements == []
-        reply_markup = message.answer.await_args.kwargs["reply_markup"]
+        message.delete.assert_awaited_once()
+        reply_markup = message.bot.send_message.await_args.kwargs["reply_markup"]
         assert reply_markup == with_step_buttons(
             measurement_keyboard(any_saved=False), back=True
         )
@@ -1106,18 +1121,26 @@ class TestDescriptionScene:
         assert (await load_defect(state)).description == "Cracked weld"
         scene.wizard.goto.assert_awaited_once_with(DefectSG.severity)
 
-    async def test_a_longer_one_is_asked_for_again(self, state):
+    async def test_a_longer_one_stays_and_the_screen_goes_under_it(self, state):
+        """Left in the chat, to be copied and shortened."""
         await save_defect(state, DefectData())
         await state.set_state(DefectSG.desc)
+        await state.update_data({UD_SCREEN: [CHAT_ID, 7]})
         message = make_message("x" * 1001)
 
         await DescriptionScene(wizard=AsyncMock()).receive(message, state)
 
         assert (await load_defect(state)).description == ""
         assert await state.get_state() == DefectSG.desc.state
-        message.answer.assert_awaited_once_with(
-            **build_description_too_long_text(1001, 1000).as_kwargs()
+        message.delete.assert_not_awaited()
+        notice = build_description_too_long_text(1001, 1000)
+        content, _ = await DescriptionScene.draw(DefectData(), {}, notice=notice)
+        sent = message.bot.send_message.await_args.kwargs
+        assert (sent["text"], sent["entities"]) == content.render()
+        message.bot.delete_message.assert_awaited_once_with(
+            chat_id=CHAT_ID, message_id=7
         )
+        assert (await state.get_data())[UD_SCREEN] == [CHAT_ID, SENT_ID]
 
     async def test_skip_clears_it_and_asks_the_severity(self, state):
         await save_defect(state, DefectData(description="Old"))

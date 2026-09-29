@@ -4,10 +4,20 @@ from typing import TYPE_CHECKING, Any
 
 from aiogram.exceptions import TelegramBadRequest
 
+from apps.bot.constants import UD_SCREEN
+
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
-    from aiogram.types import CallbackQuery, InlineKeyboardMarkup, ReplyKeyboardMarkup
+    from aiogram import Bot
+    from aiogram.fsm.context import FSMContext
+    from aiogram.types import (
+        CallbackQuery,
+        InlineKeyboardMarkup,
+        MaybeInaccessibleMessageUnion,
+        Message,
+        ReplyKeyboardMarkup,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -89,3 +99,65 @@ async def answer_anew(
         )
 
     await message.answer(reply_markup=reply_markup, **kwargs)
+
+
+async def delete_input(message: Message) -> None:
+    """Take what the user sent off the chat; a 400 means it is gone already."""
+    with suppress(TelegramBadRequest):
+        await message.delete()
+
+
+async def show_screen(
+    bot: Bot,
+    state: FSMContext,
+    chat_id: int,
+    *,
+    tapped: MaybeInaccessibleMessageUnion | None = None,
+    below: bool = False,
+    **kwargs: Any,
+) -> None:
+    """Draw the form's one screen: edited in place, or sent anew at the bottom.
+
+    below is for input left in the chat: the screen goes under it and the old
+    one is taken down. With no screen stored yet, a tap adopts its message.
+    kwargs are the screen's text and its inline keyboard, as for send_message.
+    """
+    screen = (await state.get_data()).get(UD_SCREEN)
+    if screen is None and tapped is not None:
+        screen = [tapped.chat.id, tapped.message_id]
+        await state.update_data({UD_SCREEN: screen})
+
+    if screen and not below and await _edit(bot, screen, kwargs):
+        return
+
+    sent = await bot.send_message(chat_id, **kwargs)
+    await state.update_data({UD_SCREEN: [chat_id, sent.message_id]})
+    if screen and below:
+        await take_down(bot, screen)
+
+
+async def take_down(bot: Bot, screen: list[int]) -> None:
+    """Delete a screen, or strip its buttons where Telegram refuses the delete."""
+    chat_id, message_id = screen
+    try:
+        await bot.delete_message(chat_id=chat_id, message_id=message_id)
+    except TelegramBadRequest:
+        with suppress(TelegramBadRequest):
+            await bot.edit_message_reply_markup(
+                chat_id=chat_id, message_id=message_id, reply_markup=None
+            )
+
+
+async def _edit(bot: Bot, screen: list[int], kwargs: dict[str, Any]) -> bool:
+    """False when the screen is gone or too old to edit, so it is sent anew."""
+    chat_id, message_id = screen
+    try:
+        await bot.edit_message_text(chat_id=chat_id, message_id=message_id, **kwargs)
+    except TelegramBadRequest as exc:
+        if _is_not_modified(exc):
+            return True
+        if not _is_uneditable(exc):
+            raise
+        logger.info("The screen refused the edit, sending anew: %s", exc.message)
+        return False
+    return True
