@@ -422,7 +422,7 @@ class TestTheMenuWhileAFormIsOpen:
         await dp.feed_update(bot, update)
 
         (sent,) = session.calls("sendMessage")
-        result = build_result_text(flow.saved.defect.id, DefectVerdict.OK, None)
+        result = build_result_text(None)
         assert (sent.text, sent.reply_markup) == (
             result.render()[0],
             main_menu_keyboard(),

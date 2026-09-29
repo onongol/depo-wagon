@@ -11,7 +11,6 @@ from apps.bot.handlers.defect.confirm.pipeline import (
 from apps.bot.handlers.defect.notifications import notify_decommission
 from apps.bot.handlers.defect.text import build_recommendation_text, build_result_text
 from apps.bot.user_data import AIResult, DefectData, MeasurementEntry, PhotoEntry
-from apps.defects.constants import DefectVerdict
 
 
 def _make_defect_data(**kwargs):
@@ -382,33 +381,28 @@ class TestNotifyDecommission:
 class TestBuildResultText:
     AI = AIResult(defect_class="Rim wear", confidence=0.8, verdict="repair_soon")
 
-    def test_both_verdicts_on_lines_of_their_own(self):
-        text = build_result_text("uuid-001", DefectVerdict.REPAIR_NOW, self.AI)
+    def test_the_saved_defect_then_the_analysis(self):
+        text = build_result_text(self.AI)
 
-        lines = text.as_html().splitlines()
-        assert "🟠 Your verdict: <code>Repair Now</code>" in lines
-        assert "🟡 AI verdict: <code>Repair Soon</code>" in lines
+        assert text.as_html() == (
+            "✅ <b>Defect registered successfully!</b>\n\n"
+            "🤖 <b>AI Analysis:</b>\n"
+            "📌 Rim wear\n"
+            "📊 Confidence: 80%\n"
+            "🟡 AI verdict: <code>Repair Soon</code>"
+        )
 
-    def test_they_are_shown_when_they_agree(self):
-        text = build_result_text("uuid-001", DefectVerdict.REPAIR_SOON, self.AI)
+    def test_without_the_ai_it_says_so(self):
+        rendered = build_result_text(None).render()[0]
 
-        rendered = text.render()[0]
-        assert "Your verdict: Repair Soon" in rendered
-        assert "AI verdict: Repair Soon" in rendered
-
-    def test_without_the_ai_the_inspector_verdict_stays(self):
-        text = build_result_text("uuid-001", DefectVerdict.OK, None)
-
-        rendered = text.render()[0]
-        assert "✅ Your verdict: OK" in rendered
-        assert rendered.endswith("ℹ️ AI analysis is not available.")
+        assert rendered == (
+            "✅ Defect registered successfully!\n\nℹ️ AI analysis is not available."
+        )
 
     def test_the_ai_class_is_sent_as_it_came(self):
         ai = self.AI.model_copy(update={"defect_class": "Wear <5 mm> & chips"})
 
-        text = build_result_text("uuid-001", DefectVerdict.OK, ai)
-
-        assert "📌 Wear <5 mm> & chips" in text.render()[0]
+        assert "📌 Wear <5 mm> & chips" in build_result_text(ai).render()[0]
 
 
 class TestBuildRecommendationText:

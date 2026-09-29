@@ -21,34 +21,26 @@ def build_save_failed_text() -> Text:
     return Text("❌ ", _("An error occurred. Please try again."))
 
 
-def _verdict_line(label, value: str | None) -> Text:
-    """An unknown value still renders."""
-    emoji, name = VERDICT_TEXT.get(value, ("ℹ️", "-"))
-    return Text(emoji, " ", label, " ", Code(name))
-
-
 def _ai_section(ai_result: AIResult | None) -> Text:
     if not (ai_result and ai_result.defect_class):
         return Text("ℹ️ ", _("AI analysis is not available."))
     confidence = int((ai_result.confidence or 0) * 100)
+    # An unknown verdict still renders
+    emoji, verdict = VERDICT_TEXT.get(ai_result.verdict, ("ℹ️", "-"))
     return as_list(
         Text("🤖 ", Bold(_("AI Analysis:"))),
         Text("📌 ", ai_result.defect_class),
         Text("📊 ", _("Confidence:"), " ", f"{confidence}%"),
-        _verdict_line(_("AI verdict:"), ai_result.verdict),
+        Text(emoji, " ", _("AI verdict:"), " ", Code(verdict)),
     )
 
 
-def build_result_text(
-    defect_id, verdict: str | None, ai_result: AIResult | None
-) -> Text:
-    """The saved defect, the inspector's verdict, then the AI's on its own line."""
-    saved = as_list(
+def build_result_text(ai_result: AIResult | None) -> Text:
+    return as_list(
         Text("✅ ", Bold(_("Defect registered successfully!"))),
-        Text("🆔 ", Code(f"{str(defect_id)[:8]}...")),
-        _verdict_line(_("Your verdict:"), verdict),
+        _ai_section(ai_result),
+        sep="\n\n",
     )
-    return as_list(saved, _ai_section(ai_result), sep="\n\n")
 
 
 def build_recommendation_text(ai_result: AIResult | None) -> Text | None:

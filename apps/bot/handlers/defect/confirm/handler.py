@@ -72,9 +72,8 @@ async def confirm_defect(
     )
 
     # Sent anew: only a new message can bring the menu back
-    result = build_result_text(registered.defect.id, defect_data.verdict, ai_result)
     await callback.message.answer(
-        **result.as_kwargs(), reply_markup=main_menu_keyboard()
+        **build_result_text(ai_result).as_kwargs(), reply_markup=main_menu_keyboard()
     )
     await take_down(bot, [callback.message.chat.id, callback.message.message_id])
 
