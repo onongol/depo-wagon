@@ -4,6 +4,7 @@ from aiogram.utils.formatting import Bold, Code, Text, as_list
 from django.utils.translation import gettext_lazy as _
 
 from apps.bot.constants import VERDICT_TEXT
+from apps.bot.utils.formatting import quoted
 
 if TYPE_CHECKING:
     from apps.bot.user_data import AIResult
@@ -61,7 +62,7 @@ def build_result_text(ai_result: AIResult | None) -> Text:
 
 
 def _recommendation(recommendation: str, sources: list[str]) -> Text:
-    parts = [as_list(Text("💡 ", Bold(_("Recommendation:"))), recommendation)]
+    parts = [quoted("💡", _("Recommendation"), recommendation)]
     if sources:
         parts.append(as_list(Text("📎 ", Bold(_("Sources:"))), *sources))
     return as_list(*parts, sep="\n\n")

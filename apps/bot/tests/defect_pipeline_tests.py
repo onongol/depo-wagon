@@ -426,6 +426,14 @@ class TestBuildRecommendationText:
             "💡 Recommendation:\nReplace <the> pad\n\n📎 Sources:\nDoc 1\nDoc 2"
         )
 
+    def test_it_is_quoted_under_its_label(self):
+        ai = AIResult(rag_recommendation="Replace the pad")
+
+        assert build_recommendation_text(ai).as_html() == (
+            "💡 <b>Recommendation:</b>\n"
+            "<blockquote expandable>Replace the pad</blockquote>"
+        )
+
     @pytest.mark.parametrize("char", ["x", "🔧"], ids=["ascii", "emoji"])
     def test_one_past_the_cap_is_cut_short_and_keeps_its_sources(self, char):
         ai = AIResult(rag_recommendation=char * 5000, sources=["Doc 1"])

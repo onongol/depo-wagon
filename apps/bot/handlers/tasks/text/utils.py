@@ -1,11 +1,4 @@
-from aiogram.utils.formatting import (
-    Bold,
-    Code,
-    ExpandableBlockQuote,
-    Text,
-    as_key_value,
-    as_list,
-)
+from aiogram.utils.formatting import Bold, Code, Text, as_key_value
 
 from apps.bot.constants import SEVERITY_EMOJI, STATUS_LABEL, VERDICT_TEXT
 
@@ -15,10 +8,6 @@ def field(emoji: str, label, value) -> Text:
     if value is None or value == "":
         value = "-"
     return Text(emoji, " ", as_key_value(label, value))
-
-
-def quoted(emoji: str, label, *body) -> Text:
-    return as_list(Text(emoji, " ", Bold(label, ":")), ExpandableBlockQuote(*body))
 
 
 def code(value: str) -> Text | str:

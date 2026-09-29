@@ -4,10 +4,11 @@ from aiogram.utils.formatting import Bold, Italic, Text, as_list, as_marked_sect
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from apps.bot.utils.formatting import quoted
+
 from .utils import (
     code,
     field,
-    quoted,
     severity_emoji,
     status_text,
     truncate,
