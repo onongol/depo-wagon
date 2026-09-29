@@ -1,9 +1,13 @@
 from typing import TYPE_CHECKING
 
+from aiogram.types import ReplyKeyboardRemove
+
 from apps.bot.fsm import clear_defect_keys, save_defect
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.bot.user_data import DefectData
+
+from .text import build_new_defect_text
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
@@ -30,4 +34,8 @@ async def new_defect_start(
         return
 
     await open_blank_form(state)
+    # Not the step's screen: a message that hides the menu never takes inline buttons
+    await message.answer(
+        **build_new_defect_text().as_kwargs(), reply_markup=ReplyKeyboardRemove()
+    )
     await scenes.enter(DefectSG.wagon_num)

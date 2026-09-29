@@ -7,10 +7,7 @@ from apps.bot.callback_data import ConfirmCB, EditCB
 from apps.bot.constants import EDIT_MEASUREMENTS, EDIT_RESPONSIBLE, UD_EDITING
 from apps.bot.fsm import drop_keys, load_defect
 from apps.bot.keyboards.confirm import confirm_keyboard
-from apps.bot.keyboards.menu import main_menu_keyboard
-from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
-from apps.bot.utils.screens import answer_anew
 from apps.defects.constants import DefectType
 
 from .confirm import confirm_defect
@@ -47,6 +44,13 @@ class SummaryScene(DefectScene, state=DefectSG.confirm.state):
     async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:
         return build_summary_text(form), confirm_keyboard(form)
 
+    @classmethod
+    async def draw(
+        cls, form: DefectData, data: dict[str, Any], **screen_args: Any
+    ) -> Screen:
+        """Its Cancel is its own, under Save, and no step comes before it."""
+        return await cls.screen(form, data, **screen_args)
+
     @on.message.enter()
     async def show_as_message(self, message: Message, state: FSMContext) -> None:
         await drop_keys(state, UD_EDITING)
@@ -82,11 +86,7 @@ class SummaryScene(DefectScene, state=DefectSG.confirm.state):
     # Split from save so that cancelling never loads the employee
     @on.callback_query(ConfirmCB.filter(~F.confirmed))
     async def decline(self, callback: CallbackQuery) -> None:
-        await callback.answer()
-        await self.wizard.exit()
-        await answer_anew(
-            callback, text=str(M.DEFECT_CANCELLED), reply_markup=main_menu_keyboard()
-        )
+        await self.cancel(callback)
 
     @on.callback_query(ConfirmCB.filter(F.confirmed))
     async def save(

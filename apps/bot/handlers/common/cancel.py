@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
 
 async def cancel(message: Message, state: FSMContext) -> None:
-    """/cancel and the defect form's Cancel button; brings the menu back."""
+    """Also brings the menu back, which the defect form hides."""
     await state.clear()
     await message.answer(
         **build_cancelled_text().as_kwargs(), reply_markup=main_menu_keyboard()

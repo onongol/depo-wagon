@@ -82,7 +82,7 @@ def _plain_steps_router() -> Router:
         VerdictCB.filter(),
     )
 
-    # Any other tap; /cancel and the Cancel button are the global router's
+    # Any other tap; /cancel is the global router's
     cb(stale_callback, StateFilter(DefectSG))
 
     return router

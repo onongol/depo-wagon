@@ -2,13 +2,7 @@ from typing import TYPE_CHECKING
 
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 
-from apps.bot.constants import (
-    BTN_ASK,
-    BTN_CANCEL,
-    BTN_HELP,
-    BTN_NEW_DEFECT,
-    BTN_OPEN_DEFECTS,
-)
+from apps.bot.constants import BTN_ASK, BTN_HELP, BTN_NEW_DEFECT, BTN_OPEN_DEFECTS
 
 if TYPE_CHECKING:
     from aiogram.types import ReplyKeyboardMarkup
@@ -25,10 +19,3 @@ def main_menu_keyboard() -> ReplyKeyboardMarkup:
 
     builder.adjust(1)
     return builder.as_markup(resize_keyboard=True)
-
-
-def form_keyboard() -> ReplyKeyboardMarkup:
-    """The menu's place while a defect form is open: its one way out."""
-    builder = ReplyKeyboardBuilder()
-    builder.button(text=str(BTN_CANCEL))
-    return builder.as_markup(resize_keyboard=True, is_persistent=True)

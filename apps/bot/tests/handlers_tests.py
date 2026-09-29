@@ -7,9 +7,11 @@ a detached copy — the assertions read it back rather than holding a reference.
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from aiogram.types import ReplyKeyboardRemove
 from aiogram.utils.text_decorations import html_decoration
 
 from apps.bot.callback_data import (
+    CB_CANCEL,
     CB_DESC_SKIP,
     CB_PHOTO_CLEAR,
     CB_PHOTO_SKIP,
@@ -66,6 +68,7 @@ from apps.bot.handlers.defect.text import (
     build_edit_description_text,
     build_edit_photos_text,
     build_measurements_text,
+    build_new_defect_text,
     build_part_number_confirmed_text,
     build_part_number_skipped_text,
     build_responsible_employee_confirmed_text,
@@ -79,7 +82,7 @@ from apps.bot.handlers.defect.wagon import WagonScene
 from apps.bot.keyboards.common import (
     clear_or_done_keyboard,
     skip_keyboard,
-    with_back_button,
+    with_step_buttons,
 )
 from apps.bot.keyboards.confirm import confirm_keyboard
 from apps.bot.keyboards.defect import department_keyboard, severity_keyboard
@@ -167,6 +170,15 @@ class TestNewDefectStart:
 
         scenes.enter.assert_awaited_once_with(DefectSG.wagon_num)
         assert await load_defect(state) == DefectData()
+
+    async def test_a_header_of_its_own_hides_the_menu(self, state):
+        message = make_message()
+
+        await new_defect_start(message, state, MagicMock(), AsyncMock())
+
+        message.answer.assert_awaited_once_with(
+            **build_new_defect_text().as_kwargs(), reply_markup=ReplyKeyboardRemove()
+        )
 
     async def test_drops_what_an_abandoned_form_left_behind(self, state):
         """Edit, then /ask, then New Defect: the entry runs outside DefectSG."""
@@ -579,7 +591,7 @@ class TestResponsibleEmployeeScene:
         callback.bot.edit_message_text.assert_awaited_once()
         scene.wizard.goto.assert_not_awaited()
 
-    async def test_a_turned_page_keeps_back_above_skip(self, state, picker):
+    async def test_a_turned_page_keeps_back_under_skip(self, state, picker):
         await self._seed(state)
         callback = make_callback()
 
@@ -589,9 +601,9 @@ class TestResponsibleEmployeeScene:
 
         keyboard = callback.bot.edit_message_text.await_args.kwargs["reply_markup"]
         bottom = [
-            [b.callback_data for b in row] for row in keyboard.inline_keyboard[-2:]
+            [b.callback_data for b in row] for row in keyboard.inline_keyboard[-3:]
         ]
-        assert bottom == [[CB_STEP_BACK], [CB_RESP_EMP_SKIP]]
+        assert bottom == [[CB_RESP_EMP_SKIP], [CB_STEP_BACK], [CB_CANCEL]]
 
     async def test_select_records_the_employee(self, state, picker):
         picker.one.return_value = _make_employee(7, "Bold", "Bat")
@@ -707,8 +719,15 @@ class TestBack:
         _, first = await WagonScene.draw(self.WEAR, {})
         _, second = await DepartmentScene.draw(self.WEAR, {})
 
-        assert first is None
-        assert second == with_back_button(department_keyboard())
+        assert first == with_step_buttons(None, back=False)
+        assert second == with_step_buttons(department_keyboard(), back=True)
+
+    async def test_the_summary_keeps_its_own_cancel(self):
+        form = DefectData(defect_type=DefectType.WEAR)
+
+        _, keyboard = await SummaryScene.draw(form, {})
+
+        assert keyboard == confirm_keyboard(form)
 
     async def test_back_goes_to_the_previous_step_and_keeps_the_form(self, state):
         await save_defect(state, DefectData(department="bogie", node="wheel"))
@@ -1000,7 +1019,9 @@ class TestMeasurementChoiceScene:
         assert defect.measurements == [THICKNESS.model_copy(update={"value": 12.5})]
         assert defect.current_measurement is None
         reply_markup = message.answer.await_args.kwargs["reply_markup"]
-        assert reply_markup == with_back_button(measurement_keyboard(any_saved=True))
+        assert reply_markup == with_step_buttons(
+            measurement_keyboard(any_saved=True), back=True
+        )
 
     async def test_a_non_number_is_asked_for_again(self, state):
         await save_defect(state, DefectData(current_measurement=THICKNESS))
@@ -1024,7 +1045,9 @@ class TestMeasurementChoiceScene:
 
         assert (await load_defect(state)).measurements == []
         reply_markup = message.answer.await_args.kwargs["reply_markup"]
-        assert reply_markup == with_back_button(measurement_keyboard(any_saved=False))
+        assert reply_markup == with_step_buttons(
+            measurement_keyboard(any_saved=False), back=True
+        )
 
     async def test_done_moves_on_to_the_description_scene(self, state):
         scene = MeasurementChoiceScene(wizard=AsyncMock())

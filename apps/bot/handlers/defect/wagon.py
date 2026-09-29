@@ -9,8 +9,8 @@ from apps.bot.states import DefectSG
 
 from .scene import STEP_TEXT, DefectScene
 from .text import (
+    build_ask_wagon_text,
     build_edit_wagon_text,
-    build_new_defect_text,
     build_wagon_not_found_text,
 )
 
@@ -30,7 +30,7 @@ class WagonScene(DefectScene, state=DefectSG.wagon_num.state):
     async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:
         if data.get(UD_EDITING):
             return build_edit_wagon_text(), None
-        return build_new_defect_text(), None
+        return build_ask_wagon_text(), None
 
     @on.message(*STEP_TEXT)
     async def receive(self, message: Message, state: FSMContext) -> None:

@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
 
 from apps.bot.callback_data import (
+    CB_CANCEL,
     CB_DESC_SKIP,
     CB_MEAS_CLEAR,
     CB_MEAS_DONE,
@@ -41,10 +42,7 @@ from apps.bot.constants import (
     STATUS_TRANSITIONS,
     TASKS_PAGE_SIZE,
 )
-from apps.bot.keyboards.common import (
-    skip_keyboard,
-    with_back_button,
-)
+from apps.bot.keyboards.common import skip_keyboard, with_step_buttons
 from apps.bot.keyboards.confirm import confirm_keyboard
 from apps.bot.keyboards.defect import department_keyboard, node_keyboard_for_department
 from apps.bot.keyboards.measurement import measurement_keyboard
@@ -248,30 +246,40 @@ class TestResponsibleEmployeeKeyboard:
         )
 
 
-class TestWithBackButton:
+class TestWithStepButtons:
     def _rows(self, markup):
         return [[b.callback_data for b in row] for row in markup.inline_keyboard]
 
-    def test_it_goes_first_above_skip(self):
-        rows = self._rows(with_back_button(skip_keyboard(CB_DESC_SKIP)))
+    def test_back_goes_under_skip_and_cancel_last(self):
+        rows = self._rows(with_step_buttons(skip_keyboard(CB_DESC_SKIP), back=True))
 
-        assert rows == [[CB_STEP_BACK], [CB_DESC_SKIP]]
+        assert rows == [[CB_DESC_SKIP], [CB_STEP_BACK], [CB_CANCEL]]
 
-    def test_it_goes_under_the_choices_and_above_clear_and_done(self):
+    def test_back_goes_under_clear_and_done(self):
         card = measurement_keyboard(any_saved=True, clearable=True)
 
-        rows = self._rows(with_back_button(card))
+        rows = self._rows(with_step_buttons(card, back=True))
 
-        assert rows[-3:] == [[CB_STEP_BACK], [CB_MEAS_CLEAR], [CB_MEAS_DONE]]
-        assert all(len(row) == 2 for row in rows[:-3])
+        assert rows[-4:] == [
+            [CB_MEAS_CLEAR],
+            [CB_MEAS_DONE],
+            [CB_STEP_BACK],
+            [CB_CANCEL],
+        ]
+        assert all(len(row) == 2 for row in rows[:-4])
 
-    def test_under_choices_alone_it_goes_last(self):
-        rows = self._rows(with_back_button(department_keyboard()))
+    def test_under_choices_alone_back_comes_before_cancel(self):
+        rows = self._rows(with_step_buttons(department_keyboard(), back=True))
 
-        assert rows[-1] == [CB_STEP_BACK]
+        assert rows[-2:] == [[CB_STEP_BACK], [CB_CANCEL]]
 
-    def test_a_screen_without_buttons_gets_just_back(self):
-        assert self._rows(with_back_button(None)) == [[CB_STEP_BACK]]
+    def test_without_back_skip_stays_above_cancel(self):
+        rows = self._rows(with_step_buttons(skip_keyboard(CB_DESC_SKIP), back=False))
+
+        assert rows == [[CB_DESC_SKIP], [CB_CANCEL]]
+
+    def test_a_screen_without_buttons_gets_just_cancel(self):
+        assert self._rows(with_step_buttons(None, back=False)) == [[CB_CANCEL]]
 
 
 class TestConfirmKeyboard:

@@ -8,6 +8,7 @@ from aiogram.fsm.scene import Scene, on
 from aiogram.utils.formatting import Text
 
 from apps.bot.callback_data import (
+    CB_CANCEL,
     CB_DEFECT_CONTINUE,
     CB_DEFECT_RESTART,
     CB_STEP_BACK,
@@ -15,12 +16,12 @@ from apps.bot.callback_data import (
 from apps.bot.constants import BTN_NEW_DEFECT, UD_EDITING
 from apps.bot.filters import NotACommand
 from apps.bot.fsm import clear_defect_keys, load_defect
-from apps.bot.keyboards.common import with_back_button
+from apps.bot.keyboards.common import with_step_buttons
 from apps.bot.keyboards.defect import defect_in_progress_keyboard
-from apps.bot.keyboards.menu import MENU_TEXTS, form_keyboard
+from apps.bot.keyboards.menu import MENU_TEXTS, main_menu_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
-from apps.bot.utils.screens import edit_or_send
+from apps.bot.utils.screens import answer_anew, edit_or_send
 
 from .start import open_blank_form
 from .text import build_defect_in_progress_text
@@ -81,11 +82,10 @@ class DefectScene(Scene):
     async def draw(
         cls, form: DefectData, data: dict[str, Any], **screen_args: Any
     ) -> Screen:
-        """The screen with Back added wherever Back leads somewhere."""
+        """The screen with Cancel, and Back wherever Back leads somewhere."""
         content, keyboard = await cls.screen(form, data, **screen_args)
-        if cls.back_to(form, data):
-            keyboard = with_back_button(keyboard)
-        return content, keyboard
+        back = cls.back_to(form, data) is not None
+        return content, with_step_buttons(keyboard, back=back)
 
     async def go_on(self, state: FSMContext, next_step: State) -> None:
         """To the next step, whose scene draws its own screen; after an Edit, back.
@@ -102,11 +102,7 @@ class DefectScene(Scene):
         content, keyboard = await self.draw(
             await load_defect(state), await state.get_data()
         )
-        # No step takes the menu for an answer, so a screen without buttons swaps it
-        # for the form's Cancel
-        await message.answer(
-            **as_send_kwargs(content), reply_markup=keyboard or form_keyboard()
-        )
+        await message.answer(**as_send_kwargs(content), reply_markup=keyboard)
 
     @on.callback_query.enter()
     async def show_as_edit(self, callback: CallbackQuery, state: FSMContext) -> None:
@@ -136,6 +132,14 @@ class DefectScene(Scene):
         await callback.answer()
         await open_blank_form(state)
         await self.wizard.goto(DefectSG.wagon_num)
+
+    @on.callback_query(F.data == CB_CANCEL)
+    async def cancel(self, callback: CallbackQuery) -> None:
+        await callback.answer()
+        await self.wizard.exit()
+        await answer_anew(
+            callback, text=str(M.DEFECT_CANCELLED), reply_markup=main_menu_keyboard()
+        )
 
     @on.callback_query(F.data == CB_STEP_BACK)
     async def step_back(self, callback: CallbackQuery, state: FSMContext) -> None:

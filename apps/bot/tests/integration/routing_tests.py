@@ -48,19 +48,19 @@ from apps.bot.handlers.common.text import (
 )
 from apps.bot.handlers.defect.resume import show_current_step
 from apps.bot.handlers.defect.text import (
+    build_ask_wagon_text,
     build_defect_continued_text,
     build_defect_in_progress_text,
     build_edit_description_text,
-    build_new_defect_text,
     build_photo_received_text,
     build_wagon_confirmed_text,
 )
 from apps.bot.handlers.start.link_errors import get_link_error_message
 from apps.bot.handlers.start.text import build_link_cancelled_text
 from apps.bot.handlers.support.utils import remember_request
-from apps.bot.keyboards.common import done_keyboard, skip_keyboard, with_back_button
+from apps.bot.keyboards.common import done_keyboard, skip_keyboard, with_step_buttons
 from apps.bot.keyboards.defect import defect_in_progress_keyboard, department_keyboard
-from apps.bot.keyboards.menu import MENU_TEXTS, form_keyboard, main_menu_keyboard
+from apps.bot.keyboards.menu import MENU_TEXTS, main_menu_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.middlewares import AI_CHAT_TIMEOUT
 from apps.bot.states import AiChatSG, DefectSG, SupportSG
@@ -220,14 +220,14 @@ class TestPrecedenceDuringTheDefectFlow:
 
     @pytest.mark.usefixtures("stored_form")
     async def test_at_the_wagon_step_it_asks_for_the_number_again(self, dp, bot, state):
-        """A Scene: retake() draws the screen entering it drew, Cancel in the menu's place."""
+        """A Scene: retake() draws the screen entering it drew, with its Cancel."""
         await state.set_state(DefectSG.wagon_num)
 
         await dp.feed_update(bot, make_message_update(str(BTN_OPEN_DEFECTS)))
 
         (sent,) = bot.session.calls("sendMessage")
-        assert sent.text == build_new_defect_text().render()[0]
-        assert sent.reply_markup == form_keyboard()
+        assert sent.text == build_ask_wagon_text().render()[0]
+        assert sent.reply_markup == with_step_buttons(None, back=False)
 
     async def test_a_deep_link_mid_flow_still_reaches_the_link_handler(
         self, dp, bot, state, employee
@@ -328,7 +328,9 @@ class TestNewDefectDuringARunningForm:
 
         (edit,) = session.calls("editMessageText")
         assert (edit.text, edit.entities) == build_edit_description_text().render()
-        assert edit.reply_markup == with_back_button(skip_keyboard(CB_DESC_SKIP))
+        assert edit.reply_markup == with_step_buttons(
+            skip_keyboard(CB_DESC_SKIP), back=True
+        )
         assert await state.get_state() == DefectSG.desc.state
         assert (await load_defect(state)).wagon_number == self.WAGON
 
@@ -380,7 +382,7 @@ class TestNewDefectDuringARunningForm:
         (edit,) = session.calls("editMessageText")
         expected = build_wagon_confirmed_text(self.WAGON)
         assert (edit.text, edit.entities) == expected.render()
-        assert edit.reply_markup == with_back_button(department_keyboard())
+        assert edit.reply_markup == with_step_buttons(department_keyboard(), back=True)
 
     async def test_the_photo_step_offers_done_once_a_photo_is_in(
         self, dp, bot, session, state
@@ -393,7 +395,9 @@ class TestNewDefectDuringARunningForm:
 
         (edit,) = session.calls("editMessageText")
         assert edit.text == build_photo_received_text(2).render()[0]
-        assert edit.reply_markup == with_back_button(done_keyboard(CB_PHOTO_SKIP))
+        assert edit.reply_markup == with_step_buttons(
+            done_keyboard(CB_PHOTO_SKIP), back=True
+        )
 
     @pytest.mark.usefixtures("form")
     async def test_continue_while_saving_just_says_carry_on(
@@ -417,7 +421,7 @@ class TestNewDefectDuringARunningForm:
         await dp.feed_update(bot, make_callback_update(CB_DEFECT_RESTART))
 
         edits = [e.text for e in session.calls("editMessageText")]
-        assert edits == [build_new_defect_text().render()[0]]
+        assert edits == [build_ask_wagon_text().render()[0]]
         assert await state.get_state() == DefectSG.wagon_num.state
         assert await load_defect(state) == DefectData()
         assert UD_EDITING not in await state.get_data()

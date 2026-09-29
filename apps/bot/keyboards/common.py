@@ -2,15 +2,8 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from apps.bot.callback_data import (
-    CB_DESC_SKIP,
+    CB_CANCEL,
     CB_LINK_CANCEL,
-    CB_MEAS_CLEAR,
-    CB_MEAS_DONE,
-    CB_MEAS_SKIP,
-    CB_PART_NUMBER_SKIP,
-    CB_PHOTO_CLEAR,
-    CB_PHOTO_SKIP,
-    CB_RESP_EMP_SKIP,
     CB_STEP_BACK,
     LinkConfirmCB,
 )
@@ -23,29 +16,23 @@ from apps.bot.constants import (
     BTN_SKIP,
 )
 
-# A step's own way on, and Clear: under Back, which comes first
-_UNDER_BACK = frozenset(
-    {
-        CB_DESC_SKIP,
-        CB_MEAS_CLEAR,
-        CB_MEAS_DONE,
-        CB_MEAS_SKIP,
-        CB_PART_NUMBER_SKIP,
-        CB_PHOTO_CLEAR,
-        CB_PHOTO_SKIP,
-        CB_RESP_EMP_SKIP,
-    }
-)
+
+def back_button() -> InlineKeyboardButton:
+    return InlineKeyboardButton(text=str(BTN_BACK), callback_data=CB_STEP_BACK)
 
 
-def with_back_button(keyboard: InlineKeyboardMarkup | None) -> InlineKeyboardMarkup:
-    """Back on a row of its own, under the step's choices and above its Skip."""
-    back = [InlineKeyboardButton(text=str(BTN_BACK), callback_data=CB_STEP_BACK)]
+def cancel_button() -> InlineKeyboardButton:
+    return InlineKeyboardButton(text=str(BTN_CANCEL), callback_data=CB_CANCEL)
+
+
+def with_step_buttons(
+    keyboard: InlineKeyboardMarkup | None, *, back: bool
+) -> InlineKeyboardMarkup:
+    """Under the step's own buttons: Back where it leads somewhere, then Cancel."""
     rows = list(keyboard.inline_keyboard) if keyboard else []
-    at = len(rows)
-    while at and all(button.callback_data in _UNDER_BACK for button in rows[at - 1]):
-        at -= 1
-    return InlineKeyboardMarkup(inline_keyboard=[*rows[:at], back, *rows[at:]])
+    if back:
+        rows.append([back_button()])
+    return InlineKeyboardMarkup(inline_keyboard=[*rows, [cancel_button()]])
 
 
 def skip_keyboard(callback_data: str) -> InlineKeyboardMarkup:

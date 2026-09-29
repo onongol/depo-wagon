@@ -39,6 +39,7 @@ from .text_restart import build_defect_continued_text, build_defect_in_progress_
 from .text_start import build_new_defect_text
 from .text_summary import build_summary_text
 from .text_wagon import (
+    build_ask_wagon_text,
     build_edit_wagon_text,
     build_wagon_confirmed_text,
     build_wagon_not_found_text,
@@ -49,6 +50,7 @@ __all__ = [
     "build_ask_description_text",
     "build_ask_responsible_employee_text",
     "build_ask_value_text",
+    "build_ask_wagon_text",
     "build_defect_continued_text",
     "build_defect_in_progress_text",
     "build_defect_type_confirmed_text",
