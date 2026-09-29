@@ -18,4 +18,4 @@ def main_menu_keyboard() -> ReplyKeyboardMarkup:
         builder.button(text=str(button))
 
     builder.adjust(1)
-    return builder.as_markup(resize_keyboard=True)
+    return builder.as_markup(resize_keyboard=True, one_time_keyboard=True)

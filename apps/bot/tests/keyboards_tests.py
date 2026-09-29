@@ -107,6 +107,10 @@ class TestMainMenuKeyboard:
         """Text steps guard against these; a missing label is read as input."""
         assert set(_menu_texts(main_menu_keyboard())) == MENU_TEXTS
 
+    def test_it_folds_away_once_a_button_is_pressed(self):
+        """New Defect then leaves the form's screen in view, with no message to hide it."""
+        assert main_menu_keyboard().one_time_keyboard is True
+
 
 class TestTasksKeyboard:
     def test_returns_inline_keyboard(self):
