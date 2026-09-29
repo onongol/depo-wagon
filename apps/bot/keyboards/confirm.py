@@ -35,6 +35,7 @@ def confirm_keyboard(defect: DefectData) -> InlineKeyboardMarkup:
     footer = InlineKeyboardBuilder()
     footer.button(text=str(BTN_SAVE), callback_data=ConfirmCB(confirmed=True))
     footer.button(text=str(BTN_CANCEL), callback_data=ConfirmCB(confirmed=False))
+    footer.adjust(1)
     builder.attach(footer)
 
     return builder.as_markup()

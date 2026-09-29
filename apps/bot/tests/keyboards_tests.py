@@ -32,6 +32,7 @@ from apps.bot.constants import (
     BTN_PAGE_NEXT,
     BTN_PAGE_PREV,
     BTN_PREV,
+    BTN_SAVE,
     BTN_SKIP,
     EDIT_FIELDS,
     EDIT_MEASUREMENTS,
@@ -286,6 +287,14 @@ class TestConfirmKeyboard:
         fields = self._fields(DefectData(defect_type=DefectType.WEAR))
 
         assert fields == [k for k, _label in EDIT_FIELDS if k != EDIT_RESPONSIBLE]
+
+    def test_save_and_cancel_close_it_one_to_a_row(self):
+        rows = confirm_keyboard(DefectData()).inline_keyboard
+
+        assert [[b.text for b in row] for row in rows[-2:]] == [
+            [str(BTN_SAVE)],
+            [str(BTN_CANCEL)],
+        ]
 
 
 class TestTaskCallbackDataCarriesUuid:
