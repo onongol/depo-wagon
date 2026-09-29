@@ -59,7 +59,9 @@ class TestRegisterDefect:
     async def test_saves_defect_and_returns_result(self):
         saved = _make_saved_defect()
         bot = AsyncMock()
-        with patch("apps.bot.handlers.defect.confirm.pipeline.services") as svc:
+        with patch(
+            "apps.bot.handlers.defect.confirm.pipeline.register.services"
+        ) as svc:
             svc.create_defect = AsyncMock(return_value=saved)
             result = await register_defect(
                 _make_defect_data(), employee=MagicMock(), bot=bot
@@ -69,7 +71,9 @@ class TestRegisterDefect:
 
     async def test_no_photos_returns_empty_photo_bytes(self):
         bot = AsyncMock()
-        with patch("apps.bot.handlers.defect.confirm.pipeline.services") as svc:
+        with patch(
+            "apps.bot.handlers.defect.confirm.pipeline.register.services"
+        ) as svc:
             svc.create_defect = AsyncMock(return_value=_make_saved_defect())
             result = await register_defect(
                 _make_defect_data(photo_file_ids=[]), employee=MagicMock(), bot=bot
@@ -78,7 +82,9 @@ class TestRegisterDefect:
         svc.queue_defect_photos.assert_not_called()
 
     async def test_photos_are_queued_in_order_under_the_saved_defect(self):
-        with patch("apps.bot.handlers.defect.confirm.pipeline.services") as svc:
+        with patch(
+            "apps.bot.handlers.defect.confirm.pipeline.register.services"
+        ) as svc:
             svc.create_defect = AsyncMock(return_value=_make_saved_defect("id-7"))
             svc.queue_defect_photos = AsyncMock()
             svc.download_photo = AsyncMock(return_value=b"img")
@@ -90,7 +96,9 @@ class TestRegisterDefect:
         svc.queue_defect_photos.assert_awaited_once_with("id-7", ["a", "b", "c"])
 
     async def test_queueing_failure_is_non_critical(self):
-        with patch("apps.bot.handlers.defect.confirm.pipeline.services") as svc:
+        with patch(
+            "apps.bot.handlers.defect.confirm.pipeline.register.services"
+        ) as svc:
             svc.create_defect = AsyncMock(return_value=_make_saved_defect())
             svc.queue_defect_photos = AsyncMock(side_effect=Exception("broker down"))
             svc.download_photo = AsyncMock(return_value=b"img")
@@ -102,7 +110,9 @@ class TestRegisterDefect:
         assert result.photo_bytes == [b"img"]
 
     async def test_photo_downloaded_and_returned(self):
-        with patch("apps.bot.handlers.defect.confirm.pipeline.services") as svc:
+        with patch(
+            "apps.bot.handlers.defect.confirm.pipeline.register.services"
+        ) as svc:
             svc.create_defect = AsyncMock(return_value=_make_saved_defect())
             svc.queue_defect_photos = AsyncMock()
             svc.download_photo = AsyncMock(return_value=b"img")
@@ -114,7 +124,9 @@ class TestRegisterDefect:
         assert result.photo_bytes == [b"img"]
 
     async def test_photo_download_failure_is_non_critical(self):
-        with patch("apps.bot.handlers.defect.confirm.pipeline.services") as svc:
+        with patch(
+            "apps.bot.handlers.defect.confirm.pipeline.register.services"
+        ) as svc:
             svc.create_defect = AsyncMock(return_value=_make_saved_defect())
             svc.queue_defect_photos = AsyncMock()
             svc.download_photo = AsyncMock(side_effect=Exception("Telegram timeout"))
@@ -126,7 +138,9 @@ class TestRegisterDefect:
         assert result.photo_bytes == []
 
     async def test_oversized_photo_is_skipped(self):
-        with patch("apps.bot.handlers.defect.confirm.pipeline.services") as svc:
+        with patch(
+            "apps.bot.handlers.defect.confirm.pipeline.register.services"
+        ) as svc:
             svc.create_defect = AsyncMock(return_value=_make_saved_defect())
             svc.queue_defect_photos = AsyncMock()
             svc.download_photo = AsyncMock(return_value=None)
@@ -138,7 +152,9 @@ class TestRegisterDefect:
         assert result.photo_bytes == []
 
     async def test_one_photo_fail_does_not_block_others(self):
-        with patch("apps.bot.handlers.defect.confirm.pipeline.services") as svc:
+        with patch(
+            "apps.bot.handlers.defect.confirm.pipeline.register.services"
+        ) as svc:
             svc.create_defect = AsyncMock(return_value=_make_saved_defect())
             svc.queue_defect_photos = AsyncMock()
             svc.download_photo = AsyncMock(
@@ -158,9 +174,9 @@ class TestRegisterDefect:
             return file_id.encode()
 
         with (
-            patch("apps.bot.handlers.defect.confirm.pipeline.services") as svc,
+            patch("apps.bot.handlers.defect.confirm.pipeline.register.services") as svc,
             patch(
-                "apps.bot.handlers.defect.confirm.pipeline._PHOTO_FETCH_TIMEOUT",
+                "apps.bot.handlers.defect.confirm.pipeline.register._PHOTO_FETCH_TIMEOUT",
                 0.05,
             ),
         ):
@@ -178,7 +194,9 @@ class TestRegisterDefect:
     async def test_measurements_saved_when_present(self):
         measurements = [MeasurementEntry(dimension="width", value=5.0)]
         bot = AsyncMock()
-        with patch("apps.bot.handlers.defect.confirm.pipeline.services") as svc:
+        with patch(
+            "apps.bot.handlers.defect.confirm.pipeline.register.services"
+        ) as svc:
             svc.create_defect = AsyncMock(return_value=_make_saved_defect("id-99"))
             svc.create_measurements_bulk = AsyncMock()
             await register_defect(
@@ -191,7 +209,9 @@ class TestRegisterDefect:
     async def test_measurements_failure_is_non_critical(self):
         measurements = [MeasurementEntry(dimension="width", value=5.0)]
         bot = AsyncMock()
-        with patch("apps.bot.handlers.defect.confirm.pipeline.services") as svc:
+        with patch(
+            "apps.bot.handlers.defect.confirm.pipeline.register.services"
+        ) as svc:
             svc.create_defect = AsyncMock(return_value=_make_saved_defect())
             svc.create_measurements_bulk = AsyncMock(side_effect=Exception("db locked"))
             result = await register_defect(
@@ -205,7 +225,9 @@ class TestRegisterDefect:
         import pytest
 
         bot = AsyncMock()
-        with patch("apps.bot.handlers.defect.confirm.pipeline.services") as svc:
+        with patch(
+            "apps.bot.handlers.defect.confirm.pipeline.register.services"
+        ) as svc:
             svc.create_defect = AsyncMock(side_effect=Exception("db down"))
             with pytest.raises(Exception, match="db down"):
                 await register_defect(
@@ -223,10 +245,10 @@ class TestRunAiAnalysis:
 
         with (
             patch(
-                "apps.bot.handlers.defect.confirm.pipeline.analyze_defect",
+                "apps.bot.handlers.defect.confirm.pipeline.analyze.analyze_defect",
                 AsyncMock(return_value=ai_result),
             ),
-            patch("apps.bot.handlers.defect.confirm.pipeline.services") as svc,
+            patch("apps.bot.handlers.defect.confirm.pipeline.analyze.services") as svc,
         ):
             svc.update_defect_ai_result = AsyncMock()
             result = await run_ai_analysis(
@@ -237,7 +259,7 @@ class TestRunAiAnalysis:
 
     async def test_analyze_exception_returns_none(self):
         with patch(
-            "apps.bot.handlers.defect.confirm.pipeline.analyze_defect",
+            "apps.bot.handlers.defect.confirm.pipeline.analyze.analyze_defect",
             AsyncMock(side_effect=Exception("model timeout")),
         ):
             result = await run_ai_analysis(
@@ -248,7 +270,7 @@ class TestRunAiAnalysis:
 
     async def test_analyze_exception_never_raises(self):
         with patch(
-            "apps.bot.handlers.defect.confirm.pipeline.analyze_defect",
+            "apps.bot.handlers.defect.confirm.pipeline.analyze.analyze_defect",
             AsyncMock(side_effect=RuntimeError("crash")),
         ):
             await run_ai_analysis(_make_defect_data(), defect_id="id-1", photo_bytes=[])
@@ -260,9 +282,11 @@ class TestRunAiAnalysis:
             await asyncio.Event().wait()
 
         with (
-            patch("apps.bot.handlers.defect.confirm.pipeline.analyze_defect", hang),
             patch(
-                "apps.bot.handlers.defect.confirm.pipeline._ANALYSIS_TIMEOUT",
+                "apps.bot.handlers.defect.confirm.pipeline.analyze.analyze_defect", hang
+            ),
+            patch(
+                "apps.bot.handlers.defect.confirm.pipeline.analyze._ANALYSIS_TIMEOUT",
                 0.01,
             ),
         ):
@@ -281,10 +305,10 @@ class TestRunAiAnalysis:
 
         with (
             patch(
-                "apps.bot.handlers.defect.confirm.pipeline.analyze_defect",
+                "apps.bot.handlers.defect.confirm.pipeline.analyze.analyze_defect",
                 AsyncMock(return_value=ai_result),
             ),
-            patch("apps.bot.handlers.defect.confirm.pipeline.services") as svc,
+            patch("apps.bot.handlers.defect.confirm.pipeline.analyze.services") as svc,
         ):
             svc.update_defect_ai_result = AsyncMock(side_effect=Exception("db error"))
             result = await run_ai_analysis(
@@ -299,10 +323,10 @@ class TestRunAiAnalysis:
 
         with (
             patch(
-                "apps.bot.handlers.defect.confirm.pipeline.analyze_defect",
+                "apps.bot.handlers.defect.confirm.pipeline.analyze.analyze_defect",
                 AsyncMock(return_value=ai_result),
             ),
-            patch("apps.bot.handlers.defect.confirm.pipeline.services") as svc,
+            patch("apps.bot.handlers.defect.confirm.pipeline.analyze.services") as svc,
         ):
             svc.update_defect_ai_result = AsyncMock()
             await run_ai_analysis(_make_defect_data(), defect_id="id-1", photo_bytes=[])
@@ -315,7 +339,9 @@ class TestPersistDefect:
         form = _make_defect_data()
         saved = PersistResult(defect=_make_saved_defect("id-5"), photo_bytes=[])
 
-        with patch(f"{PIPELINE}.register_defect", AsyncMock(return_value=saved)):
+        with patch(
+            f"{PIPELINE}.persist.register_defect", AsyncMock(return_value=saved)
+        ):
             result = await persist_defect(state, form, MagicMock(), bot)
 
         assert result is saved
@@ -325,7 +351,7 @@ class TestPersistDefect:
         failing = AsyncMock(side_effect=RuntimeError("db down"))
 
         with (
-            patch(f"{PIPELINE}.register_defect", failing),
+            patch(f"{PIPELINE}.persist.register_defect", failing),
             pytest.raises(RuntimeError),
         ):
             await persist_defect(state, _make_defect_data(), MagicMock(), bot)
@@ -338,7 +364,7 @@ class TestAlertDecommission:
         form = DefectData(verdict=DefectVerdict.DECOMMISSION)
         employee = MagicMock()
 
-        with patch(f"{PIPELINE}.notify_decommission", AsyncMock()) as notify:
+        with patch(f"{PIPELINE}.alert.notify_decommission", AsyncMock()) as notify:
             await alert_decommission(bot, employee, form)
 
         notify.assert_awaited_once_with(bot, employee, form)
@@ -347,7 +373,7 @@ class TestAlertDecommission:
         "verdict", [DefectVerdict.OK, DefectVerdict.REPAIR_NOW, None]
     )
     async def test_any_other_verdict_does_not(self, bot, verdict):
-        with patch(f"{PIPELINE}.notify_decommission", AsyncMock()) as notify:
+        with patch(f"{PIPELINE}.alert.notify_decommission", AsyncMock()) as notify:
             await alert_decommission(bot, MagicMock(), DefectData(verdict=verdict))
 
         notify.assert_not_called()
@@ -356,7 +382,7 @@ class TestAlertDecommission:
         form = DefectData(verdict=DefectVerdict.DECOMMISSION, defect_id="id-5")
         failing = AsyncMock(side_effect=RuntimeError("telegram down"))
 
-        with patch(f"{PIPELINE}.notify_decommission", failing):
+        with patch(f"{PIPELINE}.alert.notify_decommission", failing):
             await alert_decommission(bot, MagicMock(), form)
 
         assert "Decommission alert failed for id-5" in caplog.text

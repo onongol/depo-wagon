@@ -147,7 +147,7 @@ def flow(employee, wagon):
         p(patch("apps.bot.handlers.defect.wagon.services", wagon_services))
         register = p(
             patch(
-                "apps.bot.handlers.defect.confirm.pipeline.register_defect",
+                "apps.bot.handlers.defect.confirm.pipeline.persist.register_defect",
                 AsyncMock(return_value=saved),
             )
         )
@@ -159,7 +159,7 @@ def flow(employee, wagon):
         )
         notify = p(
             patch(
-                "apps.bot.handlers.defect.confirm.pipeline.notify_decommission",
+                "apps.bot.handlers.defect.confirm.pipeline.alert.notify_decommission",
                 AsyncMock(),
             )
         )

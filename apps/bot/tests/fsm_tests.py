@@ -28,10 +28,8 @@ from apps.bot.fsm.storage import (
     FSM_TTL,
 )
 from apps.bot.handlers.ai_chat.receive import _ANSWER_TIMEOUT
-from apps.bot.handlers.defect.confirm.pipeline import (
-    _ANALYSIS_TIMEOUT,
-    _PHOTO_FETCH_TIMEOUT,
-)
+from apps.bot.handlers.defect.confirm.pipeline.analyze import _ANALYSIS_TIMEOUT
+from apps.bot.handlers.defect.confirm.pipeline.register import _PHOTO_FETCH_TIMEOUT
 from apps.bot.user_data import DefectData, MeasurementEntry, PhotoEntry
 
 
