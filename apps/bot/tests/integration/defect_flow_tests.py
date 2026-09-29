@@ -72,7 +72,9 @@ from apps.bot.handlers.defect.text import (
     build_edit_wagon_text,
     build_editing_heading,
     build_photos_attached_toast,
+    build_registration_done_text,
     build_review_heading,
+    build_save_failed_text,
     build_save_question_text,
     build_step_heading,
 )
@@ -418,7 +420,7 @@ class TestTheMenuWhileAFormIsOpen:
 
         last = session.calls("sendMessage")[-1]
         assert (last.text, last.reply_markup) == (
-            str(M.REGISTRATION_DONE),
+            build_registration_done_text().render()[0],
             main_menu_keyboard(),
         )
         assert await state.get_state() is None
@@ -435,7 +437,7 @@ class TestTheMenuWhileAFormIsOpen:
 
         (sent,) = session.calls("sendMessage")
         assert (sent.text, sent.reply_markup) == (
-            str(M.SAVE_FAILED),
+            build_save_failed_text().render()[0],
             main_menu_keyboard(),
         )
         assert await state.get_state() is None

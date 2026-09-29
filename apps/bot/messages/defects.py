@@ -2,36 +2,7 @@ from django.utils.translation import gettext_lazy as _
 
 
 class DefectMessages:
-    """The whole step-by-step defect registration flow and AI results."""
-
-    # ── Confirm + AI ─────────────────────────────────────────────────────────
-
-    SAVING = _("⏳ Saving...")
-
-    AI_ANALYZING = _("🤖 Running AI analysis...")
-
-    SAVE_SUCCESS = _(
-        "✅ <b>Defect registered successfully!</b>\n🆔 <code>{short_id}...</code>\n"
-    )
-
-    EMPLOYEE_VERDICT = _("{verdict_emoji} Your verdict: <code>{verdict}</code>\n")
-
-    AI_RESULT = _(
-        "\n🤖 <b>AI Analysis:</b>\n"
-        "📌 {defect_class}\n"
-        "📊 Confidence: {confidence}%\n"
-        "{verdict_emoji} AI verdict: <code>{verdict}</code>"
-    )
-
-    AI_RECOMMENDATION = _("\n\n💡 <b>Recommendation</b>:\n{rag_recommendation}")
-
-    AI_SOURCES = _("\n\n📎 <b>Sources:</b>\n{sources}")
-
-    AI_UNAVAILABLE = _("\nℹ️ AI analysis is not available.")
-
-    REGISTRATION_DONE = _("📋 Registration complete.")
-
-    SAVE_FAILED = _("❌ An error occurred. Please try again.")
+    """The defect flow's texts not yet moved to its text/ builders."""
 
     DEFECT_CANCELLED = _("❌ Defect registration cancelled.")
 
