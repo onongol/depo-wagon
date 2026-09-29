@@ -9,6 +9,8 @@ of the steps still written as plain handlers, and carries the shared handlers
 itself. The plain ones share theirs through the running block below.
 """
 
+from typing import TYPE_CHECKING
+
 from aiogram import F, Router
 from aiogram.filters import Command, StateFilter
 
@@ -22,12 +24,23 @@ from apps.bot.keyboards.menu import MENU_TEXTS
 from apps.bot.middlewares import DefectFormMiddleware
 from apps.bot.states import DefectSG
 
-from .cancel import stale_callback
 from .restart import continue_defect, menu_button_mid_flow, restart_defect
 from .scene import ask_about_the_open_form
 from .scenes import DEFECT_SCENES
 from .start import new_defect_start
 from .verdict import receive_employee_verdict
+
+if TYPE_CHECKING:
+    from aiogram.types import CallbackQuery
+
+
+async def stale_callback(callback: CallbackQuery) -> None:
+    """Silently absorb any callback no plain step claimed, as a scene's absorb does.
+
+    A tap on an old button while the defect saves dies quietly rather than
+    getting the expired-button reply.
+    """
+    await callback.answer()
 
 
 def get_defect_flow_router() -> Router:
