@@ -7,26 +7,20 @@ the total is reported when the user presses Done.
 
 from unittest.mock import AsyncMock, MagicMock
 
-from apps.bot.constants import BTN_DONE, UD_LAST_MEDIA_GROUP, UD_LAST_PHOTO_MSG
+from apps.bot.constants import BTN_DONE, UD_LAST_MEDIA_GROUP, UD_SCREEN
 from apps.bot.fsm import load_defect, save_defect
-from apps.bot.handlers.defect.photo.receive import (
-    PhotoScene,
-    clear_last_photo_keyboard,
-)
+from apps.bot.handlers.defect.photo.receive import PhotoScene
 from apps.bot.handlers.defect.text import (
     build_album_receiving_text,
     build_photo_received_text,
     build_photo_too_large_text,
     build_photos_attached_toast,
 )
-from apps.bot.tests.builders import (
-    CHAT_ID,
-    MESSAGE_ID,
-    make_bad_request,
-    make_message,
-)
+from apps.bot.tests.builders import CHAT_ID, MESSAGE_ID, SENT_ID, make_message
 from apps.bot.user_data import DefectData, PhotoEntry
 from apps.defects.validators import MAX_PHOTO_BYTES
+
+OLD_SCREEN = [CHAT_ID, 500]
 
 
 def _make_photo_message(
@@ -39,15 +33,7 @@ def _make_photo_message(
     photo.file_size = size
     message.photo = [photo]
     message.media_group_id = media_group_id
-
-    sent = make_message()
-    sent.message_id = 42
-    message.answer = AsyncMock(return_value=sent)
     return message
-
-
-def _make_bot():
-    return MagicMock(edit_message_reply_markup=AsyncMock())
 
 
 def _photos(*file_ids):
@@ -58,92 +44,67 @@ async def _file_ids(state):
     return [p.file_id for p in (await load_defect(state)).photos]
 
 
-async def receive_photo(message, state, bot):
-    await PhotoScene(wizard=AsyncMock()).receive(message, state, bot)
+def _screen_text(message) -> str:
+    return message.bot.send_message.await_args.kwargs["text"]
+
+
+async def receive_photo(message, state):
+    await PhotoScene(wizard=AsyncMock()).receive(message, state)
 
 
 async def skip_photo(callback, state):
     await PhotoScene(wizard=AsyncMock()).skip(callback, state)
 
 
-class TestClearLastPhotoKeyboard:
-    async def test_does_nothing_when_no_message_was_recorded(self, state):
-        bot = _make_bot()
-
-        await clear_last_photo_keyboard(bot, state)
-
-        bot.edit_message_reply_markup.assert_not_called()
-
-    async def test_strips_the_keyboard_by_chat_and_message_id(self, state):
-        bot = _make_bot()
-        await state.update_data({UD_LAST_PHOTO_MSG: [CHAT_ID, 42]})
-
-        await clear_last_photo_keyboard(bot, state)
-
-        bot.edit_message_reply_markup.assert_awaited_once_with(
-            chat_id=CHAT_ID, message_id=42, reply_markup=None
-        )
-        assert UD_LAST_PHOTO_MSG not in await state.get_data()
-
-    async def test_swallows_telegram_errors_on_deleted_messages(self, state):
-        bot = _make_bot()
-        bot.edit_message_reply_markup.side_effect = make_bad_request(
-            "message not found"
-        )
-        await state.update_data({UD_LAST_PHOTO_MSG: [CHAT_ID, 42]})
-
-        await clear_last_photo_keyboard(bot, state)
-
-        assert UD_LAST_PHOTO_MSG not in await state.get_data()
-
-
 class TestReceivePhoto:
     async def test_records_the_file_id_immediately(self, state):
         await save_defect(state, DefectData())
 
-        await receive_photo(
-            _make_photo_message(file_id="first", message_id=7), state, _make_bot()
-        )
+        await receive_photo(_make_photo_message(file_id="first", message_id=7), state)
 
         assert (await load_defect(state)).photos == [
             PhotoEntry(file_id="first", message_id=7)
         ]
 
-    async def test_records_a_serializable_message_reference(self, state):
+    async def test_the_photo_stays_and_the_screen_goes_under_it(self, state):
         await save_defect(state, DefectData())
+        await state.update_data({UD_SCREEN: OLD_SCREEN})
+        message = _make_photo_message()
 
-        await receive_photo(_make_photo_message(), state, _make_bot())
+        await receive_photo(message, state)
 
-        assert (await state.get_data())[UD_LAST_PHOTO_MSG] == [CHAT_ID, 42]
+        message.delete.assert_not_awaited()
+        message.bot.send_message.assert_awaited_once()
+        message.bot.delete_message.assert_awaited_once_with(
+            chat_id=CHAT_ID, message_id=OLD_SCREEN[1]
+        )
+        assert (await state.get_data())[UD_SCREEN] == [CHAT_ID, SENT_ID]
 
     async def test_rejects_an_oversize_photo_without_recording_it(self, state):
         await save_defect(state, DefectData())
         message = _make_photo_message(size=MAX_PHOTO_BYTES + 1)
 
-        await receive_photo(message, state, _make_bot())
+        await receive_photo(message, state)
 
         assert await _file_ids(state) == []
-        assert UD_LAST_PHOTO_MSG not in await state.get_data()
-        message.answer.assert_awaited_once_with(
-            **build_photo_too_large_text().as_kwargs()
-        )
+        too_large = build_photo_too_large_text().render()[0]
+        assert _screen_text(message).startswith(too_large)
 
-    async def test_a_lone_photo_is_answered_with_the_running_count(self, state):
+    async def test_a_lone_photo_gets_the_running_count(self, state):
         await save_defect(state, DefectData(photos=_photos("a")))
         message = _make_photo_message()
 
-        await receive_photo(message, state, _make_bot())
+        await receive_photo(message, state)
 
-        text = message.answer.await_args.kwargs["text"]
-        assert text == build_photo_received_text(2).render()[0]
+        assert _screen_text(message) == build_photo_received_text(2).render()[0]
 
-    async def test_the_answer_offers_done_rather_than_skip(self, state):
+    async def test_the_screen_offers_done_rather_than_skip(self, state):
         await save_defect(state, DefectData())
         message = _make_photo_message()
 
-        await receive_photo(message, state, _make_bot())
+        await receive_photo(message, state)
 
-        markup = message.answer.await_args.kwargs["reply_markup"]
+        markup = message.bot.send_message.await_args.kwargs["reply_markup"]
         assert markup.inline_keyboard[0][0].text == str(BTN_DONE)
 
 
@@ -156,12 +117,12 @@ class TestAlbum:
         ]
 
         for message in messages:
-            await receive_photo(message, state, _make_bot())
+            await receive_photo(message, state)
 
         assert await _file_ids(state) == ["p0", "p1", "p2"]
-        assert [m.answer.await_count for m in messages] == [1, 0, 0]
-        answered = messages[0].answer.await_args.kwargs["text"]
-        assert answered == build_album_receiving_text().render()[0]
+        assert [m.bot.send_message.await_count for m in messages] == [1, 0, 0]
+        receiving = build_album_receiving_text().render()[0]
+        assert _screen_text(messages[0]).startswith(receiving)
 
     async def test_photos_handled_out_of_order_are_kept_in_message_order(self, state):
         await save_defect(state, DefectData())
@@ -170,7 +131,7 @@ class TestAlbum:
             message = _make_photo_message(
                 file_id=f"p{i}", media_group_id="mg-1", message_id=i
             )
-            await receive_photo(message, state, _make_bot())
+            await receive_photo(message, state)
 
         assert await _file_ids(state) == ["p0", "p1", "p2"]
 
@@ -178,23 +139,10 @@ class TestAlbum:
         await save_defect(state, DefectData())
         second = _make_photo_message(media_group_id="mg-2")
 
-        await receive_photo(
-            _make_photo_message(media_group_id="mg-1"), state, _make_bot()
-        )
-        await receive_photo(second, state, _make_bot())
+        await receive_photo(_make_photo_message(media_group_id="mg-1"), state)
+        await receive_photo(second, state)
 
-        second.answer.assert_awaited_once()
-
-    async def test_a_new_answer_strips_the_keyboard_from_the_last(self, state):
-        await save_defect(state, DefectData())
-        bot = _make_bot()
-
-        await receive_photo(_make_photo_message(media_group_id="mg-1"), state, bot)
-        await receive_photo(_make_photo_message(), state, bot)
-
-        bot.edit_message_reply_markup.assert_awaited_once_with(
-            chat_id=CHAT_ID, message_id=42, reply_markup=None
-        )
+        second.bot.send_message.assert_awaited_once()
 
 
 class TestSkipPhoto:

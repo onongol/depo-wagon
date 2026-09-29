@@ -3,7 +3,6 @@ from django.utils.translation import gettext_lazy as _
 # User data keys
 UD_DEFECT = "defect"
 UD_RESP_SEARCH = "_resp_search"
-UD_LAST_PHOTO_MSG = "_last_photo_msg"
 UD_LAST_MEDIA_GROUP = "_last_media_group"
 UD_EDITING = "_editing"
 # [chat_id, message_id] of the defect form's one screen
@@ -15,7 +14,6 @@ UD_AI_CHAT_LAST = "_ai_chat_last"
 DEFECT_USER_DATA_KEYS = (
     UD_DEFECT,
     UD_RESP_SEARCH,
-    UD_LAST_PHOTO_MSG,
     UD_LAST_MEDIA_GROUP,
     UD_EDITING,
     UD_SCREEN,

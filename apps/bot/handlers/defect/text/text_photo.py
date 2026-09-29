@@ -13,15 +13,11 @@ def build_photo_received_text(count: int) -> Text:
 
 
 def build_album_receiving_text() -> Text:
-    return as_list(
-        Text("📸 ", _("Receiving the album.")),
-        _("Send more photos or press Done when finished:"),
-        sep="\n\n",
-    )
+    return Text("📸 ", _("Receiving the album…"))
 
 
 def build_photo_too_large_text() -> Text:
-    return Text("⚠️ ", _("Photo is too large (max 10 MB). Please send a smaller photo:"))
+    return Text("⚠️ ", _("That photo is too large (max 10 MB) and was not attached."))
 
 
 def build_edit_photos_text(count: int) -> Text:

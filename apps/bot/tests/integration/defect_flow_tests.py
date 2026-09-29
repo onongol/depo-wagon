@@ -1378,6 +1378,7 @@ class TestAlbum:
         )
         assert await state.get_state() == DefectSG.photo.state
 
+        _, before = (await state.get_data())[UD_SCREEN]
         session.clear()
         # Concurrent handling can reach the album in any order.
         for i in (2, 0, 1):
@@ -1390,16 +1391,19 @@ class TestAlbum:
 
         defect = await load_defect(state)
         assert [p.file_id for p in defect.photos] == ["file0", "file1", "file2"]
-        answers = session.calls("sendMessage")
-        assert [a.text for a in answers] == [build_album_receiving_text().render()[0]]
+        (screen,) = session.calls("sendMessage")
+        assert screen.text.startswith(build_album_receiving_text().render()[0])
+        assert [d.message_id for d in session.calls("deleteMessage")] == [before]
+        _, after = (await state.get_data())[UD_SCREEN]
 
         await dp.feed_update(bot, make_callback_update(CB_PHOTO_SKIP))
 
         toast = session.calls("answerCallbackQuery")[-1]
         assert toast.text == build_photos_attached_toast(3)
         assert await state.get_state() == DefectSG.measurement_choice.state
+        assert session.calls("editMessageText")[-1].message_id == after
 
-    async def test_a_lone_photo_is_acknowledged_immediately(
+    async def test_a_lone_photo_gets_the_screen_under_it_at_once(
         self, dp, bot, session, state, flow
     ):
         await dp.feed_update(bot, make_message_update("/new_defect", command=True))
