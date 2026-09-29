@@ -51,5 +51,5 @@ def defect_type_keyboard() -> InlineKeyboardMarkup:
 def severity_keyboard() -> InlineKeyboardMarkup:
     return build_grid_keyboard(
         [(label, SeverityCB(value=value)) for label, value in SEVERITY_CHOICES],
-        columns=1,
+        columns=2,
     )
