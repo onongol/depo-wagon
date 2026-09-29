@@ -6,8 +6,7 @@ from apps.bot.fsm import drop_keys, load_defect, save_defect
 from apps.bot.handlers.defect.notifications import notify_decommission
 from apps.bot.handlers.defect.text import (
     build_ai_analyzing_text,
-    build_recommendation_text,
-    build_result_text,
+    build_result_messages,
     build_save_failed_text,
     build_saving_text,
 )
@@ -71,15 +70,14 @@ async def confirm_defect(
         defect_data, registered.defect.id, registered.photo_bytes
     )
 
-    # Sent anew: only a new message can bring the menu back
+    first, *rest = build_result_messages(ai_result)
     await callback.message.answer(
-        **build_result_text(ai_result).as_kwargs(), reply_markup=main_menu_keyboard()
+        **first.as_kwargs(), reply_markup=main_menu_keyboard()
     )
     await take_down(bot, [callback.message.chat.id, callback.message.message_id])
 
-    recommendation = build_recommendation_text(ai_result)
-    if recommendation:
-        await callback.message.answer(**recommendation.as_kwargs())
+    for text in rest:
+        await callback.message.answer(**text.as_kwargs())
 
     await drop_keys(state, UD_DEFECT)
     await state.set_state(None)

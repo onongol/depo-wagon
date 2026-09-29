@@ -1,6 +1,7 @@
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from aiogram.exceptions import TelegramForbiddenError
 
 from apps.bot.handlers.defect.confirm.pipeline import (
@@ -9,7 +10,11 @@ from apps.bot.handlers.defect.confirm.pipeline import (
     run_ai_analysis,
 )
 from apps.bot.handlers.defect.notifications import notify_decommission
-from apps.bot.handlers.defect.text import build_recommendation_text, build_result_text
+from apps.bot.handlers.defect.text import (
+    build_recommendation_text,
+    build_result_messages,
+    build_result_text,
+)
 from apps.bot.user_data import AIResult, DefectData, MeasurementEntry, PhotoEntry
 
 
@@ -420,3 +425,56 @@ class TestBuildRecommendationText:
         assert rendered == (
             "💡 Recommendation:\nReplace <the> pad\n\n📎 Sources:\nDoc 1\nDoc 2"
         )
+
+    @pytest.mark.parametrize("char", ["x", "🔧"], ids=["ascii", "emoji"])
+    def test_one_past_the_cap_is_cut_short_and_keeps_its_sources(self, char):
+        ai = AIResult(rag_recommendation=char * 5000, sources=["Doc 1"])
+
+        rendered = build_recommendation_text(ai).render()[0]
+
+        # A split emoji is dropped whole, so one unit may go unused
+        assert 4095 <= len(rendered.encode("utf-16-le")) // 2 <= 4096
+        assert rendered.endswith(f"{char}…\n\n📎 Sources:\nDoc 1")
+
+
+class TestBuildResultMessages:
+    AI = AIResult(defect_class="Rim wear", confidence=0.8, verdict="repair_soon")
+
+    def _rendered(self, ai):
+        return [text.render()[0] for text in build_result_messages(ai)]
+
+    def test_without_a_recommendation_the_result_alone(self):
+        assert self._rendered(self.AI) == [build_result_text(self.AI).render()[0]]
+
+    def test_a_recommendation_joins_the_result(self):
+        ai = self.AI.model_copy(update={"rag_recommendation": "Replace the pad"})
+
+        (message,) = self._rendered(ai)
+
+        assert message == (
+            build_result_text(ai).render()[0]
+            + "\n\n"
+            + build_recommendation_text(ai).render()[0]
+        )
+
+    def test_together_past_the_cap_they_go_apart(self):
+        ai = self.AI.model_copy(update={"rag_recommendation": "x" * 4000})
+
+        assert self._rendered(ai) == [
+            build_result_text(ai).render()[0],
+            build_recommendation_text(ai).render()[0],
+        ]
+
+    def test_emoji_count_twice_toward_the_cap(self):
+        """Together they fit by len(), not in the UTF-16 units Telegram counts."""
+        result = build_result_text(self.AI).render()[0]
+        heading = "💡 Recommendation:\n"
+        spare = 4096 - len(result) - len("\n\n") - len(heading)
+        emoji = "🔧" * 10
+        recommendation = "x" * (spare - len(emoji)) + emoji
+        ai = self.AI.model_copy(update={"rag_recommendation": recommendation})
+
+        messages = self._rendered(ai)
+
+        assert len(messages) == 2
+        assert messages[1].endswith(emoji)

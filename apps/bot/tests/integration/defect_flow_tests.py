@@ -432,26 +432,38 @@ class TestTheMenuWhileAFormIsOpen:
         assert await state.get_state() is None
         assert await load_defect(state) is None
 
-    async def test_the_recommendation_follows_the_result(
-        self, dp, bot, session, state, flow
-    ):
+    async def _save_with_recommendation(self, dp, bot, state, flow, recommendation):
         flow.analysis.return_value = AIResult(
             defect_class="Rim wear",
             confidence=0.8,
             verdict=DefectVerdict.REPAIR_SOON,
-            rag_recommendation="Replace the pad",
+            rag_recommendation=recommendation,
         )
         await save_defect(state, DefectData(wagon_id=3, verdict=DefectVerdict.OK))
         await state.set_state(DefectSG.confirm)
-
         await dp.feed_update(
             bot, make_callback_update(ConfirmCB(confirmed=True).pack())
         )
 
+    async def test_the_recommendation_comes_with_the_result(
+        self, dp, bot, session, state, flow
+    ):
+        await self._save_with_recommendation(dp, bot, state, flow, "Replace the pad")
+
+        (sent,) = session.calls("sendMessage")
+        assert sent.reply_markup == main_menu_keyboard()
+        assert "AI verdict: Repair Soon" in sent.text
+        assert sent.text.endswith("Replace the pad")
+
+    async def test_one_too_long_for_a_message_follows_it(
+        self, dp, bot, session, state, flow
+    ):
+        await self._save_with_recommendation(dp, bot, state, flow, "x" * 4000)
+
         card, recommendation = session.calls("sendMessage")
         assert card.reply_markup == main_menu_keyboard()
         assert "AI verdict: Repair Soon" in card.text
-        assert recommendation.text.endswith("Replace the pad")
+        assert recommendation.text.endswith("x" * 4000)
         assert recommendation.reply_markup is None
 
     async def test_a_failed_save_brings_it_back(self, dp, bot, session, state, flow):
