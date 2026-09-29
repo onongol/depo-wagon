@@ -11,7 +11,6 @@ from contextlib import ExitStack
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from aiogram.types import ReplyKeyboardRemove
 
 from apps.bot.callback_data import (
     CB_CANCEL,
@@ -42,7 +41,6 @@ from apps.bot.constants import (
     EDIT_MEASUREMENTS,
     EDIT_RESPONSIBLE,
     UD_EDITING,
-    UD_FORM_HEADER,
     UD_SCREEN,
 )
 from apps.bot.errors import build_session_error_text
@@ -71,7 +69,6 @@ from apps.bot.handlers.defect.text import (
     build_edit_severity_text,
     build_edit_wagon_text,
     build_editing_heading,
-    build_new_defect_text,
     build_photos_attached_toast,
     build_review_heading,
     build_save_question_text,
@@ -339,19 +336,12 @@ class TestConfirmingTwice:
 
 
 class TestTheMenuWhileAFormIsOpen:
-    """Hidden on the way in by a header of its own; back on the way out."""
+    """Left in place on the way in; every way out sends it again."""
 
-    async def test_the_way_in_hides_it_above_the_first_step(
-        self, dp, bot, session, flow
-    ):
-        """Not on the step: a message that hides the menu never takes inline buttons."""
+    async def test_the_way_in_is_the_first_step_alone(self, dp, bot, session, flow):
         await dp.feed_update(bot, make_message_update("/new_defect", command=True))
 
-        header, step = session.calls("sendMessage")
-        assert (header.text, header.reply_markup) == (
-            build_new_defect_text().render()[0],
-            ReplyKeyboardRemove(),
-        )
+        (step,) = session.calls("sendMessage")
         assert step.text.startswith(build_step_heading(1, 9).render()[0])
         assert step.text.endswith(build_ask_wagon_text().render()[0])
         assert step.reply_markup == with_step_buttons(None, back=False)
@@ -443,7 +433,7 @@ class TestTheMenuWhileAFormIsOpen:
 
 
 class TestOneScreen:
-    """After the header, every step is drawn into one message; typing leaves none."""
+    """Every step is drawn into one message; typing leaves none."""
 
     async def test_the_walk_edits_one_message_and_deletes_every_answer(
         self, dp, bot, state, flow, wagon
@@ -478,8 +468,7 @@ class TestOneScreen:
         await tap(SeverityCB(value="critical").pack())
         assert await state.get_state() == DefectSG.confirm.state
 
-        header, screen = session.calls("sendMessage")
-        assert header.reply_markup == ReplyKeyboardRemove()
+        assert len(session.calls("sendMessage")) == 1
         _, screen_id = (await state.get_data())[UD_SCREEN]
         edited = {edit.message_id for edit in session.calls("editMessageText")}
         assert edited == {screen_id}
@@ -560,65 +549,60 @@ class TestOneScreen:
 
 
 class TestTheFormEndsCleanly:
-    """An exit takes the screen and the header off the chat; the save keeps the screen."""
+    """An exit takes the screen off the chat; the save keeps it for its result."""
 
     async def _open(self, dp, bot, state):
         await dp.feed_update(bot, make_message_update("/new_defect", command=True))
-        data = await state.get_data()
-        return data[UD_FORM_HEADER][1], data[UD_SCREEN][1]
+        _, screen = (await state.get_data())[UD_SCREEN]
+        return screen
 
     @staticmethod
     def _deleted(session):
-        return sorted(d.message_id for d in session.calls("deleteMessage"))
+        return [d.message_id for d in session.calls("deleteMessage")]
 
-    async def test_cancel_takes_both_down_and_brings_the_menu_back(
+    async def test_cancel_takes_it_down_and_brings_the_menu_back(
         self, dp, bot, session, state, flow
     ):
-        header, screen = await self._open(dp, bot, state)
+        screen = await self._open(dp, bot, state)
         session.clear()
 
         await dp.feed_update(bot, make_callback_update(CB_CANCEL))
 
-        assert self._deleted(session) == sorted([header, screen])
+        assert self._deleted(session) == [screen]
         (sent,) = session.calls("sendMessage")
         assert sent.reply_markup == main_menu_keyboard()
         assert UD_SCREEN not in await state.get_data()
 
-    async def test_slash_cancel_takes_both_down_too(
-        self, dp, bot, session, state, flow
-    ):
-        header, screen = await self._open(dp, bot, state)
+    async def test_slash_cancel_takes_it_down_too(self, dp, bot, session, state, flow):
+        screen = await self._open(dp, bot, state)
         session.clear()
 
         await dp.feed_update(bot, make_message_update("/cancel", command=True))
 
-        assert self._deleted(session) == sorted([header, screen])
+        assert self._deleted(session) == [screen]
         assert await state.get_data() == {}
 
     async def test_a_new_form_takes_down_what_an_abandoned_one_left(
         self, dp, bot, session, state, flow
     ):
-        header, screen = await self._open(dp, bot, state)
+        screen = await self._open(dp, bot, state)
         await state.set_state(None)
         session.clear()
 
         await dp.feed_update(bot, make_message_update("/new_defect", command=True))
 
-        assert self._deleted(session) == sorted([header, screen])
+        assert self._deleted(session) == [screen]
         assert await state.get_state() == DefectSG.wagon_num.state
 
-    async def test_start_over_keeps_the_screen_and_the_header(
-        self, dp, bot, session, state, flow
-    ):
-        header, screen = await self._open(dp, bot, state)
+    async def test_start_over_keeps_the_screen(self, dp, bot, session, state, flow):
+        screen = await self._open(dp, bot, state)
         await dp.feed_update(bot, make_message_update(WAGON_NUMBER))
         session.clear()
 
         await dp.feed_update(bot, make_callback_update(CB_DEFECT_RESTART))
 
         assert await state.get_state() == DefectSG.wagon_num.state
-        data = await state.get_data()
-        assert (data[UD_FORM_HEADER][1], data[UD_SCREEN][1]) == (header, screen)
+        assert (await state.get_data())[UD_SCREEN][1] == screen
         assert session.calls("editMessageText")[-1].message_id == screen
         assert session.calls("deleteMessage") == []
 
@@ -627,16 +611,15 @@ class TestTheFormEndsCleanly:
     ):
         await save_defect(state, DefectData(wagon_id=3))
         await state.set_state(DefectSG.confirm)
-        await state.update_data(
-            {UD_SCREEN: [CHAT_ID, 500], UD_FORM_HEADER: [CHAT_ID, 400]}
-        )
+        await state.update_data({UD_SCREEN: [CHAT_ID, 500]})
 
         await dp.feed_update(
             bot, make_callback_update(ConfirmCB(confirmed=True).pack())
         )
         await dp.feed_update(bot, make_message_update("/cancel", command=True))
 
-        assert self._deleted(session) == [400]
+        assert self._deleted(session) == []
+        assert UD_SCREEN not in await state.get_data()
 
 
 class TestFromTheWagonStepToTheDepartment:

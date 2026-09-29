@@ -40,7 +40,6 @@ from .text_screen import (
     build_stray_input_text,
 )
 from .text_severity import build_ask_severity_text, build_edit_severity_text
-from .text_start import build_new_defect_text
 from .text_wagon import (
     build_ask_wagon_text,
     build_edit_wagon_text,
@@ -74,7 +73,6 @@ __all__ = [
     "build_editing_heading",
     "build_fields",
     "build_measurement_line",
-    "build_new_defect_text",
     "build_part_number_too_long_text",
     "build_photo_too_large_text",
     "build_photos_attached_toast",

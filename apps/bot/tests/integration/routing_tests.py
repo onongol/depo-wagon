@@ -199,10 +199,7 @@ class TestPrecedenceDuringTheDefectFlow:
     ):
         """Never an answer at a text step, and never a way out: /cancel is that.
 
-        Nor taken off the chat: only a step's answers are.
-
-        The commands too: with the menu hidden, the Menu button's list is the way
-        to them.
+        Nor taken off the chat: only a step's answers are. The commands too.
         """
         await state.set_state(step)
         before = await state.get_data()

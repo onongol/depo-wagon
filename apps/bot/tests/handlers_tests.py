@@ -7,7 +7,6 @@ a detached copy — the assertions read it back rather than holding a reference.
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from aiogram.types import ReplyKeyboardRemove
 from aiogram.utils.text_decorations import html_decoration
 
 from apps.bot.callback_data import (
@@ -74,7 +73,6 @@ from apps.bot.handlers.defect.text import (
     build_edit_photos_text,
     build_edit_severity_text,
     build_editing_heading,
-    build_new_defect_text,
     build_responsible_employee_search_text,
     build_review_heading,
     build_save_question_text,
@@ -184,15 +182,6 @@ class TestNewDefectStart:
 
         scenes.enter.assert_awaited_once_with(DefectSG.wagon_num)
         assert await load_defect(state) == DefectData()
-
-    async def test_a_header_of_its_own_hides_the_menu(self, state):
-        message = make_message()
-
-        await new_defect_start(message, state, MagicMock(), AsyncMock())
-
-        message.answer.assert_awaited_once_with(
-            **build_new_defect_text().as_kwargs(), reply_markup=ReplyKeyboardRemove()
-        )
 
     async def test_drops_what_an_abandoned_form_left_behind(self, state):
         """Edit, then /ask, then New Defect: the entry runs outside DefectSG."""
