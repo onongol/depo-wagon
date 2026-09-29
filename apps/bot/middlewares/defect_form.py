@@ -44,7 +44,7 @@ class DefectFormMiddleware(BaseMiddleware):
     Outer runs ahead of StateFilter, so every feature's updates pass through.
     A form an older build wrote is dropped wherever it is found, silently
     outside DefectSG. Inside it, a dropped or missing form ends the flow here,
-    and stale_callback never gets to blame the button instead of the form.
+    and a scene's absorb never gets to swallow the tap without a word.
     """
 
     async def __call__(

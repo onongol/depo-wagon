@@ -258,7 +258,7 @@ class DefectScene(Scene):
     # After every handler above: aiogram registers a class's own in the order written
     @on.callback_query()
     async def absorb(self, callback: CallbackQuery) -> None:
-        """Any other tap dies quietly, as stale_callback does for plain steps."""
+        """Any other tap dies quietly rather than as an expired button."""
         await callback.answer()
 
     @on.message.exit()

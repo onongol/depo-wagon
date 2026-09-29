@@ -47,7 +47,7 @@ from apps.bot.handlers.common.text import (
     build_help_text,
     build_unhandled_message_text,
 )
-from apps.bot.handlers.defect.resume import show_current_step
+from apps.bot.handlers.defect.scenes import DEFECT_SCENES
 from apps.bot.handlers.defect.text import (
     build_ask_department_text,
     build_ask_more_photos_text,
@@ -203,7 +203,7 @@ class TestPrecedenceDuringTheDefectFlow:
         """
         await state.set_state(step)
         before = await state.get_data()
-        screen = AsyncMock()
+        scene = next(s for s in DEFECT_SCENES if s.__scene_config__.state == step.state)
 
         with patch(RESP_SERVICES) as svc:
             svc.count_department_employees = AsyncMock(return_value=0)
@@ -211,12 +211,10 @@ class TestPrecedenceDuringTheDefectFlow:
             update = make_message_update(label, command=label.startswith("/"))
             await dp.feed_update(bot, update)
             after = await state.get_data()
-            await show_current_step(screen, state)
+            expected, _ = await scene.draw(await load_defect(state), after)
 
         (sent,) = bot.session.calls("sendMessage")
-        shown = screen.await_args
-        expected = shown.kwargs.get("text") or shown.args[0]
-        assert sent.text == expected
+        assert sent.text == expected.render()[0]
         assert bot.session.calls("deleteMessage") == []
         assert await state.get_state() == step.state
         # The screen drawn is the only thing stored
@@ -417,8 +415,24 @@ class TestNewDefectDuringARunningForm:
         assert edits == [build_defect_continued_text().render()[0]]
 
     @pytest.mark.usefixtures("form")
+    @pytest.mark.parametrize("label", [str(BTN_OPEN_DEFECTS), "/help"])
+    async def test_a_menu_button_while_saving_just_says_carry_on(
+        self, dp, bot, session, state, label
+    ):
+        """A save that died half-way has no screen to show again."""
+        await state.set_state(DefectSG.saving)
+
+        await dp.feed_update(
+            bot, make_message_update(label, command=label.startswith("/"))
+        )
+
+        (sent,) = session.calls("sendMessage")
+        assert sent.text == build_defect_continued_text().render()[0]
+        assert await state.get_state() == DefectSG.saving.state
+
+    @pytest.mark.usefixtures("form")
     @pytest.mark.parametrize(
-        "step", [DefectSG.confirm, DefectSG.wagon_num], ids=["plain", "scene"]
+        "step", [DefectSG.saving, DefectSG.wagon_num], ids=["saving", "step"]
     )
     async def test_start_over_opens_a_blank_form(self, dp, bot, session, state, step):
         """UD_EDITING surviving would send the next wagon number to the summary."""

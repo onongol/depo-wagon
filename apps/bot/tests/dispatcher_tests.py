@@ -288,14 +288,12 @@ class TestDefectRouterOrder:
 
         assert names.index("defect_flow") < names.index("tasks")
 
-    def test_the_scenes_come_before_the_plain_steps(self):
-        """A plain step's running block would claim a scene's menu buttons first."""
+    def test_the_flow_is_scenes_alone(self):
         from apps.bot.handlers.defect.router import get_defect_flow_router
 
         routers = get_defect_flow_router().sub_routers
 
-        assert routers[-1].name == "defect_plain_steps"
-        assert all(r.name.startswith("Scene ") for r in routers[:-1])
+        assert all(r.name.startswith("Scene ") for r in routers)
 
     def test_each_catch_all_is_registered_last_in_its_router(self):
         from apps.bot.handlers.defect.router import get_defect_flow_router
@@ -303,35 +301,19 @@ class TestDefectRouterOrder:
         for router in get_defect_flow_router().sub_routers:
             last = router.callback_query.handlers[-1].callback
             name = getattr(getattr(last, "handler", last), "callback", last).__name__
-            assert name in {"stale_callback", "absorb"}, router.name
+            assert name == "absorb", router.name
 
-    def test_every_defect_state_has_at_least_one_handler(self):
-        """Guards against a step losing its route during the conversion.
-
-        A plain step filters each handler by state; a scene is its state.
-        """
-        from aiogram.filters import StateFilter
-
-        from apps.bot.handlers.defect.router import get_defect_flow_router
-        from apps.bot.handlers.defect.scenes import DEFECT_SCENES
+    def test_every_defect_state_is_a_scene(self):
+        from apps.bot.handlers.defect.scenes import FLOW_SCENES
         from apps.bot.states import DefectSG
 
-        covered = {scene.__scene_config__.state for scene in DEFECT_SCENES}
-        plain = get_defect_flow_router().sub_routers[-1]
-        for observer in (plain.message, plain.callback_query):
-            for handler in observer.handlers:
-                for flt in handler.filters or ():
-                    if isinstance(flt.callback, StateFilter):
-                        covered |= {getattr(s, "state", s) for s in flt.callback.states}
+        covered = {scene.__scene_config__.state for scene in FLOW_SCENES}
 
-        # saving has no step of its own: the flow's catch-alls absorb what arrives.
-        waiting = {DefectSG.saving.state}
-        missing = {s.state for s in DefectSG.__states__} - covered - waiting
-        assert not missing
+        assert covered == {s.state for s in DefectSG.__states__}
 
     def test_every_scene_is_registered_for_lookup(self, dispatcher):
         """goto() and enter() find a scene by state through the registry."""
-        from apps.bot.handlers.defect.scenes import DEFECT_SCENES
+        from apps.bot.handlers.defect.scenes import FLOW_SCENES
 
         registry = next(
             m.__self__
@@ -339,5 +321,5 @@ class TestDefectRouterOrder:
             if isinstance(getattr(m, "__self__", None), SceneRegistry)
         )
 
-        for scene in DEFECT_SCENES:
+        for scene in FLOW_SCENES:
             assert registry.get(scene.__scene_config__.state) is scene

@@ -10,12 +10,10 @@ from apps.bot.keyboards.confirm import confirm_keyboard
 from apps.bot.states import DefectSG
 from apps.defects.constants import DefectType
 
-from .confirm import confirm_defect
 from .scene import DefectScene, walked
 from .text import build_review_heading, build_save_question_text
 
 if TYPE_CHECKING:
-    from aiogram import Bot
     from aiogram.fsm.context import FSMContext
     from aiogram.types import CallbackQuery, InlineKeyboardMarkup, Message
     from aiogram.utils.formatting import Text
@@ -111,11 +109,6 @@ class SummaryScene(DefectScene, state=DefectSG.confirm.state):
         await self.cancel(callback)
 
     @on.callback_query(ConfirmCB.filter(F.confirmed))
-    async def save(
-        self,
-        callback: CallbackQuery,
-        state: FSMContext,
-        bot: Bot,
-        employee: Employee | None,
-    ) -> None:
-        await confirm_defect(callback, state, bot, employee)
+    async def save(self, callback: CallbackQuery, employee: Employee | None) -> None:
+        """Passed on by hand: the scenes' own data is gathered before the lookup."""
+        await self.wizard.goto(DefectSG.saving, employee=employee)

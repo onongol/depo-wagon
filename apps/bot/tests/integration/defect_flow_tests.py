@@ -481,6 +481,7 @@ class TestTheMenuWhileAFormIsOpen:
             main_menu_keyboard(),
         )
         assert await state.get_state() is None
+        assert await load_defect(state) is None
 
 
 class TestTheDecommissionAlert:

@@ -905,19 +905,20 @@ class TestSummaryScene:
 class TestUnlinkedEmployeeIsRefused:
     """What the web revokes, the bot stops honouring — including mid-flow."""
 
-    async def test_confirm_saves_nothing_without_an_employee(self, state, bot):
-        from apps.bot.handlers.defect.confirm import confirm_defect
+    async def test_the_save_saves_nothing_without_an_employee(self, state, bot):
+        from apps.bot.handlers.defect.confirm import SavingScene
 
         await save_defect(state, DefectData(wagon_id=1))
+        scene = SavingScene(wizard=AsyncMock())
 
         with patch(
             "apps.bot.handlers.defect.confirm.handler.register_defect",
             AsyncMock(),
         ) as register:
-            await confirm_defect(make_callback(), state, bot, None)
+            await scene.save(make_callback(), state, bot, None)
 
         register.assert_not_called()
-        assert await state.get_state() is None
+        scene.wizard.exit.assert_awaited_once()
 
 
 class TestAfterPhotos:

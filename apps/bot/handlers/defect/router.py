@@ -2,78 +2,30 @@
 
 Disjoint by state: the entry answers only outside DefectSG, and inside it the
 flow asks whether to continue or start over, so a running form is never wiped
-without the user choosing to.
-
-Mid-migration to Scenes: a step that is a Scene lives in its own router, ahead
-of the steps still written as plain handlers, and carries the shared handlers
-itself. The plain ones share theirs through the running block below.
+without the user choosing to. Every state is a Scene, and each scene is its
+own router carrying the shared handlers itself.
 """
-
-from typing import TYPE_CHECKING
 
 from aiogram import F, Router
 from aiogram.filters import Command, StateFilter
 
-from apps.bot.callback_data import CB_DEFECT_CONTINUE, CB_DEFECT_RESTART
 from apps.bot.constants import BTN_NEW_DEFECT
-from apps.bot.keyboards.menu import MENU_TEXTS
 from apps.bot.middlewares import DefectFormMiddleware
 from apps.bot.states import DefectSG
 
-from .restart import continue_defect, menu_button_mid_flow, restart_defect
-from .scene import ask_about_the_open_form
-from .scenes import DEFECT_SCENES
+from .scenes import FLOW_SCENES
 from .start import new_defect_start
-
-if TYPE_CHECKING:
-    from aiogram.types import CallbackQuery
-
-
-async def stale_callback(callback: CallbackQuery) -> None:
-    """Silently absorb any callback no plain step claimed, as a scene's absorb does.
-
-    A tap on an old button while the defect saves dies quietly rather than
-    getting the expired-button reply.
-    """
-    await callback.answer()
 
 
 def get_defect_flow_router() -> Router:
-    """Every step: the Scenes first, then the plain steps."""
+    """Every state of the form, each a scene."""
     router = Router(name="defect_flow")
 
     # Outer, so no step is reached with a form that is stale or gone
     router.message.outer_middleware(DefectFormMiddleware())
     router.callback_query.outer_middleware(DefectFormMiddleware())
 
-    router.include_routers(
-        *(scene.as_router() for scene in DEFECT_SCENES), _plain_steps_router()
-    )
-    return router
-
-
-def _plain_steps_router() -> Router:
-    """Every step not yet a Scene, filtered by the state it belongs to."""
-    router = Router(name="defect_plain_steps")
-    msg = router.message.register
-    cb = router.callback_query.register
-
-    # Menu buttons ahead of every step; a text step would take one for an answer
-    running = StateFilter(DefectSG)
-    msg(ask_about_the_open_form, running, Command("new_defect"))
-    msg(ask_about_the_open_form, running, F.text == str(BTN_NEW_DEFECT))
-    msg(menu_button_mid_flow, running, F.text.in_(MENU_TEXTS))
-    msg(
-        menu_button_mid_flow,
-        running,
-        Command("start", "my_tasks", "ask", "support", "help"),
-    )
-    cb(continue_defect, running, F.data == CB_DEFECT_CONTINUE)
-    cb(restart_defect, running, F.data == CB_DEFECT_RESTART)
-
-    # Any other tap; /cancel is the global router's
-    cb(stale_callback, StateFilter(DefectSG))
-
+    router.include_routers(*(scene.as_router() for scene in FLOW_SCENES))
     return router
 
 

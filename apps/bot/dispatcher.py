@@ -102,14 +102,14 @@ def make_dispatcher(
     storage: BaseStorage, events_isolation: BaseEventIsolation
 ) -> Dispatcher:
     from apps.bot.errors import error_handler
-    from apps.bot.handlers.defect.scenes import DEFECT_SCENES
+    from apps.bot.handlers.defect.scenes import FLOW_SCENES
     from apps.bot.handlers.support.router import get_support_group_router
 
     dp = Dispatcher(storage=storage, events_isolation=events_isolation)
 
     # Lookup and the `scenes` argument only: the defect flow router places the
     # scene routers itself, where the order puts them
-    SceneRegistry(dp, register_on_add=False).add(*DEFECT_SCENES)
+    SceneRegistry(dp, register_on_add=False).add(*FLOW_SCENES)
 
     # dp.update is the only observer that fires exactly once per Update and
     # ahead of every filter — where PTB closed connections by overriding
