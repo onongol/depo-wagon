@@ -24,6 +24,7 @@ from apps.bot.keyboards.measurement import (
 )
 from apps.bot.states import DefectSG
 from apps.bot.user_data import MeasurementEntry
+from apps.bot.utils.screens import delete_input
 from apps.defects.constants import DIMENSION_UNITS, MeasurementDimension
 
 if TYPE_CHECKING:
@@ -98,6 +99,7 @@ class MeasurementChoiceScene(DefectScene, state=DefectSG.measurement_choice.stat
     @on.message(*STEP_TEXT)
     async def receive(self, message: Message, state: FSMContext) -> None:
         """The number for the picked dimension; any text before one shows the card."""
+        await delete_input(message)
         defect = await load_defect(state)
         current = defect.current_measurement
         if current is None:

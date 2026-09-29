@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from aiogram import Bot
     from aiogram.fsm.context import FSMContext
     from aiogram.types import CallbackQuery, InlineKeyboardMarkup, Message
+    from aiogram.utils.formatting import Text
 
     from apps.bot.user_data import DefectData
     from apps.core.models import Employee
@@ -55,9 +56,16 @@ class SummaryScene(DefectScene, state=DefectSG.confirm.state):
         return keyboard
 
     @on.message.enter()
-    async def show_as_message(self, message: Message, state: FSMContext) -> None:
+    async def show_as_message(
+        self,
+        message: Message,
+        state: FSMContext,
+        *,
+        notice: Text | None = None,
+        below: bool = False,
+    ) -> None:
         await drop_keys(state, UD_EDITING)
-        await super().show_as_message(message, state)
+        await super().show_as_message(message, state, notice=notice, below=below)
 
     @on.callback_query.enter()
     async def show_as_edit(self, callback: CallbackQuery, state: FSMContext) -> None:

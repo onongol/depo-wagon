@@ -14,7 +14,7 @@ from apps.bot.constants import UD_RESP_SEARCH
 from apps.bot.fsm import drop_keys, load_defect, save_defect
 from apps.bot.handlers.defect.scene import STEP_TEXT, DefectScene, as_send_kwargs
 from apps.bot.states import DefectSG
-from apps.bot.utils.screens import show_screen
+from apps.bot.utils.screens import delete_input, show_screen
 
 from .list import employee_list_screen
 
@@ -102,6 +102,7 @@ class ResponsibleEmployeeScene(DefectScene, state=DefectSG.responsible_employee.
     @on.message(*STEP_TEXT)
     async def search(self, message: Message, state: FSMContext) -> None:
         """A typed name narrows the list, drawn anew from its first page."""
+        await delete_input(message)
         await state.update_data({UD_RESP_SEARCH: message.text.strip()})
         await self.wizard.retake()
 

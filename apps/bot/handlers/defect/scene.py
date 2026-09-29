@@ -21,7 +21,7 @@ from apps.bot.keyboards.defect import defect_in_progress_keyboard
 from apps.bot.keyboards.menu import MENU_TEXTS, main_menu_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
-from apps.bot.utils.screens import answer_anew, delete_input, show_screen
+from apps.bot.utils.screens import answer_anew, show_screen
 
 from .start import open_blank_form
 from .text import build_defect_in_progress_text
@@ -123,9 +123,7 @@ class DefectScene(Scene):
         notice: Text | None = None,
         below: bool = False,
     ) -> None:
-        """What the user typed leaves the chat; below keeps it, the screen under it."""
-        if not below:
-            await delete_input(message)
+        """below: what the user sent stays in the chat, so the screen goes under it."""
         content, keyboard = await self.draw(
             await load_defect(state), await state.get_data(), notice=notice
         )
@@ -159,9 +157,12 @@ class DefectScene(Scene):
 
     @on.message(F.text.in_(MENU_TEXTS))
     @on.message(Command("start", "my_tasks", "ask", "support", "help"))
-    async def show_again(self, _message: Message) -> None:
-        """Every other button and command; /cancel is the way out."""
-        await self.wizard.retake()
+    async def show_again(self, message: Message, state: FSMContext) -> None:
+        """Every other button and command; /cancel is the way out.
+
+        Not an answer, so it stays, and the screen is sent again under it.
+        """
+        await self.show_as_message(message, state, below=True)
 
     @on.callback_query(F.data == CB_DEFECT_CONTINUE)
     async def carry_on(self, callback: CallbackQuery) -> None:

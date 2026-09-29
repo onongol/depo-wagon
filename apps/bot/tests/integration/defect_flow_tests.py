@@ -36,6 +36,7 @@ from apps.bot.callback_data import (
     VerdictCB,
 )
 from apps.bot.constants import (
+    BTN_OPEN_DEFECTS,
     EDIT_MEASUREMENTS,
     EDIT_RESPONSIBLE,
     UD_EDITING,
@@ -44,6 +45,7 @@ from apps.bot.constants import (
 from apps.bot.errors import build_session_error_text
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.common.text import build_cancelled_text, build_help_text
+from apps.bot.handlers.defect.part_number import PartNumberScene
 from apps.bot.handlers.defect.responsible_employee.list import EMPLOYEE_PAGE_SIZE
 from apps.bot.handlers.defect.text import (
     build_album_receiving_text,
@@ -440,7 +442,7 @@ class TestOneScreen:
     async def test_the_walk_edits_one_message_and_deletes_every_answer(
         self, dp, bot, state, flow, wagon
     ):
-        """Wrong answers too: the screen names them."""
+        """Wrong answers too: the screen names them. The command that began it stays."""
         session = bot.session
         lookup = flow.wagon_services.get_wagon_by_number
         lookup.side_effect = lambda number: wagon if number == WAGON_NUMBER else None
@@ -454,7 +456,7 @@ class TestOneScreen:
         async def tap(payload):
             await dp.feed_update(bot, make_callback_update(payload))
 
-        await text("/new_defect", command=True)
+        await dp.feed_update(bot, make_message_update("/new_defect", command=True))
         await text("0000")
         await text(WAGON_NUMBER)
         await tap(DepartmentCB(value=Department.BOGIE).pack())
@@ -477,6 +479,27 @@ class TestOneScreen:
         assert edited == {screen_id}
         deleted = [d.message_id for d in session.calls("deleteMessage")]
         assert deleted == typed
+
+    @pytest.mark.parametrize(
+        "command", ["/start", "/help", str(BTN_OPEN_DEFECTS)], ids=str
+    )
+    async def test_a_command_mid_form_stays_and_the_screen_goes_under_it(
+        self, dp, bot, session, state, command
+    ):
+        """Not an answer, so it is not taken off the chat."""
+        await save_defect(state, DefectData(wagon_id=1))
+        await state.set_state(DefectSG.part_number)
+        await state.update_data({UD_SCREEN: [CHAT_ID, 500]})
+
+        await dp.feed_update(
+            bot, make_message_update(command, command=command.startswith("/"))
+        )
+
+        (sent,) = session.calls("sendMessage")
+        step, _ = await PartNumberScene.draw(await load_defect(state), {})
+        assert sent.text == step.render()[0]
+        assert [d.message_id for d in session.calls("deleteMessage")] == [500]
+        assert await state.get_state() == DefectSG.part_number.state
 
     async def test_a_screen_the_user_deleted_is_sent_anew(
         self, dp, bot, session, state, flow

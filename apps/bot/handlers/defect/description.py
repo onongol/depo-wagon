@@ -8,6 +8,7 @@ from apps.bot.constants import UD_EDITING
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.states import DefectSG
+from apps.bot.utils.screens import delete_input
 from apps.defects.constants import DefectType
 
 from .scene import STEP_TEXT, DefectScene
@@ -60,6 +61,7 @@ class DescriptionScene(DefectScene, state=DefectSG.desc.state):
             await self.show_as_message(message, state, notice=too_long, below=True)
             return
 
+        await delete_input(message)
         await self._record(state, text)
 
     @on.callback_query(F.data == CB_DESC_SKIP)

@@ -197,6 +197,8 @@ class TestPrecedenceDuringTheDefectFlow:
     ):
         """Never an answer at a text step, and never a way out: /cancel is that.
 
+        Nor taken off the chat: only a step's answers are.
+
         The commands too: with the menu hidden, the Menu button's list is the way
         to them.
         """
@@ -216,6 +218,7 @@ class TestPrecedenceDuringTheDefectFlow:
         shown = screen.await_args
         expected = shown.kwargs.get("text") or shown.args[0]
         assert sent.text == expected
+        assert bot.session.calls("deleteMessage") == []
         assert await state.get_state() == step.state
         # The screen drawn is the only thing stored
         assert {k: v for k, v in after.items() if k != UD_SCREEN} == before

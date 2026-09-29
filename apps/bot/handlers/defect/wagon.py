@@ -6,6 +6,7 @@ from apps.bot import services
 from apps.bot.constants import UD_EDITING
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.states import DefectSG
+from apps.bot.utils.screens import delete_input
 
 from .scene import STEP_TEXT, DefectScene
 from .text import (
@@ -36,6 +37,7 @@ class WagonScene(DefectScene, state=DefectSG.wagon_num.state):
     async def receive(self, message: Message, state: FSMContext) -> None:
         """Look up the typed wagon number."""
         number = message.text.strip()
+        await delete_input(message)
         wagon = await services.get_wagon_by_number(number)
         if not wagon:
             notice = build_wagon_not_found_text(number)
