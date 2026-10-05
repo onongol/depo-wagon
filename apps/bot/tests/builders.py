@@ -5,13 +5,15 @@ Not collected by pytest — the config only picks up *_tests.py.
 Handlers take a Message or a CallbackQuery directly now, not an Update
 wrapper, so these are shaped accordingly. Every method a handler awaits is an
 AsyncMock, and both chat and message ids are set: the converted code addresses
-messages by (chat_id, message_id) in several places.
+messages by (chat_id, message_id) in several places. Each passes isinstance for
+its aiogram type, which a helper taking either one branches on.
 """
 
 from unittest.mock import AsyncMock, MagicMock
 
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.methods import EditMessageText
+from aiogram.types import CallbackQuery, Message
 
 CHAT_ID = 12345
 USER_ID = 12345
@@ -31,6 +33,7 @@ def make_bot() -> MagicMock:
 
 def make_message(text: str | None = None, *, user_id: int = USER_ID) -> MagicMock:
     message = MagicMock()
+    message.__class__ = Message
     message.answer = AsyncMock(return_value=MagicMock(message_id=SENT_ID))
     message.reply = AsyncMock()
     message.edit_text = AsyncMock()
@@ -46,6 +49,7 @@ def make_message(text: str | None = None, *, user_id: int = USER_ID) -> MagicMoc
 
 def make_callback(data: str | None = None, *, user_id: int = USER_ID) -> MagicMock:
     callback = MagicMock()
+    callback.__class__ = CallbackQuery
     callback.answer = AsyncMock()
     callback.data = data
     callback.from_user.id = user_id

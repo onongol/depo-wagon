@@ -111,6 +111,7 @@ from apps.bot.tests.builders import (
     make_message,
 )
 from apps.bot.user_data import DefectData, MeasurementEntry, PhotoEntry
+from apps.bot.utils.unregistered import build_not_registered_text
 from apps.defects.constants import DefectNode, DefectType, DefectVerdict
 
 WAGON_LOOKUP = "apps.bot.handlers.defect.wagon.services.get_wagon_by_number"
@@ -910,14 +911,18 @@ class TestUnlinkedEmployeeIsRefused:
 
         await save_defect(state, DefectData(wagon_id=1))
         scene = SavingScene(wizard=AsyncMock())
+        callback = make_callback()
 
         with patch(
             "apps.bot.handlers.defect.confirm.handler.persist_defect",
             AsyncMock(),
         ) as persist:
-            await scene.save(make_callback(), state, bot, None)
+            await scene.save(callback, state, bot, None)
 
         persist.assert_not_called()
+        callback.answer.assert_awaited_once_with()
+        sent = callback.bot.edit_message_text.await_args.kwargs
+        assert sent["text"] == build_not_registered_text().render()[0]
         scene.wizard.exit.assert_awaited_once()
 
 

@@ -4,10 +4,10 @@ from apps.bot import services
 from apps.bot.keyboards.tasks import defect_card_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.utils.screens import send_screen
+from apps.bot.utils.unregistered import refuse_unregistered
 
 from .render import render_page
 from .text import build_card_text
-from .utils import refuse_unregistered
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable

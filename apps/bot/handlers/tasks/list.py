@@ -1,9 +1,8 @@
 from typing import TYPE_CHECKING
 
-from apps.bot.utils.unregistered import build_not_registered_text
+from apps.bot.utils.unregistered import refuse_unregistered
 
 from .render import render_page
-from .utils import refuse_unregistered
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
@@ -18,7 +17,7 @@ async def my_tasks(
 ) -> None:
     """Show the first page of open defects, leaving the AI chat or support prompt."""
     if not employee:
-        await message.answer(**build_not_registered_text().as_kwargs())
+        await refuse_unregistered(message)
         return
 
     await state.clear()

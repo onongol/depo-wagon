@@ -5,7 +5,7 @@ from apps.bot.fsm import drop_keys, save_defect
 from apps.bot.states import DefectSG
 from apps.bot.user_data import DefectData
 from apps.bot.utils.screens import close_screen
-from apps.bot.utils.unregistered import build_not_registered_text
+from apps.bot.utils.unregistered import refuse_unregistered
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
@@ -28,7 +28,7 @@ async def new_defect_start(
     scenes: ScenesManager,
 ) -> None:
     if not employee:
-        await message.answer(**build_not_registered_text().as_kwargs())
+        await refuse_unregistered(message)
         return
 
     await close_screen(message.bot, state)

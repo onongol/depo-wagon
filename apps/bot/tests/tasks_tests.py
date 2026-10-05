@@ -34,6 +34,8 @@ from apps.bot.handlers.tasks.text import (
 from apps.bot.messages import BotMessages as M
 from apps.bot.services.defect_card import DefectCard
 from apps.bot.tests.builders import (
+    CHAT_ID,
+    MESSAGE_ID,
     make_bad_request,
     make_callback,
     make_message,
@@ -118,6 +120,16 @@ def _alerted(callback, text) -> None:
 
 def _answered_quietly(callback) -> None:
     callback.answer.assert_awaited_once_with()
+
+
+def _refused(callback) -> None:
+    _answered_quietly(callback)
+    callback.bot.edit_message_text.assert_awaited_once_with(
+        chat_id=CHAT_ID,
+        message_id=MESSAGE_ID,
+        reply_markup=None,
+        **build_not_registered_text().as_kwargs(),
+    )
 
 
 class TestMyTasks:
@@ -213,9 +225,7 @@ class TestMyTasksPage:
 
         await my_tasks_page(callback, TasksPageCB(page=1), None)
 
-        callback.message.edit_text.assert_awaited_once_with(
-            **build_not_registered_text().as_kwargs()
-        )
+        _refused(callback)
         svc.get_open_defects.assert_not_called()
         svc.get_open_defects_count.assert_not_called()
 
@@ -248,9 +258,7 @@ class TestShowDefectCard:
             callback, DefectCardCB(defect_id=uuid.uuid4(), page=0), None
         )
 
-        callback.message.edit_text.assert_awaited_once_with(
-            **build_not_registered_text().as_kwargs()
-        )
+        _refused(callback)
         svc.get_defect_card.assert_not_called()
 
     async def test_looks_the_defect_up_for_this_employee(self, svc, employee):
@@ -325,9 +333,7 @@ class TestShowStatusPicker:
         )
 
         svc.get_defect_card.assert_not_called()
-        callback.message.edit_text.assert_awaited_once_with(
-            **build_not_registered_text().as_kwargs()
-        )
+        _refused(callback)
 
     async def test_offers_only_the_statuses_the_card_allows(self, svc, employee):
         card = _card(targets=(DefectStatus.CLOSED,))
@@ -452,9 +458,7 @@ class TestSetDefectStatus:
 
         svc.update_defect_status.assert_not_called()
         svc.get_open_defects.assert_not_called()
-        callback.message.edit_text.assert_awaited_once_with(
-            **build_not_registered_text().as_kwargs()
-        )
+        _refused(callback)
 
     @pytest.mark.parametrize("role", [*EmployeeRole.values, "unknown"])
     async def test_leaves_the_permission_check_to_the_query_whatever_the_role(

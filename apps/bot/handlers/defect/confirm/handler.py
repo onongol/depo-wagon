@@ -19,7 +19,7 @@ from apps.bot.handlers.defect.text import (
 from apps.bot.keyboards.menu import MENU_TEXTS, main_menu_keyboard
 from apps.bot.states import DefectSG
 from apps.bot.utils.screens import answer_anew, edit_or_send
-from apps.bot.utils.unregistered import build_not_registered_text
+from apps.bot.utils.unregistered import refuse_unregistered
 
 from .pipeline import alert_decommission, persist_defect, run_ai_analysis
 from .result import send_result
@@ -50,14 +50,14 @@ class SavingScene(Scene, state=DefectSG.saving.state):
         bot: Bot,
         employee: Employee | None,
     ) -> None:
+        if not employee:
+            await refuse_unregistered(callback)
+            await self.wizard.exit()
+            return
+
         await callback.answer()
         await drop_keys(state, UD_SCREEN)
         progress = callback.message
-
-        if not employee:
-            await progress.edit_text(**build_not_registered_text().as_kwargs())
-            await self.wizard.exit()
-            return
 
         defect_data = await load_defect(state)
 

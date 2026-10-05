@@ -6,11 +6,11 @@ from apps.bot.constants import STATUS_LABEL
 from apps.bot.keyboards.tasks import status_confirm_keyboard, status_picker_keyboard
 from apps.bot.messages import BotMessages as M
 from apps.bot.utils.screens import send_screen
+from apps.bot.utils.unregistered import refuse_unregistered
 
 from .card import load_card, show_card
 from .render import render_page
 from .text import build_status_confirm_text, build_status_pick_text
-from .utils import refuse_unregistered
 
 if TYPE_CHECKING:
     from aiogram.types import CallbackQuery
