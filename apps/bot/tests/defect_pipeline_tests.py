@@ -2,7 +2,6 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from aiogram.exceptions import TelegramForbiddenError
 
 from apps.bot.fsm import load_defect
 from apps.bot.handlers.defect.confirm.pipeline import (
@@ -361,30 +360,30 @@ class TestPersistDefect:
 
 
 class TestAlertDecommission:
-    async def test_a_decommission_verdict_alerts(self, bot):
+    async def test_a_decommission_verdict_alerts(self):
         form = DefectData(verdict=DefectVerdict.DECOMMISSION)
         employee = MagicMock()
 
         with patch(f"{PIPELINE}.alert.notify_decommission", AsyncMock()) as notify:
-            await alert_decommission(bot, employee, form)
+            await alert_decommission(employee, form)
 
-        notify.assert_awaited_once_with(bot, employee, form)
+        notify.assert_awaited_once_with(employee, form)
 
     @pytest.mark.parametrize(
         "verdict", [DefectVerdict.OK, DefectVerdict.REPAIR_NOW, None]
     )
-    async def test_any_other_verdict_does_not(self, bot, verdict):
+    async def test_any_other_verdict_does_not(self, verdict):
         with patch(f"{PIPELINE}.alert.notify_decommission", AsyncMock()) as notify:
-            await alert_decommission(bot, MagicMock(), DefectData(verdict=verdict))
+            await alert_decommission(MagicMock(), DefectData(verdict=verdict))
 
         notify.assert_not_called()
 
-    async def test_a_failed_alert_is_logged_not_raised(self, bot, caplog):
+    async def test_a_failed_alert_is_logged_not_raised(self, caplog):
         form = DefectData(verdict=DefectVerdict.DECOMMISSION, defect_id="id-5")
-        failing = AsyncMock(side_effect=RuntimeError("telegram down"))
+        failing = AsyncMock(side_effect=RuntimeError("broker down"))
 
         with patch(f"{PIPELINE}.alert.notify_decommission", failing):
-            await alert_decommission(bot, MagicMock(), form)
+            await alert_decommission(MagicMock(), form)
 
         assert "Decommission alert failed for id-5" in caplog.text
 
@@ -424,92 +423,32 @@ class TestSendResult:
 
 
 class TestNotifyDecommission:
-    def _make_context(self):
-        context = MagicMock()
-        context.bot = AsyncMock()
-        context.bot.send_message = AsyncMock()
-        return context
+    INSPECTOR = MagicMock(full_name="Batbayar")
 
-    def _make_manager(self, tg_id, name="Manager"):
-        m = MagicMock()
-        m.telegram_id = tg_id
-        m.full_name = name
-        return m
-
-    async def test_no_managers_sends_nothing(self):
-        context = self._make_context()
+    @pytest.fixture
+    def svc(self):
         with patch("apps.bot.handlers.defect.notifications.services") as svc:
-            svc.get_managers_and_engineers = AsyncMock(return_value=[])
-            await notify_decommission(
-                context.bot, employee=MagicMock(), defect=_make_defect_data()
-            )
-        context.bot.send_message.assert_not_awaited()
+            svc.queue_messages = AsyncMock()
+            yield svc
 
-    async def test_sends_to_all_managers(self):
-        context = self._make_context()
-        managers = [self._make_manager(111), self._make_manager(222)]
-        with patch("apps.bot.handlers.defect.notifications.services") as svc:
-            svc.get_managers_and_engineers = AsyncMock(return_value=managers)
-            await notify_decommission(
-                context.bot, employee=MagicMock(), defect=_make_defect_data()
-            )
-        assert context.bot.send_message.await_count == 2
+    async def test_no_managers_queues_nothing(self, svc):
+        svc.get_managers_and_engineers = AsyncMock(return_value=[])
 
-    async def test_sends_to_correct_chat_ids(self):
-        context = self._make_context()
-        managers = [self._make_manager(111), self._make_manager(222)]
-        with patch("apps.bot.handlers.defect.notifications.services") as svc:
-            svc.get_managers_and_engineers = AsyncMock(return_value=managers)
-            await notify_decommission(
-                context.bot, employee=MagicMock(), defect=_make_defect_data()
-            )
-        sent_ids = {
-            call.kwargs["chat_id"] for call in context.bot.send_message.call_args_list
-        }
-        assert sent_ids == {111, 222}
+        await notify_decommission(self.INSPECTOR, _make_defect_data())
 
-    async def test_sends_the_alert_as_entities(self):
-        context = self._make_context()
-        inspector = MagicMock(full_name="Batbayar")
+        svc.queue_messages.assert_not_called()
+
+    async def test_queues_the_alert_for_every_manager(self, svc):
+        managers = [MagicMock(id=7), MagicMock(id=9)]
+        svc.get_managers_and_engineers = AsyncMock(return_value=managers)
         form = _make_defect_data()
-        with patch("apps.bot.handlers.defect.notifications.services") as svc:
-            svc.get_managers_and_engineers = AsyncMock(
-                return_value=[self._make_manager(111)]
-            )
-            await notify_decommission(context.bot, employee=inspector, defect=form)
-        context.bot.send_message.assert_awaited_once_with(
-            chat_id=111,
-            **build_decommission_alert_text(form, inspector).as_kwargs(),
-        )
 
-    async def test_one_send_failure_does_not_block_others(self):
-        context = self._make_context()
-        context.bot.send_message = AsyncMock(
-            side_effect=[TelegramForbiddenError(method=None, message="blocked"), None]
-        )
-        managers = [self._make_manager(111), self._make_manager(222)]
-        with patch("apps.bot.handlers.defect.notifications.services") as svc:
-            svc.get_managers_and_engineers = AsyncMock(return_value=managers)
-            await notify_decommission(
-                context.bot, employee=MagicMock(), defect=_make_defect_data()
-            )
-        assert context.bot.send_message.await_count == 2
+        await notify_decommission(self.INSPECTOR, form)
 
-    async def test_a_failed_send_logs_the_employee_id_only(self, caplog):
-        context = self._make_context()
-        context.bot.send_message = AsyncMock(
-            side_effect=TelegramForbiddenError(method=None, message="blocked")
-        )
-        manager = self._make_manager(111, name="Oyuntsetseg")
-        manager.id = 9
-        with patch("apps.bot.handlers.defect.notifications.services") as svc:
-            svc.get_managers_and_engineers = AsyncMock(return_value=[manager])
-            await notify_decommission(
-                context.bot, employee=MagicMock(), defect=_make_defect_data()
-            )
-        assert "employee 9" in caplog.text
-        assert "Oyuntsetseg" not in caplog.text
-        assert "111" not in caplog.text
+        ids, text = svc.queue_messages.await_args.args
+        assert ids == [7, 9]
+        expected = build_decommission_alert_text(form, self.INSPECTOR)
+        assert text.as_kwargs() == expected.as_kwargs()
 
 
 class TestBuildDecommissionAlertText:

@@ -75,7 +75,7 @@ class SavingScene(Scene, state=DefectSG.saving.state):
             await self.wizard.exit()
             return
 
-        await alert_decommission(bot, employee, defect_data)
+        await alert_decommission(employee, defect_data)
 
         await progress.edit_text(**build_ai_analyzing_text().as_kwargs())
         ai_result = await run_ai_analysis(

@@ -500,7 +500,7 @@ class TestTheDecommissionAlert:
         await self._save(dp, bot, state, DefectVerdict.DECOMMISSION)
 
         flow.notify.assert_awaited_once()
-        _, alerted_by, form = flow.notify.await_args.args
+        alerted_by, form = flow.notify.await_args.args
         assert alerted_by is employee
         assert form.verdict == DefectVerdict.DECOMMISSION
 

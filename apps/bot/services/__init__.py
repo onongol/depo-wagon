@@ -6,6 +6,7 @@ from .defect import (
 from .defect_card import get_defect_card
 from .employee import get_employee_by_telegram_id, get_managers_and_engineers
 from .measurement import create_measurements_bulk
+from .messaging import queue_messages
 from .open_defects import get_open_defects, get_open_defects_count
 from .photo import download_photo, queue_defect_photos
 from .responsible_employee import (
@@ -39,6 +40,7 @@ __all__ = [
     "get_open_defects_count",
     "get_wagon_by_number",
     "queue_defect_photos",
+    "queue_messages",
     "remember_pending_link",
     "resolve_link_token",
     "update_defect_ai_result",
