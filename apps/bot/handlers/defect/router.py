@@ -1,11 +1,3 @@
-"""Routers for defect registration.
-
-Disjoint by state: the entry answers only outside DefectSG, and inside it the
-flow asks whether to continue or start over, so a running form is never wiped
-without the user choosing to. Every state is a Scene, and each scene is its
-own router carrying the shared handlers itself.
-"""
-
 from aiogram import F, Router
 from aiogram.filters import Command, StateFilter
 
