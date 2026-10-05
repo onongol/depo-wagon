@@ -157,17 +157,22 @@ def flow(employee, wagon):
                 AsyncMock(return_value=None),
             )
         )
-        notify = p(
+        alert_services = MagicMock()
+        alert_services.get_managers_and_engineers = AsyncMock(
+            return_value=[MagicMock(id=11)]
+        )
+        alert_services.queue_messages = AsyncMock()
+        p(
             patch(
-                "apps.bot.handlers.defect.confirm.pipeline.alert.notify_decommission",
-                AsyncMock(),
+                "apps.bot.handlers.defect.confirm.pipeline.alert.services",
+                alert_services,
             )
         )
 
         yield MagicMock(
+            alert=alert_services,
             analysis=analysis,
             lookup=lookup,
-            notify=notify,
             register=register,
             saved=saved,
             wagon_services=wagon_services,
@@ -499,20 +504,20 @@ class TestTheDecommissionAlert:
     ):
         await self._save(dp, bot, state, DefectVerdict.DECOMMISSION)
 
-        flow.notify.assert_awaited_once()
-        alerted_by, form = flow.notify.await_args.args
-        assert alerted_by is employee
-        assert form.verdict == DefectVerdict.DECOMMISSION
+        flow.alert.queue_messages.assert_awaited_once()
+        ids, text = flow.alert.queue_messages.await_args.args
+        assert ids == [11]
+        assert employee.full_name in text.render()[0]
 
     async def test_any_other_verdict_does_not(self, dp, bot, state, flow):
         await self._save(dp, bot, state, DefectVerdict.REPAIR_NOW)
 
-        flow.notify.assert_not_called()
+        flow.alert.queue_messages.assert_not_called()
 
     async def test_a_failed_alert_still_ends_with_the_menu(
         self, dp, bot, session, state, flow
     ):
-        flow.notify.side_effect = RuntimeError("telegram down")
+        flow.alert.queue_messages.side_effect = RuntimeError("broker down")
 
         await self._save(dp, bot, state, DefectVerdict.DECOMMISSION)
 

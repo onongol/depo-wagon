@@ -12,7 +12,6 @@ from apps.bot.handlers.defect.confirm.pipeline import (
     run_ai_analysis,
 )
 from apps.bot.handlers.defect.confirm.result import send_result
-from apps.bot.handlers.defect.notifications import notify_decommission
 from apps.bot.handlers.defect.text import (
     build_decommission_alert_text,
     build_recommendation_text,
@@ -360,30 +359,50 @@ class TestPersistDefect:
 
 
 class TestAlertDecommission:
-    async def test_a_decommission_verdict_alerts(self):
-        form = DefectData(verdict=DefectVerdict.DECOMMISSION)
-        employee = MagicMock()
+    INSPECTOR = MagicMock(full_name="Batbayar")
 
-        with patch(f"{PIPELINE}.alert.notify_decommission", AsyncMock()) as notify:
-            await alert_decommission(employee, form)
+    @pytest.fixture
+    def svc(self):
+        with patch(f"{PIPELINE}.alert.services") as svc:
+            svc.get_managers_and_engineers = AsyncMock(
+                return_value=[MagicMock(id=7), MagicMock(id=9)]
+            )
+            svc.queue_messages = AsyncMock()
+            yield svc
 
-        notify.assert_awaited_once_with(employee, form)
+    async def test_a_decommission_verdict_queues_it_for_every_manager(self, svc):
+        form = _make_defect_data()
+        form.verdict = DefectVerdict.DECOMMISSION
+
+        await alert_decommission(self.INSPECTOR, form)
+
+        ids, text = svc.queue_messages.await_args.args
+        assert ids == [7, 9]
+        expected = build_decommission_alert_text(form, self.INSPECTOR)
+        assert text.as_kwargs() == expected.as_kwargs()
 
     @pytest.mark.parametrize(
         "verdict", [DefectVerdict.OK, DefectVerdict.REPAIR_NOW, None]
     )
-    async def test_any_other_verdict_does_not(self, verdict):
-        with patch(f"{PIPELINE}.alert.notify_decommission", AsyncMock()) as notify:
-            await alert_decommission(MagicMock(), DefectData(verdict=verdict))
+    async def test_any_other_verdict_does_not(self, svc, verdict):
+        await alert_decommission(self.INSPECTOR, DefectData(verdict=verdict))
 
-        notify.assert_not_called()
+        svc.get_managers_and_engineers.assert_not_called()
+        svc.queue_messages.assert_not_called()
 
-    async def test_a_failed_alert_is_logged_not_raised(self, caplog):
+    async def test_no_managers_queues_nothing(self, svc):
+        svc.get_managers_and_engineers.return_value = []
+        form = DefectData(verdict=DefectVerdict.DECOMMISSION)
+
+        await alert_decommission(self.INSPECTOR, form)
+
+        svc.queue_messages.assert_not_called()
+
+    async def test_a_failed_alert_is_logged_not_raised(self, svc, caplog):
+        svc.queue_messages.side_effect = RuntimeError("broker down")
         form = DefectData(verdict=DefectVerdict.DECOMMISSION, defect_id="id-5")
-        failing = AsyncMock(side_effect=RuntimeError("broker down"))
 
-        with patch(f"{PIPELINE}.alert.notify_decommission", failing):
-            await alert_decommission(MagicMock(), form)
+        await alert_decommission(self.INSPECTOR, form)
 
         assert "Decommission alert failed for id-5" in caplog.text
 
@@ -420,35 +439,6 @@ class TestSendResult:
         first, second = progress.answer.await_args_list
         assert first.kwargs["reply_markup"] == main_menu_keyboard()
         assert "reply_markup" not in second.kwargs
-
-
-class TestNotifyDecommission:
-    INSPECTOR = MagicMock(full_name="Batbayar")
-
-    @pytest.fixture
-    def svc(self):
-        with patch("apps.bot.handlers.defect.notifications.services") as svc:
-            svc.queue_messages = AsyncMock()
-            yield svc
-
-    async def test_no_managers_queues_nothing(self, svc):
-        svc.get_managers_and_engineers = AsyncMock(return_value=[])
-
-        await notify_decommission(self.INSPECTOR, _make_defect_data())
-
-        svc.queue_messages.assert_not_called()
-
-    async def test_queues_the_alert_for_every_manager(self, svc):
-        managers = [MagicMock(id=7), MagicMock(id=9)]
-        svc.get_managers_and_engineers = AsyncMock(return_value=managers)
-        form = _make_defect_data()
-
-        await notify_decommission(self.INSPECTOR, form)
-
-        ids, text = svc.queue_messages.await_args.args
-        assert ids == [7, 9]
-        expected = build_decommission_alert_text(form, self.INSPECTOR)
-        assert text.as_kwargs() == expected.as_kwargs()
 
 
 class TestBuildDecommissionAlertText:
