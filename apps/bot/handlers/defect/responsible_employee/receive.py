@@ -12,7 +12,7 @@ from apps.bot.callback_data import (
 )
 from apps.bot.constants import UD_RESP_SEARCH
 from apps.bot.fsm import drop_keys, load_defect, save_defect
-from apps.bot.handlers.defect.scene import STEP_TEXT, DefectScene, as_send_kwargs
+from apps.bot.handlers.defect.scene import STEP_TEXT, DefectScene
 from apps.bot.states import DefectSG
 from apps.bot.utils.screens import delete_input, show_screen
 
@@ -96,7 +96,7 @@ class ResponsibleEmployeeScene(DefectScene, state=DefectSG.responsible_employee.
             callback.from_user.id,
             tapped=callback.message,
             reply_markup=keyboard,
-            **as_send_kwargs(content),
+            **content.as_kwargs(),
         )
 
     @on.message(*STEP_TEXT)

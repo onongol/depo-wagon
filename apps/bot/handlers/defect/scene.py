@@ -19,7 +19,6 @@ from apps.bot.fsm import clear_defect_keys, load_defect
 from apps.bot.keyboards.common import with_step_buttons
 from apps.bot.keyboards.defect import defect_in_progress_keyboard
 from apps.bot.keyboards.menu import MENU_TEXTS, main_menu_keyboard
-from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.bot.utils.screens import close_screen, show_screen
 
@@ -41,17 +40,10 @@ if TYPE_CHECKING:
 
     from apps.bot.user_data import DefectData
 
-type Screen = tuple[Text | str, InlineKeyboardMarkup | None]
+type Screen = tuple[Text, InlineKeyboardMarkup | None]
 
 # A step's typed answer; menu buttons and commands are the base class's
 STEP_TEXT = (F.text, NotACommand(), ~F.text.in_(MENU_TEXTS))
-
-
-def as_send_kwargs(content: Text | str) -> dict[str, Any]:
-    """HTML strings until every step's text has moved to a Text builder."""
-    if isinstance(content, Text):
-        return content.as_kwargs()
-    return {"text": content, "parse_mode": M.PARSE_MODE}
 
 
 def walked(scene: type[DefectScene], form: DefectData) -> tuple[list[str], list[str]]:
@@ -178,7 +170,7 @@ class DefectScene(Scene):
             message.chat.id,
             below=below,
             reply_markup=keyboard,
-            **as_send_kwargs(content),
+            **content.as_kwargs(),
         )
 
     @on.callback_query.enter()
@@ -192,7 +184,7 @@ class DefectScene(Scene):
             callback.from_user.id,
             tapped=callback.message,
             reply_markup=keyboard,
-            **as_send_kwargs(content),
+            **content.as_kwargs(),
         )
 
     @on.message(Command("new_defect"))
