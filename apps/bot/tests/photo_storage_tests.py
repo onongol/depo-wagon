@@ -33,7 +33,7 @@ def _downloads(**by_file_id):
             raise result
         return result
 
-    return patch("apps.bot.tasks._download", AsyncMock(side_effect=download))
+    return patch("apps.bot.tasks.photo._download", AsyncMock(side_effect=download))
 
 
 def _stored_names(defect):

@@ -14,14 +14,15 @@ from aiogram.utils.formatting import Bold, Text
 from model_bakery import baker
 
 from apps.bot.services import queue_messages
-from apps.bot.tasks import _send, send_to_employee_task
+from apps.bot.tasks import send_to_employee_task
+from apps.bot.tasks.messaging import _send
 
 CHAT_ID = 987654321
 ENTITIES = [{"type": "bold", "offset": 3, "length": 5}]
 
 
 def _sends(side_effect=None):
-    return patch("apps.bot.tasks._send", AsyncMock(side_effect=side_effect))
+    return patch("apps.bot.tasks.messaging._send", AsyncMock(side_effect=side_effect))
 
 
 def _retrying():
