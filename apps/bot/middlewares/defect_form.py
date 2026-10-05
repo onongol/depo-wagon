@@ -5,11 +5,12 @@ from typing import TYPE_CHECKING, Any
 from aiogram import BaseMiddleware
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import CallbackQuery, Message
+from aiogram.utils.formatting import Text, as_list
+from django.utils.translation import gettext_lazy as _
 
 from apps.bot.constants import UD_DEFECT
 from apps.bot.fsm import clear_defect_keys
 from apps.bot.keyboards.menu import main_menu_keyboard
-from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.bot.user_data import is_current_schema
 from apps.bot.utils.screens import answer_anew, close_screen
@@ -22,11 +23,35 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+_START_AGAIN = _("Sorry — please start it again.")
 
-async def _announce(event: TelegramObject, text: str) -> None:
+
+def build_form_outdated_text() -> Text:
+    return as_list(
+        Text(
+            "♻️ ",
+            _(
+                "The bot was updated while you were filling this in, so the form "
+                "could not be carried over."
+            ),
+        ),
+        _START_AGAIN,
+        sep="\n\n",
+    )
+
+
+def build_form_lost_text() -> Text:
+    return as_list(
+        Text("⌛ ", _("This form is no longer available.")),
+        _START_AGAIN,
+        sep="\n\n",
+    )
+
+
+async def _announce(event: TelegramObject, text: Text) -> None:
     """Ends the form, so it brings the menu back."""
     if isinstance(event, Message):
-        await event.answer(text, reply_markup=main_menu_keyboard())
+        await event.answer(**text.as_kwargs(), reply_markup=main_menu_keyboard())
         return
 
     if not isinstance(event, CallbackQuery):
@@ -35,7 +60,7 @@ async def _announce(event: TelegramObject, text: str) -> None:
     with suppress(TelegramBadRequest):
         await event.answer()
 
-    await answer_anew(event, text=text, reply_markup=main_menu_keyboard())
+    await answer_anew(event, **text.as_kwargs(), reply_markup=main_menu_keyboard())
 
 
 class DefectFormMiddleware(BaseMiddleware):
@@ -70,5 +95,7 @@ class DefectFormMiddleware(BaseMiddleware):
         if not stored:
             logger.warning("A defect step was reached without its form")
         await state.set_state(None)
-        await _announce(event, str(M.FORM_OUTDATED if stored else M.DEFECT_CANCELLED))
+        await _announce(
+            event, build_form_outdated_text() if stored else build_form_lost_text()
+        )
         return None

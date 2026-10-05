@@ -92,6 +92,10 @@ from apps.bot.keyboards.measurement import (
 )
 from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.messages import BotMessages as M
+from apps.bot.middlewares.defect_form import (
+    build_form_lost_text,
+    build_form_outdated_text,
+)
 from apps.bot.states import DefectSG
 from apps.bot.tests.integration.conftest import (
     CHAT_ID,
@@ -1301,7 +1305,7 @@ class TestAFormLeftOverFromAnEarlierBuild:
         assert await state.get_state() is None
         assert await load_defect(state) is None
         sent = session.calls("sendMessage")
-        assert [m.text for m in sent] == [str(M.FORM_OUTDATED)]
+        assert [m.text for m in sent] == [build_form_outdated_text().render()[0]]
         assert sent[0].reply_markup == main_menu_keyboard()
 
     async def test_the_user_can_start_a_fresh_form_straight_after(
@@ -1353,7 +1357,7 @@ class TestAStepWithoutItsForm:
         await dp.feed_update(bot, make_message_update("12.5"))
 
         sent = [m.text for m in session.calls("sendMessage")]
-        assert sent == [str(M.DEFECT_CANCELLED)]
+        assert sent == [build_form_lost_text().render()[0]]
         assert await state.get_state() is None
 
     async def test_a_tap_ends_it_too(self, dp, bot, session, state):
@@ -1363,7 +1367,7 @@ class TestAStepWithoutItsForm:
         await dp.feed_update(bot, make_callback_update(tap))
 
         sent = [m.text for m in session.calls("sendMessage")]
-        assert sent == [str(M.DEFECT_CANCELLED)]
+        assert sent == [build_form_lost_text().render()[0]]
         assert await state.get_state() is None
 
 

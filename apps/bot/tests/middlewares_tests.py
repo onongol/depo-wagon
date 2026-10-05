@@ -7,8 +7,11 @@ import pytest
 from aiogram.types import CallbackQuery, Message
 
 from apps.bot.keyboards.menu import main_menu_keyboard
-from apps.bot.messages import BotMessages as M
 from apps.bot.middlewares import CloseOldConnectionsMiddleware
+from apps.bot.middlewares.defect_form import (
+    build_form_lost_text,
+    build_form_outdated_text,
+)
 from apps.bot.states import DefectSG, SupportSG
 from apps.bot.tests.builders import make_bad_request
 
@@ -258,7 +261,7 @@ class TestDefectFormMiddleware:
         handler.assert_not_awaited()
         assert await state.get_state() is None
         message.answer.assert_awaited_once_with(
-            str(M.DEFECT_CANCELLED), reply_markup=main_menu_keyboard()
+            **build_form_lost_text().as_kwargs(), reply_markup=main_menu_keyboard()
         )
 
     async def test_a_tap_without_its_form_is_told_so_below_it(self, state):
@@ -269,7 +272,7 @@ class TestDefectFormMiddleware:
 
         callback.answer.assert_awaited_once_with()
         callback.message.answer.assert_awaited_once_with(
-            text=str(M.DEFECT_CANCELLED), reply_markup=main_menu_keyboard()
+            **build_form_lost_text().as_kwargs(), reply_markup=main_menu_keyboard()
         )
 
     async def test_passes_through_a_form_this_build_wrote(self, state):
@@ -331,7 +334,7 @@ class TestDefectFormMiddleware:
         await self._call(state, event=message)
 
         message.answer.assert_awaited_once_with(
-            str(M.FORM_OUTDATED), reply_markup=main_menu_keyboard()
+            **build_form_outdated_text().as_kwargs(), reply_markup=main_menu_keyboard()
         )
 
     async def test_a_tap_gets_its_buttons_stripped_and_the_menu_back(self, state):
@@ -348,7 +351,7 @@ class TestDefectFormMiddleware:
             reply_markup=None,
         )
         callback.message.answer.assert_awaited_once_with(
-            text=str(M.FORM_OUTDATED), reply_markup=main_menu_keyboard()
+            **build_form_outdated_text().as_kwargs(), reply_markup=main_menu_keyboard()
         )
 
     async def test_an_expired_query_does_not_cost_the_notice(self, state):
