@@ -36,6 +36,10 @@ def build_stray_input_text() -> Text:
     return Text("👇 ", _("This step doesn't take that. Please answer below."))
 
 
+def build_defect_cancelled_text() -> Text:
+    return Text("❌ ", _("Defect registration cancelled."))
+
+
 def _bold(value: str | None) -> Bold | None:
     return Bold(value) if value else None
 

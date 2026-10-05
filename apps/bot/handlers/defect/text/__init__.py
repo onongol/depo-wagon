@@ -40,6 +40,7 @@ from .text_responsible_employee import (
 )
 from .text_restart import build_defect_continued_text, build_defect_in_progress_text
 from .text_screen import (
+    build_defect_cancelled_text,
     build_editing_heading,
     build_fields,
     build_review_heading,
@@ -73,6 +74,7 @@ __all__ = [
     "build_ask_verdict_text",
     "build_ask_wagon_text",
     "build_decommission_alert_text",
+    "build_defect_cancelled_text",
     "build_defect_continued_text",
     "build_defect_in_progress_text",
     "build_description_too_long_text",

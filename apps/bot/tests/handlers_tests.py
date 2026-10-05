@@ -69,6 +69,7 @@ from apps.bot.handlers.defect.text import (
     build_ask_severity_text,
     build_ask_value_text,
     build_ask_verdict_text,
+    build_defect_cancelled_text,
     build_description_too_long_text,
     build_edit_description_text,
     build_edit_node_text,
@@ -102,7 +103,6 @@ from apps.bot.keyboards.measurement import (
     measurement_value_keyboard,
 )
 from apps.bot.keyboards.menu import main_menu_keyboard
-from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.bot.tests.builders import (
     CHAT_ID,
@@ -897,8 +897,10 @@ class TestSummaryScene:
 
         scene.wizard.exit.assert_awaited_once()
         sent = callback.bot.send_message.await_args.kwargs
-        assert (sent["text"], sent["reply_markup"]) == (
-            str(M.DEFECT_CANCELLED),
+        expected = build_defect_cancelled_text().as_kwargs()
+        assert (sent["text"], sent["entities"], sent["reply_markup"]) == (
+            expected["text"],
+            expected["entities"],
             main_menu_keyboard(),
         )
 

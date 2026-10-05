@@ -25,6 +25,7 @@ from apps.bot.utils.screens import close_screen, show_screen
 
 from .start import open_blank_form
 from .text import (
+    build_defect_cancelled_text,
     build_defect_in_progress_text,
     build_editing_heading,
     build_fields,
@@ -243,7 +244,7 @@ class DefectScene(Scene):
         await self.wizard.exit()
         await callback.bot.send_message(
             callback.from_user.id,
-            text=str(M.DEFECT_CANCELLED),
+            **build_defect_cancelled_text().as_kwargs(),
             reply_markup=main_menu_keyboard(),
         )
 

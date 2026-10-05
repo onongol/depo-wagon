@@ -52,6 +52,7 @@ from apps.bot.handlers.defect.text import (
     build_ask_department_text,
     build_ask_more_photos_text,
     build_ask_wagon_text,
+    build_defect_cancelled_text,
     build_defect_continued_text,
     build_defect_in_progress_text,
     build_edit_description_text,
@@ -1029,7 +1030,7 @@ class TestHandlersThatNeedNoEmployee:
         lookup.assert_not_awaited()
         assert await state.get_state() is None
         (sent,) = session.calls("sendMessage")
-        assert sent.text == str(M.DEFECT_CANCELLED)
+        assert sent.text == build_defect_cancelled_text().render()[0]
         assert sent.reply_markup == main_menu_keyboard()
 
     async def test_a_deep_link_does_not_look_up_the_employee(self, dp, bot, session):

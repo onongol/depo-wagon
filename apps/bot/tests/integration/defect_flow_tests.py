@@ -62,6 +62,7 @@ from apps.bot.handlers.defect.text import (
     build_ask_value_text,
     build_ask_verdict_text,
     build_ask_wagon_text,
+    build_defect_cancelled_text,
     build_defect_in_progress_text,
     build_edit_defect_type_text,
     build_edit_description_text,
@@ -91,7 +92,6 @@ from apps.bot.keyboards.measurement import (
     measurement_value_keyboard,
 )
 from apps.bot.keyboards.menu import main_menu_keyboard
-from apps.bot.messages import BotMessages as M
 from apps.bot.middlewares.defect_form import (
     build_form_lost_text,
     build_form_outdated_text,
@@ -393,7 +393,7 @@ class TestTheMenuWhileAFormIsOpen:
 
         (sent,) = session.calls("sendMessage")
         assert (sent.text, sent.reply_markup) == (
-            str(M.DEFECT_CANCELLED),
+            build_defect_cancelled_text().render()[0],
             main_menu_keyboard(),
         )
         assert await state.get_state() is None
