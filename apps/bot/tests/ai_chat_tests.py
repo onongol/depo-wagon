@@ -10,6 +10,7 @@ from apps.bot.handlers.ai_chat.start import ai_chat_start
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import AiChatSG
 from apps.bot.tests.builders import make_bad_request, make_message
+from apps.bot.utils.unregistered import build_not_registered_text
 
 
 def _make_employee():
@@ -35,7 +36,9 @@ class TestAiChatStart:
     async def test_unauthenticated_sends_not_registered_message(self, message, state):
         await ai_chat_start(message, state, None)
 
-        message.answer.assert_called_once_with(str(M.NOT_REGISTERED))
+        message.answer.assert_called_once_with(
+            **build_not_registered_text().as_kwargs()
+        )
 
     async def test_authenticated_returns_ai_chat_state(self, message, state):
         await ai_chat_start(message, state, _make_employee())
@@ -381,7 +384,9 @@ class TestAiChatReceive:
             await ai_chat_receive(message, state, None)
 
         answer.assert_not_awaited()
-        message.answer.assert_awaited_once_with(str(M.NOT_REGISTERED))
+        message.answer.assert_awaited_once_with(
+            **build_not_registered_text().as_kwargs()
+        )
         assert await state.get_state() is None
         assert await state.get_data() == {}
 

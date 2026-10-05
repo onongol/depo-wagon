@@ -1,7 +1,6 @@
 from aiogram.enums import ParseMode
 
 from .ai_chat import AiChatMessages
-from .auth import AuthMessages
 from .common import CommonMessages
 from .defects import DefectMessages
 from .support import SupportMessages
@@ -10,7 +9,6 @@ from .tasks import TaskMessages
 
 class BotMessages(
     CommonMessages,
-    AuthMessages,
     DefectMessages,
     TaskMessages,
     SupportMessages,

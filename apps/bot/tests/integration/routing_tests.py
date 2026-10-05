@@ -76,6 +76,7 @@ from apps.bot.tests.integration.conftest import (
     make_photo_update,
 )
 from apps.bot.user_data import DefectData, MeasurementEntry, PhotoEntry
+from apps.bot.utils.unregistered import build_not_registered_text
 from apps.core.constants import Department
 
 RESP_SERVICES = "apps.bot.handlers.defect.responsible_employee.list.services"
@@ -309,7 +310,7 @@ class TestNewDefectDuringARunningForm:
     async def test_the_form_is_kept_and_the_user_asked(
         self, dp, bot, state, step, text
     ):
-        """No employee: reaching the entry instead would reply NOT_REGISTERED."""
+        """No employee: reaching the entry instead would refuse the chat."""
         await state.set_state(step)
         update = make_message_update(text, command=text.startswith("/"))
 
@@ -571,7 +572,7 @@ class TestAiChatPrecedence:
 
         answer.assert_not_awaited()
         sent = [m.text for m in session.calls("sendMessage")]
-        assert sent == [str(M.NOT_REGISTERED)]
+        assert sent == [build_not_registered_text().render()[0]]
         assert await state.get_state() is None
 
     async def test_the_help_button_gets_help_eleven_minutes_on(

@@ -2,10 +2,10 @@ from typing import TYPE_CHECKING
 
 from apps.bot.constants import DEFECT_USER_DATA_KEYS, UD_SCREEN
 from apps.bot.fsm import drop_keys, save_defect
-from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.bot.user_data import DefectData
 from apps.bot.utils.screens import close_screen
+from apps.bot.utils.unregistered import build_not_registered_text
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
@@ -28,7 +28,7 @@ async def new_defect_start(
     scenes: ScenesManager,
 ) -> None:
     if not employee:
-        await message.answer(str(M.NOT_REGISTERED))
+        await message.answer(**build_not_registered_text().as_kwargs())
         return
 
     await close_screen(message.bot, state)

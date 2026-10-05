@@ -17,9 +17,9 @@ from apps.bot.handlers.defect.text import (
     build_saving_text,
 )
 from apps.bot.keyboards.menu import MENU_TEXTS, main_menu_keyboard
-from apps.bot.messages import BotMessages as M
 from apps.bot.states import DefectSG
 from apps.bot.utils.screens import answer_anew, edit_or_send
+from apps.bot.utils.unregistered import build_not_registered_text
 
 from .pipeline import alert_decommission, persist_defect, run_ai_analysis
 from .result import send_result
@@ -55,7 +55,7 @@ class SavingScene(Scene, state=DefectSG.saving.state):
         progress = callback.message
 
         if not employee:
-            await progress.edit_text(str(M.NOT_REGISTERED))
+            await progress.edit_text(**build_not_registered_text().as_kwargs())
             await self.wizard.exit()
             return
 

@@ -40,6 +40,7 @@ from apps.bot.tests.builders import (
     unpacked,
 )
 from apps.bot.utils.screens import send_screen
+from apps.bot.utils.unregistered import build_not_registered_text
 from apps.core.constants import EmployeeRole
 from apps.defects.constants import DefectStatus
 
@@ -126,7 +127,7 @@ class TestMyTasks:
         await my_tasks(message, state, None)
 
         message.answer.assert_awaited_once_with(
-            str(M.NOT_REGISTERED), parse_mode=M.PARSE_MODE
+            **build_not_registered_text().as_kwargs()
         )
 
     async def test_says_so_when_there_is_nothing_open(self, svc, employee, state):
@@ -213,7 +214,7 @@ class TestMyTasksPage:
         await my_tasks_page(callback, TasksPageCB(page=1), None)
 
         callback.message.edit_text.assert_awaited_once_with(
-            str(M.NOT_REGISTERED), parse_mode=M.PARSE_MODE
+            **build_not_registered_text().as_kwargs()
         )
         svc.get_open_defects.assert_not_called()
         svc.get_open_defects_count.assert_not_called()
@@ -248,7 +249,7 @@ class TestShowDefectCard:
         )
 
         callback.message.edit_text.assert_awaited_once_with(
-            str(M.NOT_REGISTERED), parse_mode=M.PARSE_MODE
+            **build_not_registered_text().as_kwargs()
         )
         svc.get_defect_card.assert_not_called()
 
@@ -325,7 +326,7 @@ class TestShowStatusPicker:
 
         svc.get_defect_card.assert_not_called()
         callback.message.edit_text.assert_awaited_once_with(
-            str(M.NOT_REGISTERED), parse_mode=M.PARSE_MODE
+            **build_not_registered_text().as_kwargs()
         )
 
     async def test_offers_only_the_statuses_the_card_allows(self, svc, employee):
@@ -452,7 +453,7 @@ class TestSetDefectStatus:
         svc.update_defect_status.assert_not_called()
         svc.get_open_defects.assert_not_called()
         callback.message.edit_text.assert_awaited_once_with(
-            str(M.NOT_REGISTERED), parse_mode=M.PARSE_MODE
+            **build_not_registered_text().as_kwargs()
         )
 
     @pytest.mark.parametrize("role", [*EmployeeRole.values, "unknown"])

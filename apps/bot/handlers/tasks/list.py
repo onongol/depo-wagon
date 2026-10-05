@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from apps.bot.messages import BotMessages as M
+from apps.bot.utils.unregistered import build_not_registered_text
 
 from .render import render_page
 from .utils import refuse_unregistered
@@ -18,7 +18,7 @@ async def my_tasks(
 ) -> None:
     """Show the first page of open defects, leaving the AI chat or support prompt."""
     if not employee:
-        await message.answer(str(M.NOT_REGISTERED), parse_mode=M.PARSE_MODE)
+        await message.answer(**build_not_registered_text().as_kwargs())
         return
 
     await state.clear()
