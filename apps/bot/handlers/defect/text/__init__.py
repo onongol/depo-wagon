@@ -20,6 +20,7 @@ from .text_measurement import (
     build_value_invalid_text,
 )
 from .text_node import build_ask_node_text, build_edit_node_text
+from .text_notifications import build_decommission_alert_text
 from .text_part_number import (
     build_ask_part_number_text,
     build_edit_part_number_text,
@@ -71,6 +72,7 @@ __all__ = [
     "build_ask_value_text",
     "build_ask_verdict_text",
     "build_ask_wagon_text",
+    "build_decommission_alert_text",
     "build_defect_continued_text",
     "build_defect_in_progress_text",
     "build_description_too_long_text",

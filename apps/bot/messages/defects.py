@@ -10,15 +10,3 @@ class DefectMessages:
         "♻️ The bot was updated while you were filling this in, so the form "
         "could not be carried over.\n\nSorry — please start it again."
     )
-
-    # ── Decommission ─────────────────────────────────────────────────────────
-
-    DECOMMISSION_ALERT = _(
-        "🔴 <b>Decommission Proposal</b>\n\n"
-        "🚃 Wagon: <b>{wagon_number}</b>\n"
-        "🔧 Node: {node_label}\n"
-        "⚠️ Defect: {defect_type_label}\n"
-        "👤 Inspector: {inspector_name}\n\n"
-        "This wagon is recommended for decommission.\n"
-        "Please review in App."
-    )

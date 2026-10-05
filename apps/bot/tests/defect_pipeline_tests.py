@@ -15,6 +15,7 @@ from apps.bot.handlers.defect.confirm.pipeline import (
 from apps.bot.handlers.defect.confirm.result import send_result
 from apps.bot.handlers.defect.notifications import notify_decommission
 from apps.bot.handlers.defect.text import (
+    build_decommission_alert_text,
     build_recommendation_text,
     build_result_messages,
     build_result_text,
@@ -467,6 +468,20 @@ class TestNotifyDecommission:
         }
         assert sent_ids == {111, 222}
 
+    async def test_sends_the_alert_as_entities(self):
+        context = self._make_context()
+        inspector = MagicMock(full_name="Batbayar")
+        form = _make_defect_data()
+        with patch("apps.bot.handlers.defect.notifications.services") as svc:
+            svc.get_managers_and_engineers = AsyncMock(
+                return_value=[self._make_manager(111)]
+            )
+            await notify_decommission(context.bot, employee=inspector, defect=form)
+        context.bot.send_message.assert_awaited_once_with(
+            chat_id=111,
+            **build_decommission_alert_text(form, inspector).as_kwargs(),
+        )
+
     async def test_one_send_failure_does_not_block_others(self):
         context = self._make_context()
         context.bot.send_message = AsyncMock(
@@ -496,16 +511,37 @@ class TestNotifyDecommission:
         assert "Oyuntsetseg" not in caplog.text
         assert "111" not in caplog.text
 
-    async def test_none_defect_does_not_raise(self):
-        context = self._make_context()
-        employee = MagicMock()
-        employee.full_name = "Batbayar"
-        with patch("apps.bot.handlers.defect.notifications.services") as svc:
-            svc.get_managers_and_engineers = AsyncMock(
-                return_value=[self._make_manager(111)]
-            )
-            await notify_decommission(context.bot, employee=employee, defect=None)
-        context.bot.send_message.assert_awaited_once()
+
+class TestBuildDecommissionAlertText:
+    INSPECTOR = MagicMock(full_name="Batbayar")
+
+    def test_the_wagon_the_defect_and_who_found_it(self):
+        text = build_decommission_alert_text(_make_defect_data(), self.INSPECTOR)
+
+        assert text.as_html() == (
+            "🔴 <b>Decommission Proposal</b>\n\n"
+            "🚃 Wagon: 12345\n"
+            "🔧 Node: Wheel\n"
+            "⚠️ Defect: Crack\n"
+            "👤 Inspector: Batbayar\n\n"
+            "This wagon is recommended for decommission.\n"
+            "Please review in App."
+        )
+
+    def test_a_missing_label_is_a_dash(self):
+        text = build_decommission_alert_text(DefectData(), self.INSPECTOR)
+
+        assert "🚃 Wagon: —\n🔧 Node: —\n⚠️ Defect: —\n" in text.as_html()
+
+    def test_markup_in_the_values_stays_text(self):
+        form = _make_defect_data(wagon_number="<b>1</b>")
+        inspector = MagicMock(full_name="A & <B>")
+
+        rendered, entities = build_decommission_alert_text(form, inspector).render()
+
+        assert "Wagon: <b>1</b>" in rendered
+        assert "Inspector: A & <B>" in rendered
+        assert [e.type for e in entities] == ["bold"]
 
 
 class TestBuildResultText:
