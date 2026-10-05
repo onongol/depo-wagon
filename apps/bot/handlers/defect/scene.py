@@ -53,14 +53,6 @@ def walked(scene: type[DefectScene], form: DefectData) -> tuple[list[str], list[
     return walk(form, upto=scene), walk(form)
 
 
-async def ask_about_the_open_form(message: Message) -> None:
-    """New Defect while a form is open: ask rather than wipe it."""
-    await message.answer(
-        **build_defect_in_progress_text().as_kwargs(),
-        reply_markup=defect_in_progress_keyboard(),
-    )
-
-
 class DefectScene(Scene):
     """One DefectSG state per subclass.
 

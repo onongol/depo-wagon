@@ -8,14 +8,15 @@ from aiogram.fsm.scene import Scene, on
 from apps.bot.callback_data import CB_DEFECT_CONTINUE, CB_DEFECT_RESTART
 from apps.bot.constants import BTN_NEW_DEFECT, UD_SCREEN
 from apps.bot.fsm import clear_defect_keys, drop_keys, load_defect
-from apps.bot.handlers.defect.scene import ask_about_the_open_form
 from apps.bot.handlers.defect.start import open_blank_form
 from apps.bot.handlers.defect.text import (
     build_ai_analyzing_text,
     build_defect_continued_text,
+    build_defect_in_progress_text,
     build_save_failed_text,
     build_saving_text,
 )
+from apps.bot.keyboards.defect import defect_in_progress_keyboard
 from apps.bot.keyboards.menu import MENU_TEXTS, main_menu_keyboard
 from apps.bot.states import DefectSG
 from apps.bot.utils.screens import answer_anew, edit_or_send
@@ -88,7 +89,11 @@ class SavingScene(Scene, state=DefectSG.saving.state):
     @on.message(Command("new_defect"))
     @on.message(F.text == str(BTN_NEW_DEFECT))
     async def new_defect(self, message: Message) -> None:
-        await ask_about_the_open_form(message)
+        """Ask rather than wipe the open form; there is no screen to put it on."""
+        await message.answer(
+            **build_defect_in_progress_text().as_kwargs(),
+            reply_markup=defect_in_progress_keyboard(),
+        )
 
     @on.message(F.text.in_(MENU_TEXTS))
     @on.message(Command("start", "my_tasks", "ask", "support", "help"))
