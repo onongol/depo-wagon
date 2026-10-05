@@ -321,6 +321,8 @@ CELERY_BROKER_TRANSPORT_OPTIONS = {
     "socket_timeout": 5,
     "max_retries": 0,
 }
+# Hijacking strips the handlers LOGGING gives "celery", and its INFO lines vanish.
+CELERY_WORKER_HIJACK_ROOT_LOGGER = False
 
 # django-allauth
 # ------------------------------------------------------------------------------
