@@ -4,6 +4,7 @@ import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from aiogram import flags
 from aiogram.types import CallbackQuery, Message
 
 from apps.bot.keyboards.menu import main_menu_keyboard
@@ -13,7 +14,13 @@ from apps.bot.middlewares.defect_form import (
     build_form_outdated_text,
 )
 from apps.bot.states import DefectSG, SupportSG
-from apps.bot.tests.builders import make_bad_request
+from apps.bot.tests.builders import (
+    CHAT_ID,
+    MESSAGE_ID,
+    make_bad_request,
+    make_callback,
+)
+from apps.bot.utils.unregistered import build_not_registered_text
 
 TARGET = "apps.bot.middlewares.db.close_old_connections"
 
@@ -383,6 +390,16 @@ async def _takes_no_employee(message):
     pass
 
 
+@flags.registered
+async def _registered_only(message, employee):
+    pass
+
+
+@flags.registered
+async def _registered_only_without_employee(message):
+    pass
+
+
 class TestEmployeeMiddleware:
     LOOKUP = "apps.bot.middlewares.employee.services.get_employee_by_telegram_id"
 
@@ -486,3 +503,48 @@ class TestEmployeeMiddleware:
             await EmployeeMiddleware()(handler, _spec_message(), data)
 
         handler.assert_not_awaited()
+
+    async def test_a_registered_only_handler_is_never_handed_none(self):
+        message = _spec_message()
+
+        result, handler, data, _ = await self._call(_registered_only, event=message)
+
+        assert result is None
+        handler.assert_not_awaited()
+        assert "employee" not in data
+        message.answer.assert_awaited_once_with(
+            **build_not_registered_text().as_kwargs()
+        )
+
+    async def test_a_refused_tap_is_answered_and_its_message_replaced(self):
+        callback = make_callback()
+
+        await self._call(_registered_only, event=callback)
+
+        callback.answer.assert_awaited_once_with()
+        callback.bot.edit_message_text.assert_awaited_once_with(
+            chat_id=CHAT_ID,
+            message_id=MESSAGE_ID,
+            reply_markup=None,
+            **build_not_registered_text().as_kwargs(),
+        )
+
+    async def test_a_registered_only_handler_gets_its_employee(self):
+        employee = MagicMock()
+
+        result, _, data, _ = await self._call(
+            _registered_only, lookup=AsyncMock(return_value=employee)
+        )
+
+        assert result == "handled"
+        assert data["employee"] is employee
+
+    async def test_the_flag_alone_asks_for_the_lookup(self):
+        """A handler may need a registered chat without needing its employee."""
+        result, _, _, lookup = await self._call(
+            _registered_only_without_employee,
+            lookup=AsyncMock(return_value=MagicMock()),
+        )
+
+        assert result == "handled"
+        lookup.assert_awaited_once_with(777)

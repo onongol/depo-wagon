@@ -1,6 +1,7 @@
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from aiogram.dispatcher.event.handler import HandlerObject
 from aiogram.exceptions import TelegramNetworkError
 from google.genai.errors import ServerError
 
@@ -28,17 +29,8 @@ def _make_server_error(code: int) -> ServerError:
 
 
 class TestAiChatStart:
-    async def test_unauthenticated_returns_end(self, message, state):
-        await ai_chat_start(message, state, None)
-
-        assert await state.get_state() is None
-
-    async def test_unauthenticated_sends_not_registered_message(self, message, state):
-        await ai_chat_start(message, state, None)
-
-        message.answer.assert_called_once_with(
-            **build_not_registered_text().as_kwargs()
-        )
+    def test_is_for_a_registered_chat_only(self):
+        assert HandlerObject(callback=ai_chat_start).flags.get("registered")
 
     async def test_authenticated_returns_ai_chat_state(self, message, state):
         await ai_chat_start(message, state, _make_employee())
@@ -70,16 +62,6 @@ class TestAiChatStart:
             side_effect=TelegramNetworkError(method=None, message="network")
         )
         await ai_chat_start(message, state, _make_employee())
-
-        assert await state.get_state() is None
-
-    async def test_unauthenticated_reply_failure_still_returns_end(
-        self, message, state
-    ):
-        message.answer = AsyncMock(
-            side_effect=TelegramNetworkError(method=None, message="network")
-        )
-        await ai_chat_start(message, state, None)
 
         assert await state.get_state() is None
 

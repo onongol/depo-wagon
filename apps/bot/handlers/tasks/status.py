@@ -2,10 +2,11 @@ import logging
 from functools import partial
 from typing import TYPE_CHECKING
 
+from aiogram import flags
+
 from apps.bot import services
 from apps.bot.keyboards.tasks import status_confirm_keyboard, status_picker_keyboard
 from apps.bot.utils.screens import edit_or_send
-from apps.bot.utils.unregistered import refuse_unregistered
 
 from .card import load_card, show_card
 from .render import render_page
@@ -26,8 +27,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+@flags.registered
 async def show_status_picker(
-    callback: CallbackQuery, callback_data: StatusPickCB, employee: Employee | None
+    callback: CallbackQuery, callback_data: StatusPickCB, employee: Employee
 ) -> None:
     """Offer the statuses this defect may move to."""
     card = await load_card(callback, callback_data, employee)
@@ -52,8 +54,9 @@ async def show_status_picker(
     )
 
 
+@flags.registered
 async def ask_status_confirmation(
-    callback: CallbackQuery, callback_data: StatusAskCB, employee: Employee | None
+    callback: CallbackQuery, callback_data: StatusAskCB, employee: Employee
 ) -> None:
     """Ask before moving the defect to the picked status."""
     card = await load_card(callback, callback_data, employee)
@@ -78,14 +81,11 @@ async def ask_status_confirmation(
     )
 
 
+@flags.registered
 async def set_defect_status(
-    callback: CallbackQuery, callback_data: StatusSetCB, employee: Employee | None
+    callback: CallbackQuery, callback_data: StatusSetCB, employee: Employee
 ) -> None:
     """Save the confirmed status and show the card again."""
-    if not employee:
-        await refuse_unregistered(callback)
-        return
-
     try:
         card = await services.update_defect_status(
             callback_data.defect_id, callback_data.status, employee=employee

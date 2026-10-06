@@ -1,18 +1,17 @@
 from typing import TYPE_CHECKING
 
+from aiogram import flags
+
 from apps.bot.constants import DEFECT_USER_DATA_KEYS, UD_SCREEN
 from apps.bot.fsm import drop_keys, save_defect
 from apps.bot.states import DefectSG
 from apps.bot.user_data import DefectData
 from apps.bot.utils.screens import close_screen
-from apps.bot.utils.unregistered import refuse_unregistered
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
     from aiogram.fsm.scene import ScenesManager
     from aiogram.types import Message
-
-    from apps.core.models import Employee
 
 
 async def open_blank_form(state: FSMContext) -> None:
@@ -21,16 +20,10 @@ async def open_blank_form(state: FSMContext) -> None:
     await save_defect(state, DefectData())
 
 
+@flags.registered
 async def new_defect_start(
-    message: Message,
-    state: FSMContext,
-    employee: Employee | None,
-    scenes: ScenesManager,
+    message: Message, state: FSMContext, scenes: ScenesManager
 ) -> None:
-    if not employee:
-        await refuse_unregistered(message)
-        return
-
     await close_screen(message.bot, state)
     await open_blank_form(state)
     await scenes.enter(DefectSG.wagon_num)

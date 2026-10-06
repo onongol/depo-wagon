@@ -1,5 +1,7 @@
 """List → card → picker → confirmation → saved, through a real Dispatcher."""
 
+import uuid
+
 import pytest
 from asgiref.sync import sync_to_async
 from model_bakery import baker
@@ -21,6 +23,7 @@ from apps.bot.tests.integration.conftest import (
     make_callback_update,
     make_message_update,
 )
+from apps.bot.utils.unregistered import build_not_registered_text
 from apps.core.constants import EmployeeRole
 from apps.defects.constants import DefectStatus
 from apps.defects.models import Defect
@@ -116,3 +119,13 @@ async def test_a_deleted_list_gets_the_card_anew(dp, bot, session, own_defect):
     [card] = session.calls("sendMessage")
     assert "60123456" in card.text
     assert payloads(card.reply_markup, StatusPickCB)
+
+
+@pytest.mark.django_db(transaction=True)
+async def test_a_chat_linked_to_nobody_is_refused_the_card(dp, bot, session):
+    open_card = DefectCardCB(defect_id=uuid.uuid4(), page=0).pack()
+
+    await dp.feed_update(bot, make_callback_update(open_card))
+
+    [edit] = session.calls("editMessageText")
+    assert edit.text == build_not_registered_text().render()[0]

@@ -7,6 +7,7 @@ a detached copy — the assertions read it back rather than holding a reference.
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from aiogram.dispatcher.event.handler import HandlerObject
 from aiogram.utils.text_decorations import html_decoration
 
 from apps.bot.callback_data import (
@@ -179,11 +180,14 @@ class TestHelpHandler:
 
 
 class TestNewDefectStart:
+    def test_is_for_a_registered_chat_only(self):
+        assert HandlerObject(callback=new_defect_start).flags.get("registered")
+
     async def test_opens_a_blank_form_in_the_wagon_scene(self, state):
         """The screen is the scene's to draw; see the flow tests for it."""
         scenes = AsyncMock()
 
-        await new_defect_start(make_message(), state, MagicMock(), scenes)
+        await new_defect_start(make_message(), state, scenes)
 
         scenes.enter.assert_awaited_once_with(DefectSG.wagon_num)
         assert await load_defect(state) == DefectData()
@@ -192,7 +196,7 @@ class TestNewDefectStart:
         """Edit, then /ask, then New Defect: the entry runs outside DefectSG."""
         await state.update_data({UD_EDITING: True, UD_RESP_SEARCH: "bat"})
 
-        await new_defect_start(make_message(), state, MagicMock(), AsyncMock())
+        await new_defect_start(make_message(), state, AsyncMock())
 
         data = await state.get_data()
         assert UD_EDITING not in data

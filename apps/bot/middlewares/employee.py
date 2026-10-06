@@ -1,9 +1,11 @@
 from typing import TYPE_CHECKING, Any
 
 from aiogram import BaseMiddleware
+from aiogram.dispatcher.flags import get_flag
 from aiogram.fsm.scene import SceneHandlerWrapper
 
 from apps.bot import services
+from apps.bot.utils.unregistered import refuse_unregistered
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -20,18 +22,24 @@ def _takes_employee(handler: HandlerObject) -> bool:
 
 
 class EmployeeMiddleware(BaseMiddleware):
+    """A handler flagged @flags.registered is refused here rather than handed None."""
+
     async def __call__(
         self,
         handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
         event: TelegramObject,
         data: dict[str, Any],
     ) -> Any:
-        if not _takes_employee(data["handler"]):
+        registered = get_flag(data, "registered", default=False)
+        if not (registered or _takes_employee(data["handler"])):
             return await handler(event, data)
 
         user = data.get("event_from_user")
-        data["employee"] = (
-            await services.get_employee_by_telegram_id(user.id) if user else None
-        )
+        employee = await services.get_employee_by_telegram_id(user.id) if user else None
 
+        if registered and employee is None:
+            await refuse_unregistered(event)
+            return None
+
+        data["employee"] = employee
         return await handler(event, data)

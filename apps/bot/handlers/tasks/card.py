@@ -1,10 +1,11 @@
 from functools import partial
 from typing import TYPE_CHECKING
 
+from aiogram import flags
+
 from apps.bot import services
 from apps.bot.keyboards.tasks import defect_card_keyboard
 from apps.bot.utils.screens import edit_or_send
-from apps.bot.utils.unregistered import refuse_unregistered
 
 from .render import render_page
 from .text import build_card_text, build_defect_unavailable_toast
@@ -33,13 +34,9 @@ async def show_card(
 async def load_card(
     callback: CallbackQuery,
     callback_data: DefectRef | StatusRef,
-    employee: Employee | None,
+    employee: Employee,
 ) -> DefectCard | None:
     """The card a tap points at, or None once the tap has been answered without one."""
-    if not employee:
-        await refuse_unregistered(callback)
-        return None
-
     card = await services.get_defect_card(callback_data.defect_id, employee=employee)
 
     if card is None:
@@ -49,8 +46,9 @@ async def load_card(
     return card
 
 
+@flags.registered
 async def show_defect_card(
-    callback: CallbackQuery, callback_data: DefectCardCB, employee: Employee | None
+    callback: CallbackQuery, callback_data: DefectCardCB, employee: Employee
 ) -> None:
     """Open one defect from the list."""
     card = await load_card(callback, callback_data, employee)

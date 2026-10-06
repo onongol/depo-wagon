@@ -24,6 +24,7 @@ from apps.bot.handlers.tasks import (
     show_defect_card,
     show_status_picker,
 )
+from apps.bot.handlers.tasks.router import get_tasks_router
 from apps.bot.handlers.tasks.text import (
     build_card_text,
     build_defect_unavailable_toast,
@@ -42,7 +43,6 @@ from apps.bot.tests.builders import (
     make_message,
     unpacked,
 )
-from apps.bot.utils.unregistered import build_not_registered_text
 from apps.core.constants import EmployeeRole
 from apps.defects.constants import DefectStatus
 
@@ -123,26 +123,16 @@ def _answered_quietly(callback) -> None:
     callback.answer.assert_awaited_once_with()
 
 
-def _refused(callback) -> None:
-    _answered_quietly(callback)
-    callback.bot.edit_message_text.assert_awaited_once_with(
-        chat_id=CHAT_ID,
-        message_id=MESSAGE_ID,
-        reply_markup=None,
-        **build_not_registered_text().as_kwargs(),
-    )
+def test_every_handler_is_for_a_registered_chat_only():
+    """A stale keyboard outlives deactivation; it must not list anyone's defects."""
+    router = get_tasks_router()
+    handlers = [*router.message.handlers, *router.callback_query.handlers]
+
+    assert handlers
+    assert all(handler.flags.get("registered") for handler in handlers)
 
 
 class TestMyTasks:
-    async def test_refuses_an_unregistered_chat(self, state):
-        message = make_message()
-
-        await my_tasks(message, state, None)
-
-        message.answer.assert_awaited_once_with(
-            **build_not_registered_text().as_kwargs()
-        )
-
     async def test_says_so_when_there_is_nothing_open(self, svc, employee, state):
         svc.get_open_defects.return_value = []
         svc.get_open_defects_count.return_value = 0
@@ -220,28 +210,8 @@ class TestMyTasksPage:
 
         assert svc.get_open_defects.await_args.kwargs["offset"] == 5
 
-    async def test_refuses_a_chat_that_lost_its_employee(self, svc):
-        """A stale keyboard outlives deactivation; it must not list anyone's defects."""
-        callback = make_callback()
-
-        await my_tasks_page(callback, TasksPageCB(page=1), None)
-
-        _refused(callback)
-        svc.get_open_defects.assert_not_called()
-        svc.get_open_defects_count.assert_not_called()
-
 
 class TestShowDefectCard:
-    async def test_refuses_a_chat_that_lost_its_employee(self, svc):
-        callback = make_callback()
-
-        await show_defect_card(
-            callback, DefectCardCB(defect_id=uuid.uuid4(), page=0), None
-        )
-
-        _refused(callback)
-        svc.get_defect_card.assert_not_called()
-
     async def test_looks_the_defect_up_for_this_employee(self, svc, employee):
         defect_id = uuid.uuid4()
 
@@ -306,16 +276,6 @@ class TestShowDefectCard:
 
 
 class TestShowStatusPicker:
-    async def test_refuses_a_chat_that_lost_its_employee(self, svc):
-        callback = make_callback()
-
-        await show_status_picker(
-            callback, StatusPickCB(defect_id=uuid.uuid4(), page=0), None
-        )
-
-        svc.get_defect_card.assert_not_called()
-        _refused(callback)
-
     async def test_offers_only_the_statuses_the_card_allows(self, svc, employee):
         card = _card(targets=(DefectStatus.CLOSED,))
         svc.get_defect_card.return_value = card
@@ -361,17 +321,6 @@ class TestShowStatusPicker:
 
 
 class TestAskStatusConfirmation:
-    async def test_refuses_a_chat_that_lost_its_employee(self, svc):
-        callback = make_callback()
-
-        await ask_status_confirmation(
-            callback,
-            StatusAskCB(defect_id=uuid.uuid4(), status=DefectStatus.CLOSED, page=0),
-            None,
-        )
-
-        svc.get_defect_card.assert_not_called()
-
     async def test_asks_before_saving(self, svc, employee):
         card = _card()
         svc.get_defect_card.return_value = card
@@ -428,19 +377,6 @@ class TestAskStatusConfirmation:
 
 
 class TestSetDefectStatus:
-    async def test_refuses_a_chat_that_lost_its_employee(self, svc):
-        callback = make_callback()
-
-        await set_defect_status(
-            callback,
-            StatusSetCB(defect_id=uuid.uuid4(), status=DefectStatus.CLOSED, page=0),
-            None,
-        )
-
-        svc.update_defect_status.assert_not_called()
-        svc.get_open_defects.assert_not_called()
-        _refused(callback)
-
     @pytest.mark.parametrize("role", [*EmployeeRole.values, "unknown"])
     async def test_leaves_the_permission_check_to_the_query_whatever_the_role(
         self, svc, employee, role

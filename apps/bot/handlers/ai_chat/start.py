@@ -1,13 +1,12 @@
-import contextlib
 import logging
 from typing import TYPE_CHECKING
 
+from aiogram import flags
 from aiogram.exceptions import TelegramAPIError
 
 from apps.bot.constants import UD_AI_CHAT_HISTORY
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import AiChatSG
-from apps.bot.utils.unregistered import refuse_unregistered
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
@@ -18,14 +17,10 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+@flags.registered
 async def ai_chat_start(
-    message: Message, state: FSMContext, employee: Employee | None
+    message: Message, state: FSMContext, employee: Employee
 ) -> None:
-    if not employee:
-        with contextlib.suppress(TelegramAPIError):
-            await refuse_unregistered(message)
-        return
-
     await state.update_data({UD_AI_CHAT_HISTORY: []})
 
     try:
