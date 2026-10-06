@@ -44,5 +44,5 @@ def confirm_keyboard(defect: DefectData) -> InlineKeyboardMarkup:
 def employee_verdict_keyboard() -> InlineKeyboardMarkup:
     return build_grid_keyboard(
         [(label, VerdictCB(value=value)) for value, label in VERDICT_CHOICES],
-        columns=1,
+        columns=2,
     )
