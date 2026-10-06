@@ -17,7 +17,6 @@ from apps.bot.callback_data import (
     StatusSetCB,
     TasksPageCB,
 )
-from apps.bot.constants import STATUS_LABEL
 from apps.bot.handlers.tasks import (
     ask_status_confirmation,
     my_tasks,
@@ -28,10 +27,14 @@ from apps.bot.handlers.tasks import (
 )
 from apps.bot.handlers.tasks.text import (
     build_card_text,
+    build_defect_unavailable_toast,
+    build_no_tasks_text,
+    build_status_changed_toast,
     build_status_confirm_text,
+    build_status_failed_toast,
     build_status_pick_text,
+    build_status_refused_toast,
 )
-from apps.bot.messages import BotMessages as M
 from apps.bot.services.defect_card import DefectCard
 from apps.bot.tests.builders import (
     CHAT_ID,
@@ -149,7 +152,8 @@ class TestMyTasks:
 
         await my_tasks(message, state, employee)
 
-        assert message.answer.await_args.args[0] == str(M.NO_TASKS)
+        call = message.answer.await_args
+        assert (call.args[0], call.kwargs["entities"]) == build_no_tasks_text().render()
 
     async def test_sends_a_new_message_with_a_keyboard(self, svc, employee, state):
         message = make_message()
@@ -319,7 +323,7 @@ class TestShowDefectCard:
             callback, DefectCardCB(defect_id=uuid.uuid4(), page=0), employee
         )
 
-        _alerted(callback, M.DEFECT_UNAVAILABLE)
+        _alerted(callback, build_defect_unavailable_toast())
         _, kb = _edit(callback)
         assert unpacked(kb, DefectCardCB)
 
@@ -359,7 +363,7 @@ class TestShowStatusPicker:
             callback, StatusPickCB(defect_id=card.defect.pk, page=0), employee
         )
 
-        _alerted(callback, M.STATUS_CHANGE_REFUSED)
+        _alerted(callback, build_status_refused_toast())
         text, kb = _edit(callback)
         assert text == build_card_text(card).render()
         assert unpacked(kb, StatusAskCB) == []
@@ -374,7 +378,7 @@ class TestShowStatusPicker:
             callback, StatusPickCB(defect_id=uuid.uuid4(), page=0), employee
         )
 
-        _alerted(callback, M.DEFECT_UNAVAILABLE)
+        _alerted(callback, build_defect_unavailable_toast())
         _, kb = _edit(callback)
         assert unpacked(kb, DefectCardCB)
 
@@ -426,7 +430,7 @@ class TestAskStatusConfirmation:
             employee,
         )
 
-        _alerted(callback, M.STATUS_CHANGE_REFUSED)
+        _alerted(callback, build_status_refused_toast())
         text, kb = _edit(callback)
         assert text == build_card_text(card).render()
         assert unpacked(kb, StatusSetCB) == []
@@ -443,7 +447,7 @@ class TestAskStatusConfirmation:
             employee,
         )
 
-        _alerted(callback, M.DEFECT_UNAVAILABLE)
+        _alerted(callback, build_defect_unavailable_toast())
 
 
 class TestSetDefectStatus:
@@ -491,9 +495,7 @@ class TestSetDefectStatus:
         )
 
         callback.answer.assert_awaited_once_with(
-            str(M.STATUS_CHANGED).format(
-                status=str(STATUS_LABEL[DefectStatus.IN_PROGRESS])
-            )
+            build_status_changed_toast(DefectStatus.IN_PROGRESS)
         )
         text, kb = _edit(callback)
         assert text == build_card_text(card).render()
@@ -512,7 +514,7 @@ class TestSetDefectStatus:
             employee,
         )
 
-        _alerted(callback, M.STATUS_CHANGE_REFUSED)
+        _alerted(callback, build_status_refused_toast())
         text, kb = _edit(callback)
         assert text == build_card_text(card).render()
         assert unpacked(kb, StatusPickCB) == []
@@ -545,5 +547,5 @@ class TestSetDefectStatus:
             employee,
         )
 
-        _alerted(callback, M.STATUS_CHANGE_FAILED)
+        _alerted(callback, build_status_failed_toast())
         callback.message.edit_text.assert_not_awaited()

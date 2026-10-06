@@ -6,6 +6,10 @@ from apps.bot.constants import LIST_NUMBER_EMOJI
 from .utils import severity_emoji, status_text, wagon_and_node
 
 
+def build_no_tasks_text() -> Text:
+    return Text("✅ ", _("You have no open defects."))
+
+
 def build_text_list(defects: list, page: int, total: int, pages: int) -> Text:
     """The defect list, numbered to match the buttons under it."""
     counter = str(_("{total} total, page {page}/{pages}")).format(

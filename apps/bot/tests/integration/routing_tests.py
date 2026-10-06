@@ -62,10 +62,10 @@ from apps.bot.handlers.defect.wagon import WagonScene
 from apps.bot.handlers.start.link_errors import get_link_error_message
 from apps.bot.handlers.start.text import build_link_cancelled_text
 from apps.bot.handlers.support.utils import remember_request
+from apps.bot.handlers.tasks.text import build_no_tasks_text
 from apps.bot.keyboards.common import done_keyboard, skip_keyboard, with_step_buttons
 from apps.bot.keyboards.defect import defect_in_progress_keyboard, department_keyboard
 from apps.bot.keyboards.menu import MENU_TEXTS, main_menu_keyboard
-from apps.bot.messages import BotMessages as M
 from apps.bot.middlewares import AI_CHAT_TIMEOUT
 from apps.bot.states import AiChatSG, DefectSG, SupportSG
 from apps.bot.tests.integration.conftest import (
@@ -533,7 +533,7 @@ class TestAiChatPrecedence:
 
         assert await state.get_state() is None
         sent = [m.text for m in bot.session.calls("sendMessage")]
-        assert sent == [str(M.NO_TASKS)]
+        assert sent == [build_no_tasks_text().render()[0]]
 
     async def test_a_question_in_the_session_reaches_the_assistant(
         self, dp, bot, session, state, employee

@@ -2,12 +2,11 @@ from typing import TYPE_CHECKING
 
 from apps.bot import services
 from apps.bot.keyboards.tasks import defect_card_keyboard
-from apps.bot.messages import BotMessages as M
 from apps.bot.utils.screens import send_screen
 from apps.bot.utils.unregistered import refuse_unregistered
 
 from .render import render_page
-from .text import build_card_text
+from .text import build_card_text, build_defect_unavailable_toast
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -44,7 +43,7 @@ async def load_card(
     card = await services.get_defect_card(callback_data.defect_id, employee=employee)
 
     if card is None:
-        await callback.answer(str(M.DEFECT_UNAVAILABLE), show_alert=True)
+        await callback.answer(build_defect_unavailable_toast(), show_alert=True)
         await render_page(callback.message.edit_text, employee, callback_data.page)
 
     return card

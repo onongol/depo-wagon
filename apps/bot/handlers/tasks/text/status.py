@@ -20,3 +20,16 @@ def build_status_confirm_text(defect, target: str) -> Text:
         f"{status_text(defect.status)} → {status_text(target)}",
         sep="\n\n",
     )
+
+
+# Toasts are plain text: a callback answer carries no entities.
+def build_status_changed_toast(status: str) -> str:
+    return f"✅ {_('Status changed:')} {status_text(status)}"
+
+
+def build_status_refused_toast() -> str:
+    return f"⚠️ {_('This status change is no longer possible.')}"
+
+
+def build_status_failed_toast() -> str:
+    return f"❌ {_('Failed to update status. Please try again.')}"

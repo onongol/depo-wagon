@@ -109,3 +109,8 @@ def build_card_text(card: DefectCard) -> Text:
         sections.append(field("✍️", _("Verdict"), verdict_text(defect.verdict)))
 
     return as_list(*sections, sep="\n\n")
+
+
+def build_defect_unavailable_toast() -> str:
+    """Plain text: a callback answer carries no entities."""
+    return f"⚠️ {_('This defect is no longer available.')}"

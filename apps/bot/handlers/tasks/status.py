@@ -2,15 +2,19 @@ import logging
 from typing import TYPE_CHECKING
 
 from apps.bot import services
-from apps.bot.constants import STATUS_LABEL
 from apps.bot.keyboards.tasks import status_confirm_keyboard, status_picker_keyboard
-from apps.bot.messages import BotMessages as M
 from apps.bot.utils.screens import send_screen
 from apps.bot.utils.unregistered import refuse_unregistered
 
 from .card import load_card, show_card
 from .render import render_page
-from .text import build_status_confirm_text, build_status_pick_text
+from .text import (
+    build_status_changed_toast,
+    build_status_confirm_text,
+    build_status_failed_toast,
+    build_status_pick_text,
+    build_status_refused_toast,
+)
 
 if TYPE_CHECKING:
     from aiogram.types import CallbackQuery
@@ -33,7 +37,7 @@ async def show_status_picker(
     send = callback.message.edit_text
 
     if not card.targets:
-        await callback.answer(str(M.STATUS_CHANGE_REFUSED), show_alert=True)
+        await callback.answer(build_status_refused_toast(), show_alert=True)
         await show_card(send, card, callback_data.page)
         return
 
@@ -60,7 +64,7 @@ async def ask_status_confirmation(
     send = callback.message.edit_text
 
     if callback_data.status not in card.targets:
-        await callback.answer(str(M.STATUS_CHANGE_REFUSED), show_alert=True)
+        await callback.answer(build_status_refused_toast(), show_alert=True)
         await show_card(send, card, callback_data.page)
         return
 
@@ -89,18 +93,16 @@ async def set_defect_status(
         )
     except Exception:
         logger.exception("Failed to set status on defect %s", callback_data.defect_id)
-        await callback.answer(str(M.STATUS_CHANGE_FAILED), show_alert=True)
+        await callback.answer(build_status_failed_toast(), show_alert=True)
         return
 
     if card is None:
-        await callback.answer(str(M.STATUS_CHANGE_REFUSED), show_alert=True)
+        await callback.answer(build_status_refused_toast(), show_alert=True)
         card = await services.get_defect_card(
             callback_data.defect_id, employee=employee
         )
     else:
-        await callback.answer(
-            str(M.STATUS_CHANGED).format(status=str(STATUS_LABEL[callback_data.status]))
-        )
+        await callback.answer(build_status_changed_toast(callback_data.status))
 
     send = callback.message.edit_text
 

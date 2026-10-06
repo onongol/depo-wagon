@@ -11,7 +11,10 @@ from apps.bot.callback_data import (
     StatusSetCB,
 )
 from apps.bot.constants import STATUS_LABEL
-from apps.bot.messages import BotMessages as M
+from apps.bot.handlers.tasks.text import (
+    build_status_changed_toast,
+    build_status_refused_toast,
+)
 from apps.bot.tests.builders import payloads
 from apps.bot.tests.integration.conftest import (
     USER_ID,
@@ -71,9 +74,7 @@ async def test_closing_a_defect_from_its_card(dp, bot, session, own_defect):
 
     card, answer = await _tap(dp, bot, session, save)
     assert await _status(own_defect.pk) == DefectStatus.CLOSED
-    assert answer.text == str(M.STATUS_CHANGED).format(
-        status=str(STATUS_LABEL[DefectStatus.CLOSED])
-    )
+    assert answer.text == build_status_changed_toast(DefectStatus.CLOSED)
     assert not answer.show_alert
     assert str(STATUS_LABEL[DefectStatus.CLOSED]) in card.text
     assert payloads(card.reply_markup, StatusPickCB) == []
@@ -90,6 +91,6 @@ async def test_an_old_button_cannot_reopen_a_closed_defect(
 
     _, answer = await _tap(dp, bot, session, reopen)
 
-    assert answer.text == str(M.STATUS_CHANGE_REFUSED)
+    assert answer.text == build_status_refused_toast()
     assert answer.show_alert
     assert await _status(own_defect.pk) == DefectStatus.CLOSED

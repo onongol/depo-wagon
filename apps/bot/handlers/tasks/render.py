@@ -3,11 +3,10 @@ from typing import TYPE_CHECKING
 from apps.bot import services
 from apps.bot.constants import TASKS_PAGE_SIZE
 from apps.bot.keyboards.tasks import tasks_keyboard
-from apps.bot.messages import BotMessages as M
 from apps.bot.utils.pagination import clamp_page
 from apps.bot.utils.screens import send_screen
 
-from .text import build_text_list
+from .text import build_no_tasks_text, build_text_list
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -23,7 +22,7 @@ async def render_page(send: Callable[..., Awaitable], employee, page: int) -> No
     )
 
     if not defects:
-        await send_screen(send, str(M.NO_TASKS))
+        await send_screen(send, **build_no_tasks_text().as_kwargs())
         return
 
     await send_screen(
