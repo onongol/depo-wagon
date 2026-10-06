@@ -1,5 +1,6 @@
-"""Messages to employees leave the bot as text and entities; the worker sends them."""
+"""Messages to employees leave the bot as JSON; the worker rebuilds and sends them."""
 
+import json
 from unittest.mock import AsyncMock, call, patch
 
 import pytest
@@ -9,7 +10,7 @@ from aiogram.exceptions import (
     TelegramRetryAfter,
     TelegramServerError,
 )
-from aiogram.types import MessageEntity
+from aiogram.types import InlineKeyboardMarkup, MessageEntity
 from aiogram.utils.formatting import Bold, Text
 from model_bakery import baker
 
@@ -19,6 +20,8 @@ from apps.bot.tasks.messaging import _send
 
 CHAT_ID = 987654321
 ENTITIES = [{"type": "bold", "offset": 3, "length": 5}]
+MARKUP = {"inline_keyboard": [[{"text": "Open", "callback_data": "dopen:abc"}]]}
+KEYBOARD = InlineKeyboardMarkup.model_validate(MARKUP)
 
 
 def _sends(side_effect=None):
@@ -42,9 +45,17 @@ class TestQueueMessages:
             await queue_messages([7, 9], Text("🔴 ", Bold("Alert")))
 
         assert delay.call_args_list == [
-            call(7, "🔴 Alert", ENTITIES),
-            call(9, "🔴 Alert", ENTITIES),
+            call(7, "🔴 Alert", ENTITIES, None),
+            call(9, "🔴 Alert", ENTITIES, None),
         ]
+
+    async def test_queues_a_keyboard_the_worker_can_rebuild(self):
+        with patch("apps.bot.tasks.send_to_employee_task.delay") as delay:
+            await queue_messages([7, 9], Text("Alert"), KEYBOARD)
+
+        markups = [c.args[3] for c in delay.call_args_list]
+        assert markups == [MARKUP, MARKUP]
+        assert json.loads(json.dumps(MARKUP)) == MARKUP
 
 
 class TestSend:
@@ -53,21 +64,38 @@ class TestSend:
         bot.__aenter__.return_value = bot
 
         with patch("apps.bot.bot.make_bot", return_value=bot):
-            await _send(CHAT_ID, "🔴 Alert", ENTITIES)
+            await _send(CHAT_ID, "🔴 Alert", ENTITIES, None)
 
         bot.send_message.assert_awaited_once_with(
             chat_id=CHAT_ID,
             text="🔴 Alert",
             entities=[MessageEntity(type="bold", offset=3, length=5)],
+            reply_markup=None,
         )
+
+    async def test_the_keyboard_reaches_telegram_as_markup(self):
+        bot = AsyncMock()
+        bot.__aenter__.return_value = bot
+
+        with patch("apps.bot.bot.make_bot", return_value=bot):
+            await _send(CHAT_ID, "🔴 Alert", ENTITIES, MARKUP)
+
+        assert bot.send_message.await_args.kwargs["reply_markup"] == KEYBOARD
 
 
 class TestSendToEmployeeTask:
     def test_sends_to_the_employees_chat(self, employee):
+        """Without a keyboard too, as a task queued before keyboards existed."""
         with _sends() as send:
             send_to_employee_task(employee.id, "text", ENTITIES)
 
-        send.assert_awaited_once_with(CHAT_ID, "text", ENTITIES)
+        send.assert_awaited_once_with(CHAT_ID, "text", ENTITIES, None)
+
+    def test_passes_the_keyboard_on(self, employee):
+        with _sends() as send:
+            send_to_employee_task(employee.id, "text", ENTITIES, MARKUP)
+
+        send.assert_awaited_once_with(CHAT_ID, "text", ENTITIES, MARKUP)
 
     @pytest.mark.parametrize(
         "fields",
