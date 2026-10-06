@@ -904,7 +904,7 @@ class TestTheSeverityStep:
         await dp.feed_update(bot, make_message_update("Cracked weld"))
 
         (sent,) = session.calls("sendMessage")
-        assert "📝 Description: Cracked weld" in sent.text
+        assert "📝 Description: \nCracked weld" in sent.text
         assert sent.text.endswith(build_ask_severity_text().render()[0])
         assert sent.reply_markup == with_step_buttons(severity_keyboard(), back=True)
         assert await state.get_state() == DefectSG.severity.state

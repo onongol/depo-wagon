@@ -1305,7 +1305,7 @@ class TestUserTextIsEscaped:
         html = html_decoration.unparse(*text.render())
 
         assert "<b>&lt;PN&amp;1&gt;</b>" in html
-        assert "Description: &lt;b&gt;weld&lt;/b&gt;" in html
+        assert "<blockquote expandable>&lt;b&gt;weld&lt;/b&gt;</blockquote>" in html
 
     async def test_the_responsible_employee_is_shown_as_stored(self, state, picker):
         """An entity, not HTML: the name goes out verbatim."""

@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from aiogram.utils.formatting import Bold, Text, as_list
+from aiogram.utils.formatting import Bold, ExpandableBlockQuote, Text, as_list
 from django.utils.translation import gettext_lazy as _
 
 from apps.bot.states import DefectSG
@@ -67,7 +67,14 @@ def build_fields(form: DefectData, behind: Collection[str]) -> list[Text]:
         ),
         (DefectSG.measurement_choice, "📐", _("Measurements:"), _measurements(form)),
         (DefectSG.photo, "📸", _("Photos:"), len(form.photos) or None),
-        (DefectSG.desc, "📝", _("Description:"), form.description or None),
+        (
+            DefectSG.desc,
+            "📝",
+            _("Description:"),
+            Text("\n", ExpandableBlockQuote(form.description))
+            if form.description
+            else None,
+        ),
         (DefectSG.severity, "🌡️", _("Severity:"), _bold(form.severity_label)),
         (DefectSG.employee_verdict, "👨‍🔧", _("Verdict:"), _bold(form.verdict_label)),
     )
