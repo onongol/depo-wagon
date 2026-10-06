@@ -465,7 +465,7 @@ class TestTheMenuWhileAFormIsOpen:
 
         (sent,) = session.calls("sendMessage")
         assert sent.reply_markup == main_menu_keyboard()
-        assert "AI verdict: Repair Soon" in sent.text
+        assert "AI verdict: 🟡 Repair Soon" in sent.text
         assert sent.text.endswith("Replace the pad")
 
     async def test_one_too_long_for_a_message_follows_it(
@@ -475,7 +475,7 @@ class TestTheMenuWhileAFormIsOpen:
 
         card, recommendation = session.calls("sendMessage")
         assert card.reply_markup == main_menu_keyboard()
-        assert "AI verdict: Repair Soon" in card.text
+        assert "AI verdict: 🟡 Repair Soon" in card.text
         assert recommendation.text.endswith("x" * 4000)
         assert recommendation.reply_markup is None
 

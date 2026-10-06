@@ -541,9 +541,10 @@ class TestBuildResultText:
             "🌡️ Severity: <b>High</b>\n"
             "👨‍🔧 Verdict: <b>Repair Now</b>\n\n"
             "🤖 <b>AI Analysis:</b>\n"
-            "📌 Rim wear\n"
-            "📊 Confidence: 80%\n"
-            "🟡 AI verdict: <code>Repair Soon</code>"
+            "Defect class:\n"
+            "<blockquote expandable>Rim wear</blockquote>\n"
+            "Confidence: 80%\n"
+            "AI verdict: 🟡 <code>Repair Soon</code>"
         )
 
     def test_without_the_ai_it_says_so(self):
@@ -565,7 +566,9 @@ class TestBuildResultText:
     def test_the_ai_class_is_sent_as_it_came(self):
         ai = self.AI.model_copy(update={"defect_class": "Wear <5 mm> & chips"})
 
-        assert "📌 Wear <5 mm> & chips" in build_result_text(FIELDS, ai).render()[0]
+        rendered = build_result_text(FIELDS, ai).render()[0]
+
+        assert "\nDefect class:\nWear <5 mm> & chips\n" in rendered
 
 
 class TestBuildRecommendationText:

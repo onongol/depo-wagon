@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from aiogram.utils.formatting import Bold, Code, Text, as_list
+from aiogram.utils.formatting import Bold, Code, ExpandableBlockQuote, Text, as_list
 from django.utils.translation import gettext_lazy as _
 
 from apps.bot.constants import VERDICT_TEXT
@@ -55,9 +55,10 @@ def _ai_section(ai_result: AIResult | None) -> Text:
     emoji, verdict = VERDICT_TEXT.get(ai_result.verdict, ("ℹ️", "-"))
     return as_list(
         Text("🤖 ", Bold(_("AI Analysis:"))),
-        Text("📌 ", ai_result.defect_class),
-        Text("📊 ", _("Confidence:"), " ", f"{confidence}%"),
-        Text(emoji, " ", _("AI verdict:"), " ", Code(verdict)),
+        Text(_("Defect class:")),
+        ExpandableBlockQuote(ai_result.defect_class),
+        Text(_("Confidence:"), " ", f"{confidence}%"),
+        Text(_("AI verdict:"), " ", emoji, " ", Code(verdict)),
     )
 
 
