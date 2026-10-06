@@ -10,7 +10,7 @@ from django.utils.translation import gettext_lazy as _
 
 from .text_connect_page import CONNECT_TELEGRAM, GET_NEW_LINK
 
-_SELECT_ACTION = Bold(_("Select an action below"))
+_SELECT_ACTION = Bold(_("/new_defect or select an action below"))
 
 
 def build_welcome_text(employee) -> Text:
