@@ -4,7 +4,6 @@ from apps.bot import services
 from apps.bot.constants import TASKS_PAGE_SIZE
 from apps.bot.keyboards.tasks import tasks_keyboard
 from apps.bot.utils.pagination import clamp_page
-from apps.bot.utils.screens import send_screen
 
 from .text import build_no_tasks_text, build_text_list
 
@@ -22,11 +21,10 @@ async def render_page(send: Callable[..., Awaitable], employee, page: int) -> No
     )
 
     if not defects:
-        await send_screen(send, **build_no_tasks_text().as_kwargs())
+        await send(**build_no_tasks_text().as_kwargs())
         return
 
-    await send_screen(
-        send,
+    await send(
         **build_text_list(defects, page, total, pages).as_kwargs(),
         reply_markup=tasks_keyboard(defects, page, pages),
     )

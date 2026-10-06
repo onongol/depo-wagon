@@ -1,9 +1,10 @@
 import logging
+from functools import partial
 from typing import TYPE_CHECKING
 
 from apps.bot import services
 from apps.bot.keyboards.tasks import status_confirm_keyboard, status_picker_keyboard
-from apps.bot.utils.screens import send_screen
+from apps.bot.utils.screens import edit_or_send
 from apps.bot.utils.unregistered import refuse_unregistered
 
 from .card import load_card, show_card
@@ -34,7 +35,7 @@ async def show_status_picker(
     if card is None:
         return
 
-    send = callback.message.edit_text
+    send = partial(edit_or_send, callback)
 
     if not card.targets:
         await callback.answer(build_status_refused_toast(), show_alert=True)
@@ -43,8 +44,7 @@ async def show_status_picker(
 
     await callback.answer()
 
-    await send_screen(
-        send,
+    await send(
         **build_status_pick_text(card).as_kwargs(),
         reply_markup=status_picker_keyboard(
             card.defect.pk, card.targets, callback_data.page
@@ -61,7 +61,7 @@ async def ask_status_confirmation(
     if card is None:
         return
 
-    send = callback.message.edit_text
+    send = partial(edit_or_send, callback)
 
     if callback_data.status not in card.targets:
         await callback.answer(build_status_refused_toast(), show_alert=True)
@@ -70,8 +70,7 @@ async def ask_status_confirmation(
 
     await callback.answer()
 
-    await send_screen(
-        send,
+    await send(
         **build_status_confirm_text(card.defect, callback_data.status).as_kwargs(),
         reply_markup=status_confirm_keyboard(
             card.defect.pk, callback_data.status, callback_data.page
@@ -104,7 +103,7 @@ async def set_defect_status(
     else:
         await callback.answer(build_status_changed_toast(callback_data.status))
 
-    send = callback.message.edit_text
+    send = partial(edit_or_send, callback)
 
     if card is None:
         await render_page(send, employee, callback_data.page)

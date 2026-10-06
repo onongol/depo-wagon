@@ -8,8 +8,6 @@ from apps.bot.constants import UD_SCREEN
 from apps.bot.fsm import drop_keys
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable
-
     from aiogram import Bot
     from aiogram.fsm.context import FSMContext
     from aiogram.types import (
@@ -31,15 +29,6 @@ def _is_uneditable(exc: TelegramBadRequest) -> bool:
     """The message is gone or too old; any other 400 is about the screen itself."""
     msg = exc.message.lower()
     return "message to edit not found" in msg or "message can't be edited" in msg
-
-
-async def send_screen(send: Callable[..., Awaitable], text: str, **kwargs: Any) -> None:
-    """Send or edit in place; an edit that would change nothing is not an error."""
-    try:
-        await send(text, **kwargs)
-    except TelegramBadRequest as exc:
-        if not _is_not_modified(exc):
-            raise
 
 
 async def edit_or_send(

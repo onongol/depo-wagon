@@ -94,3 +94,25 @@ async def test_an_old_button_cannot_reopen_a_closed_defect(
     assert answer.text == build_status_refused_toast()
     assert answer.show_alert
     assert await _status(own_defect.pk) == DefectStatus.CLOSED
+
+
+@pytest.mark.django_db(transaction=True)
+async def test_a_card_opens_on_an_inaccessible_message(dp, bot, session, own_defect):
+    open_card = DefectCardCB(defect_id=own_defect.pk, page=0).pack()
+
+    await dp.feed_update(bot, make_callback_update(open_card, inaccessible=True))
+
+    [card] = session.calls("editMessageText")
+    assert "60123456" in card.text
+
+
+@pytest.mark.django_db(transaction=True)
+async def test_a_deleted_list_gets_the_card_anew(dp, bot, session, own_defect):
+    session.refuse("editMessageText", "Bad Request: message to edit not found")
+    open_card = DefectCardCB(defect_id=own_defect.pk, page=0).pack()
+
+    await dp.feed_update(bot, make_callback_update(open_card))
+
+    [card] = session.calls("sendMessage")
+    assert "60123456" in card.text
+    assert payloads(card.reply_markup, StatusPickCB)

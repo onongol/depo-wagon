@@ -8,7 +8,6 @@ import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from aiogram.exceptions import TelegramBadRequest
 
 from apps.bot.callback_data import (
     DefectCardCB,
@@ -39,12 +38,10 @@ from apps.bot.services.defect_card import DefectCard
 from apps.bot.tests.builders import (
     CHAT_ID,
     MESSAGE_ID,
-    make_bad_request,
     make_callback,
     make_message,
     unpacked,
 )
-from apps.bot.utils.screens import send_screen
 from apps.bot.utils.unregistered import build_not_registered_text
 from apps.core.constants import EmployeeRole
 from apps.defects.constants import DefectStatus
@@ -111,10 +108,11 @@ def svc():
 
 
 def _edit(callback):
-    """(text, entities) and keyboard of the one edit the handler made."""
-    callback.message.edit_text.assert_awaited_once()
-    call = callback.message.edit_text.await_args
-    return (call.args[0], call.kwargs.get("entities")), call.kwargs["reply_markup"]
+    """(text, entities) and keyboard of the one edit the handler made, by id."""
+    callback.bot.edit_message_text.assert_awaited_once()
+    call = callback.bot.edit_message_text.await_args.kwargs
+    assert (call["chat_id"], call["message_id"]) == (CHAT_ID, MESSAGE_ID)
+    return (call["text"], call["entities"]), call["reply_markup"]
 
 
 def _alerted(callback, text) -> None:
@@ -152,8 +150,7 @@ class TestMyTasks:
 
         await my_tasks(message, state, employee)
 
-        call = message.answer.await_args
-        assert (call.args[0], call.kwargs["entities"]) == build_no_tasks_text().render()
+        message.answer.assert_awaited_once_with(**build_no_tasks_text().as_kwargs())
 
     async def test_sends_a_new_message_with_a_keyboard(self, svc, employee, state):
         message = make_message()
@@ -198,7 +195,7 @@ class TestMyTasksPage:
 
         await my_tasks_page(callback, TasksPageCB(page=1), employee)
 
-        callback.message.edit_text.assert_awaited_once()
+        callback.bot.edit_message_text.assert_awaited_once()
         callback.message.answer.assert_not_called()
 
     async def test_answers_the_query(self, svc, employee):
@@ -232,26 +229,6 @@ class TestMyTasksPage:
         _refused(callback)
         svc.get_open_defects.assert_not_called()
         svc.get_open_defects_count.assert_not_called()
-
-
-class TestSendScreen:
-    async def test_an_identical_redraw_is_not_an_error(self):
-        send = AsyncMock(
-            side_effect=make_bad_request(
-                "Bad Request: message is not modified: specified new message "
-                "content and reply markup are exactly the same"
-            )
-        )
-
-        await send_screen(send, "text")
-
-    async def test_any_other_refusal_still_raises(self):
-        send = AsyncMock(
-            side_effect=make_bad_request("Bad Request: message to edit not found")
-        )
-
-        with pytest.raises(TelegramBadRequest):
-            await send_screen(send, "text")
 
 
 class TestShowDefectCard:
@@ -295,7 +272,7 @@ class TestShowDefectCard:
             callback, DefectCardCB(defect_id=uuid.uuid4(), page=0), employee
         )
 
-        assert callback.message.edit_text.await_args.kwargs["parse_mode"] is None
+        assert callback.bot.edit_message_text.await_args.kwargs["parse_mode"] is None
 
     @pytest.mark.parametrize(
         ("targets", "offered"), [(BOTH_TARGETS, True), ((), False)]
@@ -548,4 +525,4 @@ class TestSetDefectStatus:
         )
 
         _alerted(callback, build_status_failed_toast())
-        callback.message.edit_text.assert_not_awaited()
+        callback.bot.edit_message_text.assert_not_awaited()

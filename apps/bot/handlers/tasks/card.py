@@ -1,8 +1,9 @@
+from functools import partial
 from typing import TYPE_CHECKING
 
 from apps.bot import services
 from apps.bot.keyboards.tasks import defect_card_keyboard
-from apps.bot.utils.screens import send_screen
+from apps.bot.utils.screens import edit_or_send
 from apps.bot.utils.unregistered import refuse_unregistered
 
 from .render import render_page
@@ -21,8 +22,7 @@ if TYPE_CHECKING:
 async def show_card(
     send: Callable[..., Awaitable], card: DefectCard, page: int
 ) -> None:
-    await send_screen(
-        send,
+    await send(
         **build_card_text(card).as_kwargs(),
         reply_markup=defect_card_keyboard(
             card.defect.pk, page, can_change=bool(card.targets)
@@ -44,7 +44,7 @@ async def load_card(
 
     if card is None:
         await callback.answer(build_defect_unavailable_toast(), show_alert=True)
-        await render_page(callback.message.edit_text, employee, callback_data.page)
+        await render_page(partial(edit_or_send, callback), employee, callback_data.page)
 
     return card
 
@@ -59,4 +59,4 @@ async def show_defect_card(
         return
 
     await callback.answer()
-    await show_card(callback.message.edit_text, card, callback_data.page)
+    await show_card(partial(edit_or_send, callback), card, callback_data.page)

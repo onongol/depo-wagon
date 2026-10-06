@@ -1,5 +1,7 @@
+from functools import partial
 from typing import TYPE_CHECKING
 
+from apps.bot.utils.screens import edit_or_send
 from apps.bot.utils.unregistered import refuse_unregistered
 
 from .render import render_page
@@ -33,4 +35,6 @@ async def my_tasks_page(
         return
 
     await callback.answer()
-    await render_page(callback.message.edit_text, employee, page=callback_data.page)
+    await render_page(
+        partial(edit_or_send, callback), employee, page=callback_data.page
+    )
