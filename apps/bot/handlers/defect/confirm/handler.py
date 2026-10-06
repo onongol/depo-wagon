@@ -9,10 +9,12 @@ from apps.bot.callback_data import CB_DEFECT_CONTINUE, CB_DEFECT_RESTART
 from apps.bot.constants import BTN_NEW_DEFECT, UD_SCREEN
 from apps.bot.fsm import clear_defect_keys, drop_keys, load_defect
 from apps.bot.handlers.defect.start import open_blank_form
+from apps.bot.handlers.defect.summary import SummaryScene
 from apps.bot.handlers.defect.text import (
     build_ai_analyzing_text,
     build_defect_continued_text,
     build_defect_in_progress_text,
+    build_fields,
     build_save_failed_text,
     build_saving_text,
 )
@@ -61,8 +63,10 @@ class SavingScene(Scene, state=DefectSG.saving.state):
         progress = callback.message
 
         defect_data = await load_defect(state)
+        # The summary's fields, so the screen keeps the form to the end
+        fields = build_fields(defect_data, SummaryScene.behind(defect_data, {}))
 
-        await progress.edit_text(**build_saving_text().as_kwargs())
+        await progress.edit_text(**build_saving_text(fields).as_kwargs())
 
         try:
             saved = await persist_defect(state, defect_data, employee, bot)
@@ -78,12 +82,12 @@ class SavingScene(Scene, state=DefectSG.saving.state):
 
         await alert_decommission(employee, defect_data)
 
-        await progress.edit_text(**build_ai_analyzing_text().as_kwargs())
+        await progress.edit_text(**build_ai_analyzing_text(fields).as_kwargs())
         ai_result = await run_ai_analysis(
             defect_data, saved.defect.id, saved.photo_bytes
         )
 
-        await send_result(bot, progress, ai_result)
+        await send_result(bot, progress, fields, ai_result)
         await self.wizard.exit()
 
     @on.message(Command("new_defect"))

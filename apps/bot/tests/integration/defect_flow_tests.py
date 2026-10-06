@@ -48,6 +48,7 @@ from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.common.text import build_cancelled_text, build_help_text
 from apps.bot.handlers.defect.part_number import PartNumberScene
 from apps.bot.handlers.defect.responsible_employee.list import EMPLOYEE_PAGE_SIZE
+from apps.bot.handlers.defect.summary import SummaryScene
 from apps.bot.handlers.defect.text import (
     build_album_receiving_text,
     build_ask_defect_type_text,
@@ -72,6 +73,7 @@ from apps.bot.handlers.defect.text import (
     build_edit_verdict_text,
     build_edit_wagon_text,
     build_editing_heading,
+    build_fields,
     build_photos_attached_toast,
     build_result_text,
     build_review_heading,
@@ -424,14 +426,16 @@ class TestTheMenuWhileAFormIsOpen:
         self, dp, bot, session, state, flow
     ):
         """The progress message makes way for the result, which carries the menu."""
-        await save_defect(state, DefectData(wagon_id=3, verdict=DefectVerdict.OK))
+        form = DefectData(wagon_id=3, verdict=DefectVerdict.OK)
+        await save_defect(state, form)
         await state.set_state(DefectSG.confirm)
         update = make_callback_update(ConfirmCB(confirmed=True).pack())
 
         await dp.feed_update(bot, update)
 
         (sent,) = session.calls("sendMessage")
-        result = build_result_text(None)
+        fields = build_fields(form, SummaryScene.behind(form, {}))
+        result = build_result_text(fields, None)
         assert (sent.text, sent.reply_markup) == (
             result.render()[0],
             main_menu_keyboard(),

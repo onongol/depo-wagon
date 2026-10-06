@@ -2,8 +2,10 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from aiogram.utils.formatting import as_list
 
-from apps.bot.fsm import load_defect
+from apps.bot.fsm import load_defect, save_defect
+from apps.bot.handlers.defect.confirm import SavingScene
 from apps.bot.handlers.defect.confirm.pipeline import (
     PersistResult,
     alert_decommission,
@@ -12,18 +14,21 @@ from apps.bot.handlers.defect.confirm.pipeline import (
     run_ai_analysis,
 )
 from apps.bot.handlers.defect.confirm.result import send_result
+from apps.bot.handlers.defect.summary import SummaryScene
 from apps.bot.handlers.defect.text import (
     build_decommission_alert_text,
+    build_fields,
     build_recommendation_text,
     build_result_messages,
     build_result_text,
 )
 from apps.bot.keyboards.menu import main_menu_keyboard
-from apps.bot.tests.builders import CHAT_ID, MESSAGE_ID, make_message
+from apps.bot.tests.builders import CHAT_ID, MESSAGE_ID, make_callback, make_message
 from apps.bot.user_data import AIResult, DefectData, MeasurementEntry, PhotoEntry
 from apps.defects.constants import DefectVerdict
 
 PIPELINE = "apps.bot.handlers.defect.confirm.pipeline"
+HANDLER = "apps.bot.handlers.defect.confirm.handler"
 
 
 def _make_defect_data(**kwargs):
@@ -52,6 +57,15 @@ def _make_saved_defect(defect_id="uuid-001"):
     defect = MagicMock()
     defect.id = defect_id
     return defect
+
+
+def _fields(form=None):
+    """The form as the summary shows it: the whole walk, gaps as dashes."""
+    form = form or _make_defect_data()
+    return build_fields(form, SummaryScene.behind(form, {}))
+
+
+FIELDS = _fields()
 
 
 class TestRegisterDefect:
@@ -419,10 +433,10 @@ class TestSendResult:
         progress = make_message()
         bot.delete_message = AsyncMock()
 
-        await send_result(bot, progress, self.AI)
+        await send_result(bot, progress, FIELDS, self.AI)
 
         (sent,) = progress.answer.await_args_list
-        (expected,) = build_result_messages(self.AI)
+        (expected,) = build_result_messages(FIELDS, self.AI)
         assert sent.kwargs["text"] == expected.render()[0]
         assert sent.kwargs["reply_markup"] == main_menu_keyboard()
         bot.delete_message.assert_awaited_once_with(
@@ -434,11 +448,42 @@ class TestSendResult:
         bot.delete_message = AsyncMock()
         ai = self.AI.model_copy(update={"rag_recommendation": "x" * 4000})
 
-        await send_result(bot, progress, ai)
+        await send_result(bot, progress, FIELDS, ai)
 
         first, second = progress.answer.await_args_list
         assert first.kwargs["reply_markup"] == main_menu_keyboard()
         assert "reply_markup" not in second.kwargs
+
+
+class TestSavingScene:
+    AI = AIResult(defect_class="Rim wear", confidence=0.8, verdict="repair_soon")
+    FORM = "\n\n" + as_list(*FIELDS).render()[0] + "\n\n"
+
+    async def test_the_form_stays_on_screen_to_the_end(self, state, bot):
+        await save_defect(state, _make_defect_data())
+        scene = SavingScene(wizard=AsyncMock())
+        callback = make_callback()
+        bot.delete_message = AsyncMock()
+        saved = PersistResult(defect=_make_saved_defect(), photo_bytes=[])
+
+        with (
+            patch(f"{HANDLER}.persist_defect", AsyncMock(return_value=saved)),
+            patch(f"{HANDLER}.alert_decommission", AsyncMock()),
+            patch(f"{HANDLER}.run_ai_analysis", AsyncMock(return_value=self.AI)),
+        ):
+            await scene.save(callback, state, bot, MagicMock())
+
+        saving, analysing = (
+            call.kwargs["text"] for call in callback.message.edit_text.await_args_list
+        )
+        assert saving == "📋 Defect Summary:" + self.FORM + "⏳ Saving…"
+        assert analysing == "📋 Defect Summary:" + self.FORM + "🤖 Running AI analysis…"
+        (result,) = callback.message.answer.await_args_list
+        assert result.kwargs["text"].startswith(
+            "✅ Defect registered successfully!" + self.FORM + "🤖 AI Analysis:"
+        )
+        assert result.kwargs["reply_markup"] == main_menu_keyboard()
+        scene.wizard.exit.assert_awaited_once()
 
 
 class TestBuildDecommissionAlertText:
@@ -476,11 +521,25 @@ class TestBuildDecommissionAlertText:
 class TestBuildResultText:
     AI = AIResult(defect_class="Rim wear", confidence=0.8, verdict="repair_soon")
 
-    def test_the_saved_defect_then_the_analysis(self):
-        text = build_result_text(self.AI)
+    def test_the_form_then_the_analysis(self):
+        form = _make_defect_data(part_number="PN-42", photo_file_ids=["AgAC"])
+        form.department_label = "Bogie"
+        form.verdict_label = "Repair Now"
+
+        text = build_result_text(_fields(form), self.AI)
 
         assert text.as_html() == (
             "✅ <b>Defect registered successfully!</b>\n\n"
+            "🚃 Wagon: <b>12345</b>\n"
+            "🏭 Department: <b>Bogie</b>\n"
+            "🔧 Node: <b>Wheel</b>\n"
+            "🔢 Part number: <b>PN-42</b>\n"
+            "⚠️ Defect type: <b>Crack</b>\n"
+            "📐 Measurements: —\n"
+            "📸 Photos: 1\n"
+            "📝 Description: Defect description\n"
+            "🌡️ Severity: <b>High</b>\n"
+            "👨‍🔧 Verdict: <b>Repair Now</b>\n\n"
             "🤖 <b>AI Analysis:</b>\n"
             "📌 Rim wear\n"
             "📊 Confidence: 80%\n"
@@ -488,16 +547,25 @@ class TestBuildResultText:
         )
 
     def test_without_the_ai_it_says_so(self):
-        rendered = build_result_text(None).render()[0]
+        rendered = build_result_text(FIELDS, None).render()[0]
 
         assert rendered == (
-            "✅ Defect registered successfully!\n\nℹ️ AI analysis is not available."
+            "✅ Defect registered successfully!\n\n"
+            + as_list(*FIELDS).render()[0]
+            + "\n\nℹ️ AI analysis is not available."
         )
+
+    def test_a_skipped_field_is_a_dash(self):
+        fields = _fields(_make_defect_data(part_number=""))
+
+        rendered = build_result_text(fields, self.AI).render()[0]
+
+        assert "\n🔢 Part number: —\n" in rendered
 
     def test_the_ai_class_is_sent_as_it_came(self):
         ai = self.AI.model_copy(update={"defect_class": "Wear <5 mm> & chips"})
 
-        assert "📌 Wear <5 mm> & chips" in build_result_text(ai).render()[0]
+        assert "📌 Wear <5 mm> & chips" in build_result_text(FIELDS, ai).render()[0]
 
 
 class TestBuildRecommendationText:
@@ -539,10 +607,12 @@ class TestBuildResultMessages:
     AI = AIResult(defect_class="Rim wear", confidence=0.8, verdict="repair_soon")
 
     def _rendered(self, ai):
-        return [text.render()[0] for text in build_result_messages(ai)]
+        return [text.render()[0] for text in build_result_messages(FIELDS, ai)]
 
     def test_without_a_recommendation_the_result_alone(self):
-        assert self._rendered(self.AI) == [build_result_text(self.AI).render()[0]]
+        assert self._rendered(self.AI) == [
+            build_result_text(FIELDS, self.AI).render()[0]
+        ]
 
     def test_a_recommendation_joins_the_result(self):
         ai = self.AI.model_copy(update={"rag_recommendation": "Replace the pad"})
@@ -550,7 +620,7 @@ class TestBuildResultMessages:
         (message,) = self._rendered(ai)
 
         assert message == (
-            build_result_text(ai).render()[0]
+            build_result_text(FIELDS, ai).render()[0]
             + "\n\n"
             + build_recommendation_text(ai).render()[0]
         )
@@ -559,13 +629,13 @@ class TestBuildResultMessages:
         ai = self.AI.model_copy(update={"rag_recommendation": "x" * 4000})
 
         assert self._rendered(ai) == [
-            build_result_text(ai).render()[0],
+            build_result_text(FIELDS, ai).render()[0],
             build_recommendation_text(ai).render()[0],
         ]
 
     def test_emoji_count_twice_toward_the_cap(self):
         """Together they fit by len(), not in the UTF-16 units Telegram counts."""
-        result = build_result_text(self.AI).render()[0]
+        result = build_result_text(FIELDS, self.AI).render()[0]
         heading = "💡 Recommendation:\n"
         spare = 4096 - len(result) - len("\n\n") - len(heading)
         emoji = "🔧" * 10

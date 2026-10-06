@@ -6,6 +6,8 @@ from django.utils.translation import gettext_lazy as _
 from apps.bot.constants import VERDICT_TEXT
 from apps.bot.utils.formatting import quoted
 
+from .text_screen import build_screen_text
+
 if TYPE_CHECKING:
     from apps.bot.user_data import AIResult
 
@@ -27,12 +29,18 @@ def _cut(value: str, units: int) -> str:
     return value.encode("utf-16-le")[: units * 2].decode("utf-16-le", errors="ignore")
 
 
-def build_saving_text() -> Text:
-    return Text("⏳ ", _("Saving…"))
+def _progress_heading() -> Text:
+    return Text("📋 ", Bold(_("Defect Summary:")))
 
 
-def build_ai_analyzing_text() -> Text:
-    return Text("🤖 ", _("Running AI analysis…"))
+def build_saving_text(fields: list[Text]) -> Text:
+    return build_screen_text(_progress_heading(), fields, Text("⏳ ", _("Saving…")))
+
+
+def build_ai_analyzing_text(fields: list[Text]) -> Text:
+    return build_screen_text(
+        _progress_heading(), fields, Text("🤖 ", _("Running AI analysis…"))
+    )
 
 
 def build_save_failed_text() -> Text:
@@ -53,11 +61,11 @@ def _ai_section(ai_result: AIResult | None) -> Text:
     )
 
 
-def build_result_text(ai_result: AIResult | None) -> Text:
-    return as_list(
+def build_result_text(fields: list[Text], ai_result: AIResult | None) -> Text:
+    return build_screen_text(
         Text("✅ ", Bold(_("Defect registered successfully!"))),
+        fields,
         _ai_section(ai_result),
-        sep="\n\n",
     )
 
 
@@ -81,9 +89,9 @@ def build_recommendation_text(ai_result: AIResult | None) -> Text | None:
     return text
 
 
-def build_result_messages(ai_result: AIResult | None) -> list[Text]:
+def build_result_messages(fields: list[Text], ai_result: AIResult | None) -> list[Text]:
     """One message, or the recommendation apart when together they pass the cap."""
-    result = build_result_text(ai_result)
+    result = build_result_text(fields, ai_result)
     recommendation = build_recommendation_text(ai_result)
     if recommendation is None:
         return [result]
