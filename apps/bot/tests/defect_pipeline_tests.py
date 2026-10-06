@@ -1,4 +1,5 @@
 import asyncio
+import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -23,6 +24,7 @@ from apps.bot.handlers.defect.text import (
     build_result_text,
 )
 from apps.bot.keyboards.menu import main_menu_keyboard
+from apps.bot.keyboards.tasks import open_card_keyboard
 from apps.bot.tests.builders import CHAT_ID, MESSAGE_ID, make_callback, make_message
 from apps.bot.user_data import AIResult, DefectData, MeasurementEntry, PhotoEntry
 from apps.defects.constants import DefectVerdict
@@ -374,6 +376,7 @@ class TestPersistDefect:
 
 class TestAlertDecommission:
     INSPECTOR = MagicMock(full_name="Batbayar")
+    DEFECT_ID = uuid.uuid4()
 
     @pytest.fixture
     def svc(self):
@@ -388,18 +391,21 @@ class TestAlertDecommission:
         form = _make_defect_data()
         form.verdict = DefectVerdict.DECOMMISSION
 
-        await alert_decommission(self.INSPECTOR, form)
+        await alert_decommission(self.INSPECTOR, form, self.DEFECT_ID)
 
-        ids, text = svc.queue_messages.await_args.args
+        ids, text, markup = svc.queue_messages.await_args.args
         assert ids == [7, 9]
         expected = build_decommission_alert_text(form, self.INSPECTOR)
         assert text.as_kwargs() == expected.as_kwargs()
+        assert markup == open_card_keyboard(self.DEFECT_ID)
 
     @pytest.mark.parametrize(
         "verdict", [DefectVerdict.OK, DefectVerdict.REPAIR_NOW, None]
     )
     async def test_any_other_verdict_does_not(self, svc, verdict):
-        await alert_decommission(self.INSPECTOR, DefectData(verdict=verdict))
+        await alert_decommission(
+            self.INSPECTOR, DefectData(verdict=verdict), self.DEFECT_ID
+        )
 
         svc.get_managers_and_engineers.assert_not_called()
         svc.queue_messages.assert_not_called()
@@ -408,17 +414,17 @@ class TestAlertDecommission:
         svc.get_managers_and_engineers.return_value = []
         form = DefectData(verdict=DefectVerdict.DECOMMISSION)
 
-        await alert_decommission(self.INSPECTOR, form)
+        await alert_decommission(self.INSPECTOR, form, self.DEFECT_ID)
 
         svc.queue_messages.assert_not_called()
 
     async def test_a_failed_alert_is_logged_not_raised(self, svc, caplog):
         svc.queue_messages.side_effect = RuntimeError("broker down")
-        form = DefectData(verdict=DefectVerdict.DECOMMISSION, defect_id="id-5")
+        form = DefectData(verdict=DefectVerdict.DECOMMISSION)
 
-        await alert_decommission(self.INSPECTOR, form)
+        await alert_decommission(self.INSPECTOR, form, self.DEFECT_ID)
 
-        assert "Decommission alert failed for id-5" in caplog.text
+        assert f"Decommission alert failed for {self.DEFECT_ID}" in caplog.text
 
 
 class TestSendResult:

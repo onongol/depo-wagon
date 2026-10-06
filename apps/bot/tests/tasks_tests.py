@@ -11,6 +11,7 @@ import pytest
 
 from apps.bot.callback_data import (
     DefectCardCB,
+    DefectOpenCB,
     StatusAskCB,
     StatusPickCB,
     StatusSetCB,
@@ -20,6 +21,7 @@ from apps.bot.handlers.tasks import (
     ask_status_confirmation,
     my_tasks,
     my_tasks_page,
+    open_defect_card,
     set_defect_status,
     show_defect_card,
     show_status_picker,
@@ -39,6 +41,7 @@ from apps.bot.services.defect_card import DefectCard
 from apps.bot.tests.builders import (
     CHAT_ID,
     MESSAGE_ID,
+    USER_ID,
     make_callback,
     make_message,
     unpacked,
@@ -273,6 +276,50 @@ class TestShowDefectCard:
         _alerted(callback, build_defect_unavailable_toast())
         _, kb = _edit(callback)
         assert unpacked(kb, DefectCardCB)
+
+
+class TestOpenDefectCard:
+    """From a notification: the card comes under it, and the notification stays."""
+
+    async def test_looks_the_defect_up_for_this_employee(self, svc, employee):
+        defect_id = uuid.uuid4()
+
+        await open_defect_card(
+            make_callback(), DefectOpenCB(defect_id=defect_id), employee
+        )
+
+        svc.get_defect_card.assert_awaited_once_with(defect_id, employee=employee)
+
+    async def test_sends_the_card_as_a_new_message(self, svc, employee):
+        card = _card()
+        svc.get_defect_card.return_value = card
+        callback = make_callback()
+
+        await open_defect_card(
+            callback, DefectOpenCB(defect_id=card.defect.pk), employee
+        )
+
+        _answered_quietly(callback)
+        callback.bot.edit_message_text.assert_not_awaited()
+        sent = callback.bot.send_message.await_args
+        assert sent.args == (USER_ID,)
+        assert (sent.kwargs["text"], sent.kwargs["entities"]) == (
+            build_card_text(card).render()
+        )
+        kb = sent.kwargs["reply_markup"]
+        assert unpacked(kb, StatusPickCB)
+        assert [cb.page for cb in unpacked(kb, TasksPageCB)] == [0]
+
+    async def test_an_unavailable_defect_alerts_and_sends_nothing(self, svc, employee):
+        svc.get_defect_card.return_value = None
+        callback = make_callback()
+
+        await open_defect_card(callback, DefectOpenCB(defect_id=uuid.uuid4()), employee)
+
+        _alerted(callback, build_defect_unavailable_toast())
+        callback.bot.send_message.assert_not_awaited()
+        callback.bot.edit_message_text.assert_not_awaited()
+        svc.get_open_defects.assert_not_called()
 
 
 class TestShowStatusPicker:

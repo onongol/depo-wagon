@@ -14,6 +14,7 @@ from apps.bot import callback_data
 from apps.bot.callback_data import (
     ConfirmCB,
     DefectCardCB,
+    DefectOpenCB,
     DefectTypeCB,
     DepartmentCB,
     DimensionCB,
@@ -116,6 +117,9 @@ class TestBudget:
         cb = DefectCardCB(defect_id=uuid.uuid4(), page=9999)
 
         assert _size(cb) <= TELEGRAM_LIMIT
+
+    def test_defect_open(self):
+        assert _size(DefectOpenCB(defect_id=uuid.uuid4())) <= TELEGRAM_LIMIT
 
     def test_ids_and_pages_at_implausible_magnitudes(self):
         assert _size(ResponsibleEmployeeCB(employee_id=9999999999)) <= TELEGRAM_LIMIT

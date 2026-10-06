@@ -94,6 +94,7 @@ from apps.bot.keyboards.measurement import (
     measurement_value_keyboard,
 )
 from apps.bot.keyboards.menu import main_menu_keyboard
+from apps.bot.keyboards.tasks import open_card_keyboard
 from apps.bot.middlewares.defect_form import (
     build_form_lost_text,
     build_form_outdated_text,
@@ -513,9 +514,10 @@ class TestTheDecommissionAlert:
         await self._save(dp, bot, state, DefectVerdict.DECOMMISSION)
 
         flow.alert.queue_messages.assert_awaited_once()
-        ids, text = flow.alert.queue_messages.await_args.args
+        ids, text, markup = flow.alert.queue_messages.await_args.args
         assert ids == [11]
         assert employee.full_name in text.render()[0]
+        assert markup == open_card_keyboard(flow.saved.defect.id)
 
     async def test_any_other_verdict_does_not(self, dp, bot, state, flow):
         await self._save(dp, bot, state, DefectVerdict.REPAIR_NOW)

@@ -4,6 +4,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from apps.bot.callback_data import (
     DefectCardCB,
+    DefectOpenCB,
     StatusAskCB,
     StatusPickCB,
     StatusSetCB,
@@ -15,6 +16,7 @@ from apps.bot.constants import (
     BTN_CHANGE_STATUS,
     BTN_CONFIRM,
     BTN_NEXT,
+    BTN_OPEN_CARD,
     BTN_PREV,
     LIST_NUMBER_EMOJI,
     STATUS_LABEL,
@@ -98,6 +100,15 @@ def status_confirm_keyboard(
     builder.button(
         text=str(BTN_CANCEL),
         callback_data=DefectCardCB(defect_id=defect_id, page=page),
+    )
+
+    return builder.as_markup()
+
+
+def open_card_keyboard(defect_id: uuid.UUID) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text=str(BTN_OPEN_CARD), callback_data=DefectOpenCB(defect_id=defect_id)
     )
 
     return builder.as_markup()

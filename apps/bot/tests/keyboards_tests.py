@@ -10,6 +10,7 @@ from apps.bot.callback_data import (
     CB_MEAS_DONE,
     CB_STEP_BACK,
     DefectCardCB,
+    DefectOpenCB,
     DepartmentCB,
     EditCB,
     NodeCB,
@@ -29,6 +30,7 @@ from apps.bot.constants import (
     BTN_HELP,
     BTN_NEW_DEFECT,
     BTN_NEXT,
+    BTN_OPEN_CARD,
     BTN_OPEN_DEFECTS,
     BTN_PAGE_NEXT,
     BTN_PAGE_PREV,
@@ -50,6 +52,7 @@ from apps.bot.keyboards.menu import MENU_TEXTS, main_menu_keyboard
 from apps.bot.keyboards.responsible_employee import responsible_employee_keyboard
 from apps.bot.keyboards.tasks import (
     defect_card_keyboard,
+    open_card_keyboard,
     status_confirm_keyboard,
     status_picker_keyboard,
     tasks_keyboard,
@@ -398,6 +401,16 @@ class TestStatusConfirmKeyboard:
         [card] = unpacked(kb, DefectCardCB)
         assert card.defect_id == defect_id
         assert [b.text for b in _kb_buttons(kb)] == [str(BTN_CONFIRM), str(BTN_CANCEL)]
+
+
+class TestOpenCardKeyboard:
+    def test_one_button_opens_that_defect(self):
+        defect_id = uuid.uuid4()
+
+        kb = open_card_keyboard(defect_id)
+
+        assert [b.text for b in _kb_buttons(kb)] == [str(BTN_OPEN_CARD)]
+        assert unpacked(kb, DefectOpenCB) == [DefectOpenCB(defect_id=defect_id)]
 
 
 class TestCallbackDataStaysUnder64Bytes:

@@ -91,6 +91,12 @@ class StatusRef(BaseModel):
 class DefectCardCB(CallbackData, DefectRef, prefix="dcard"): ...
 
 
+class DefectOpenCB(CallbackData, prefix="dopen"):
+    """A card opened from a notification, as a new message under it."""
+
+    defect_id: uuid.UUID
+
+
 class StatusPickCB(CallbackData, DefectRef, prefix="dpick"): ...
 
 

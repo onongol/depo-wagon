@@ -15,7 +15,12 @@ if TYPE_CHECKING:
 
     from aiogram.types import CallbackQuery
 
-    from apps.bot.callback_data import DefectCardCB, DefectRef, StatusRef
+    from apps.bot.callback_data import (
+        DefectCardCB,
+        DefectOpenCB,
+        DefectRef,
+        StatusRef,
+    )
     from apps.bot.services.defect_card import DefectCard
     from apps.core.models import Employee
 
@@ -58,3 +63,20 @@ async def show_defect_card(
 
     await callback.answer()
     await show_card(partial(edit_or_send, callback), card, callback_data.page)
+
+
+@flags.registered
+async def open_defect_card(
+    callback: CallbackQuery, callback_data: DefectOpenCB, employee: Employee
+) -> None:
+    """Open a defect from a notification, which stays in the chat above it."""
+    card = await services.get_defect_card(callback_data.defect_id, employee=employee)
+
+    if card is None:
+        await callback.answer(build_defect_unavailable_toast(), show_alert=True)
+        return
+
+    await callback.answer()
+    await show_card(
+        partial(callback.bot.send_message, callback.from_user.id), card, page=0
+    )

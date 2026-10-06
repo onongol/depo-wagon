@@ -8,6 +8,7 @@ from model_bakery import baker
 
 from apps.bot.callback_data import (
     DefectCardCB,
+    DefectOpenCB,
     StatusAskCB,
     StatusPickCB,
     StatusSetCB,
@@ -129,3 +130,17 @@ async def test_a_chat_linked_to_nobody_is_refused_the_card(dp, bot, session):
 
     [edit] = session.calls("editMessageText")
     assert edit.text == build_not_registered_text().render()[0]
+
+
+@pytest.mark.django_db(transaction=True)
+async def test_a_card_opened_from_a_notification_comes_under_it(
+    dp, bot, session, own_defect
+):
+    open_card = DefectOpenCB(defect_id=own_defect.pk).pack()
+
+    await dp.feed_update(bot, make_callback_update(open_card))
+
+    assert session.calls("editMessageText") == []
+    [card] = session.calls("sendMessage")
+    assert "60123456" in card.text
+    assert payloads(card.reply_markup, StatusPickCB)
