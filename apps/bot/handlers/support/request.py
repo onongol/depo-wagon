@@ -1,12 +1,14 @@
 import logging
 from typing import TYPE_CHECKING
 
+from django.conf import settings
+
 from .text import (
     build_support_request_text,
     build_support_sent_text,
     build_support_unavailable_text,
 )
-from .utils import remember_request, support_chat_id
+from .utils import remember_request
 
 if TYPE_CHECKING:
     from aiogram import Bot
@@ -22,7 +24,7 @@ async def support_receive(
     message: Message, state: FSMContext, bot: Bot, employee: Employee | None
 ) -> None:
     """Relay the user's question to the support chat with their identity."""
-    chat_id = support_chat_id()
+    chat_id = settings.TELEGRAM_SUPPORT_CHAT_ID
     if chat_id is None:
         await message.answer(**build_support_unavailable_text().as_kwargs())
         await state.set_state(None)

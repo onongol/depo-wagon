@@ -12,7 +12,6 @@ from apps.bot.handlers.support.text import (
     build_support_sent_text,
     build_support_unavailable_text,
 )
-from apps.bot.handlers.support.utils import support_chat_id
 from apps.bot.states import SupportSG
 from apps.bot.tests.builders import make_message
 
@@ -40,18 +39,16 @@ def _make_bot():
     return MagicMock(send_message=AsyncMock(), copy_message=AsyncMock())
 
 
-class TestSupportChatId:
-    @override_settings(TELEGRAM_SUPPORT_CHAT_ID="-1001234567890")
-    def test_valid_returns_int(self):
-        assert support_chat_id() == -1001234567890
+class TestSupportUnavailableText:
+    @override_settings(TELEGRAM_SUPPORT_CONTACT="@helpdesk")
+    def test_names_the_contact_at_the_end(self):
+        assert (
+            build_support_unavailable_text().as_kwargs()["text"].endswith(" @helpdesk")
+        )
 
-    @override_settings(TELEGRAM_SUPPORT_CHAT_ID="")
-    def test_empty_returns_none(self):
-        assert support_chat_id() is None
-
-    @override_settings(TELEGRAM_SUPPORT_CHAT_ID="not-a-number")
-    def test_garbage_returns_none(self):
-        assert support_chat_id() is None
+    @override_settings(TELEGRAM_SUPPORT_CONTACT="")
+    def test_stands_without_a_contact(self):
+        assert "@" not in build_support_unavailable_text().as_kwargs()["text"]
 
 
 class TestSupportReply:
@@ -137,7 +134,7 @@ class TestSupportStart:
     async def test_unavailable_when_not_configured(self, state):
         message = _make_user_message()
 
-        with patch.object(start, "support_chat_id", return_value=None):
+        with override_settings(TELEGRAM_SUPPORT_CHAT_ID=None):
             await start.support_start(message, state)
 
         assert await state.get_state() is None
@@ -148,7 +145,7 @@ class TestSupportStart:
     async def test_asks_question_when_configured(self, state):
         message = _make_user_message()
 
-        with patch.object(start, "support_chat_id", return_value=-100):
+        with override_settings(TELEGRAM_SUPPORT_CHAT_ID=-100):
             await start.support_start(message, state)
 
         assert await state.get_state() == SupportSG.message.state
@@ -164,7 +161,7 @@ class TestSupportReceive:
         bot.send_message = AsyncMock(return_value=sent)
 
         with (
-            patch.object(request, "support_chat_id", return_value=-100),
+            override_settings(TELEGRAM_SUPPORT_CHAT_ID=-100),
             patch.object(request, "remember_request", AsyncMock()) as remember,
         ):
             await request.support_receive(message, state, bot, None)
@@ -185,7 +182,7 @@ class TestSupportReceive:
         employee.get_role_display.return_value = "Inspector"
 
         with (
-            patch.object(request, "support_chat_id", return_value=-100),
+            override_settings(TELEGRAM_SUPPORT_CHAT_ID=-100),
             patch.object(request, "remember_request", AsyncMock()),
         ):
             await request.support_receive(message, state, bot, employee)
@@ -205,7 +202,7 @@ class TestSupportReceive:
         bot = _make_bot()
 
         with (
-            patch.object(request, "support_chat_id", return_value=-100),
+            override_settings(TELEGRAM_SUPPORT_CHAT_ID=-100),
             patch.object(request, "remember_request", AsyncMock()),
         ):
             await request.support_receive(message, state, bot, None)
@@ -222,7 +219,7 @@ class TestSupportReceive:
         bot.send_message = AsyncMock(side_effect=Exception("group gone"))
         employee = MagicMock(id=7, full_name="Bat Erdene", employee_id="E-001")
 
-        with patch.object(request, "support_chat_id", return_value=-100):
+        with override_settings(TELEGRAM_SUPPORT_CHAT_ID=-100):
             await request.support_receive(message, state, bot, employee)
 
         assert "employee 7" in caplog.text
@@ -234,7 +231,7 @@ class TestSupportReceive:
         bot = _make_bot()
         bot.send_message = AsyncMock(side_effect=Exception("group gone"))
 
-        with patch.object(request, "support_chat_id", return_value=-100):
+        with override_settings(TELEGRAM_SUPPORT_CHAT_ID=-100):
             await request.support_receive(message, state, bot, None)
 
         assert "an unlinked chat" in caplog.text
@@ -244,7 +241,7 @@ class TestSupportReceive:
         message = _make_user_message()
         bot = _make_bot()
 
-        with patch.object(request, "support_chat_id", return_value=None):
+        with override_settings(TELEGRAM_SUPPORT_CHAT_ID=None):
             await request.support_receive(message, state, bot, None)
 
         assert await state.get_state() is None
@@ -259,7 +256,7 @@ class TestSupportGroupRouter:
     def test_registers_the_reply_handler_when_a_chat_is_configured(self):
         from apps.bot.handlers.support.router import get_support_group_router
 
-        with override_settings(TELEGRAM_SUPPORT_CHAT_ID="-1001234567890"):
+        with override_settings(TELEGRAM_SUPPORT_CHAT_ID=-1001234567890):
             router = get_support_group_router()
 
         callbacks = [h.callback.__name__ for h in router.message.handlers]
@@ -268,7 +265,7 @@ class TestSupportGroupRouter:
     def test_is_empty_when_no_chat_is_configured(self):
         from apps.bot.handlers.support.router import get_support_group_router
 
-        with override_settings(TELEGRAM_SUPPORT_CHAT_ID=""):
+        with override_settings(TELEGRAM_SUPPORT_CHAT_ID=None):
             router = get_support_group_router()
 
         assert router.message.handlers == []
@@ -276,7 +273,7 @@ class TestSupportGroupRouter:
     def test_the_user_half_stands_without_a_chat(self):
         from apps.bot.handlers.support.router import get_support_router
 
-        with override_settings(TELEGRAM_SUPPORT_CHAT_ID=""):
+        with override_settings(TELEGRAM_SUPPORT_CHAT_ID=None):
             router = get_support_router()
 
         callbacks = [h.callback.__name__ for h in router.message.handlers]

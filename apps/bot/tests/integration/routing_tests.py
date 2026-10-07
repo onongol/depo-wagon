@@ -81,7 +81,6 @@ from apps.bot.utils.unregistered import build_not_registered_text
 from apps.core.constants import Department
 
 RESP_SERVICES = "apps.bot.handlers.defect.responsible_employee.list.services"
-SUPPORT_CHAT_ID = "apps.bot.handlers.support.request.support_chat_id"
 TASKS_COUNT = "apps.bot.handlers.tasks.render.services.get_open_defects_count"
 TASKS_PAGE = "apps.bot.handlers.tasks.render.services.get_open_defects"
 
@@ -525,7 +524,7 @@ class TestAiChatPrecedence:
 
         with (
             as_employee(employee),
-            patch(SUPPORT_CHAT_ID, return_value=-100),
+            override_settings(TELEGRAM_SUPPORT_CHAT_ID=-100),
             patch(TASKS_COUNT, AsyncMock(return_value=0)),
             patch(TASKS_PAGE, AsyncMock(return_value=[])),
         ):
@@ -615,7 +614,7 @@ class TestSupportPrecedence:
     ):
         await state.set_state(SupportSG.message)
 
-        with patch(SUPPORT_CHAT_ID, return_value=-100):
+        with override_settings(TELEGRAM_SUPPORT_CHAT_ID=-100):
             await dp.feed_update(bot, make_message_update(str(button)))
 
         sent = session.calls("sendMessage")
@@ -626,7 +625,7 @@ class TestSupportPrecedence:
     async def test_a_question_is_still_relayed(self, dp, bot, session, state, employee):
         await state.set_state(SupportSG.message)
 
-        with as_employee(employee), patch(SUPPORT_CHAT_ID, return_value=-100):
+        with as_employee(employee), override_settings(TELEGRAM_SUPPORT_CHAT_ID=-100):
             await dp.feed_update(bot, make_message_update("The printer is broken"))
 
         assert session.calls("sendMessage")[0].chat_id == -100
@@ -637,7 +636,7 @@ class TestSupportPrecedence:
         """The one handler meant for a group, so PRIVATE_CHAT must not cover it."""
         group_id = -1001234567890
         await remember_request(4242, USER_ID)
-        with override_settings(TELEGRAM_SUPPORT_CHAT_ID=str(group_id)):
+        with override_settings(TELEGRAM_SUPPORT_CHAT_ID=group_id):
             dp = make_dispatcher(storage, SimpleEventIsolation())
 
         group = Chat(id=group_id, type="supergroup")

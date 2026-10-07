@@ -2,6 +2,7 @@
 
 from aiogram import F, Router
 from aiogram.filters import Command, StateFilter
+from django.conf import settings
 
 from apps.bot.filters import NotACommand
 from apps.bot.handlers.common.cancel import cancel
@@ -11,7 +12,6 @@ from apps.bot.states import SupportSG
 from .reply import support_reply
 from .request import support_receive
 from .start import support_start
-from .utils import support_chat_id
 
 
 def get_support_router() -> Router:
@@ -42,7 +42,7 @@ def get_support_group_router() -> Router:
     the bot's own messages reach it even with group privacy mode on.
     """
     router = Router(name="support_group")
-    chat_id = support_chat_id()
+    chat_id = settings.TELEGRAM_SUPPORT_CHAT_ID
     if chat_id is not None:
         router.message.filter(F.chat.id == chat_id)
         router.message.register(support_reply, F.reply_to_message, NotACommand())

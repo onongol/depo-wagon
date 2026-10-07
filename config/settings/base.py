@@ -435,7 +435,9 @@ TELEGRAM_WEBHOOK_URL = env("TELEGRAM_WEBHOOK_URL", default="")
 TELEGRAM_WEBHOOK_SECRET = env("TELEGRAM_WEBHOOK_SECRET", default="")
 
 # The support person must have pressed Start on the bot at least once.
-TELEGRAM_SUPPORT_CHAT_ID = env("TELEGRAM_SUPPORT_CHAT_ID", default="")
+TELEGRAM_SUPPORT_CHAT_ID = env.int("TELEGRAM_SUPPORT_CHAT_ID", default=None)
+# Who users are sent to when the relay is down, e.g. "@handle"
+TELEGRAM_SUPPORT_CONTACT = env("TELEGRAM_SUPPORT_CONTACT", default="")
 
 # Conversation state. Deliberately not REDIS_URL: that instance is configured
 # allkeys-lru with no persistence, which would drop a half-filled defect form.
