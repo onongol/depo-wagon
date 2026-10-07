@@ -9,7 +9,8 @@ from apps.bot.keyboards.menu import MENU_TEXTS
 from apps.bot.states import SupportSG
 
 from .reply import support_reply
-from .request import support_receive, support_start
+from .request import support_receive
+from .start import support_start
 from .utils import support_chat_id
 
 

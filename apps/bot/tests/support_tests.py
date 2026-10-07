@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from django.test import override_settings
 
-from apps.bot.handlers.support import reply, request
+from apps.bot.handlers.support import reply, request, start
 from apps.bot.handlers.support.text import (
     build_support_ask_text,
     build_support_reply_delivered_text,
@@ -137,8 +137,8 @@ class TestSupportStart:
     async def test_unavailable_when_not_configured(self, state):
         message = _make_user_message()
 
-        with patch.object(request, "support_chat_id", return_value=None):
-            await request.support_start(message, state)
+        with patch.object(start, "support_chat_id", return_value=None):
+            await start.support_start(message, state)
 
         assert await state.get_state() is None
         message.answer.assert_awaited_once_with(
@@ -148,8 +148,8 @@ class TestSupportStart:
     async def test_asks_question_when_configured(self, state):
         message = _make_user_message()
 
-        with patch.object(request, "support_chat_id", return_value=-100):
-            await request.support_start(message, state)
+        with patch.object(start, "support_chat_id", return_value=-100):
+            await start.support_start(message, state)
 
         assert await state.get_state() == SupportSG.message.state
         message.answer.assert_awaited_once_with(**build_support_ask_text().as_kwargs())

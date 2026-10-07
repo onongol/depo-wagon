@@ -1,10 +1,7 @@
 import logging
 from typing import TYPE_CHECKING
 
-from apps.bot.states import SupportSG
-
 from .text import (
-    build_support_ask_text,
     build_support_request_text,
     build_support_sent_text,
     build_support_unavailable_text,
@@ -19,16 +16,6 @@ if TYPE_CHECKING:
     from apps.core.models import Employee
 
 logger = logging.getLogger(__name__)
-
-
-async def support_start(message: Message, state: FSMContext) -> None:
-    """Entry: /support — ask the user to type their question."""
-    if support_chat_id() is None:
-        await message.answer(**build_support_unavailable_text().as_kwargs())
-        return
-
-    await message.answer(**build_support_ask_text().as_kwargs())
-    await state.set_state(SupportSG.message)
 
 
 async def support_receive(
