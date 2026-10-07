@@ -1,9 +1,9 @@
 from typing import TYPE_CHECKING
 
-from aiogram.utils.formatting import Bold, ExpandableBlockQuote, Text, as_list
+from aiogram.utils.formatting import Bold, Text, as_list
 from django.utils.translation import gettext_lazy as _
 
-from apps.bot.states import DefectSG
+from apps.bot.utils.defect_fields import DefectFields, build_defect_fields
 
 from .text_measurement import build_measurement_line
 
@@ -13,7 +13,6 @@ if TYPE_CHECKING:
     from apps.bot.user_data import DefectData
 
 _STEP = _("Defect Summary (Step {step} of {total}):")
-_SKIPPED = "—"
 
 
 def build_step_heading(step: int, total: int) -> Text:
@@ -40,49 +39,24 @@ def build_defect_cancelled_text() -> Text:
     return Text("❌ ", _("Defect registration cancelled."))
 
 
-def _bold(value: str | None) -> Bold | None:
-    return Bold(value) if value else None
-
-
-def _measurements(form: DefectData) -> Text | None:
-    if not form.measurements:
-        return None
-    lines = (Text("🔹 ", build_measurement_line(m)) for m in form.measurements)
-    return as_list(Text(len(form.measurements)), *lines)
-
-
 def build_fields(form: DefectData, behind: Collection[str]) -> list[Text]:
     """What the form holds, in order; a field a step behind left empty is a dash."""
-    rows = (
-        (DefectSG.wagon_num, "🚃", _("Wagon:"), _bold(form.wagon_number)),
-        (DefectSG.department, "🏭", _("Department:"), _bold(form.department_label)),
-        (DefectSG.node, "🔧", _("Node:"), _bold(form.node_label)),
-        (DefectSG.part_number, "🔢", _("Part number:"), _bold(form.part_number)),
-        (DefectSG.defect_type, "⚠️", _("Defect type:"), _bold(form.defect_type_label)),
-        (
-            DefectSG.responsible_employee,
-            "👤",
-            _("Responsible:"),
-            _bold(form.responsible_employee_label),
+    return build_defect_fields(
+        DefectFields(
+            wagon=form.wagon_number,
+            department=form.department_label,
+            node=form.node_label,
+            part_number=form.part_number,
+            defect_type=form.defect_type_label,
+            responsible=form.responsible_employee_label,
+            measurements=tuple(build_measurement_line(m) for m in form.measurements),
+            photos=len(form.photos),
+            description=form.description,
+            severity=form.severity_label,
+            verdict=form.verdict_label,
         ),
-        (DefectSG.measurement_choice, "📐", _("Measurements:"), _measurements(form)),
-        (DefectSG.photo, "📸", _("Photos:"), len(form.photos) or None),
-        (
-            DefectSG.desc,
-            "📝",
-            _("Description:"),
-            Text("\n", ExpandableBlockQuote(form.description))
-            if form.description
-            else None,
-        ),
-        (DefectSG.severity, "🌡️", _("Severity:"), _bold(form.severity_label)),
-        (DefectSG.employee_verdict, "👨‍🔧", _("Verdict:"), _bold(form.verdict_label)),
+        behind,
     )
-    return [
-        Text(emoji, " ", label, " ", _SKIPPED if value is None else value)
-        for step, emoji, label, value in rows
-        if value is not None or step.state in behind
-    ]
 
 
 def build_screen_text(

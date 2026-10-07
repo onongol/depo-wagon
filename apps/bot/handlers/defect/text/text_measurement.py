@@ -3,6 +3,8 @@ from typing import TYPE_CHECKING
 from aiogram.utils.formatting import Bold, Code, Italic, Text, as_list
 from django.utils.translation import gettext_lazy as _
 
+from apps.bot.utils.defect_fields import measurement_line
+
 if TYPE_CHECKING:
     from apps.bot.user_data import MeasurementEntry
 
@@ -10,10 +12,9 @@ _EXAMPLE = _("(e.g. 12.5)")
 
 
 def build_measurement_line(measurement: MeasurementEntry) -> Text:
-    line = Text(measurement.dimension_label, ": ", Bold(measurement.value))
-    if measurement.unit:
-        line = Text(line, " ", measurement.unit)
-    return line
+    return measurement_line(
+        measurement.dimension_label, measurement.value, measurement.unit
+    )
 
 
 def build_ask_measurement_text(*, any_saved: bool) -> Text:

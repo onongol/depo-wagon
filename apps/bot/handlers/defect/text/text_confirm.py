@@ -1,15 +1,11 @@
-from typing import TYPE_CHECKING
-
-from aiogram.utils.formatting import Bold, Code, ExpandableBlockQuote, Text, as_list
+from aiogram.utils.formatting import Bold, Text, as_list
 from django.utils.translation import gettext_lazy as _
 
-from apps.bot.constants import VERDICT_TEXT
+from apps.bot.user_data import AIResult
+from apps.bot.utils.defect_fields import build_ai_section
 from apps.bot.utils.formatting import quoted
 
 from .text_screen import build_screen_text
-
-if TYPE_CHECKING:
-    from apps.bot.user_data import AIResult
 
 # Telegram's cap on a message's text
 _MESSAGE_LIMIT = 4096
@@ -47,26 +43,12 @@ def build_save_failed_text() -> Text:
     return Text("❌ ", _("An error occurred. Please try again."))
 
 
-def _ai_section(ai_result: AIResult | None) -> Text:
-    if not (ai_result and ai_result.defect_class):
-        return Text("ℹ️ ", _("AI analysis is not available."))
-    confidence = int((ai_result.confidence or 0) * 100)
-    # An unknown verdict still renders
-    emoji, verdict = VERDICT_TEXT.get(ai_result.verdict, ("ℹ️", "-"))
-    return as_list(
-        Text("🤖 ", Bold(_("AI Analysis:"))),
-        Text(_("Defect class:")),
-        ExpandableBlockQuote(ai_result.defect_class),
-        Text(_("Confidence:"), " ", f"{confidence}%"),
-        Text(_("AI verdict:"), " ", emoji, " ", Code(verdict)),
-    )
-
-
 def build_result_text(fields: list[Text], ai_result: AIResult | None) -> Text:
+    ai = ai_result or AIResult()
     return build_screen_text(
         Text("✅ ", Bold(_("Defect registered successfully!"))),
         fields,
-        _ai_section(ai_result),
+        build_ai_section(ai.defect_class, ai.confidence, ai.verdict),
     )
 
 
