@@ -1,28 +1,10 @@
-import logging
-
 from asgiref.sync import sync_to_async
-from django.conf import settings
 from django.core.cache import cache
-
-logger = logging.getLogger(__name__)
 
 # Redis key: relayed group message_id -> asking user's chat id.
 # TTL caps growth and survives bot restarts (within the window).
 SUPPORT_MAP_PREFIX = "support_reply:"
 SUPPORT_MAP_TTL = 7 * 24 * 3600  # 7 days
-
-
-def support_chat_id() -> int | None:
-    """Parsed support chat id, or None if unset or not a valid integer."""
-    raw = settings.TELEGRAM_SUPPORT_CHAT_ID
-    try:
-        return int(raw)
-    except TypeError, ValueError:
-        if raw:
-            logger.warning(
-                "Invalid TELEGRAM_SUPPORT_CHAT_ID=%r — support relay disabled.", raw
-            )
-        return None
 
 
 def _map_key(message_id: int) -> str:
