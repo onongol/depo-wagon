@@ -2,9 +2,15 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from unittest.mock import MagicMock
 
-from aiogram.utils.formatting import sizeof
+from aiogram.utils.formatting import as_list, sizeof
 
-from apps.bot.constants import LIST_NUMBER_EMOJI, TASKS_PAGE_SIZE
+from apps.bot.constants import (
+    LIST_NUMBER_EMOJI,
+    SEVERITY_LABELS,
+    TASKS_PAGE_SIZE,
+    VERDICT_LABELS,
+)
+from apps.bot.handlers.defect.text import build_fields, build_result_text
 from apps.bot.handlers.tasks.text import (
     CARD_MAX_DESCRIPTION,
     CARD_MAX_MEASUREMENTS,
@@ -14,7 +20,14 @@ from apps.bot.handlers.tasks.text import (
     build_text_list,
 )
 from apps.bot.services.defect_card import DefectCard
-from apps.defects.constants import DefectStatus, DefectVerdict, MeasurementDimension
+from apps.bot.user_data import AIResult, DefectData, MeasurementEntry, PhotoEntry
+from apps.defects.constants import (
+    DefectSeverity,
+    DefectStatus,
+    DefectType,
+    DefectVerdict,
+    MeasurementDimension,
+)
 
 TELEGRAM_TEXT_LIMIT = 4096
 
@@ -104,10 +117,10 @@ def _card_defect(**fields):
     d = MagicMock()
     d.wagon.number = "60123456"
     d.status = DefectStatus.OPEN
-    d.severity = "high"
+    d.severity = DefectSeverity.HIGH
+    d.defect_type = DefectType.CRACK
     d.get_node_display.return_value = "Wheelset"
     d.get_defect_type_display.return_value = "Crack"
-    d.get_severity_display.return_value = "High"
     d.get_department_display.return_value = "Repair-1"
     d.part_number = "PN-7"
     d.inspector = MagicMock(full_name="Bat Erdene")
@@ -116,6 +129,7 @@ def _card_defect(**fields):
     d.description = ""
     d.ai_defect_class = ""
     d.ai_confidence = None
+    d.ai_recommendation = ""
     d.ai_verdict = ""
     d.verdict = ""
     for name, value in fields.items():
@@ -132,77 +146,116 @@ def _card(measurements=(), photo_count=3, **fields) -> DefectCard:
     )
 
 
-def _measurement(value="3.50", unit="mm", norm=None, label="Depth"):
+def _measurement(value="3.50", unit="mm", label="Depth"):
     m = MagicMock()
     m.get_dimension_display.return_value = label
     m.value = Decimal(value)
     m.unit = unit
-    m.norm_value = Decimal(norm) if norm else None
+    m.norm_value = Decimal("2.00")
     return m
 
 
-class TestBuildCardText:
-    def test_the_core_fields_are_rendered(self):
-        text = _plain(build_card_text(_card()))
+def _blocks(card) -> list[str]:
+    return _plain(build_card_text(card)).split("\n\n")
 
-        for line in (
-            "⚠️ Defect: Crack",
+
+class TestBuildCardText:
+    def test_the_card_reads_top_down(self):
+        blocks = _blocks(_card(verdict=DefectVerdict.REPAIR_NOW))
+
+        assert blocks[0] == "📋 Defect card"
+        assert blocks[1].splitlines() == [
             "📊 Status: 🔵 Open",
-            "🌡️ Severity: 🟠 High",
+            "👤 Inspector: Bat Erdene",
+            "🕐 Date: 2026-03-04 08:00",
+        ]
+        assert blocks[2].splitlines() == [
             "🚃 Wagon: 60123456",
             "🏭 Department: Repair-1",
-            "⚙️ Node: Wheelset",
+            "🔧 Node: Wheelset",
             "🔢 Part number: PN-7",
-            "👤 Inspector: Bat Erdene",
-            "🧑‍🔧 Responsible: Dorj Bold",
+            "⚠️ Defect type: Crack",
             "📸 Photos: 3",
-        ):
-            assert line in text.splitlines()
+            "🌡️ Severity: 🟠 High",
+            "👨‍🔧 Verdict: 🟠 Repair Now",
+        ]
+        assert blocks[3] == "ℹ️ AI analysis is not available."
+        assert len(blocks) == 4
 
-    def test_labels_are_bold_and_numbers_copyable(self):
-        html = build_card_text(_card()).as_html()
+    def test_the_fields_read_exactly_as_the_form_shows_them(self):
+        card = _card(
+            measurements=[_measurement("3.50", "mm", "Depth")],
+            defect_type=DefectType.HUMAN_FACTOR,
+            description="Worn flange",
+            verdict=DefectVerdict.REPAIR_NOW,
+        )
+        card.defect.get_defect_type_display.return_value = "Human Factor"
+        form = DefectData(
+            wagon_number="60123456",
+            department_label="Repair-1",
+            node_label="Wheelset",
+            part_number="PN-7",
+            defect_type_label="Human Factor",
+            responsible_employee_label="Dorj Bold",
+            measurements=[
+                MeasurementEntry(dimension_label="Depth", value=3.5, unit="mm")
+            ],
+            photos=[PhotoEntry(file_id=str(i), message_id=i) for i in range(3)],
+            description="Worn flange",
+            severity_label=SEVERITY_LABELS[DefectSeverity.HIGH],
+            verdict_label=str(VERDICT_LABELS[DefectVerdict.REPAIR_NOW]),
+        )
 
-        assert "<b>Wagon:</b> <code>60123456</code>" in html
-        assert "<b>Part number:</b> <code>PN-7</code>" in html
+        fields = as_list(*build_fields(form, ())).as_html()
 
-    def test_the_inspection_time_is_local(self):
-        text = _plain(build_card_text(_card()))
-
-        assert "🕐 Date: 2026-03-04 08:00" in text.splitlines()
+        assert f"\n\n{fields}\n\n" in build_card_text(card).as_html()
 
     def test_a_closed_defect_says_so(self):
-        text = _plain(build_card_text(_card(status=DefectStatus.CLOSED)))
+        assert "📊 Status: 🟢 Closed" in _blocks(_card(status=DefectStatus.CLOSED))[1]
 
-        assert "📊 Status: 🟢 Closed" in text
+    def test_a_missing_inspector_or_date_is_a_dash(self):
+        header = _blocks(_card(inspector=None, inspected_at=None))[1]
 
-    def test_what_is_missing_shows_a_dash(self):
-        card = _card(inspector=None, part_number="", inspected_at=None)
-        card.defect.get_department_display.return_value = ""
+        assert header.splitlines()[1:] == ["👤 Inspector: —", "🕐 Date: —"]
+
+    def test_what_was_left_empty_is_left_out(self):
+        card = _card(part_number="", photo_count=0)
 
         text = _plain(build_card_text(card))
 
-        assert text.count(": -") == 4
+        for label in (
+            "Part number",
+            "Measurements",
+            "Photos",
+            "Description",
+            "Verdict",
+        ):
+            assert label not in text
 
-    def test_the_responsible_employee_is_a_block_of_its_own(self):
-        text = _plain(build_card_text(_card()))
+    def test_a_missing_part_number_is_not_an_empty_entity(self):
+        _, entities = build_card_text(_card(part_number="")).render()
 
-        assert "🧑‍🔧 Responsible: Dorj Bold" in text.split("\n\n")
-
-    def test_no_responsible_employee_means_no_line_at_all(self):
-        text = _plain(build_card_text(_card(responsible_employee=None)))
-
-        assert "Responsible" not in text
-
-    def test_no_photos_reads_as_zero_not_as_missing(self):
-        text = _plain(build_card_text(_card(photo_count=0)))
-
-        assert "📸 Photos: 0" in text.splitlines()
-
-    def test_a_missing_part_number_is_not_an_empty_code_entity(self):
-        content = build_card_text(_card(part_number=""))
-
-        _, entities = content.render()
         assert all(e.length > 0 for e in entities)
+
+    def test_values_are_bold_as_in_the_form(self):
+        html = build_card_text(_card()).as_html()
+
+        assert "🚃 Wagon: <b>60123456</b>" in html
+        assert "📊 Status: <b>🔵 Open</b>" in html
+
+    def test_a_human_factor_names_the_responsible(self):
+        card = _card(defect_type=DefectType.HUMAN_FACTOR)
+
+        assert "👤 Responsible: Dorj Bold" in _blocks(card)[2].splitlines()
+
+    def test_another_type_has_no_responsible_even_with_one_set(self):
+        """The form asks for one only for a human factor."""
+        assert "Responsible" not in _plain(build_card_text(_card()))
+
+    def test_a_human_factor_without_a_responsible_has_no_line(self):
+        card = _card(defect_type=DefectType.HUMAN_FACTOR, responsible_employee=None)
+
+        assert "Responsible" not in _plain(build_card_text(card))
 
     def test_everything_people_typed_stays_text(self):
         card = _card(
@@ -221,30 +274,29 @@ class TestBuildCardText:
         for escaped in ("&lt;i&gt;", "&lt;script&gt;", "&lt;u&gt;", "A &amp; B"):
             assert escaped in html
 
-    def test_a_measurement_shows_its_unit_and_norm(self):
-        html = build_card_text(
-            _card(measurements=[_measurement(norm="2.00")])
-        ).as_html()
+    def test_a_measurement_reads_as_typed_without_its_norm(self):
+        card = _card(measurements=[_measurement("3.50", "mm")])
 
-        assert "🔹 Depth: <b>3.50</b> mm <i>(norm: 2.00)</i>" in html
+        html = build_card_text(card).as_html()
+
+        assert "🔹 Depth: <b>3.5</b> mm" in html
+        assert "norm" not in html
 
     def test_measurements_past_the_cap_are_only_counted(self):
         card = _card(
             measurements=[_measurement() for _ in range(CARD_MAX_MEASUREMENTS + 3)]
         )
 
-        text = _plain(build_card_text(card))
+        lines = _plain(build_card_text(card)).splitlines()
 
-        assert text.count("🔹") == CARD_MAX_MEASUREMENTS
-        assert "…and 3 more" in text.splitlines()
+        assert f"📐 Measurements: {CARD_MAX_MEASUREMENTS + 3}" in lines
+        assert sum(line.startswith("🔹") for line in lines) == CARD_MAX_MEASUREMENTS
+        assert "…and 3 more" in lines
 
-    def test_the_description_is_quoted_under_its_label(self):
+    def test_the_description_is_quoted(self):
         html = build_card_text(_card(description="Worn flange")).as_html()
 
-        assert (
-            "📝 <b>Description:</b>\n<blockquote expandable>Worn flange</blockquote>"
-            in html
-        )
+        assert "<blockquote expandable>Worn flange</blockquote>" in html
 
     def test_a_long_description_is_cut(self):
         text = _plain(build_card_text(_card(description="x" * 1000)))
@@ -252,51 +304,52 @@ class TestBuildCardText:
         assert "x" * (CARD_MAX_DESCRIPTION - 1) + "…" in text
         assert "x" * CARD_MAX_DESCRIPTION not in text
 
-    def test_no_ai_block_without_an_analysis(self):
-        assert "🤖" not in _plain(build_card_text(_card()))
-
-    def test_the_ai_analysis_and_the_verdict(self):
+    def test_the_ai_analysis_reads_as_after_the_save(self):
         card = _card(
             ai_defect_class="Thermal crack",
             ai_confidence=Decimal("0.873"),
             ai_verdict=DefectVerdict.REPAIR_NOW,
-            verdict=DefectVerdict.OK,
+        )
+        result = build_result_text(
+            [],
+            AIResult(
+                defect_class="Thermal crack",
+                confidence=0.873,
+                verdict=DefectVerdict.REPAIR_NOW,
+            ),
         )
 
-        lines = _plain(build_card_text(card)).splitlines()
+        ai = _blocks(card)[-1]
 
-        assert lines[-5:] == [
-            "🤖 AI:",
-            "Thermal crack (87%)",
-            "⚖️ AI verdict: 🟠 Repair Now",
-            "",
-            "✍️ Verdict: ✅ OK",
+        assert ai == _plain(result).split("\n\n")[-1]
+        assert ai.splitlines() == [
+            "🤖 AI Analysis:",
+            "Defect class:",
+            "Thermal crack",
+            "Confidence: 87%",
+            "AI verdict: 🟠 Repair Now",
         ]
 
-    def test_the_ai_class_is_quoted_under_its_label(self):
-        card = _card(ai_defect_class="Thermal crack", ai_confidence=Decimal("0.5"))
-
-        html = build_card_text(card).as_html()
-
-        assert (
-            "🤖 <b>AI:</b>\n<blockquote expandable>Thermal crack (50%)</blockquote>"
-            in html
+    def test_no_recommendation_and_no_sources(self):
+        card = _card(
+            ai_defect_class="Thermal crack",
+            ai_recommendation="Replace the wheelset",
         )
 
-    def test_an_ai_verdict_without_a_class_still_shows(self):
-        text = _plain(build_card_text(_card(ai_verdict=DefectVerdict.OK)))
+        text = _plain(build_card_text(card))
 
-        assert "🤖" not in text
-        assert "⚖️ AI verdict: ✅ OK" in text.splitlines()
+        assert "Replace the wheelset" not in text
+        assert "Recommendation" not in text
+        assert "Sources" not in text
 
     def test_the_worst_case_still_fits_in_one_message(self):
         longest_label = max(MeasurementDimension.labels, key=len)
         card = _card(
             measurements=[
-                _measurement("99999999.99", "U" * 20, "99999999.99", longest_label)
-                for _ in range(50)
+                _measurement("99999999.99", "U" * 20, longest_label) for _ in range(50)
             ],
             part_number="P" * 100,
+            defect_type=DefectType.HUMAN_FACTOR,
             inspector=MagicMock(full_name="I" * 201),
             responsible_employee=MagicMock(full_name="R" * 201),
             description="D" * 10_000,

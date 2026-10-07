@@ -25,6 +25,7 @@ class DefectFields:
     defect_type: str | None = None
     responsible: str | None = None
     measurements: tuple[Text, ...] = ()
+    measurements_hidden: int = 0
     photos: int = 0
     description: str | None = None
     severity: str | None = None
@@ -35,6 +36,10 @@ def _bold(value: str | None) -> Bold | None:
     return Bold(value) if value else None
 
 
+def field_row(emoji: str, label, value: str | None) -> Text:
+    return Text(emoji, " ", label, " ", _bold(value) or _SKIPPED)
+
+
 def measurement_line(label: str, value, unit: str) -> Text:
     line = Text(label, ": ", Bold(value))
     if unit:
@@ -43,10 +48,14 @@ def measurement_line(label: str, value, unit: str) -> Text:
 
 
 def _measurements(fields: DefectFields) -> Text | None:
-    if not fields.measurements:
+    count = len(fields.measurements) + fields.measurements_hidden
+    if not count:
         return None
-    lines = (Text("🔹 ", line) for line in fields.measurements)
-    return as_list(Text(len(fields.measurements)), *lines)
+    lines = [Text("🔹 ", line) for line in fields.measurements]
+    if fields.measurements_hidden:
+        more = str(_("…and {count} more")).format(count=fields.measurements_hidden)
+        lines.append(Text(more))
+    return as_list(Text(count), *lines)
 
 
 def build_defect_fields(
