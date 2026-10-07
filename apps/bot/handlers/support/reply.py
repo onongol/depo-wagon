@@ -11,12 +11,13 @@ from .utils import lookup_request
 
 if TYPE_CHECKING:
     from aiogram import Bot
+    from aiogram.fsm.storage.redis import RedisStorage
     from aiogram.types import Message
 
 logger = logging.getLogger(__name__)
 
 
-async def support_reply(message: Message, bot: Bot) -> None:
+async def support_reply(message: Message, bot: Bot, fsm_storage: RedisStorage) -> None:
     """Relay a support member's reply back to the user who asked.
 
     Text goes under the reply header; any other content is copied after it.
@@ -26,7 +27,7 @@ async def support_reply(message: Message, bot: Bot) -> None:
     if replied_to is None:
         return
 
-    user_id = await lookup_request(replied_to.message_id)
+    user_id = await lookup_request(fsm_storage, message.chat.id, replied_to.message_id)
     if user_id is None:
         return
 

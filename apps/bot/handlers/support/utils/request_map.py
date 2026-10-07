@@ -1,23 +1,28 @@
-from asgiref.sync import sync_to_async
-from django.core.cache import cache
+from typing import TYPE_CHECKING
 
-# Redis key: relayed group message_id -> asking user's chat id.
-# TTL caps growth and survives bot restarts (within the window).
-SUPPORT_MAP_PREFIX = "support_reply:"
-SUPPORT_MAP_TTL = 7 * 24 * 3600  # 7 days
+if TYPE_CHECKING:
+    from aiogram.fsm.storage.redis import RedisStorage
 
-
-def _map_key(message_id: int) -> str:
-    return f"{SUPPORT_MAP_PREFIX}{message_id}"
+# Relayed group message -> asking user's chat id, on the FSM storage's Redis:
+# noeviction + AOF, unlike the cache. Message ids repeat across chats.
+SUPPORT_MAP_PREFIX = "support_request:"
+SUPPORT_MAP_TTL = 30 * 24 * 3600  # 30 days
 
 
-async def remember_request(message_id: int, user_id: int) -> None:
+def _map_key(chat_id: int, message_id: int) -> str:
+    return f"{SUPPORT_MAP_PREFIX}{chat_id}:{message_id}"
+
+
+async def remember_request(
+    storage: RedisStorage, chat_id: int, message_id: int, user_id: int
+) -> None:
     """Link a relayed group message to the user who sent the request."""
-    await sync_to_async(cache.set)(
-        _map_key(message_id), user_id, timeout=SUPPORT_MAP_TTL
-    )
+    await storage.redis.set(_map_key(chat_id, message_id), user_id, ex=SUPPORT_MAP_TTL)
 
 
-async def lookup_request(message_id: int) -> int | None:
+async def lookup_request(
+    storage: RedisStorage, chat_id: int, message_id: int
+) -> int | None:
     """Return the user id behind a relayed message, or None if unknown/expired."""
-    return await sync_to_async(cache.get)(_map_key(message_id))
+    user_id = await storage.redis.get(_map_key(chat_id, message_id))
+    return None if user_id is None else int(user_id)

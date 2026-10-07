@@ -12,8 +12,10 @@ from apps.bot.handlers.support.text import (
     build_support_sent_text,
     build_support_unavailable_text,
 )
+from apps.bot.handlers.support.utils import lookup_request, remember_request
 from apps.bot.states import SupportSG
 from apps.bot.tests.builders import make_message
+from apps.bot.tests.storage import JSONMemoryStorage
 
 
 def _make_user_message(text="My printer is broken"):
@@ -58,7 +60,7 @@ class TestSupportReply:
         bot = _make_bot()
 
         with patch.object(reply, "lookup_request", AsyncMock()) as lookup:
-            await reply.support_reply(message, bot)
+            await reply.support_reply(message, bot, JSONMemoryStorage())
 
         lookup.assert_not_awaited()
         bot.send_message.assert_not_awaited()
@@ -68,7 +70,7 @@ class TestSupportReply:
         bot = _make_bot()
 
         with patch.object(reply, "lookup_request", AsyncMock(return_value=None)):
-            await reply.support_reply(message, bot)
+            await reply.support_reply(message, bot, JSONMemoryStorage())
 
         bot.send_message.assert_not_awaited()
         bot.copy_message.assert_not_awaited()
@@ -78,7 +80,7 @@ class TestSupportReply:
         bot = _make_bot()
 
         with patch.object(reply, "lookup_request", AsyncMock(return_value=777)):
-            await reply.support_reply(message, bot)
+            await reply.support_reply(message, bot, JSONMemoryStorage())
 
         bot.send_message.assert_awaited_once_with(
             chat_id=777,
@@ -94,7 +96,7 @@ class TestSupportReply:
         bot = _make_bot()
 
         with patch.object(reply, "lookup_request", AsyncMock(return_value=777)):
-            await reply.support_reply(message, bot)
+            await reply.support_reply(message, bot, JSONMemoryStorage())
 
         # header sent + original content copied to the user
         bot.send_message.assert_awaited_once_with(
@@ -112,7 +114,7 @@ class TestSupportReply:
         bot.send_message = AsyncMock(side_effect=Exception("blocked"))
 
         with patch.object(reply, "lookup_request", AsyncMock(return_value=777)):
-            await reply.support_reply(message, bot)
+            await reply.support_reply(message, bot, JSONMemoryStorage())
 
         message.reply.assert_awaited_once_with(
             **build_support_reply_failed_text().as_kwargs()
@@ -124,7 +126,7 @@ class TestSupportReply:
         bot.send_message = AsyncMock(side_effect=Exception("blocked"))
 
         with patch.object(reply, "lookup_request", AsyncMock(return_value=777)):
-            await reply.support_reply(message, bot)
+            await reply.support_reply(message, bot, JSONMemoryStorage())
 
         assert "request 4242" in caplog.text
         assert "777" not in caplog.text
@@ -164,14 +166,14 @@ class TestSupportReceive:
             override_settings(TELEGRAM_SUPPORT_CHAT_ID=-100),
             patch.object(request, "remember_request", AsyncMock()) as remember,
         ):
-            await request.support_receive(message, state, bot, None)
+            await request.support_receive(message, state, bot, None, state.storage)
 
         assert await state.get_state() is None
         # relayed to the support chat
         bot.send_message.assert_awaited_once()
         assert bot.send_message.call_args.kwargs["chat_id"] == -100
         # mapping stored: (relayed group message_id, asking user id)
-        remember.assert_awaited_once_with(999, 12345)
+        remember.assert_awaited_once_with(state.storage, -100, 999, 12345)
         # user gets the confirmation
         message.answer.assert_awaited_once_with(**build_support_sent_text().as_kwargs())
 
@@ -185,7 +187,7 @@ class TestSupportReceive:
             override_settings(TELEGRAM_SUPPORT_CHAT_ID=-100),
             patch.object(request, "remember_request", AsyncMock()),
         ):
-            await request.support_receive(message, state, bot, employee)
+            await request.support_receive(message, state, bot, employee, state.storage)
 
         sent = bot.send_message.call_args.kwargs
         assert sent["parse_mode"] is None
@@ -205,49 +207,74 @@ class TestSupportReceive:
             override_settings(TELEGRAM_SUPPORT_CHAT_ID=-100),
             patch.object(request, "remember_request", AsyncMock()),
         ):
-            await request.support_receive(message, state, bot, None)
+            await request.support_receive(message, state, bot, None, state.storage)
 
         text = bot.send_message.call_args.kwargs["text"]
         assert "👤 From: Bat Basbish" in text
         assert "💬 —" in text
 
-    async def test_a_failed_relay_logs_the_employee_not_the_telegram_user(
-        self, state, caplog
-    ):
+    async def test_a_failed_relay_logs_nothing_about_the_sender(self, state, caplog):
         message = _make_user_message()
         bot = _make_bot()
         bot.send_message = AsyncMock(side_effect=Exception("group gone"))
-        employee = MagicMock(id=7, full_name="Bat Erdene", employee_id="E-001")
+        employee = MagicMock(id=4711, full_name="Bat Erdene", employee_id="E-001")
 
         with override_settings(TELEGRAM_SUPPORT_CHAT_ID=-100):
-            await request.support_receive(message, state, bot, employee)
+            await request.support_receive(message, state, bot, employee, state.storage)
 
-        assert "employee 7" in caplog.text
-        for personal in ("12345", "Bat Erdene", "basbish"):
+        assert "Failed to relay a support request" in caplog.text
+        for personal in ("4711", "E-001", "12345", "Bat Erdene", "basbish"):
             assert personal not in caplog.text
-
-    async def test_a_failed_relay_from_an_unlinked_chat_logs_no_id(self, state, caplog):
-        message = _make_user_message()
-        bot = _make_bot()
-        bot.send_message = AsyncMock(side_effect=Exception("group gone"))
-
-        with override_settings(TELEGRAM_SUPPORT_CHAT_ID=-100):
-            await request.support_receive(message, state, bot, None)
-
-        assert "an unlinked chat" in caplog.text
-        assert "12345" not in caplog.text
 
     async def test_unavailable_when_not_configured(self, state):
         message = _make_user_message()
         bot = _make_bot()
 
         with override_settings(TELEGRAM_SUPPORT_CHAT_ID=None):
-            await request.support_receive(message, state, bot, None)
+            await request.support_receive(message, state, bot, None, state.storage)
 
         assert await state.get_state() is None
         message.answer.assert_awaited_once_with(
             **build_support_unavailable_text().as_kwargs()
         )
+
+    async def test_an_unstored_request_is_taken_back_from_the_group(
+        self, state, caplog
+    ):
+        """A relayed question no reply can reach must not stay behind."""
+        await state.set_state(SupportSG.message)
+        message = _make_user_message()
+        bot = _make_bot()
+        bot.send_message = AsyncMock(return_value=MagicMock(message_id=999))
+        bot.delete_message = AsyncMock()
+        failing = AsyncMock(side_effect=ConnectionError("redis down"))
+
+        with (
+            override_settings(TELEGRAM_SUPPORT_CHAT_ID=-100),
+            patch.object(request, "remember_request", failing),
+        ):
+            await request.support_receive(message, state, bot, None, state.storage)
+
+        bot.delete_message.assert_awaited_once_with(chat_id=-100, message_id=999)
+        message.answer.assert_awaited_once_with(
+            **build_support_unavailable_text().as_kwargs()
+        )
+        assert await state.get_state() is None
+        assert "Failed to store a support request" in caplog.text
+
+
+class TestRequestMap:
+    async def test_a_request_is_found_by_its_chat_and_message(self):
+        storage = JSONMemoryStorage()
+        await remember_request(storage, -100, 42, 777)
+
+        assert await lookup_request(storage, -100, 42) == 777
+
+    async def test_the_same_message_id_in_another_chat_is_unknown(self):
+        storage = JSONMemoryStorage()
+        await remember_request(storage, -100, 42, 777)
+
+        assert await lookup_request(storage, -200, 42) is None
 
 
 class TestSupportGroupRouter:

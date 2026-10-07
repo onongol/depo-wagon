@@ -635,7 +635,7 @@ class TestSupportPrecedence:
     ):
         """The one handler meant for a group, so PRIVATE_CHAT must not cover it."""
         group_id = -1001234567890
-        await remember_request(4242, USER_ID)
+        await remember_request(storage, group_id, 4242, USER_ID)
         with override_settings(TELEGRAM_SUPPORT_CHAT_ID=group_id):
             dp = make_dispatcher(storage, SimpleEventIsolation())
 

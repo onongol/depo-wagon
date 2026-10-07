@@ -1,4 +1,5 @@
 import logging
+from contextlib import suppress
 from typing import TYPE_CHECKING
 
 from django.conf import settings
@@ -13,38 +14,52 @@ from .utils import remember_request
 if TYPE_CHECKING:
     from aiogram import Bot
     from aiogram.fsm.context import FSMContext
+    from aiogram.fsm.storage.redis import RedisStorage
     from aiogram.types import Message
+    from aiogram.utils.formatting import Text
 
     from apps.core.models import Employee
 
 logger = logging.getLogger(__name__)
 
 
-async def support_receive(
-    message: Message, state: FSMContext, bot: Bot, employee: Employee | None
-) -> None:
-    """Relay the user's question to the support chat with their identity."""
+async def _relay(bot: Bot, storage: RedisStorage, request: Text, user_id: int) -> bool:
+    """Post the request to the support chat and remember who asked."""
     chat_id = settings.TELEGRAM_SUPPORT_CHAT_ID
     if chat_id is None:
-        await message.answer(**build_support_unavailable_text().as_kwargs())
-        await state.set_state(None)
-        return
-
-    user = message.from_user
-    text = build_support_request_text(message.text.strip(), user, employee)
+        return False
 
     try:
-        sent = await bot.send_message(chat_id=chat_id, **text.as_kwargs())
+        sent = await bot.send_message(chat_id=chat_id, **request.as_kwargs())
     except Exception:
-        logger.exception(
-            "Failed to relay support request from %s",
-            f"employee {employee.id}" if employee else "an unlinked chat",
-        )
-        await message.answer(**build_support_unavailable_text().as_kwargs())
-        await state.set_state(None)
-        return
+        logger.exception("Failed to relay a support request")
+        return False
 
-    await remember_request(sent.message_id, user.id)
+    try:
+        await remember_request(storage, chat_id, sent.message_id, user_id)
+    except Exception:
+        # A request nobody can answer by reply would sit in the group for nothing
+        logger.exception("Failed to store a support request")
+        with suppress(Exception):
+            await bot.delete_message(chat_id=chat_id, message_id=sent.message_id)
+        return False
 
-    await message.answer(**build_support_sent_text().as_kwargs())
+    return True
+
+
+async def support_receive(
+    message: Message,
+    state: FSMContext,
+    bot: Bot,
+    employee: Employee | None,
+    fsm_storage: RedisStorage,
+) -> None:
+    """Relay the user's question to the support chat with their identity."""
+    user = message.from_user
+    request = build_support_request_text(message.text.strip(), user, employee)
+
+    relayed = await _relay(bot, fsm_storage, request, user.id)
+
+    answer = build_support_sent_text() if relayed else build_support_unavailable_text()
+    await message.answer(**answer.as_kwargs())
     await state.set_state(None)

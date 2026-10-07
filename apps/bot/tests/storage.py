@@ -18,7 +18,24 @@ if TYPE_CHECKING:
     from aiogram.fsm.storage.base import StorageKey
 
 
+class _BytesRedis:
+    """The commands handlers run on RedisStorage.redis; values come back as bytes."""
+
+    def __init__(self) -> None:
+        self._values: dict[str, bytes] = {}
+
+    async def set(self, name: str, value: Any, ex: int | None = None) -> None:
+        self._values[name] = str(value).encode()
+
+    async def get(self, name: str) -> bytes | None:
+        return self._values.get(name)
+
+
 class JSONMemoryStorage(MemoryStorage):
+    def __init__(self) -> None:
+        super().__init__()
+        self.redis = _BytesRedis()
+
     async def set_state(
         self, key: StorageKey, state: State | str | None = None
     ) -> None:
