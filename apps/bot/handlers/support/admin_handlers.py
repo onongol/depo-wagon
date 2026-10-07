@@ -1,11 +1,14 @@
 """Support-group side: route a support member's reply back to the user."""
 
-import html
 import logging
 from typing import TYPE_CHECKING
 
-from apps.bot.messages import BotMessages as M
-
+from .text import (
+    build_support_reply_delivered_text,
+    build_support_reply_failed_text,
+    build_support_reply_header,
+    build_support_reply_text,
+)
 from .utils import lookup_request
 
 if TYPE_CHECKING:
@@ -35,15 +38,11 @@ async def support_reply(message: Message, bot: Bot) -> None:
     try:
         if message.text:
             await bot.send_message(
-                chat_id=user_id,
-                text=str(M.SUPPORT_REPLY).format(text=html.escape(message.text)),
-                parse_mode=M.PARSE_MODE,
+                chat_id=user_id, **build_support_reply_text(message.text).as_kwargs()
             )
         else:
             await bot.send_message(
-                chat_id=user_id,
-                text=str(M.SUPPORT_REPLY_HEADER),
-                parse_mode=M.PARSE_MODE,
+                chat_id=user_id, **build_support_reply_header().as_kwargs()
             )
             await bot.copy_message(
                 chat_id=user_id,
@@ -54,7 +53,7 @@ async def support_reply(message: Message, bot: Bot) -> None:
         logger.exception(
             "Failed to deliver support reply to request %s", replied_to.message_id
         )
-        await message.reply(str(M.SUPPORT_REPLY_FAILED))
+        await message.reply(**build_support_reply_failed_text().as_kwargs())
         return
 
-    await message.reply(str(M.SUPPORT_REPLY_DELIVERED))
+    await message.reply(**build_support_reply_delivered_text().as_kwargs())

@@ -5,11 +5,14 @@ from django.test import override_settings
 from apps.bot.handlers.support import admin_handlers, user_handlers
 from apps.bot.handlers.support.text import (
     build_support_ask_text,
+    build_support_reply_delivered_text,
+    build_support_reply_failed_text,
+    build_support_reply_header,
+    build_support_reply_text,
     build_support_sent_text,
     build_support_unavailable_text,
 )
 from apps.bot.handlers.support.utils import support_chat_id
-from apps.bot.messages import BotMessages as M
 from apps.bot.states import SupportSG
 from apps.bot.tests.builders import make_message
 
@@ -76,7 +79,7 @@ class TestSupportReply:
         bot.copy_message.assert_not_awaited()
 
     async def test_text_reply_delivered_to_user(self):
-        message = _make_group_reply("Your wagon is fixed")
+        message = _make_group_reply("<b>Your</b> wagon is fixed")
         bot = _make_bot()
 
         with patch.object(
@@ -84,10 +87,14 @@ class TestSupportReply:
         ):
             await admin_handlers.support_reply(message, bot)
 
-        bot.send_message.assert_awaited_once()
-        assert bot.send_message.call_args.kwargs["chat_id"] == 777
+        bot.send_message.assert_awaited_once_with(
+            chat_id=777,
+            **build_support_reply_text("<b>Your</b> wagon is fixed").as_kwargs(),
+        )
         bot.copy_message.assert_not_awaited()
-        message.reply.assert_awaited_once_with(str(M.SUPPORT_REPLY_DELIVERED))
+        message.reply.assert_awaited_once_with(
+            **build_support_reply_delivered_text().as_kwargs()
+        )
 
     async def test_media_reply_uses_copy_message(self):
         message = _make_group_reply(text=None)  # non-text (photo / sticker / voice)
@@ -99,10 +106,14 @@ class TestSupportReply:
             await admin_handlers.support_reply(message, bot)
 
         # header sent + original content copied to the user
-        bot.send_message.assert_awaited_once()
+        bot.send_message.assert_awaited_once_with(
+            chat_id=777, **build_support_reply_header().as_kwargs()
+        )
         bot.copy_message.assert_awaited_once()
         assert bot.copy_message.call_args.kwargs["chat_id"] == 777
-        message.reply.assert_awaited_once_with(str(M.SUPPORT_REPLY_DELIVERED))
+        message.reply.assert_awaited_once_with(
+            **build_support_reply_delivered_text().as_kwargs()
+        )
 
     async def test_delivery_failure_notifies_support(self):
         message = _make_group_reply("answer")
@@ -114,7 +125,9 @@ class TestSupportReply:
         ):
             await admin_handlers.support_reply(message, bot)
 
-        message.reply.assert_awaited_once_with(str(M.SUPPORT_REPLY_FAILED))
+        message.reply.assert_awaited_once_with(
+            **build_support_reply_failed_text().as_kwargs()
+        )
 
     async def test_a_delivery_failure_logs_the_request_not_the_user(self, caplog):
         message = _make_group_reply("answer", reply_to_id=4242)
