@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from django.test import override_settings
 
-from apps.bot.handlers.support import admin_handlers, user_handlers
+from apps.bot.handlers.support import reply, request
 from apps.bot.handlers.support.text import (
     build_support_ask_text,
     build_support_reply_delivered_text,
@@ -60,8 +60,8 @@ class TestSupportReply:
         message.reply_to_message = None
         bot = _make_bot()
 
-        with patch.object(admin_handlers, "lookup_request", AsyncMock()) as lookup:
-            await admin_handlers.support_reply(message, bot)
+        with patch.object(reply, "lookup_request", AsyncMock()) as lookup:
+            await reply.support_reply(message, bot)
 
         lookup.assert_not_awaited()
         bot.send_message.assert_not_awaited()
@@ -70,10 +70,8 @@ class TestSupportReply:
         message = _make_group_reply()
         bot = _make_bot()
 
-        with patch.object(
-            admin_handlers, "lookup_request", AsyncMock(return_value=None)
-        ):
-            await admin_handlers.support_reply(message, bot)
+        with patch.object(reply, "lookup_request", AsyncMock(return_value=None)):
+            await reply.support_reply(message, bot)
 
         bot.send_message.assert_not_awaited()
         bot.copy_message.assert_not_awaited()
@@ -82,10 +80,8 @@ class TestSupportReply:
         message = _make_group_reply("<b>Your</b> wagon is fixed")
         bot = _make_bot()
 
-        with patch.object(
-            admin_handlers, "lookup_request", AsyncMock(return_value=777)
-        ):
-            await admin_handlers.support_reply(message, bot)
+        with patch.object(reply, "lookup_request", AsyncMock(return_value=777)):
+            await reply.support_reply(message, bot)
 
         bot.send_message.assert_awaited_once_with(
             chat_id=777,
@@ -100,10 +96,8 @@ class TestSupportReply:
         message = _make_group_reply(text=None)  # non-text (photo / sticker / voice)
         bot = _make_bot()
 
-        with patch.object(
-            admin_handlers, "lookup_request", AsyncMock(return_value=777)
-        ):
-            await admin_handlers.support_reply(message, bot)
+        with patch.object(reply, "lookup_request", AsyncMock(return_value=777)):
+            await reply.support_reply(message, bot)
 
         # header sent + original content copied to the user
         bot.send_message.assert_awaited_once_with(
@@ -120,10 +114,8 @@ class TestSupportReply:
         bot = _make_bot()
         bot.send_message = AsyncMock(side_effect=Exception("blocked"))
 
-        with patch.object(
-            admin_handlers, "lookup_request", AsyncMock(return_value=777)
-        ):
-            await admin_handlers.support_reply(message, bot)
+        with patch.object(reply, "lookup_request", AsyncMock(return_value=777)):
+            await reply.support_reply(message, bot)
 
         message.reply.assert_awaited_once_with(
             **build_support_reply_failed_text().as_kwargs()
@@ -134,10 +126,8 @@ class TestSupportReply:
         bot = _make_bot()
         bot.send_message = AsyncMock(side_effect=Exception("blocked"))
 
-        with patch.object(
-            admin_handlers, "lookup_request", AsyncMock(return_value=777)
-        ):
-            await admin_handlers.support_reply(message, bot)
+        with patch.object(reply, "lookup_request", AsyncMock(return_value=777)):
+            await reply.support_reply(message, bot)
 
         assert "request 4242" in caplog.text
         assert "777" not in caplog.text
@@ -147,8 +137,8 @@ class TestSupportStart:
     async def test_unavailable_when_not_configured(self, state):
         message = _make_user_message()
 
-        with patch.object(user_handlers, "support_chat_id", return_value=None):
-            await user_handlers.support_start(message, state)
+        with patch.object(request, "support_chat_id", return_value=None):
+            await request.support_start(message, state)
 
         assert await state.get_state() is None
         message.answer.assert_awaited_once_with(
@@ -158,8 +148,8 @@ class TestSupportStart:
     async def test_asks_question_when_configured(self, state):
         message = _make_user_message()
 
-        with patch.object(user_handlers, "support_chat_id", return_value=-100):
-            await user_handlers.support_start(message, state)
+        with patch.object(request, "support_chat_id", return_value=-100):
+            await request.support_start(message, state)
 
         assert await state.get_state() == SupportSG.message.state
         message.answer.assert_awaited_once_with(**build_support_ask_text().as_kwargs())
@@ -174,10 +164,10 @@ class TestSupportReceive:
         bot.send_message = AsyncMock(return_value=sent)
 
         with (
-            patch.object(user_handlers, "support_chat_id", return_value=-100),
-            patch.object(user_handlers, "remember_request", AsyncMock()) as remember,
+            patch.object(request, "support_chat_id", return_value=-100),
+            patch.object(request, "remember_request", AsyncMock()) as remember,
         ):
-            await user_handlers.support_receive(message, state, bot, None)
+            await request.support_receive(message, state, bot, None)
 
         assert await state.get_state() is None
         # relayed to the support chat
@@ -195,10 +185,10 @@ class TestSupportReceive:
         employee.get_role_display.return_value = "Inspector"
 
         with (
-            patch.object(user_handlers, "support_chat_id", return_value=-100),
-            patch.object(user_handlers, "remember_request", AsyncMock()),
+            patch.object(request, "support_chat_id", return_value=-100),
+            patch.object(request, "remember_request", AsyncMock()),
         ):
-            await user_handlers.support_receive(message, state, bot, employee)
+            await request.support_receive(message, state, bot, employee)
 
         sent = bot.send_message.call_args.kwargs
         assert sent["parse_mode"] is None
@@ -215,10 +205,10 @@ class TestSupportReceive:
         bot = _make_bot()
 
         with (
-            patch.object(user_handlers, "support_chat_id", return_value=-100),
-            patch.object(user_handlers, "remember_request", AsyncMock()),
+            patch.object(request, "support_chat_id", return_value=-100),
+            patch.object(request, "remember_request", AsyncMock()),
         ):
-            await user_handlers.support_receive(message, state, bot, None)
+            await request.support_receive(message, state, bot, None)
 
         text = bot.send_message.call_args.kwargs["text"]
         assert "👤 From: Bat Basbish" in text
@@ -232,8 +222,8 @@ class TestSupportReceive:
         bot.send_message = AsyncMock(side_effect=Exception("group gone"))
         employee = MagicMock(id=7, full_name="Bat Erdene", employee_id="E-001")
 
-        with patch.object(user_handlers, "support_chat_id", return_value=-100):
-            await user_handlers.support_receive(message, state, bot, employee)
+        with patch.object(request, "support_chat_id", return_value=-100):
+            await request.support_receive(message, state, bot, employee)
 
         assert "employee 7" in caplog.text
         for personal in ("12345", "Bat Erdene", "basbish"):
@@ -244,8 +234,8 @@ class TestSupportReceive:
         bot = _make_bot()
         bot.send_message = AsyncMock(side_effect=Exception("group gone"))
 
-        with patch.object(user_handlers, "support_chat_id", return_value=-100):
-            await user_handlers.support_receive(message, state, bot, None)
+        with patch.object(request, "support_chat_id", return_value=-100):
+            await request.support_receive(message, state, bot, None)
 
         assert "an unlinked chat" in caplog.text
         assert "12345" not in caplog.text
@@ -254,8 +244,8 @@ class TestSupportReceive:
         message = _make_user_message()
         bot = _make_bot()
 
-        with patch.object(user_handlers, "support_chat_id", return_value=None):
-            await user_handlers.support_receive(message, state, bot, None)
+        with patch.object(request, "support_chat_id", return_value=None):
+            await request.support_receive(message, state, bot, None)
 
         assert await state.get_state() is None
         message.answer.assert_awaited_once_with(

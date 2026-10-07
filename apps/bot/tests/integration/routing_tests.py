@@ -81,7 +81,7 @@ from apps.bot.utils.unregistered import build_not_registered_text
 from apps.core.constants import Department
 
 RESP_SERVICES = "apps.bot.handlers.defect.responsible_employee.list.services"
-SUPPORT_CHAT_ID = "apps.bot.handlers.support.user_handlers.support_chat_id"
+SUPPORT_CHAT_ID = "apps.bot.handlers.support.request.support_chat_id"
 TASKS_COUNT = "apps.bot.handlers.tasks.render.services.get_open_defects_count"
 TASKS_PAGE = "apps.bot.handlers.tasks.render.services.get_open_defects"
 

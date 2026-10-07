@@ -8,8 +8,8 @@ from apps.bot.handlers.common.cancel import cancel
 from apps.bot.keyboards.menu import MENU_TEXTS
 from apps.bot.states import SupportSG
 
-from .admin_handlers import support_reply
-from .user_handlers import support_receive, support_start
+from .reply import support_reply
+from .request import support_receive, support_start
 from .utils import support_chat_id
 
 
