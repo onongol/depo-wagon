@@ -1,5 +1,3 @@
-"""User-facing side of support: the /support dialog that relays a question."""
-
 import logging
 from typing import TYPE_CHECKING
 

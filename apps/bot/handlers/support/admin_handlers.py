@@ -1,5 +1,3 @@
-"""Support-group side: route a support member's reply back to the user."""
-
 import logging
 from typing import TYPE_CHECKING
 
@@ -19,13 +17,10 @@ logger = logging.getLogger(__name__)
 
 
 async def support_reply(message: Message, bot: Bot) -> None:
-    """Relay a support member's reply (in the group) back to the original user.
+    """Relay a support member's reply back to the user who asked.
 
-    Handles any content type: plain text gets a formatted message; media
-    (photo, voice, sticker, document, …) is delivered via copy_message.
-
-    Replies with message.reply, not message.answer — this runs in the support
-    group, where PTB's reply_text quoted the message being answered.
+    Text goes under the reply header; any other content is copied after it.
+    The outcome is a reply, so the group sees which answer it refers to.
     """
     replied_to = message.reply_to_message
     if replied_to is None:
