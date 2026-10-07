@@ -3,6 +3,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from django.test import override_settings
 
 from apps.bot.handlers.support import admin_handlers, user_handlers
+from apps.bot.handlers.support.text import (
+    build_support_ask_text,
+    build_support_sent_text,
+    build_support_unavailable_text,
+)
 from apps.bot.handlers.support.utils import support_chat_id
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import SupportSG
@@ -134,7 +139,7 @@ class TestSupportStart:
 
         assert await state.get_state() is None
         message.answer.assert_awaited_once_with(
-            str(M.SUPPORT_UNAVAILABLE), parse_mode=M.PARSE_MODE
+            **build_support_unavailable_text().as_kwargs()
         )
 
     async def test_asks_question_when_configured(self, state):
@@ -144,9 +149,7 @@ class TestSupportStart:
             await user_handlers.support_start(message, state)
 
         assert await state.get_state() == SupportSG.message.state
-        message.answer.assert_awaited_once_with(
-            str(M.SUPPORT_ASK), parse_mode=M.PARSE_MODE
-        )
+        message.answer.assert_awaited_once_with(**build_support_ask_text().as_kwargs())
 
 
 class TestSupportReceive:
@@ -170,7 +173,43 @@ class TestSupportReceive:
         # mapping stored: (relayed group message_id, asking user id)
         remember.assert_awaited_once_with(999, 12345)
         # user gets the confirmation
-        message.answer.assert_awaited_once_with(str(M.SUPPORT_SENT))
+        message.answer.assert_awaited_once_with(**build_support_sent_text().as_kwargs())
+
+    async def test_the_request_names_the_employee_and_keeps_markup_literal(self, state):
+        message = _make_user_message("  Is <b>this</b> bold?  ")
+        bot = _make_bot()
+        employee = MagicMock(full_name="Bat Erdene", employee_id="E-001")
+        employee.get_role_display.return_value = "Inspector"
+
+        with (
+            patch.object(user_handlers, "support_chat_id", return_value=-100),
+            patch.object(user_handlers, "remember_request", AsyncMock()),
+        ):
+            await user_handlers.support_receive(message, state, bot, employee)
+
+        sent = bot.send_message.call_args.kwargs
+        assert sent["parse_mode"] is None
+        assert "👤 From: Bat Erdene (E-001, Inspector)" in sent["text"]
+        assert "💬 @basbish" in sent["text"]
+        assert sent["text"].endswith(
+            "Question:\nIs <b>this</b> bold?\n\n"
+            "↩️ Reply to this message to answer the user."
+        )
+
+    async def test_the_request_falls_back_to_the_telegram_name(self, state):
+        message = _make_user_message()
+        message.from_user.username = None
+        bot = _make_bot()
+
+        with (
+            patch.object(user_handlers, "support_chat_id", return_value=-100),
+            patch.object(user_handlers, "remember_request", AsyncMock()),
+        ):
+            await user_handlers.support_receive(message, state, bot, None)
+
+        text = bot.send_message.call_args.kwargs["text"]
+        assert "👤 From: Bat Basbish" in text
+        assert "💬 —" in text
 
     async def test_a_failed_relay_logs_the_employee_not_the_telegram_user(
         self, state, caplog
@@ -207,7 +246,7 @@ class TestSupportReceive:
 
         assert await state.get_state() is None
         message.answer.assert_awaited_once_with(
-            str(M.SUPPORT_UNAVAILABLE), parse_mode=M.PARSE_MODE
+            **build_support_unavailable_text().as_kwargs()
         )
 
 
