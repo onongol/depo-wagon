@@ -83,6 +83,7 @@ class TestAiChatReceive:
         message = make_message(text)
         thinking_msg = MagicMock()
         thinking_msg.edit_text = AsyncMock()
+        thinking_msg.answer = AsyncMock()
         message.answer = AsyncMock(return_value=thinking_msg)
         return message, thinking_msg
 
@@ -374,8 +375,9 @@ class TestAiChatReceive:
         assert len(edited_text) <= _MAX_MESSAGE_LEN
         assert edited_text.endswith("…")
 
-    async def test_deleted_thinking_message_does_not_raise(self, state):
+    async def test_a_refused_edit_sends_the_answer_anew(self, state):
         await self._enter(state)
+        await state.update_data({UD_AI_CHAT_HISTORY: []})
         message, thinking_msg = self._make_message()
         thinking_msg.edit_text = AsyncMock(
             side_effect=make_bad_request("Bad Request: message to edit not found")
@@ -387,6 +389,45 @@ class TestAiChatReceive:
         ):
             await ai_chat_receive(message, state, _make_employee())
 
+        thinking_msg.answer.assert_awaited_once_with(**Text("ok").as_kwargs())
+        assert len((await state.get_data())[UD_AI_CHAT_HISTORY]) == 2
+        assert await state.get_state() == AiChatSG.chatting.state
+
+    async def test_an_edit_that_fails_otherwise_is_not_sent_anew(self, state):
+        """A network error may hide an edit that went through."""
+        await self._enter(state)
+        message, thinking_msg = self._make_message()
+        thinking_msg.edit_text = AsyncMock(
+            side_effect=TelegramNetworkError(method=None, message="network")
+        )
+
+        with patch(
+            "apps.bot.handlers.ai_chat.receive.answer_question",
+            AsyncMock(return_value="ok"),
+        ):
+            await ai_chat_receive(message, state, _make_employee())
+
+        thinking_msg.answer.assert_not_awaited()
+
+    async def test_an_undelivered_answer_is_not_remembered(self, state, caplog):
+        await self._enter(state)
+        await state.update_data({UD_AI_CHAT_HISTORY: []})
+        message, thinking_msg = self._make_message()
+        thinking_msg.edit_text = AsyncMock(
+            side_effect=make_bad_request("Bad Request: message to edit not found")
+        )
+        thinking_msg.answer = AsyncMock(
+            side_effect=TelegramNetworkError(method=None, message="network")
+        )
+
+        with patch(
+            "apps.bot.handlers.ai_chat.receive.answer_question",
+            AsyncMock(return_value="ok"),
+        ):
+            await ai_chat_receive(message, state, _make_employee())
+
+        assert (await state.get_data())[UD_AI_CHAT_HISTORY] == []
+        assert "Could not show the AI chat reply" in caplog.text
         assert await state.get_state() == AiChatSG.chatting.state
 
     async def test_a_lost_employee_ends_the_session_without_asking(self, state):

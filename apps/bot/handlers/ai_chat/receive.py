@@ -4,7 +4,7 @@ import logging
 from http import HTTPStatus
 from typing import TYPE_CHECKING
 
-from aiogram.exceptions import TelegramAPIError
+from aiogram.exceptions import TelegramAPIError, TelegramBadRequest
 from aiogram.utils.formatting import Text
 from google.genai.errors import ServerError
 
@@ -33,9 +33,24 @@ _ANSWER_TIMEOUT = 60.0
 _MAX_MESSAGE_LEN = 4096
 
 
-async def _safe_edit(msg: Message, text: Text) -> None:
-    with contextlib.suppress(TelegramAPIError):
-        await msg.edit_text(**text.as_kwargs())
+async def _show(placeholder: Message, text: Text) -> bool:
+    """Put the reply in place of the placeholder, or under it if the edit is refused."""
+    try:
+        await placeholder.edit_text(**text.as_kwargs())
+    except TelegramBadRequest as exc:
+        logger.info("AI chat placeholder refused the edit: %s", exc.message)
+    except TelegramAPIError as exc:
+        logger.warning("Could not show the AI chat reply: %s", exc)
+        return False
+    else:
+        return True
+
+    try:
+        await placeholder.answer(**text.as_kwargs())
+    except TelegramAPIError as exc:
+        logger.warning("Could not show the AI chat reply: %s", exc)
+        return False
+    return True
 
 
 async def _ask(question: str, history: list[dict]) -> tuple[Text, str | None]:
@@ -71,7 +86,8 @@ async def ai_chat_receive(
 
     An AI failure never leaves the conversation: it edits the placeholder and
     stays in AiChatSG.chatting, so the user can just ask again. A chat that
-    lost its employee mid-session does leave it.
+    lost its employee mid-session does leave it. History keeps only answers
+    the user was shown.
     """
     if not employee:
         await state.clear()
@@ -93,14 +109,13 @@ async def ai_chat_receive(
     history: list[dict] = (await state.get_data()).get(UD_AI_CHAT_HISTORY, [])
 
     reply, answer = await _ask(question, history)
+    if not await _show(thinking_msg, reply) or answer is None:
+        return
 
-    if answer is not None:
-        history = history[-_HISTORY_KEEP:]
-        history.append({"role": "user", "content": question})
-        history.append({"role": "model", "content": answer})
-        await state.update_data({UD_AI_CHAT_HISTORY: history})
-
-    await _safe_edit(thinking_msg, reply)
+    history = history[-_HISTORY_KEEP:]
+    history.append({"role": "user", "content": question})
+    history.append({"role": "model", "content": answer})
+    await state.update_data({UD_AI_CHAT_HISTORY: history})
 
 
 async def ai_chat_not_text(message: Message) -> None:
