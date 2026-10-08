@@ -37,6 +37,32 @@ async def _safe_edit(msg: Message, text: Text) -> None:
         await msg.edit_text(**text.as_kwargs())
 
 
+async def _ask(question: str, history: list[dict]) -> tuple[Text, str | None]:
+    """The reply to show, and the model's answer when there is one to remember."""
+    try:
+        answer = await asyncio.wait_for(
+            answer_question(question, history), timeout=_ANSWER_TIMEOUT
+        )
+    except TimeoutError:
+        logger.warning("AI chat timed out after %.0fs", _ANSWER_TIMEOUT)
+        return build_ai_chat_overloaded_text(), None
+    except ContentBlockedError:
+        return build_ai_chat_blocked_text(), None
+    except ServerError as e:
+        if e.code == HTTPStatus.SERVICE_UNAVAILABLE:
+            logger.warning("AI chat 503 overloaded")
+            return build_ai_chat_overloaded_text(), None
+        logger.exception("AI chat server error")
+        return build_ai_chat_error_text(), None
+    except Exception:
+        logger.exception("AI chat failed")
+        return build_ai_chat_error_text(), None
+
+    if len(answer) > _MAX_MESSAGE_LEN:
+        answer = answer[: _MAX_MESSAGE_LEN - 1] + "…"
+    return Text(answer), answer
+
+
 async def ai_chat_receive(
     message: Message, state: FSMContext, employee: Employee | None
 ) -> None:
@@ -62,36 +88,12 @@ async def ai_chat_receive(
 
     history: list[dict] = (await state.get_data()).get(UD_AI_CHAT_HISTORY, [])
 
-    try:
-        answer = await asyncio.wait_for(
-            answer_question(question, history), timeout=_ANSWER_TIMEOUT
-        )
-    except TimeoutError:
-        logger.warning("AI chat timed out after %.0fs", _ANSWER_TIMEOUT)
-        await _safe_edit(thinking_msg, build_ai_chat_overloaded_text())
-        return
-    except ContentBlockedError:
-        await _safe_edit(thinking_msg, build_ai_chat_blocked_text())
-        return
-    except ServerError as e:
-        if e.code == HTTPStatus.SERVICE_UNAVAILABLE:
-            logger.warning("AI chat 503 overloaded")
-            await _safe_edit(thinking_msg, build_ai_chat_overloaded_text())
-        else:
-            logger.exception("AI chat server error")
-            await _safe_edit(thinking_msg, build_ai_chat_error_text())
-        return
-    except Exception:
-        logger.exception("AI chat failed")
-        await _safe_edit(thinking_msg, build_ai_chat_error_text())
-        return
+    reply, answer = await _ask(question, history)
 
-    if len(answer) > _MAX_MESSAGE_LEN:
-        answer = answer[: _MAX_MESSAGE_LEN - 1] + "…"
+    if answer is not None:
+        history = history[-_HISTORY_KEEP:]
+        history.append({"role": "user", "content": question})
+        history.append({"role": "model", "content": answer})
+        await state.update_data({UD_AI_CHAT_HISTORY: history})
 
-    history = history[-_HISTORY_KEEP:]
-    history.append({"role": "user", "content": question})
-    history.append({"role": "model", "content": answer})
-    await state.update_data({UD_AI_CHAT_HISTORY: history})
-
-    await _safe_edit(thinking_msg, Text(answer))
+    await _safe_edit(thinking_msg, reply)
