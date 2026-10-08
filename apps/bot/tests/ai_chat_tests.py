@@ -8,6 +8,7 @@ from google.genai.errors import ServerError
 from apps.bot.constants import UD_AI_CHAT_HISTORY
 from apps.bot.handlers.ai_chat.receive import ai_chat_receive
 from apps.bot.handlers.ai_chat.start import ai_chat_start
+from apps.bot.handlers.ai_chat.text import build_ai_chat_greeting_text
 from apps.bot.messages import BotMessages as M
 from apps.bot.states import AiChatSG
 from apps.bot.tests.builders import make_bad_request, make_message
@@ -45,11 +46,11 @@ class TestAiChatStart:
 
         assert (await state.get_data())[UD_AI_CHAT_HISTORY] == []
 
-    async def test_sends_greeting_with_html_parse_mode(self, message, state):
+    async def test_sends_greeting(self, message, state):
         await ai_chat_start(message, state, _make_employee())
 
         message.answer.assert_called_once_with(
-            str(M.AI_CHAT_GREETING), parse_mode=M.PARSE_MODE
+            **build_ai_chat_greeting_text().as_kwargs()
         )
 
     async def test_caches_employee_in_user_data(self, message, state):

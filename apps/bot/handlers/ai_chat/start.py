@@ -5,8 +5,9 @@ from aiogram import flags
 from aiogram.exceptions import TelegramAPIError
 
 from apps.bot.constants import UD_AI_CHAT_HISTORY
-from apps.bot.messages import BotMessages as M
 from apps.bot.states import AiChatSG
+
+from .text import build_ai_chat_greeting_text
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
@@ -24,7 +25,7 @@ async def ai_chat_start(
     await state.update_data({UD_AI_CHAT_HISTORY: []})
 
     try:
-        await message.answer(str(M.AI_CHAT_GREETING), parse_mode=M.PARSE_MODE)
+        await message.answer(**build_ai_chat_greeting_text().as_kwargs())
     except TelegramAPIError:
         logger.warning("Could not send greeting for employee %s", employee.id)
         return
