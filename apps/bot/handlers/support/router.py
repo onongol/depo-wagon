@@ -10,7 +10,7 @@ from apps.bot.keyboards.menu import MENU_TEXTS
 from apps.bot.states import SupportSG
 
 from .reply import support_reply
-from .request import support_receive
+from .request import support_not_text, support_receive
 from .start import support_start
 
 
@@ -32,6 +32,7 @@ def get_support_router() -> Router:
         ~F.text.in_(MENU_TEXTS),
         NotACommand(),
     )
+    router.message.register(support_not_text, StateFilter(SupportSG.message), ~F.text)
     return router
 
 

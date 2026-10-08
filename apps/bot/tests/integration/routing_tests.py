@@ -61,6 +61,7 @@ from apps.bot.handlers.defect.text import (
 from apps.bot.handlers.defect.wagon import WagonScene
 from apps.bot.handlers.start.link_errors import get_link_error_message
 from apps.bot.handlers.start.text import build_link_cancelled_text
+from apps.bot.handlers.support.text import build_support_text_only_text
 from apps.bot.handlers.support.utils import remember_request
 from apps.bot.handlers.tasks.text import build_no_tasks_text
 from apps.bot.keyboards.common import done_keyboard, skip_keyboard, with_step_buttons
@@ -770,20 +771,27 @@ class TestUnroutedUpdates:
         assert (await load_defect(state)).photos == []
         assert await state.get_state() == DefectSG.desc.state
 
-    @pytest.mark.parametrize(
-        "known", [SupportSG.message, AiChatSG.chatting], ids=lambda s: s.state
-    )
-    async def test_every_other_group_keeps_its_state_through_a_stray_photo(
-        self, dp, bot, session, state, known
+    async def test_the_ai_chat_keeps_its_state_through_a_stray_photo(
+        self, dp, bot, session, state
     ):
-        """One state from each of the other groups; each step there asks for text."""
         await save_defect(state, DefectData(wagon_id=3))
-        await state.set_state(known)
+        await state.set_state(AiChatSG.chatting)
 
         await dp.feed_update(bot, make_photo_update("stray"))
 
         assert session.requests == []
-        assert await state.get_state() == known.state
+        assert await state.get_state() == AiChatSG.chatting.state
+
+    async def test_a_stray_photo_in_support_is_asked_to_be_text(
+        self, dp, bot, session, state
+    ):
+        await state.set_state(SupportSG.message)
+
+        await dp.feed_update(bot, make_photo_update("stray"))
+
+        sent = [m.text for m in session.calls("sendMessage")]
+        assert sent == [build_support_text_only_text().render()[0]]
+        assert await state.get_state() == SupportSG.message.state
 
     async def test_a_state_left_by_an_older_build_is_cleared_and_answered(
         self, dp, bot, session, state

@@ -11,8 +11,11 @@ from apps.bot.handlers.support.text import (
     build_support_reply_delivered_text,
     build_support_reply_header,
     build_support_reply_retry_text,
+    build_support_request_text,
     build_support_request_unknown_text,
     build_support_sent_text,
+    build_support_text_only_text,
+    build_support_too_long_text,
     build_support_unavailable_text,
 )
 from apps.bot.handlers.support.utils import lookup_request, remember_request
@@ -291,6 +294,52 @@ class TestSupportReceive:
         )
         assert await state.get_state() is None
         assert "Failed to store a support request" in caplog.text
+
+    @pytest.mark.parametrize(
+        ("question", "expected"),
+        [
+            ("   \n\t ", build_support_text_only_text),
+            ("x" * 4096, build_support_too_long_text),
+            # 2,100 characters, but 4,200 of the UTF-16 units Telegram counts
+            ("🚃" * 2100, build_support_too_long_text),
+        ],
+        ids=["blank", "over-the-limit", "emoji-over-the-limit"],
+    )
+    async def test_a_question_that_cant_go_stays_in_the_dialog(
+        self, state, question, expected
+    ):
+        await state.set_state(SupportSG.message)
+        message = _make_user_message(question)
+        bot = _make_bot()
+
+        with override_settings(TELEGRAM_SUPPORT_CHAT_ID=-100):
+            await request.support_receive(message, state, bot, None, state.storage)
+
+        bot.send_message.assert_not_awaited()
+        message.answer.assert_awaited_once_with(**expected().as_kwargs())
+        assert await state.get_state() == SupportSG.message.state
+
+    async def test_a_question_just_under_the_limit_is_relayed(self, state):
+        heading = build_support_request_text("", _make_user_message().from_user, None)
+        message = _make_user_message("x" * (4096 - len(heading)))
+        bot = _make_bot()
+
+        with (
+            override_settings(TELEGRAM_SUPPORT_CHAT_ID=-100),
+            patch.object(request, "remember_request", AsyncMock()),
+        ):
+            await request.support_receive(message, state, bot, None, state.storage)
+
+        bot.send_message.assert_awaited_once()
+
+    async def test_something_other_than_text_is_asked_again(self):
+        message = _make_user_message(text=None)
+
+        await request.support_not_text(message)
+
+        message.answer.assert_awaited_once_with(
+            **build_support_text_only_text().as_kwargs()
+        )
 
 
 class TestRequestMap:

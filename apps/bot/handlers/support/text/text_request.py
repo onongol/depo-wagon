@@ -9,6 +9,22 @@ if TYPE_CHECKING:
     from apps.core.models import Employee
 
 
+def _with_exit_hint(line: Text) -> Text:
+    return as_list(line, Italic(_("To exit, type /cancel.")))
+
+
+def build_support_text_only_text() -> Text:
+    return _with_exit_hint(
+        Text("✍️ ", _("Please type your question as a text message."))
+    )
+
+
+def build_support_too_long_text() -> Text:
+    return _with_exit_hint(
+        Text("⚠️ ", _("The question is too long for one message. Please shorten it."))
+    )
+
+
 def build_support_sent_text() -> Text:
     return Text(
         "✅ ",
