@@ -5,12 +5,19 @@ from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 from aiogram.exceptions import TelegramAPIError
+from aiogram.utils.formatting import Text
 from google.genai.errors import ServerError
 
 from apps.ai_service.rag.chat import ContentBlockedError, answer_question
 from apps.bot.constants import UD_AI_CHAT_HISTORY
-from apps.bot.messages import BotMessages as M
 from apps.bot.utils.unregistered import refuse_unregistered
+
+from .text import (
+    build_ai_chat_blocked_text,
+    build_ai_chat_error_text,
+    build_ai_chat_overloaded_text,
+    build_ai_chat_thinking_text,
+)
 
 if TYPE_CHECKING:
     from aiogram.fsm.context import FSMContext
@@ -25,9 +32,9 @@ _ANSWER_TIMEOUT = 60.0
 _MAX_MESSAGE_LEN = 4096
 
 
-async def _safe_edit(msg: Message, text: str) -> None:
+async def _safe_edit(msg: Message, text: Text) -> None:
     with contextlib.suppress(TelegramAPIError):
-        await msg.edit_text(text)
+        await msg.edit_text(**text.as_kwargs())
 
 
 async def ai_chat_receive(
@@ -48,7 +55,7 @@ async def ai_chat_receive(
     question = message.text.strip()
 
     try:
-        thinking_msg = await message.answer(str(M.AI_CHAT_THINKING))
+        thinking_msg = await message.answer(**build_ai_chat_thinking_text().as_kwargs())
     except TelegramAPIError:
         logger.warning("Could not send thinking message for employee %s", employee.id)
         return
@@ -65,22 +72,22 @@ async def ai_chat_receive(
             _ANSWER_TIMEOUT,
             employee.id,
         )
-        await _safe_edit(thinking_msg, str(M.AI_CHAT_OVERLOADED))
+        await _safe_edit(thinking_msg, build_ai_chat_overloaded_text())
         return
     except ContentBlockedError:
-        await _safe_edit(thinking_msg, str(M.AI_CHAT_BLOCKED))
+        await _safe_edit(thinking_msg, build_ai_chat_blocked_text())
         return
     except ServerError as e:
         if e.code == HTTPStatus.SERVICE_UNAVAILABLE:
             logger.warning("AI chat 503 overloaded for employee %s", employee.id)
-            await _safe_edit(thinking_msg, str(M.AI_CHAT_OVERLOADED))
+            await _safe_edit(thinking_msg, build_ai_chat_overloaded_text())
         else:
             logger.exception("AI chat server error for employee %s", employee.id)
-            await _safe_edit(thinking_msg, str(M.AI_CHAT_ERROR))
+            await _safe_edit(thinking_msg, build_ai_chat_error_text())
         return
     except Exception:
         logger.exception("AI chat failed for employee %s", employee.id)
-        await _safe_edit(thinking_msg, str(M.AI_CHAT_ERROR))
+        await _safe_edit(thinking_msg, build_ai_chat_error_text())
         return
 
     if len(answer) > _MAX_MESSAGE_LEN:
@@ -91,4 +98,4 @@ async def ai_chat_receive(
     history.append({"role": "model", "content": answer})
     await state.update_data({UD_AI_CHAT_HISTORY: history})
 
-    await _safe_edit(thinking_msg, answer)
+    await _safe_edit(thinking_msg, Text(answer))

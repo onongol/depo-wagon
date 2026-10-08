@@ -3,13 +3,19 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from aiogram.dispatcher.event.handler import HandlerObject
 from aiogram.exceptions import TelegramNetworkError
+from aiogram.utils.formatting import Text
 from google.genai.errors import ServerError
 
 from apps.bot.constants import UD_AI_CHAT_HISTORY
 from apps.bot.handlers.ai_chat.receive import ai_chat_receive
 from apps.bot.handlers.ai_chat.start import ai_chat_start
-from apps.bot.handlers.ai_chat.text import build_ai_chat_greeting_text
-from apps.bot.messages import BotMessages as M
+from apps.bot.handlers.ai_chat.text import (
+    build_ai_chat_blocked_text,
+    build_ai_chat_error_text,
+    build_ai_chat_greeting_text,
+    build_ai_chat_overloaded_text,
+    build_ai_chat_thinking_text,
+)
 from apps.bot.states import AiChatSG
 from apps.bot.tests.builders import make_bad_request, make_message
 from apps.bot.utils.unregistered import build_not_registered_text
@@ -88,7 +94,9 @@ class TestAiChatReceive:
         ):
             await ai_chat_receive(message, state, _make_employee())
 
-        message.answer.assert_called_once_with(str(M.AI_CHAT_THINKING))
+        message.answer.assert_called_once_with(
+            **build_ai_chat_thinking_text().as_kwargs()
+        )
 
     async def test_edits_thinking_with_answer(self, state):
         await self._enter(state)
@@ -99,7 +107,7 @@ class TestAiChatReceive:
         ):
             await ai_chat_receive(message, state, _make_employee())
 
-        thinking_msg.edit_text.assert_called_once_with("Ответ депо")
+        thinking_msg.edit_text.assert_called_once_with(**Text("Ответ депо").as_kwargs())
 
     async def test_stays_in_ai_chat_on_success(self, state):
         await self._enter(state)
@@ -175,7 +183,9 @@ class TestAiChatReceive:
         ):
             await ai_chat_receive(message, state, _make_employee())
 
-        thinking_msg.edit_text.assert_called_once_with(str(M.AI_CHAT_OVERLOADED))
+        thinking_msg.edit_text.assert_called_once_with(
+            **build_ai_chat_overloaded_text().as_kwargs()
+        )
         assert await state.get_state() == AiChatSG.chatting.state
 
     async def test_other_server_error_shows_generic_error(self, state):
@@ -187,7 +197,9 @@ class TestAiChatReceive:
         ):
             await ai_chat_receive(message, state, _make_employee())
 
-        thinking_msg.edit_text.assert_called_once_with(str(M.AI_CHAT_ERROR))
+        thinking_msg.edit_text.assert_called_once_with(
+            **build_ai_chat_error_text().as_kwargs()
+        )
         assert await state.get_state() == AiChatSG.chatting.state
 
     async def test_generic_exception_shows_error(self, state):
@@ -199,7 +211,9 @@ class TestAiChatReceive:
         ):
             await ai_chat_receive(message, state, _make_employee())
 
-        thinking_msg.edit_text.assert_called_once_with(str(M.AI_CHAT_ERROR))
+        thinking_msg.edit_text.assert_called_once_with(
+            **build_ai_chat_error_text().as_kwargs()
+        )
         assert await state.get_state() == AiChatSG.chatting.state
 
     async def test_a_failure_logs_the_employee_not_the_telegram_user(
@@ -241,7 +255,9 @@ class TestAiChatReceive:
         ):
             await ai_chat_receive(message, state, _make_employee())
 
-        thinking_msg.edit_text.assert_called_once_with(str(M.AI_CHAT_BLOCKED))
+        thinking_msg.edit_text.assert_called_once_with(
+            **build_ai_chat_blocked_text().as_kwargs()
+        )
         assert await state.get_state() == AiChatSG.chatting.state
 
     async def test_content_blocked_does_not_update_history(self, state):
@@ -283,7 +299,9 @@ class TestAiChatReceive:
         ):
             await ai_chat_receive(message, state, _make_employee())
 
-        thinking_msg.edit_text.assert_called_once_with(str(M.AI_CHAT_OVERLOADED))
+        thinking_msg.edit_text.assert_called_once_with(
+            **build_ai_chat_overloaded_text().as_kwargs()
+        )
         assert await state.get_state() == AiChatSG.chatting.state
 
     async def test_timeout_does_not_update_history(self, state):
@@ -337,7 +355,7 @@ class TestAiChatReceive:
         ):
             await ai_chat_receive(message, state, _make_employee())
 
-        edited_text = thinking_msg.edit_text.call_args.args[0]
+        edited_text = thinking_msg.edit_text.call_args.kwargs["text"]
         assert len(edited_text) <= _MAX_MESSAGE_LEN
         assert edited_text.endswith("…")
 
