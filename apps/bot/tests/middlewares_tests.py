@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from aiogram import flags
+from aiogram.exceptions import TelegramNetworkError
 from aiogram.types import CallbackQuery, Message
 
 from apps.bot.constants import UD_AI_CHAT_HISTORY
@@ -543,6 +544,18 @@ class TestEmployeeMiddleware:
 
         assert await state.get_state() is None
         assert await state.get_data() == {}
+
+    async def test_a_refusal_ends_the_flow_even_if_the_reply_fails(self, state):
+        await state.set_state(AiChatSG.chatting)
+        message = _spec_message()
+        message.answer = AsyncMock(
+            side_effect=TelegramNetworkError(method=None, message="network")
+        )
+
+        with pytest.raises(TelegramNetworkError):
+            await self._call(_registered_only, event=message, extra={"state": state})
+
+        assert await state.get_state() is None
 
     async def test_a_registered_only_handler_gets_its_employee(self):
         employee = MagicMock()

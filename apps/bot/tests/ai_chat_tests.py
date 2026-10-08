@@ -20,15 +20,6 @@ from apps.bot.handlers.ai_chat.text import (
 )
 from apps.bot.states import AiChatSG
 from apps.bot.tests.builders import make_bad_request, make_message
-from apps.bot.utils.unregistered import build_not_registered_text
-
-
-def _make_employee():
-    emp = MagicMock()
-    emp.full_name = "Bat Erdene"
-    emp.get_role_display.return_value = "Inspector"
-    emp.role = "inspector"
-    return emp
 
 
 def _make_api_error(cls: type[APIError], code: int) -> APIError:
@@ -69,6 +60,10 @@ class TestAiChatStart:
 
 
 class TestAiChatReceive:
+    def test_is_for_a_registered_chat_only(self):
+        """A chat unlinked mid-session is refused, and its session ended, upstream."""
+        assert HandlerObject(callback=ai_chat_receive).flags.get("registered")
+
     async def _enter(self, state):
         """The router's StateFilter is what puts a real session here."""
         await state.set_state(AiChatSG.chatting)
@@ -88,7 +83,7 @@ class TestAiChatReceive:
         answer = AsyncMock()
 
         with patch("apps.bot.handlers.ai_chat.receive.answer_question", answer):
-            await ai_chat_receive(message, state, _make_employee())
+            await ai_chat_receive(message, state)
 
         answer.assert_not_awaited()
         message.answer.assert_awaited_once_with(
@@ -103,7 +98,7 @@ class TestAiChatReceive:
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(return_value="ответ"),
         ):
-            await ai_chat_receive(message, state, _make_employee())
+            await ai_chat_receive(message, state)
 
         message.answer.assert_called_once_with(
             **build_ai_chat_thinking_text().as_kwargs()
@@ -116,7 +111,7 @@ class TestAiChatReceive:
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(return_value="Ответ депо"),
         ):
-            await ai_chat_receive(message, state, _make_employee())
+            await ai_chat_receive(message, state)
 
         thinking_msg.edit_text.assert_called_once_with(**Text("Ответ депо").as_kwargs())
 
@@ -127,7 +122,7 @@ class TestAiChatReceive:
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(return_value="ok"),
         ):
-            await ai_chat_receive(message, state, _make_employee())
+            await ai_chat_receive(message, state)
 
         assert await state.get_state() == AiChatSG.chatting.state
 
@@ -139,7 +134,7 @@ class TestAiChatReceive:
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(return_value="answer about axle"),
         ):
-            await ai_chat_receive(message, state, _make_employee())
+            await ai_chat_receive(message, state)
 
         history = (await state.get_data())[UD_AI_CHAT_HISTORY]
         assert {"role": "user", "content": "question about axle"} in history
@@ -160,7 +155,7 @@ class TestAiChatReceive:
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(return_value="a2"),
         ):
-            await ai_chat_receive(message, state, _make_employee())
+            await ai_chat_receive(message, state)
 
         assert len((await state.get_data())[UD_AI_CHAT_HISTORY]) == 4
 
@@ -180,7 +175,7 @@ class TestAiChatReceive:
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(return_value="new"),
         ):
-            await ai_chat_receive(message, state, _make_employee())
+            await ai_chat_receive(message, state)
 
         history = (await state.get_data())[UD_AI_CHAT_HISTORY]
         assert len(history) <= _HISTORY_KEEP + 2
@@ -204,7 +199,7 @@ class TestAiChatReceive:
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(side_effect=error),
         ):
-            await ai_chat_receive(message, state, _make_employee())
+            await ai_chat_receive(message, state)
 
         thinking_msg.edit_text.assert_called_once_with(**build_text().as_kwargs())
         (record,) = caplog.records
@@ -218,25 +213,21 @@ class TestAiChatReceive:
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(side_effect=RuntimeError("unexpected")),
         ):
-            await ai_chat_receive(message, state, _make_employee())
+            await ai_chat_receive(message, state)
 
         thinking_msg.edit_text.assert_called_once_with(
             **build_ai_chat_error_text().as_kwargs()
         )
         assert await state.get_state() == AiChatSG.chatting.state
 
-    async def test_a_failure_logs_neither_the_employee_nor_the_telegram_user(
-        self, state, caplog
-    ):
+    async def test_a_failure_logs_without_naming_the_user(self, state, caplog):
         await self._enter(state)
         message, _ = self._make_message()
-        employee = _make_employee()
-        employee.id = 7
         with patch(
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(side_effect=RuntimeError("unexpected")),
         ):
-            await ai_chat_receive(message, state, employee)
+            await ai_chat_receive(message, state)
 
         assert caplog.messages == ["AI chat failed"]
 
@@ -248,7 +239,7 @@ class TestAiChatReceive:
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(side_effect=RuntimeError("fail")),
         ):
-            await ai_chat_receive(message, state, _make_employee())
+            await ai_chat_receive(message, state)
 
         assert (await state.get_data())[UD_AI_CHAT_HISTORY] == []
 
@@ -261,7 +252,7 @@ class TestAiChatReceive:
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(side_effect=ContentBlockedError()),
         ):
-            await ai_chat_receive(message, state, _make_employee())
+            await ai_chat_receive(message, state)
 
         thinking_msg.edit_text.assert_called_once_with(
             **build_ai_chat_blocked_text().as_kwargs()
@@ -277,7 +268,7 @@ class TestAiChatReceive:
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(side_effect=ContentBlockedError()),
         ):
-            await ai_chat_receive(message, state, _make_employee())
+            await ai_chat_receive(message, state)
 
         assert (await state.get_data())[UD_AI_CHAT_HISTORY] == []
 
@@ -292,7 +283,7 @@ class TestAiChatReceive:
         answer_mock = AsyncMock(return_value="ok")
 
         with patch("apps.bot.handlers.ai_chat.receive.answer_question", answer_mock):
-            await ai_chat_receive(message, state, _make_employee())
+            await ai_chat_receive(message, state)
 
         answer_mock.assert_awaited_once()
         _, call_history = answer_mock.call_args.args
@@ -305,7 +296,7 @@ class TestAiChatReceive:
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(side_effect=asyncio.TimeoutError()),
         ):
-            await ai_chat_receive(message, state, _make_employee())
+            await ai_chat_receive(message, state)
 
         thinking_msg.edit_text.assert_called_once_with(
             **build_ai_chat_overloaded_text().as_kwargs()
@@ -320,7 +311,7 @@ class TestAiChatReceive:
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(side_effect=asyncio.TimeoutError()),
         ):
-            await ai_chat_receive(message, state, _make_employee())
+            await ai_chat_receive(message, state)
 
         assert (await state.get_data())[UD_AI_CHAT_HISTORY] == []
 
@@ -335,7 +326,7 @@ class TestAiChatReceive:
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(return_value="ok"),
         ):
-            await ai_chat_receive(message, state, _make_employee())
+            await ai_chat_receive(message, state)
 
         assert await state.get_state() == AiChatSG.chatting.state
 
@@ -348,7 +339,7 @@ class TestAiChatReceive:
         answer_mock = AsyncMock(return_value="ok")
 
         with patch("apps.bot.handlers.ai_chat.receive.answer_question", answer_mock):
-            await ai_chat_receive(message, state, _make_employee())
+            await ai_chat_receive(message, state)
 
         answer_mock.assert_not_awaited()
 
@@ -361,7 +352,7 @@ class TestAiChatReceive:
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(return_value=f"{first}\n{second}"),
         ):
-            await ai_chat_receive(message, state, _make_employee())
+            await ai_chat_receive(message, state)
 
         thinking_msg.edit_text.assert_awaited_once_with(**Text(first).as_kwargs())
         thinking_msg.answer.assert_awaited_once_with(**Text(second).as_kwargs())
@@ -379,7 +370,7 @@ class TestAiChatReceive:
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(return_value="А" * 3000 + "\n" + "Б" * 3000),
         ):
-            await ai_chat_receive(message, state, _make_employee())
+            await ai_chat_receive(message, state)
 
         assert (await state.get_data())[UD_AI_CHAT_HISTORY] == []
 
@@ -395,7 +386,7 @@ class TestAiChatReceive:
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(return_value="ok"),
         ):
-            await ai_chat_receive(message, state, _make_employee())
+            await ai_chat_receive(message, state)
 
         thinking_msg.answer.assert_awaited_once_with(**Text("ok").as_kwargs())
         assert len((await state.get_data())[UD_AI_CHAT_HISTORY]) == 2
@@ -413,7 +404,7 @@ class TestAiChatReceive:
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(return_value="ok"),
         ):
-            await ai_chat_receive(message, state, _make_employee())
+            await ai_chat_receive(message, state)
 
         thinking_msg.answer.assert_not_awaited()
 
@@ -432,7 +423,7 @@ class TestAiChatReceive:
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(return_value="ok"),
         ):
-            await ai_chat_receive(message, state, _make_employee())
+            await ai_chat_receive(message, state)
 
         assert (await state.get_data())[UD_AI_CHAT_HISTORY] == []
         assert "Could not show the AI chat reply" in caplog.text
@@ -448,40 +439,12 @@ class TestAiChatReceive:
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(return_value=" \n"),
         ):
-            await ai_chat_receive(message, state, _make_employee())
+            await ai_chat_receive(message, state)
 
         thinking_msg.edit_text.assert_called_once_with(
             **build_ai_chat_error_text().as_kwargs()
         )
         assert (await state.get_data())[UD_AI_CHAT_HISTORY] == []
-
-    async def test_a_lost_employee_ends_the_session_without_asking(self, state):
-        """Deactivated or unlinked on the web while the session was open."""
-        await self._enter(state)
-        await state.update_data({UD_AI_CHAT_HISTORY: [{"role": "user"}]})
-        message, _ = self._make_message()
-        answer = AsyncMock()
-
-        with patch("apps.bot.handlers.ai_chat.receive.answer_question", answer):
-            await ai_chat_receive(message, state, None)
-
-        answer.assert_not_awaited()
-        message.answer.assert_awaited_once_with(
-            **build_not_registered_text().as_kwargs()
-        )
-        assert await state.get_state() is None
-        assert await state.get_data() == {}
-
-    async def test_a_lost_employee_is_ended_even_if_the_reply_fails(self, state):
-        await self._enter(state)
-        message, _ = self._make_message()
-        message.answer = AsyncMock(
-            side_effect=TelegramNetworkError(method=None, message="network")
-        )
-
-        await ai_chat_receive(message, state, None)
-
-        assert await state.get_state() is None
 
 
 class TestAiChatNotText:
