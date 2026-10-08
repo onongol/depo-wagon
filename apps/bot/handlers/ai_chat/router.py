@@ -14,8 +14,8 @@ from .start import ai_chat_start
 def get_ai_chat_router() -> Router:
     """The /ask assistant session.
 
-    A menu button pressed mid-session cancels rather than being answered as a
-    question, which is what PTB's _MENU_TEXTS fallback did.
+    A menu button pressed mid-session cancels it instead of going to the model
+    as a question.
     """
     router = Router(name="ai_chat")
     router.message.register(ai_chat_start, Command("ask"))
