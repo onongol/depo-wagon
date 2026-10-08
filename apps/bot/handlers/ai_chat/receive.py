@@ -28,30 +28,8 @@ logger = logging.getLogger(__name__)
 
 _HISTORY_KEEP = 4
 _ANSWER_TIMEOUT = 60.0
-# A rate limit and an outage alike: waiting helps, rephrasing doesn't
+
 _OVERLOADED = frozenset({HTTPStatus.TOO_MANY_REQUESTS, HTTPStatus.SERVICE_UNAVAILABLE})
-
-
-async def _show(placeholder: Message, replies: list[Text]) -> bool:
-    """The first reply in place of the placeholder, or under it if the edit is
-    refused; the rest follow it as new messages."""
-    first, *rest = replies
-    try:
-        await placeholder.edit_text(**first.as_kwargs())
-    except TelegramBadRequest as exc:
-        logger.info("AI chat placeholder refused the edit: %s", exc.message)
-        rest = replies
-    except TelegramAPIError as exc:
-        logger.warning("Could not show the AI chat reply: %s", exc)
-        return False
-
-    try:
-        for reply in rest:
-            await placeholder.answer(**reply.as_kwargs())
-    except TelegramAPIError as exc:
-        logger.warning("Could not show the AI chat reply: %s", exc)
-        return False
-    return True
 
 
 def _from_model(answer: str) -> tuple[list[Text], str | None]:
@@ -88,14 +66,31 @@ async def _ask(question: str, history: list[dict]) -> tuple[list[Text], str | No
     return _from_model(answer)
 
 
+async def _show(placeholder: Message, replies: list[Text]) -> bool:
+    """The first reply in place of the placeholder, or under it if the edit is
+    refused; the rest follow it as new messages."""
+    first, *rest = replies
+    try:
+        await placeholder.edit_text(**first.as_kwargs())
+    except TelegramBadRequest as exc:
+        logger.info("AI chat placeholder refused the edit: %s", exc.message)
+        rest = replies
+    except TelegramAPIError as exc:
+        logger.warning("Could not show the AI chat reply: %s", exc)
+        return False
+
+    try:
+        for reply in rest:
+            await placeholder.answer(**reply.as_kwargs())
+    except TelegramAPIError as exc:
+        logger.warning("Could not show the AI chat reply: %s", exc)
+        return False
+    return True
+
+
 @flags.registered
 async def ai_chat_receive(message: Message, state: FSMContext) -> None:
-    """Answer a user question through the RAG generator and reply with it.
-
-    An AI failure never leaves the conversation: it edits the placeholder and
-    stays in AiChatSG.chatting, so the user can just ask again. History keeps
-    only answers the user was shown.
-    """
+    """Answer the question; a failure keeps the session open for another try."""
     question = message.text.strip()
     if not question:
         await message.answer(**build_ai_chat_text_only_text().as_kwargs())
