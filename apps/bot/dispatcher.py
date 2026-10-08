@@ -27,20 +27,16 @@ def make_dispatcher(
 
     dp = Dispatcher(storage=storage, events_isolation=events_isolation)
 
-    # Lookup and the `scenes` argument only: the defect flow router places the
-    # scene routers itself, where the order puts them
+    # Lookup only: the defect flow router places the scene routers in its order
     SceneRegistry(dp, register_on_add=False).add(*FLOW_SCENES)
 
-    # dp.update is the only observer that fires exactly once per Update and
-    # ahead of every filter — where PTB closed connections by overriding
-    # Application.process_update.
+    # The only observer firing once per update, ahead of every filter
     dp.update.outer_middleware(CloseOldConnectionsMiddleware())
 
-    # Global rather than on the ai_chat router: a router earlier in the chain
-    # claiming the update would otherwise leave an expired session standing.
+    # Global, so an update claimed before ai_chat still expires its session
     dp.update.outer_middleware(AiChatTimeoutMiddleware())
 
-    # Inner, so it reaches the handlers of every included router
+    # Inner: it reads the matched handler's flags and parameters
     employee = EmployeeMiddleware()
     dp.message.middleware(employee)
     dp.callback_query.middleware(employee)
