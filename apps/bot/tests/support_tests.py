@@ -1,14 +1,17 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+from aiogram.exceptions import TelegramForbiddenError
 from django.test import override_settings
 
 from apps.bot.handlers.support import reply, request, start
 from apps.bot.handlers.support.text import (
     build_support_ask_text,
+    build_support_reply_blocked_text,
     build_support_reply_delivered_text,
-    build_support_reply_failed_text,
     build_support_reply_header,
-    build_support_reply_text,
+    build_support_reply_retry_text,
+    build_support_request_unknown_text,
     build_support_sent_text,
     build_support_unavailable_text,
 )
@@ -16,6 +19,8 @@ from apps.bot.handlers.support.utils import lookup_request, remember_request
 from apps.bot.states import SupportSG
 from apps.bot.tests.builders import make_message
 from apps.bot.tests.storage import JSONMemoryStorage
+
+BOT_ID = 42
 
 
 def _make_user_message(text="My printer is broken"):
@@ -38,7 +43,7 @@ def _make_group_reply(text="Your wagon is fixed", reply_to_id=100):
 
 
 def _make_bot():
-    return MagicMock(send_message=AsyncMock(), copy_message=AsyncMock())
+    return MagicMock(id=BOT_ID, send_message=AsyncMock(), copy_message=AsyncMock())
 
 
 class TestSupportUnavailableText:
@@ -65,8 +70,10 @@ class TestSupportReply:
         lookup.assert_not_awaited()
         bot.send_message.assert_not_awaited()
 
-    async def test_ignores_when_mapping_missing(self):
+    async def test_an_unknown_request_is_reported_to_the_operator(self):
+        """The mapping expired, or the operator replied to the bot's own notice."""
         message = _make_group_reply()
+        message.reply_to_message.from_user.id = BOT_ID
         bot = _make_bot()
 
         with patch.object(reply, "lookup_request", AsyncMock(return_value=None)):
@@ -74,62 +81,85 @@ class TestSupportReply:
 
         bot.send_message.assert_not_awaited()
         bot.copy_message.assert_not_awaited()
-
-    async def test_text_reply_delivered_to_user(self):
-        message = _make_group_reply("<b>Your</b> wagon is fixed")
-        bot = _make_bot()
-
-        with patch.object(reply, "lookup_request", AsyncMock(return_value=777)):
-            await reply.support_reply(message, bot, JSONMemoryStorage())
-
-        bot.send_message.assert_awaited_once_with(
-            chat_id=777,
-            **build_support_reply_text("<b>Your</b> wagon is fixed").as_kwargs(),
-        )
-        bot.copy_message.assert_not_awaited()
         message.reply.assert_awaited_once_with(
-            **build_support_reply_delivered_text().as_kwargs()
+            **build_support_request_unknown_text().as_kwargs()
         )
 
-    async def test_media_reply_uses_copy_message(self):
-        message = _make_group_reply(text=None)  # non-text (photo / sticker / voice)
+    async def test_a_reply_to_another_operator_is_left_alone(self):
+        message = _make_group_reply()
+        message.reply_to_message.from_user.id = 999
+        bot = _make_bot()
+
+        with patch.object(reply, "lookup_request", AsyncMock(return_value=None)):
+            await reply.support_reply(message, bot, JSONMemoryStorage())
+
+        bot.send_message.assert_not_awaited()
+        message.reply.assert_not_awaited()
+
+    async def test_the_reply_is_copied_under_the_header(self):
+        """Copied rather than retyped, so the operator's links and markup survive."""
+        message = _make_group_reply("see the instruction here")
         bot = _make_bot()
 
         with patch.object(reply, "lookup_request", AsyncMock(return_value=777)):
             await reply.support_reply(message, bot, JSONMemoryStorage())
 
-        # header sent + original content copied to the user
         bot.send_message.assert_awaited_once_with(
             chat_id=777, **build_support_reply_header().as_kwargs()
         )
-        bot.copy_message.assert_awaited_once()
-        assert bot.copy_message.call_args.kwargs["chat_id"] == 777
+        bot.copy_message.assert_awaited_once_with(
+            chat_id=777, from_chat_id=-1001234567890, message_id=555
+        )
         message.reply.assert_awaited_once_with(
             **build_support_reply_delivered_text().as_kwargs()
         )
 
-    async def test_delivery_failure_notifies_support(self):
+    async def test_a_blocked_user_is_named_as_the_reason(self):
         message = _make_group_reply("answer")
         bot = _make_bot()
-        bot.send_message = AsyncMock(side_effect=Exception("blocked"))
+        bot.send_message = AsyncMock(
+            side_effect=TelegramForbiddenError(
+                method=MagicMock(), message="Forbidden: bot was blocked by the user"
+            )
+        )
 
         with patch.object(reply, "lookup_request", AsyncMock(return_value=777)):
             await reply.support_reply(message, bot, JSONMemoryStorage())
 
         message.reply.assert_awaited_once_with(
-            **build_support_reply_failed_text().as_kwargs()
+            **build_support_reply_blocked_text().as_kwargs()
         )
 
-    async def test_a_delivery_failure_logs_the_request_not_the_user(self, caplog):
-        message = _make_group_reply("answer", reply_to_id=4242)
+    async def test_any_other_failure_asks_to_send_again(self):
+        message = _make_group_reply("answer")
         bot = _make_bot()
-        bot.send_message = AsyncMock(side_effect=Exception("blocked"))
+        bot.copy_message = AsyncMock(side_effect=Exception("network down"))
 
         with patch.object(reply, "lookup_request", AsyncMock(return_value=777)):
             await reply.support_reply(message, bot, JSONMemoryStorage())
 
-        assert "request 4242" in caplog.text
-        assert "777" not in caplog.text
+        message.reply.assert_awaited_once_with(
+            **build_support_reply_retry_text().as_kwargs()
+        )
+
+    @pytest.mark.parametrize(
+        "failure",
+        [
+            TelegramForbiddenError(method=MagicMock(), message="Forbidden"),
+            Exception("network down"),
+        ],
+    )
+    async def test_a_delivery_failure_logs_no_ids(self, caplog, failure):
+        message = _make_group_reply("answer", reply_to_id=4242)
+        bot = _make_bot()
+        bot.send_message = AsyncMock(side_effect=failure)
+
+        with patch.object(reply, "lookup_request", AsyncMock(return_value=777)):
+            await reply.support_reply(message, bot, JSONMemoryStorage())
+
+        assert "support reply" in caplog.text.lower()
+        for identifier in ("4242", "777", "-1001234567890"):
+            assert identifier not in caplog.text
 
 
 class TestSupportStart:
