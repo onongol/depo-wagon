@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
     from aiogram.dispatcher.event.handler import HandlerObject
+    from aiogram.fsm.context import FSMContext
     from aiogram.types import TelegramObject
 
 
@@ -22,7 +23,11 @@ def _takes_employee(handler: HandlerObject) -> bool:
 
 
 class EmployeeMiddleware(BaseMiddleware):
-    """A handler flagged @flags.registered is refused here rather than handed None."""
+    """A handler flagged @flags.registered is refused here rather than handed None.
+
+    The refusal ends the chat's flow, as /cancel does: a chat whose employee was
+    unlinked mid-session would otherwise be refused at every message.
+    """
 
     async def __call__(
         self,
@@ -38,6 +43,9 @@ class EmployeeMiddleware(BaseMiddleware):
         employee = await services.get_employee_by_telegram_id(user.id) if user else None
 
         if registered and employee is None:
+            state: FSMContext | None = data.get("state")
+            if state is not None:
+                await state.clear()
             await refuse_unregistered(event)
             return None
 

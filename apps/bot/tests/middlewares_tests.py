@@ -7,13 +7,14 @@ import pytest
 from aiogram import flags
 from aiogram.types import CallbackQuery, Message
 
+from apps.bot.constants import UD_AI_CHAT_HISTORY
 from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.middlewares import CloseOldConnectionsMiddleware
 from apps.bot.middlewares.defect_form import (
     build_form_lost_text,
     build_form_outdated_text,
 )
-from apps.bot.states import DefectSG, SupportSG
+from apps.bot.states import AiChatSG, DefectSG, SupportSG
 from apps.bot.tests.builders import (
     CHAT_ID,
     MESSAGE_ID,
@@ -403,7 +404,10 @@ async def _registered_only_without_employee(message):
 class TestEmployeeMiddleware:
     LOOKUP = "apps.bot.middlewares.employee.services.get_employee_by_telegram_id"
 
-    async def _call(self, callback, *, event=None, lookup=None, user_id=777):
+    async def _call(
+        self, callback, *, event=None, lookup=None, user_id=777, extra=None
+    ):
+        """extra: more of the dispatcher's data, such as the chat's state."""
         from aiogram.dispatcher.event.handler import HandlerObject
 
         from apps.bot.middlewares import EmployeeMiddleware
@@ -412,6 +416,7 @@ class TestEmployeeMiddleware:
         data = {
             "handler": HandlerObject(callback=callback),
             "event_from_user": MagicMock(id=user_id) if user_id else None,
+            **(extra or {}),
         }
         lookup = lookup or AsyncMock(return_value=None)
         with patch(self.LOOKUP, lookup):
@@ -528,6 +533,16 @@ class TestEmployeeMiddleware:
             reply_markup=None,
             **build_not_registered_text().as_kwargs(),
         )
+
+    async def test_a_refusal_ends_the_chats_flow(self, state):
+        """Unlinked mid-session, the chat would be refused at every message."""
+        await state.set_state(AiChatSG.chatting)
+        await state.update_data({UD_AI_CHAT_HISTORY: [{"role": "user"}]})
+
+        await self._call(_registered_only, extra={"state": state})
+
+        assert await state.get_state() is None
+        assert await state.get_data() == {}
 
     async def test_a_registered_only_handler_gets_its_employee(self):
         employee = MagicMock()
