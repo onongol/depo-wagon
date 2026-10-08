@@ -39,7 +39,7 @@ from apps.bot.constants import (
     UD_SCREEN,
     LinkStatus,
 )
-from apps.bot.dispatcher import _BOT_COMMANDS, _routers, make_dispatcher
+from apps.bot.dispatcher import _routers, make_dispatcher
 from apps.bot.errors import build_session_error_text
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.ai_chat.text import build_ai_chat_text_only_text
@@ -70,6 +70,7 @@ from apps.bot.keyboards.common import done_keyboard, skip_keyboard, with_step_bu
 from apps.bot.keyboards.defect import defect_in_progress_keyboard, department_keyboard
 from apps.bot.keyboards.menu import MENU_TEXTS, main_menu_keyboard
 from apps.bot.middlewares import AI_CHAT_TIMEOUT
+from apps.bot.startup import _BOT_COMMANDS
 from apps.bot.states import AiChatSG, DefectSG, SupportSG
 from apps.bot.tests.integration.conftest import (
     CHAT_ID,

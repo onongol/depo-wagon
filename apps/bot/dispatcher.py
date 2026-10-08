@@ -1,51 +1,21 @@
 import logging
 from typing import TYPE_CHECKING
 
-from aiogram import Bot, Dispatcher, Router
+from aiogram import Dispatcher, Router
 from aiogram.fsm.scene import SceneRegistry
-from aiogram.types import BotCommand, MenuButtonCommands
-from django.utils.translation import gettext_lazy as _
 
 from apps.bot.filters import PRIVATE_CALLBACK, PRIVATE_CHAT
-from apps.bot.messages import BotMessages as M
 from apps.bot.middlewares import (
     AiChatTimeoutMiddleware,
     CloseOldConnectionsMiddleware,
     EmployeeMiddleware,
 )
+from apps.bot.startup import on_startup
 
 if TYPE_CHECKING:
     from aiogram.fsm.storage.base import BaseEventIsolation, BaseStorage
 
 logger = logging.getLogger(__name__)
-
-# Commands shown in the "/" menu and under the always-visible Menu button,
-# so users have an entry point even when the START button is gone.
-#
-# Plain tuples, not BotCommand: aiogram validates on construction, so a lazy
-# gettext proxy in here would fail at import rather than at send time. Holding
-# the descriptions lazily until on_startup is what keeps them translatable.
-_BOT_COMMANDS = [
-    ("start", _("Start")),
-    ("new_defect", _("Register a defect")),
-    ("my_tasks", _("Open defects")),
-    ("ask", _("AI Assistant")),
-    ("support", _("Ask the support team")),
-    ("help", _("Help")),
-    ("cancel", _("Cancel the current action")),
-]
-
-
-async def on_startup(bot: Bot) -> None:
-    """Publish commands, descriptions and the Menu button as stable entry points."""
-    commands = [
-        BotCommand(command=command, description=str(description))
-        for command, description in _BOT_COMMANDS
-    ]
-    await bot.set_my_commands(commands)
-    await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
-    await bot.set_my_description(str(M.BOT_DESCRIPTION))
-    await bot.set_my_short_description(str(M.BOT_SHORT_DESCRIPTION))
 
 
 def _routers() -> list:

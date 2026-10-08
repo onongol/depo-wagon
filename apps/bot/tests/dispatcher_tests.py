@@ -15,9 +15,10 @@ from aiogram.fsm.scene import SceneRegistry
 from aiogram.fsm.storage.memory import MemoryStorage, SimpleEventIsolation
 from aiogram.types import Chat, Message, Update, User
 
-from apps.bot.dispatcher import _BOT_COMMANDS, make_dispatcher, on_startup
+from apps.bot.dispatcher import make_dispatcher
 from apps.bot.errors import build_session_error_text, error_handler
 from apps.bot.messages import BotMessages as M
+from apps.bot.startup import _BOT_COMMANDS, on_startup
 
 
 @pytest.fixture
