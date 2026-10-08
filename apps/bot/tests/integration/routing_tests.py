@@ -33,6 +33,7 @@ from apps.bot.constants import (
     BTN_HELP,
     BTN_NEW_DEFECT,
     BTN_OPEN_DEFECTS,
+    UD_AI_CHAT_HISTORY,
     UD_AI_CHAT_LAST,
     UD_EDITING,
     UD_SCREEN,
@@ -605,6 +606,30 @@ class TestAiChatPrecedence:
             await dp.feed_update(bot, make_message_update(str(BTN_ASK)))
 
         assert await state.get_state() == AiChatSG.chatting.state
+
+    @pytest.mark.parametrize(
+        "update",
+        [
+            lambda: make_message_update(str(BTN_ASK)),
+            lambda: make_message_update("/ask", command=True),
+        ],
+        ids=["button", "command"],
+    )
+    async def test_ask_mid_session_starts_it_over(
+        self, dp, bot, state, employee, update
+    ):
+        """Ask is a menu button, but ai_chat_start claims it ahead of the cancel."""
+        with as_employee(employee):
+            await dp.feed_update(bot, make_message_update("/ask", command=True))
+        await state.update_data(
+            {UD_AI_CHAT_HISTORY: [{"role": "user", "content": "q"}]}
+        )
+
+        with as_employee(employee):
+            await dp.feed_update(bot, update())
+
+        assert await state.get_state() == AiChatSG.chatting.state
+        assert (await state.get_data())[UD_AI_CHAT_HISTORY] == []
 
 
 class TestSupportPrecedence:
