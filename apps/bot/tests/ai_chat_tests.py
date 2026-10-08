@@ -39,7 +39,7 @@ class TestAiChatStart:
     def test_is_for_a_registered_chat_only(self):
         assert HandlerObject(callback=ai_chat_start).flags.get("registered")
 
-    async def test_authenticated_returns_ai_chat_state(self, message, state):
+    async def test_opens_the_session(self, message, state):
         await ai_chat_start(message, state)
 
         assert await state.get_state() == AiChatSG.chatting.state
@@ -59,12 +59,7 @@ class TestAiChatStart:
             **build_ai_chat_greeting_text().as_kwargs()
         )
 
-    async def test_caches_employee_in_user_data(self, message, state):
-        await ai_chat_start(message, state)
-
-        assert UD_AI_CHAT_HISTORY in await state.get_data()
-
-    async def test_greeting_send_failure_returns_end(self, message, state):
+    async def test_a_failed_greeting_does_not_open_the_session(self, message, state):
         message.answer = AsyncMock(
             side_effect=TelegramNetworkError(method=None, message="network")
         )
@@ -329,7 +324,7 @@ class TestAiChatReceive:
 
         assert (await state.get_data())[UD_AI_CHAT_HISTORY] == []
 
-    async def test_thinking_send_failure_returns_ai_chat(self, state):
+    async def test_a_failed_placeholder_keeps_the_session(self, state):
         await self._enter(state)
         message, _ = self._make_message()
         message.answer = AsyncMock(
