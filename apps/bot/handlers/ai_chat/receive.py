@@ -53,6 +53,17 @@ async def _show(placeholder: Message, text: Text) -> bool:
     return True
 
 
+def _from_model(answer: str) -> tuple[Text, str | None]:
+    """The answer as shown; an empty one, which Telegram refuses, as the error."""
+    if not answer.strip():
+        logger.warning("AI chat got an empty answer")
+        return build_ai_chat_error_text(), None
+
+    if len(answer) > _MAX_MESSAGE_LEN:
+        answer = answer[: _MAX_MESSAGE_LEN - 1] + "…"
+    return Text(answer), answer
+
+
 async def _ask(question: str, history: list[dict]) -> tuple[Text, str | None]:
     """The reply to show, and the model's answer when there is one to remember."""
     try:
@@ -74,9 +85,7 @@ async def _ask(question: str, history: list[dict]) -> tuple[Text, str | None]:
         logger.exception("AI chat failed")
         return build_ai_chat_error_text(), None
 
-    if len(answer) > _MAX_MESSAGE_LEN:
-        answer = answer[: _MAX_MESSAGE_LEN - 1] + "…"
-    return Text(answer), answer
+    return _from_model(answer)
 
 
 async def ai_chat_receive(

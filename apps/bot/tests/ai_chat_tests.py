@@ -430,6 +430,23 @@ class TestAiChatReceive:
         assert "Could not show the AI chat reply" in caplog.text
         assert await state.get_state() == AiChatSG.chatting.state
 
+    async def test_an_empty_answer_shows_the_error_and_is_not_remembered(self, state):
+        """Telegram refuses an empty text, which left the placeholder up for good."""
+        await self._enter(state)
+        await state.update_data({UD_AI_CHAT_HISTORY: []})
+        message, thinking_msg = self._make_message()
+
+        with patch(
+            "apps.bot.handlers.ai_chat.receive.answer_question",
+            AsyncMock(return_value=" \n"),
+        ):
+            await ai_chat_receive(message, state, _make_employee())
+
+        thinking_msg.edit_text.assert_called_once_with(
+            **build_ai_chat_error_text().as_kwargs()
+        )
+        assert (await state.get_data())[UD_AI_CHAT_HISTORY] == []
+
     async def test_a_lost_employee_ends_the_session_without_asking(self, state):
         """Deactivated or unlinked on the web while the session was open."""
         await self._enter(state)
