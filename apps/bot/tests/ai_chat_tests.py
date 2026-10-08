@@ -40,7 +40,7 @@ class TestAiChatStart:
         assert HandlerObject(callback=ai_chat_start).flags.get("registered")
 
     async def test_authenticated_returns_ai_chat_state(self, message, state):
-        await ai_chat_start(message, state, _make_employee())
+        await ai_chat_start(message, state)
 
         assert await state.get_state() == AiChatSG.chatting.state
 
@@ -48,19 +48,19 @@ class TestAiChatStart:
         await state.update_data(
             {UD_AI_CHAT_HISTORY: [{"role": "user", "content": "old"}]}
         )
-        await ai_chat_start(message, state, _make_employee())
+        await ai_chat_start(message, state)
 
         assert (await state.get_data())[UD_AI_CHAT_HISTORY] == []
 
     async def test_sends_greeting(self, message, state):
-        await ai_chat_start(message, state, _make_employee())
+        await ai_chat_start(message, state)
 
         message.answer.assert_called_once_with(
             **build_ai_chat_greeting_text().as_kwargs()
         )
 
     async def test_caches_employee_in_user_data(self, message, state):
-        await ai_chat_start(message, state, _make_employee())
+        await ai_chat_start(message, state)
 
         assert UD_AI_CHAT_HISTORY in await state.get_data()
 
@@ -68,7 +68,7 @@ class TestAiChatStart:
         message.answer = AsyncMock(
             side_effect=TelegramNetworkError(method=None, message="network")
         )
-        await ai_chat_start(message, state, _make_employee())
+        await ai_chat_start(message, state)
 
         assert await state.get_state() is None
 
@@ -216,7 +216,7 @@ class TestAiChatReceive:
         )
         assert await state.get_state() == AiChatSG.chatting.state
 
-    async def test_a_failure_logs_the_employee_not_the_telegram_user(
+    async def test_a_failure_logs_neither_the_employee_nor_the_telegram_user(
         self, state, caplog
     ):
         await self._enter(state)
@@ -229,8 +229,7 @@ class TestAiChatReceive:
         ):
             await ai_chat_receive(message, state, employee)
 
-        assert "employee 7" in caplog.text
-        assert str(message.from_user.id) not in caplog.text
+        assert caplog.messages == ["AI chat failed"]
 
     async def test_error_does_not_update_history(self, state):
         await self._enter(state)

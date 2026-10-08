@@ -57,7 +57,7 @@ async def ai_chat_receive(
     try:
         thinking_msg = await message.answer(**build_ai_chat_thinking_text().as_kwargs())
     except TelegramAPIError:
-        logger.warning("Could not send thinking message for employee %s", employee.id)
+        logger.warning("Could not send the AI chat thinking message")
         return
 
     history: list[dict] = (await state.get_data()).get(UD_AI_CHAT_HISTORY, [])
@@ -67,11 +67,7 @@ async def ai_chat_receive(
             answer_question(question, history), timeout=_ANSWER_TIMEOUT
         )
     except TimeoutError:
-        logger.warning(
-            "AI chat timed out after %.0fs for employee %s",
-            _ANSWER_TIMEOUT,
-            employee.id,
-        )
+        logger.warning("AI chat timed out after %.0fs", _ANSWER_TIMEOUT)
         await _safe_edit(thinking_msg, build_ai_chat_overloaded_text())
         return
     except ContentBlockedError:
@@ -79,14 +75,14 @@ async def ai_chat_receive(
         return
     except ServerError as e:
         if e.code == HTTPStatus.SERVICE_UNAVAILABLE:
-            logger.warning("AI chat 503 overloaded for employee %s", employee.id)
+            logger.warning("AI chat 503 overloaded")
             await _safe_edit(thinking_msg, build_ai_chat_overloaded_text())
         else:
-            logger.exception("AI chat server error for employee %s", employee.id)
+            logger.exception("AI chat server error")
             await _safe_edit(thinking_msg, build_ai_chat_error_text())
         return
     except Exception:
-        logger.exception("AI chat failed for employee %s", employee.id)
+        logger.exception("AI chat failed")
         await _safe_edit(thinking_msg, build_ai_chat_error_text())
         return
 
