@@ -17,8 +17,12 @@ from aiogram.types import Chat, Message, Update, User
 
 from apps.bot.dispatcher import make_dispatcher
 from apps.bot.errors import build_session_error_text, error_handler
-from apps.bot.messages import BotMessages as M
-from apps.bot.startup import _BOT_COMMANDS, on_startup
+from apps.bot.startup import (
+    _BOT_COMMANDS,
+    build_bot_description_text,
+    build_bot_short_description_text,
+    on_startup,
+)
 
 
 @pytest.fixture
@@ -260,10 +264,21 @@ class TestStartupHook:
         await on_startup(bot)
 
         bot.set_chat_menu_button.assert_awaited_once()
-        bot.set_my_description.assert_awaited_once_with(str(M.BOT_DESCRIPTION))
-        bot.set_my_short_description.assert_awaited_once_with(
-            str(M.BOT_SHORT_DESCRIPTION)
+        bot.set_my_description.assert_awaited_once_with(
+            build_bot_description_text().render()[0]
         )
+        bot.set_my_short_description.assert_awaited_once_with(
+            build_bot_short_description_text().render()[0]
+        )
+
+    @pytest.mark.parametrize(
+        "build", [build_bot_description_text, build_bot_short_description_text]
+    )
+    def test_descriptions_carry_no_formatting(self, build):
+        """Telegram takes them as plain text, so an entity would be lost unseen."""
+        _text, entities = build().render()
+
+        assert not entities
 
     async def test_start_is_offered_first_in_the_command_menu(self):
         assert _BOT_COMMANDS[0][0] == "start"
