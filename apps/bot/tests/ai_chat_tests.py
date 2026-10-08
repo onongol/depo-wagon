@@ -360,20 +360,36 @@ class TestAiChatReceive:
 
         answer_mock.assert_not_awaited()
 
-    async def test_long_answer_is_truncated_to_max_len(self, state):
-        from apps.bot.handlers.ai_chat.receive import _MAX_MESSAGE_LEN
-
+    async def test_a_long_answer_goes_on_in_new_messages(self, state):
+        await self._enter(state)
+        await state.update_data({UD_AI_CHAT_HISTORY: []})
         message, thinking_msg = self._make_message()
-        long_answer = "А" * (_MAX_MESSAGE_LEN + 100)
+        first, second = "А" * 3000, "Б" * 3000
         with patch(
             "apps.bot.handlers.ai_chat.receive.answer_question",
-            AsyncMock(return_value=long_answer),
+            AsyncMock(return_value=f"{first}\n{second}"),
         ):
             await ai_chat_receive(message, state, _make_employee())
 
-        edited_text = thinking_msg.edit_text.call_args.kwargs["text"]
-        assert len(edited_text) <= _MAX_MESSAGE_LEN
-        assert edited_text.endswith("…")
+        thinking_msg.edit_text.assert_awaited_once_with(**Text(first).as_kwargs())
+        thinking_msg.answer.assert_awaited_once_with(**Text(second).as_kwargs())
+        history = (await state.get_data())[UD_AI_CHAT_HISTORY]
+        assert history[-1] == {"role": "model", "content": f"{first}\n{second}"}
+
+    async def test_a_lost_piece_of_a_long_answer_is_not_remembered(self, state):
+        await self._enter(state)
+        await state.update_data({UD_AI_CHAT_HISTORY: []})
+        message, thinking_msg = self._make_message()
+        thinking_msg.answer = AsyncMock(
+            side_effect=TelegramNetworkError(method=None, message="network")
+        )
+        with patch(
+            "apps.bot.handlers.ai_chat.receive.answer_question",
+            AsyncMock(return_value="А" * 3000 + "\n" + "Б" * 3000),
+        ):
+            await ai_chat_receive(message, state, _make_employee())
+
+        assert (await state.get_data())[UD_AI_CHAT_HISTORY] == []
 
     async def test_a_refused_edit_sends_the_answer_anew(self, state):
         await self._enter(state)

@@ -10,6 +10,7 @@ from google.genai.errors import ServerError
 
 from apps.ai_service.rag.chat import ContentBlockedError, answer_question
 from apps.bot.constants import UD_AI_CHAT_HISTORY
+from apps.bot.utils.formatting import split_message
 from apps.bot.utils.unregistered import refuse_unregistered
 
 from .text import (
@@ -30,60 +31,60 @@ logger = logging.getLogger(__name__)
 
 _HISTORY_KEEP = 4
 _ANSWER_TIMEOUT = 60.0
-_MAX_MESSAGE_LEN = 4096
 
 
-async def _show(placeholder: Message, text: Text) -> bool:
-    """Put the reply in place of the placeholder, or under it if the edit is refused."""
+async def _show(placeholder: Message, replies: list[Text]) -> bool:
+    """The first reply in place of the placeholder, or under it if the edit is
+    refused; the rest follow it as new messages."""
+    first, *rest = replies
     try:
-        await placeholder.edit_text(**text.as_kwargs())
+        await placeholder.edit_text(**first.as_kwargs())
     except TelegramBadRequest as exc:
         logger.info("AI chat placeholder refused the edit: %s", exc.message)
+        rest = replies
     except TelegramAPIError as exc:
         logger.warning("Could not show the AI chat reply: %s", exc)
         return False
-    else:
-        return True
 
     try:
-        await placeholder.answer(**text.as_kwargs())
+        for reply in rest:
+            await placeholder.answer(**reply.as_kwargs())
     except TelegramAPIError as exc:
         logger.warning("Could not show the AI chat reply: %s", exc)
         return False
     return True
 
 
-def _from_model(answer: str) -> tuple[Text, str | None]:
-    """The answer as shown; an empty one, which Telegram refuses, as the error."""
+def _from_model(answer: str) -> tuple[list[Text], str | None]:
+    """The answer in messages that each fit; an empty one, which Telegram
+    refuses, as the error."""
     if not answer.strip():
         logger.warning("AI chat got an empty answer")
-        return build_ai_chat_error_text(), None
+        return [build_ai_chat_error_text()], None
 
-    if len(answer) > _MAX_MESSAGE_LEN:
-        answer = answer[: _MAX_MESSAGE_LEN - 1] + "…"
-    return Text(answer), answer
+    return [Text(piece) for piece in split_message(answer)], answer
 
 
-async def _ask(question: str, history: list[dict]) -> tuple[Text, str | None]:
-    """The reply to show, and the model's answer when there is one to remember."""
+async def _ask(question: str, history: list[dict]) -> tuple[list[Text], str | None]:
+    """The replies to show, and the model's answer when there is one to remember."""
     try:
         answer = await asyncio.wait_for(
             answer_question(question, history), timeout=_ANSWER_TIMEOUT
         )
     except TimeoutError:
         logger.warning("AI chat timed out after %.0fs", _ANSWER_TIMEOUT)
-        return build_ai_chat_overloaded_text(), None
+        return [build_ai_chat_overloaded_text()], None
     except ContentBlockedError:
-        return build_ai_chat_blocked_text(), None
+        return [build_ai_chat_blocked_text()], None
     except ServerError as e:
         if e.code == HTTPStatus.SERVICE_UNAVAILABLE:
             logger.warning("AI chat 503 overloaded")
-            return build_ai_chat_overloaded_text(), None
+            return [build_ai_chat_overloaded_text()], None
         logger.exception("AI chat server error")
-        return build_ai_chat_error_text(), None
+        return [build_ai_chat_error_text()], None
     except Exception:
         logger.exception("AI chat failed")
-        return build_ai_chat_error_text(), None
+        return [build_ai_chat_error_text()], None
 
     return _from_model(answer)
 
@@ -117,8 +118,8 @@ async def ai_chat_receive(
 
     history: list[dict] = (await state.get_data()).get(UD_AI_CHAT_HISTORY, [])
 
-    reply, answer = await _ask(question, history)
-    if not await _show(thinking_msg, reply) or answer is None:
+    replies, answer = await _ask(question, history)
+    if not await _show(thinking_msg, replies) or answer is None:
         return
 
     history = history[-_HISTORY_KEEP:]
