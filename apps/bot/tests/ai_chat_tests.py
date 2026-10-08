@@ -1,10 +1,11 @@
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from aiogram.dispatcher.event.handler import HandlerObject
 from aiogram.exceptions import TelegramNetworkError
 from aiogram.utils.formatting import Text
-from google.genai.errors import ServerError
+from google.genai.errors import APIError, ClientError, ServerError
 
 from apps.bot.constants import UD_AI_CHAT_HISTORY
 from apps.bot.handlers.ai_chat.receive import ai_chat_not_text, ai_chat_receive
@@ -30,10 +31,8 @@ def _make_employee():
     return emp
 
 
-def _make_server_error(code: int) -> ServerError:
-    return ServerError(
-        code, {"error": {"code": code, "message": "err", "status": "ERR"}}, None
-    )
+def _make_api_error(cls: type[APIError], code: int) -> APIError:
+    return cls(code, {"error": {"code": code, "message": "err", "status": "ERR"}}, None)
 
 
 class TestAiChatStart:
@@ -191,32 +190,30 @@ class TestAiChatReceive:
         history = (await state.get_data())[UD_AI_CHAT_HISTORY]
         assert len(history) <= _HISTORY_KEEP + 2
 
-    async def test_503_error_shows_overloaded_message(self, state):
+    @pytest.mark.parametrize(
+        ("error", "build_text", "traceback"),
+        [
+            (_make_api_error(ClientError, 429), build_ai_chat_overloaded_text, False),
+            (_make_api_error(ServerError, 503), build_ai_chat_overloaded_text, False),
+            (_make_api_error(ClientError, 400), build_ai_chat_error_text, True),
+            (_make_api_error(ServerError, 500), build_ai_chat_error_text, True),
+        ],
+    )
+    async def test_an_api_error_is_shown_by_whether_waiting_helps(
+        self, state, caplog, error, build_text, traceback
+    ):
+        """A rate limit is not the question's fault: it is told to wait, not rephrase."""
         await self._enter(state)
         message, thinking_msg = self._make_message()
         with patch(
             "apps.bot.handlers.ai_chat.receive.answer_question",
-            AsyncMock(side_effect=_make_server_error(503)),
+            AsyncMock(side_effect=error),
         ):
             await ai_chat_receive(message, state, _make_employee())
 
-        thinking_msg.edit_text.assert_called_once_with(
-            **build_ai_chat_overloaded_text().as_kwargs()
-        )
-        assert await state.get_state() == AiChatSG.chatting.state
-
-    async def test_other_server_error_shows_generic_error(self, state):
-        await self._enter(state)
-        message, thinking_msg = self._make_message()
-        with patch(
-            "apps.bot.handlers.ai_chat.receive.answer_question",
-            AsyncMock(side_effect=_make_server_error(500)),
-        ):
-            await ai_chat_receive(message, state, _make_employee())
-
-        thinking_msg.edit_text.assert_called_once_with(
-            **build_ai_chat_error_text().as_kwargs()
-        )
+        thinking_msg.edit_text.assert_called_once_with(**build_text().as_kwargs())
+        (record,) = caplog.records
+        assert (record.exc_info is not None) is traceback
         assert await state.get_state() == AiChatSG.chatting.state
 
     async def test_generic_exception_shows_error(self, state):

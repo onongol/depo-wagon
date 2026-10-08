@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from aiogram.exceptions import TelegramAPIError, TelegramBadRequest
 from aiogram.utils.formatting import Text
-from google.genai.errors import ServerError
+from google.genai.errors import APIError
 
 from apps.ai_service.rag.chat import ContentBlockedError, answer_question
 from apps.bot.constants import UD_AI_CHAT_HISTORY
@@ -31,6 +31,8 @@ logger = logging.getLogger(__name__)
 
 _HISTORY_KEEP = 4
 _ANSWER_TIMEOUT = 60.0
+# A rate limit and an outage alike: waiting helps, rephrasing doesn't
+_OVERLOADED = frozenset({HTTPStatus.TOO_MANY_REQUESTS, HTTPStatus.SERVICE_UNAVAILABLE})
 
 
 async def _show(placeholder: Message, replies: list[Text]) -> bool:
@@ -76,11 +78,11 @@ async def _ask(question: str, history: list[dict]) -> tuple[list[Text], str | No
         return [build_ai_chat_overloaded_text()], None
     except ContentBlockedError:
         return [build_ai_chat_blocked_text()], None
-    except ServerError as e:
-        if e.code == HTTPStatus.SERVICE_UNAVAILABLE:
-            logger.warning("AI chat 503 overloaded")
+    except APIError as e:
+        if e.code in _OVERLOADED:
+            logger.warning("AI chat overloaded: %s", e.code)
             return [build_ai_chat_overloaded_text()], None
-        logger.exception("AI chat server error")
+        logger.exception("AI chat API error")
         return [build_ai_chat_error_text()], None
     except Exception:
         logger.exception("AI chat failed")
