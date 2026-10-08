@@ -7,13 +7,14 @@ from aiogram.utils.formatting import Text
 from google.genai.errors import ServerError
 
 from apps.bot.constants import UD_AI_CHAT_HISTORY
-from apps.bot.handlers.ai_chat.receive import ai_chat_receive
+from apps.bot.handlers.ai_chat.receive import ai_chat_not_text, ai_chat_receive
 from apps.bot.handlers.ai_chat.start import ai_chat_start
 from apps.bot.handlers.ai_chat.text import (
     build_ai_chat_blocked_text,
     build_ai_chat_error_text,
     build_ai_chat_greeting_text,
     build_ai_chat_overloaded_text,
+    build_ai_chat_text_only_text,
     build_ai_chat_thinking_text,
 )
 from apps.bot.states import AiChatSG
@@ -84,6 +85,21 @@ class TestAiChatReceive:
         thinking_msg.edit_text = AsyncMock()
         message.answer = AsyncMock(return_value=thinking_msg)
         return message, thinking_msg
+
+    async def test_a_blank_question_is_asked_again_without_the_model(self, state):
+        """Spaces that strip() removes but Telegram keeps as a message."""
+        await self._enter(state)
+        message, _ = self._make_message("\u00a0\u3000")
+        answer = AsyncMock()
+
+        with patch("apps.bot.handlers.ai_chat.receive.answer_question", answer):
+            await ai_chat_receive(message, state, _make_employee())
+
+        answer.assert_not_awaited()
+        message.answer.assert_awaited_once_with(
+            **build_ai_chat_text_only_text().as_kwargs()
+        )
+        assert await state.get_state() == AiChatSG.chatting.state
 
     async def test_sends_thinking_message_first(self, state):
         await self._enter(state)
@@ -400,3 +416,14 @@ class TestAiChatReceive:
         await ai_chat_receive(message, state, None)
 
         assert await state.get_state() is None
+
+
+class TestAiChatNotText:
+    async def test_asks_for_the_question_as_text(self):
+        message = make_message()
+
+        await ai_chat_not_text(message)
+
+        message.answer.assert_awaited_once_with(
+            **build_ai_chat_text_only_text().as_kwargs()
+        )

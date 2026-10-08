@@ -16,6 +16,7 @@ from .text import (
     build_ai_chat_blocked_text,
     build_ai_chat_error_text,
     build_ai_chat_overloaded_text,
+    build_ai_chat_text_only_text,
     build_ai_chat_thinking_text,
 )
 
@@ -79,6 +80,9 @@ async def ai_chat_receive(
         return
 
     question = message.text.strip()
+    if not question:
+        await message.answer(**build_ai_chat_text_only_text().as_kwargs())
+        return
 
     try:
         thinking_msg = await message.answer(**build_ai_chat_thinking_text().as_kwargs())
@@ -97,3 +101,8 @@ async def ai_chat_receive(
         await state.update_data({UD_AI_CHAT_HISTORY: history})
 
     await _safe_edit(thinking_msg, reply)
+
+
+async def ai_chat_not_text(message: Message) -> None:
+    """A photo, voice note or sticker in place of the question: ask for text."""
+    await message.answer(**build_ai_chat_text_only_text().as_kwargs())

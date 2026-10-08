@@ -1,5 +1,12 @@
-from aiogram.utils.formatting import Text
+from aiogram.utils.formatting import Italic, Text, as_list
 from django.utils.translation import gettext_lazy as _
+
+
+def build_ai_chat_text_only_text() -> Text:
+    return as_list(
+        Text("✍️ ", _("Please type your question as a text message.")),
+        Italic(_("To exit, type /cancel.")),
+    )
 
 
 def build_ai_chat_thinking_text() -> Text:

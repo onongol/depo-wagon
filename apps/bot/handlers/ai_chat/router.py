@@ -7,7 +7,7 @@ from apps.bot.handlers.common.cancel import cancel
 from apps.bot.keyboards.menu import MENU_TEXTS
 from apps.bot.states import AiChatSG
 
-from .receive import ai_chat_receive
+from .receive import ai_chat_not_text, ai_chat_receive
 from .start import ai_chat_start
 
 
@@ -30,4 +30,5 @@ def get_ai_chat_router() -> Router:
         ~F.text.in_(MENU_TEXTS),
         NotACommand(),
     )
+    router.message.register(ai_chat_not_text, StateFilter(AiChatSG.chatting), ~F.text)
     return router

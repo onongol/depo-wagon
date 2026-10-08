@@ -41,6 +41,7 @@ from apps.bot.constants import (
 from apps.bot.dispatcher import _BOT_COMMANDS, _routers, make_dispatcher
 from apps.bot.errors import build_session_error_text
 from apps.bot.fsm import load_defect, save_defect
+from apps.bot.handlers.ai_chat.text import build_ai_chat_text_only_text
 from apps.bot.handlers.common.text import (
     build_button_expired_text,
     build_cancelled_text,
@@ -771,7 +772,7 @@ class TestUnroutedUpdates:
         assert (await load_defect(state)).photos == []
         assert await state.get_state() == DefectSG.desc.state
 
-    async def test_the_ai_chat_keeps_its_state_through_a_stray_photo(
+    async def test_a_stray_photo_in_the_ai_chat_is_asked_to_be_text(
         self, dp, bot, session, state
     ):
         await save_defect(state, DefectData(wagon_id=3))
@@ -779,7 +780,8 @@ class TestUnroutedUpdates:
 
         await dp.feed_update(bot, make_photo_update("stray"))
 
-        assert session.requests == []
+        sent = [m.text for m in session.calls("sendMessage")]
+        assert sent == [build_ai_chat_text_only_text().render()[0]]
         assert await state.get_state() == AiChatSG.chatting.state
 
     async def test_a_stray_photo_in_support_is_asked_to_be_text(
