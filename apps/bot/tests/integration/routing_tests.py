@@ -39,7 +39,7 @@ from apps.bot.constants import (
     UD_SCREEN,
     LinkStatus,
 )
-from apps.bot.dispatcher import _routers, make_dispatcher
+from apps.bot.dispatcher import make_dispatcher
 from apps.bot.errors import build_session_error_text
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.ai_chat.text import build_ai_chat_text_only_text
@@ -61,6 +61,7 @@ from apps.bot.handlers.defect.text import (
     build_stray_input_text,
 )
 from apps.bot.handlers.defect.wagon import WagonScene
+from apps.bot.handlers.router import _routers
 from apps.bot.handlers.start.link_errors import get_link_error_message
 from apps.bot.handlers.start.text import build_link_cancelled_text
 from apps.bot.handlers.support.text import build_support_text_only_text
@@ -853,7 +854,7 @@ class TestAPrivateRouterNeedsNoChatFilter:
             extra.callback_query.register(spy)
             return [extra, *_routers()]
 
-        with patch("apps.bot.dispatcher._routers", with_spy):
+        with patch("apps.bot.handlers.router._routers", with_spy):
             return make_dispatcher(storage, SimpleEventIsolation())
 
     async def test_a_group_message_never_reaches_it(self, dp, bot, seen):
