@@ -3,26 +3,13 @@ from django.utils.translation import gettext_lazy as _
 
 from apps.bot.user_data import AIResult
 from apps.bot.utils.defect_fields import build_ai_section
-from apps.bot.utils.formatting import quoted
+from apps.bot.utils.formatting import MESSAGE_LIMIT, quoted, utf16_cut, utf16_len
 
 from .text_screen import build_screen_text
 
-# Telegram's cap on a message's text
-_MESSAGE_LIMIT = 4096
-
-
-def _units(value: str) -> int:
-    """In UTF-16 units, as Telegram counts; never under a plain len()."""
-    return len(value.encode("utf-16-le")) // 2
-
 
 def _length(text: Text) -> int:
-    return _units(text.render()[0])
-
-
-def _cut(value: str, units: int) -> str:
-    """The longest start of value within units; a split emoji is dropped whole."""
-    return value.encode("utf-16-le")[: units * 2].decode("utf-16-le", errors="ignore")
+    return utf16_len(text.render()[0])
 
 
 def _progress_heading() -> Text:
@@ -65,10 +52,10 @@ def build_recommendation_text(ai_result: AIResult | None) -> Text | None:
         return None
     recommendation, sources = ai_result.rag_recommendation, ai_result.sources
     text = _recommendation(recommendation, sources)
-    overflow = _length(text) - _MESSAGE_LIMIT
+    overflow = _length(text) - MESSAGE_LIMIT
     if overflow > 0:
-        kept = _units(recommendation) - overflow - 1
-        text = _recommendation(_cut(recommendation, kept) + "…", sources)
+        kept = utf16_len(recommendation) - overflow - 1
+        text = _recommendation(utf16_cut(recommendation, kept) + "…", sources)
     return text
 
 
@@ -79,6 +66,6 @@ def build_result_messages(fields: list[Text], ai_result: AIResult | None) -> lis
     if recommendation is None:
         return [result]
     together = as_list(result, recommendation, sep="\n\n")
-    if _length(together) <= _MESSAGE_LIMIT:
+    if _length(together) <= MESSAGE_LIMIT:
         return [together]
     return [result, recommendation]

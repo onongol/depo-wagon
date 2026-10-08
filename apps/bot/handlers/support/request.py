@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING
 
 from django.conf import settings
 
+from apps.bot.utils.formatting import MESSAGE_LIMIT
+
 from .text import (
     build_support_request_text,
     build_support_sent_text,
@@ -23,9 +25,6 @@ if TYPE_CHECKING:
     from apps.core.models import Employee
 
 logger = logging.getLogger(__name__)
-
-# Telegram's cap on a message's text, in the UTF-16 units len(Text) counts
-_MESSAGE_LIMIT = 4096
 
 
 async def _relay(bot: Bot, storage: RedisStorage, request: Text, user_id: int) -> bool:
@@ -67,7 +66,8 @@ async def support_receive(
 
     user = message.from_user
     request = build_support_request_text(question, user, employee)
-    if len(request) > _MESSAGE_LIMIT:
+    # len(Text) counts UTF-16 units, as the limit does
+    if len(request) > MESSAGE_LIMIT:
         await message.answer(**build_support_too_long_text().as_kwargs())
         return
 
