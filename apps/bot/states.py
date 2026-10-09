@@ -1,10 +1,3 @@
-"""Conversation states.
-
-A StatesGroup serializes as "ClassName:attribute" — the string Redis holds, so
-renaming either half strands conversations in flight until the stale router
-clears them on the next message. No auth group: linking is one /start.
-"""
-
 from aiogram.fsm.state import State, StatesGroup
 
 
