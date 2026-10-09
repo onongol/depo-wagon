@@ -59,6 +59,7 @@ async def on_startup(bot: Bot) -> None:
         bot.set_my_short_description(build_bot_short_description_text().render()[0]),
         return_exceptions=True,
     )
+
     for result in results:
         if isinstance(result, Exception):
             logger.error("Failed to publish the bot profile", exc_info=result)
