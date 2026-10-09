@@ -94,7 +94,9 @@ services:
 
   bot:
     <<: *app
-    command: python manage.py run_bot --drop-pending
+    command: python manage.py run_bot
+    # Above the bot's 90s drain of in-flight updates
+    stop_grace_period: 100s
 
   worker:
     <<: *app
