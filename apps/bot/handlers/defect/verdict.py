@@ -3,12 +3,10 @@ from typing import TYPE_CHECKING, Any
 from aiogram.fsm.scene import on
 
 from apps.bot.callback_data import VerdictCB
-from apps.bot.constants import VERDICT_EMOJI, FSMKey
+from apps.bot.constants import FSMKey
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.keyboards.confirm import employee_verdict_keyboard
 from apps.bot.states import DefectSG
-from apps.bot.utils.choices import emoji_label
-from apps.defects.constants import DefectVerdict
 
 from .scene import DefectScene
 from .text import build_ask_verdict_text, build_edit_verdict_text
@@ -42,11 +40,8 @@ class VerdictScene(DefectScene, state=DefectSG.employee_verdict.state):
     ) -> None:
         await callback.answer()
 
-        value = callback_data.value
-
         defect = await load_defect(state)
-        defect.verdict = value
-        defect.verdict_label = emoji_label(VERDICT_EMOJI, DefectVerdict, value)
+        defect.verdict = callback_data.value
         await save_defect(state, defect)
 
         await self.wizard.goto(DefectSG.confirm)

@@ -70,9 +70,7 @@ class DefectData(_StampedModel):
     defect_type: str | None = None
     defect_type_label: str | None = None
     severity: str | None = None
-    severity_label: str | None = None
     verdict: str | None = None
-    verdict_label: str | None = None
     description: str = ""
     measurements: list[MeasurementEntry] = Field(default_factory=list)
     photos: list[PhotoEntry] = Field(default_factory=list)

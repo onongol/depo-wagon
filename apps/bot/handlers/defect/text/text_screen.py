@@ -3,7 +3,10 @@ from typing import TYPE_CHECKING
 from aiogram.utils.formatting import Bold, Text, as_list
 from django.utils.translation import gettext_lazy as _
 
+from apps.bot.constants import SEVERITY_EMOJI, VERDICT_EMOJI
+from apps.bot.utils.choices import emoji_label
 from apps.bot.utils.defect_fields import DefectFields, build_defect_fields
+from apps.defects.constants import DefectSeverity, DefectVerdict
 
 from .text_measurement import build_measurement_line
 
@@ -52,8 +55,8 @@ def build_fields(form: DefectData, behind: Collection[str]) -> list[Text]:
             measurements=tuple(build_measurement_line(m) for m in form.measurements),
             photos=len(form.photos),
             description=form.description,
-            severity=form.severity_label,
-            verdict=form.verdict_label,
+            severity=emoji_label(SEVERITY_EMOJI, DefectSeverity, form.severity),
+            verdict=emoji_label(VERDICT_EMOJI, DefectVerdict, form.verdict),
         ),
         behind,
     )

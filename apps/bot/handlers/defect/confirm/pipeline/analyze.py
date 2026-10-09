@@ -4,6 +4,9 @@ from typing import TYPE_CHECKING
 
 from apps.ai_service.analysis import analyze_defect
 from apps.bot import services
+from apps.bot.constants import SEVERITY_EMOJI
+from apps.bot.utils.choices import emoji_label
+from apps.defects.constants import DefectSeverity
 
 if TYPE_CHECKING:
     import uuid
@@ -27,7 +30,9 @@ async def run_ai_analysis(
             analyze_defect(
                 node=defect_data.node_label or "",
                 defect_type=defect_data.defect_type_label or "",
-                severity=defect_data.severity_label or "",
+                severity=emoji_label(
+                    SEVERITY_EMOJI, DefectSeverity, defect_data.severity
+                ),
                 description=defect_data.description,
                 photos_bytes=photo_bytes or None,
             ),

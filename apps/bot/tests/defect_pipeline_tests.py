@@ -42,7 +42,6 @@ def _make_defect_data(**kwargs):
         defect_type=kwargs.get("defect_type", "crack"),
         defect_type_label=kwargs.get("defect_type_label", "Crack"),
         severity=kwargs.get("severity", "high"),
-        severity_label=kwargs.get("severity_label", "High"),
         description=kwargs.get("description", "Defect description"),
         department=kwargs.get("department", "bogie"),
         part_number=kwargs.get("part_number", ""),
@@ -271,6 +270,15 @@ class TestRunAiAnalysis:
             )
 
         assert result is ai_result
+
+    async def test_the_severity_is_sent_as_its_label(self):
+        analyze = AsyncMock(return_value=None)
+        with patch(
+            "apps.bot.handlers.defect.confirm.pipeline.analyze.analyze_defect", analyze
+        ):
+            await run_ai_analysis(_make_defect_data(), defect_id="id-1", photo_bytes=[])
+
+        assert analyze.await_args.kwargs["severity"] == "🟠 High"
 
     async def test_analyze_exception_returns_none(self):
         with patch(
@@ -530,7 +538,7 @@ class TestBuildResultText:
     def test_the_form_then_the_analysis(self):
         form = _make_defect_data(part_number="PN-42", photo_file_ids=["AgAC"])
         form.department_label = "Bogie"
-        form.verdict_label = "Repair Now"
+        form.verdict = "repair_now"
 
         text = build_result_text(_fields(form), self.AI)
 
@@ -545,8 +553,8 @@ class TestBuildResultText:
             "📸 Photos: 1\n"
             "📝 Description: \n"
             "<blockquote expandable>Defect description</blockquote>\n"
-            "🌡️ Severity: <b>High</b>\n"
-            "👨‍🔧 Verdict: <b>Repair Now</b>\n\n"
+            "🌡️ Severity: <b>🟠 High</b>\n"
+            "👨‍🔧 Verdict: <b>🟠 Repair Now</b>\n\n"
             "🤖 <b>AI Analysis:</b>\n"
             "Defect class:\n"
             "<blockquote expandable>Rim wear</blockquote>\n"

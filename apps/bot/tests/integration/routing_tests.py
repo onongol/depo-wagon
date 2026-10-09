@@ -174,7 +174,7 @@ class TestPrecedenceDuringTheDefectFlow:
         department=Department.BOGIE.value,
         department_label="Bogie",
         defect_type_label="Crack",
-        severity_label="High",
+        severity="high",
         current_measurement=MeasurementEntry(
             dimension="depth", dimension_label="Depth"
         ),
@@ -350,7 +350,7 @@ class TestNewDefectDuringARunningForm:
                 department=Department.BOGIE.value,
                 department_label="Bogie",
                 defect_type_label="Crack",
-                severity_label="High",
+                severity="high",
                 current_measurement=MeasurementEntry(
                     dimension="depth", dimension_label="Depth"
                 ),

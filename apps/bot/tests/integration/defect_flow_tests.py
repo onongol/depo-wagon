@@ -969,7 +969,7 @@ class TestTheVerdictStep:
         assert await state.get_state() == DefectSG.confirm.state
 
     async def test_an_edit_asks_again_and_goes_back(self, dp, bot, session, state):
-        form = DefectData(wagon_id=1, verdict=DefectVerdict.OK, verdict_label="✅ OK")
+        form = DefectData(wagon_id=1, verdict=DefectVerdict.OK)
         await save_defect(state, form)
         await state.set_state(DefectSG.confirm)
 

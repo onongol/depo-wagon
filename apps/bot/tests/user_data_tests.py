@@ -69,7 +69,6 @@ class TestDefectData:
             defect_type="human_factor",
             defect_type_label="Human factor",
             severity="critical",
-            severity_label="Critical",
             description="Cracked weld",
             measurements=[
                 MeasurementEntry(dimension="thickness", value=12.5),

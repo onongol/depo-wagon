@@ -17,11 +17,11 @@ def choice_label(
 
 
 def emoji_label(
-    emoji: Mapping[str, str], choices: type[TextChoices], value: str
+    emoji: Mapping[str, str], choices: type[TextChoices], value: str | None
 ) -> str:
     """The value as buttons and fields show it; an unknown value shows as is."""
     if value not in emoji:
-        return value
+        return value or ""
     return f"{emoji[value]} {choice_label(choices, value)}"
 
 

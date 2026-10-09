@@ -530,7 +530,7 @@ class TestVerdictScene:
         assert keyboard == employee_verdict_keyboard()
 
     async def test_the_severity_is_listed_above_it(self):
-        form = DefectData(severity_label="🟠 High")
+        form = DefectData(severity="high")
 
         text, _ = await VerdictScene.draw(form, {})
 
@@ -553,7 +553,6 @@ class TestVerdictScene:
 
         defect = await load_defect(state)
         assert defect.verdict == DefectVerdict.REPAIR_NOW
-        assert defect.verdict_label == "🟠 Repair Now"
         scene.wizard.goto.assert_awaited_once_with(DefectSG.confirm)
 
 
@@ -812,7 +811,7 @@ class TestBack:
 
 class TestSummaryScene:
     async def test_the_screen_is_the_whole_form_and_its_buttons(self):
-        form = DefectData(wagon_number="60123456", severity_label="High")
+        form = DefectData(wagon_number="60123456", severity="high")
 
         text, keyboard = await SummaryScene.draw(form, {})
 
@@ -1256,7 +1255,7 @@ class TestScreenText:
         assert "🔢 Part number: —" in text.render()[0]
 
     async def test_an_answer_kept_after_back_is_still_listed(self):
-        form = DefectData(wagon_number="1", severity_label="🟠 High")
+        form = DefectData(wagon_number="1", severity="high")
 
         text, _ = await NodeScene.draw(form, {})
 

@@ -3,12 +3,10 @@ from typing import TYPE_CHECKING, Any
 from aiogram.fsm.scene import on
 
 from apps.bot.callback_data import SeverityCB
-from apps.bot.constants import SEVERITY_EMOJI, FSMKey
+from apps.bot.constants import FSMKey
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.keyboards.defect import severity_keyboard
 from apps.bot.states import DefectSG
-from apps.bot.utils.choices import emoji_label
-from apps.defects.constants import DefectSeverity
 
 from .scene import DefectScene
 from .text import build_ask_severity_text, build_edit_severity_text
@@ -42,12 +40,8 @@ class SeverityScene(DefectScene, state=DefectSG.severity.state):
     ) -> None:
         await callback.answer()
 
-        sev_value = callback_data.value
-        sev_label = emoji_label(SEVERITY_EMOJI, DefectSeverity, sev_value)
-
         defect = await load_defect(state)
-        defect.severity = sev_value
-        defect.severity_label = sev_label
+        defect.severity = callback_data.value
         await save_defect(state, defect)
 
         await self.go_on(state, DefectSG.employee_verdict)

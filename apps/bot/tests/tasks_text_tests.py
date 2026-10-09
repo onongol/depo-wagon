@@ -197,8 +197,8 @@ class TestBuildCardText:
             ],
             photos=[PhotoEntry(file_id=str(i), message_id=i) for i in range(3)],
             description="Worn flange",
-            severity_label="🟠 High",
-            verdict_label="🟠 Repair Now",
+            severity="high",
+            verdict="repair_now",
         )
 
         fields = as_list(*build_fields(form, ())).as_html()
