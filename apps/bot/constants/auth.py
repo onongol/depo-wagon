@@ -1,9 +1,5 @@
 import enum
 
-from django.utils.translation import gettext_lazy as _
-
-BTN_CONNECT = _("✅ Connect")
-
 
 class LinkStatus(enum.StrEnum):
     """Outcome of attaching a Telegram chat via a web-issued deep-link token."""

@@ -1,38 +1,33 @@
-from .auth import BTN_CONNECT, LinkStatus
-from .choices import SEVERITY_EMOJI, STATUS_EMOJI, VERDICT_EMOJI
-from .common import (
+from .auth import LinkStatus
+from .buttons import (
+    BTN_ALL_EMPLOYEES,
     BTN_ASK,
     BTN_BACK,
     BTN_CANCEL,
+    BTN_CHANGE_STATUS,
     BTN_CLEAR,
+    BTN_CONFIRM,
+    BTN_CONNECT,
+    BTN_CONTINUE,
     BTN_DONE,
     BTN_HELP,
     BTN_NEW_DEFECT,
+    BTN_NEXT,
+    BTN_OPEN_CARD,
     BTN_OPEN_DEFECTS,
+    BTN_PAGE_NEXT,
+    BTN_PAGE_PREV,
+    BTN_PREV,
     BTN_SAVE,
     BTN_SKIP,
+    BTN_START_OVER,
     EDIT_FIELDS,
     EDIT_MEASUREMENTS,
     EDIT_RESPONSIBLE,
 )
-from .defect import (
-    BTN_ALL_EMPLOYEES,
-    BTN_CONTINUE,
-    BTN_PAGE_NEXT,
-    BTN_PAGE_PREV,
-    BTN_START_OVER,
-)
+from .choices import SEVERITY_EMOJI, STATUS_EMOJI, VERDICT_EMOJI
 from .fsm import DEFECT_FSM_KEYS, FSMKey
-from .tasks import (
-    BTN_CHANGE_STATUS,
-    BTN_CONFIRM,
-    BTN_NEXT,
-    BTN_OPEN_CARD,
-    BTN_PREV,
-    LIST_NUMBER_EMOJI,
-    STATUS_TRANSITIONS,
-    TASKS_PAGE_SIZE,
-)
+from .tasks import LIST_NUMBER_EMOJI, STATUS_TRANSITIONS, TASKS_PAGE_SIZE
 
 __all__ = [
     "BTN_ALL_EMPLOYEES",

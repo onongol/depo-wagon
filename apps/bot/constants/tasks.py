@@ -1,5 +1,3 @@
-from django.utils.translation import gettext_lazy as _
-
 from apps.defects.constants import DefectStatus
 
 TASKS_PAGE_SIZE = 5
@@ -11,9 +9,3 @@ STATUS_TRANSITIONS = {
     DefectStatus.IN_PROGRESS: (DefectStatus.OPEN, DefectStatus.CLOSED),
     DefectStatus.CLOSED: (),
 }
-
-BTN_CHANGE_STATUS = _("⚙️ Change status")
-BTN_PREV = _("⬅️ Previous")
-BTN_NEXT = _("Next ➡️")
-BTN_CONFIRM = _("✅ Confirm")
-BTN_OPEN_CARD = _("📄 Open card")
