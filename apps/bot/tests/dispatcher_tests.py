@@ -10,10 +10,14 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from aiogram.enums import ChatType
-from aiogram.exceptions import ClientDecodeError, TelegramAPIError
+from aiogram.exceptions import (
+    ClientDecodeError,
+    TelegramAPIError,
+    TelegramNetworkError,
+)
 from aiogram.fsm.scene import SceneRegistry
 from aiogram.fsm.storage.memory import MemoryStorage, SimpleEventIsolation
-from aiogram.types import Chat, Message, Update, User
+from aiogram.types import BotCommandScopeAllPrivateChats, Chat, Message, Update, User
 
 from apps.bot.dispatcher import make_dispatcher
 from apps.bot.errors import build_session_error_text, error_handler
@@ -235,32 +239,49 @@ class TestErrorHandlerTellsTheUser:
 
 
 class TestStartupHook:
-    def test_command_descriptions_are_held_lazily(self):
-        """A gettext proxy in a BotCommand would fail at import, not at send."""
-        assert all(not isinstance(d, str) for _command, d in _BOT_COMMANDS)
-
-    async def test_publishes_commands_as_concrete_strings(self):
-        bot = MagicMock(
+    @pytest.fixture
+    def bot(self):
+        return MagicMock(
+            delete_my_commands=AsyncMock(),
             set_my_commands=AsyncMock(),
             set_chat_menu_button=AsyncMock(),
             set_my_description=AsyncMock(),
             set_my_short_description=AsyncMock(),
         )
 
+    def test_command_descriptions_are_held_lazily(self):
+        """A gettext proxy in a BotCommand would fail at import, not at send."""
+        assert all(not isinstance(d, str) for _command, d in _BOT_COMMANDS)
+
+    async def test_publishes_commands_as_concrete_strings(self, bot):
         await on_startup(bot)
 
         published = bot.set_my_commands.await_args.args[0]
         assert [c.command for c in published] == [c for c, _d in _BOT_COMMANDS]
         assert all(type(c.description) is str for c in published)
 
-    async def test_publishes_the_menu_button_and_descriptions(self):
-        bot = MagicMock(
-            set_my_commands=AsyncMock(),
-            set_chat_menu_button=AsyncMock(),
-            set_my_description=AsyncMock(),
-            set_my_short_description=AsyncMock(),
+    async def test_commands_are_published_to_private_chats_only(self, bot):
+        """The default scope covers groups, where no command answers."""
+        await on_startup(bot)
+
+        scope = bot.set_my_commands.await_args.kwargs["scope"]
+        assert isinstance(scope, BotCommandScopeAllPrivateChats)
+        bot.delete_my_commands.assert_awaited_once_with()
+
+    async def test_a_failed_call_is_logged_and_the_rest_still_publish(
+        self, bot, caplog
+    ):
+        bot.set_my_description.side_effect = TelegramNetworkError(
+            method=MagicMock(), message="down"
         )
 
+        with caplog.at_level(logging.ERROR):
+            await on_startup(bot)
+
+        bot.set_my_short_description.assert_awaited_once()
+        assert "Failed to publish the bot profile" in caplog.text
+
+    async def test_publishes_the_menu_button_and_descriptions(self, bot):
         await on_startup(bot)
 
         bot.set_chat_menu_button.assert_awaited_once()
