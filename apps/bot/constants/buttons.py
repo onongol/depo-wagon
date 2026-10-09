@@ -8,12 +8,13 @@ BTN_HELP = _("ℹ️ Help")
 
 BTN_BACK = _("↩️ Back")
 BTN_SKIP = _("⏭️ Skip")
-BTN_SAVE = _("✅ Save")
-BTN_CANCEL = _("❌ Cancel")
 BTN_DONE = _("✅ Done")
-BTN_CLEAR = _("🗑 Clear")
+BTN_SAVE = _("✅ Save")
 BTN_CONFIRM = _("✅ Confirm")
 BTN_CONNECT = _("✅ Connect")
+BTN_CANCEL = _("❌ Cancel")
+BTN_CLEAR = _("🗑 Clear")
+
 
 # Offered when New Defect is pressed while a form is already open
 BTN_CONTINUE = _("▶️ Continue")
