@@ -27,7 +27,8 @@ from .buttons import (
 )
 from .choices import SEVERITY_EMOJI, STATUS_EMOJI, VERDICT_EMOJI
 from .fsm import DEFECT_FSM_KEYS, FSMKey
-from .tasks import LIST_NUMBER_EMOJI, STATUS_TRANSITIONS, TASKS_PAGE_SIZE
+from .numbering import LIST_NUMBER_EMOJI
+from .tasks import STATUS_TRANSITIONS, TASKS_PAGE_SIZE
 
 __all__ = [
     "BTN_ALL_EMPLOYEES",
