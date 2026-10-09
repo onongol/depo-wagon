@@ -4,7 +4,9 @@ from typing import TYPE_CHECKING
 from aiogram import Dispatcher
 from aiogram.fsm.scene import SceneRegistry
 
-from apps.bot.handlers.router import get_private_router
+from apps.bot.errors import error_handler
+from apps.bot.handlers.defect.scenes import FLOW_SCENES
+from apps.bot.handlers.router import get_routers
 from apps.bot.middlewares import (
     AiChatTimeoutMiddleware,
     CloseOldConnectionsMiddleware,
@@ -21,13 +23,9 @@ logger = logging.getLogger(__name__)
 def make_dispatcher(
     storage: BaseStorage, events_isolation: BaseEventIsolation
 ) -> Dispatcher:
-    from apps.bot.errors import error_handler
-    from apps.bot.handlers.defect.scenes import FLOW_SCENES
-    from apps.bot.handlers.support.router import get_support_group_router
-
     dp = Dispatcher(storage=storage, events_isolation=events_isolation)
 
-    # Lookup only: the defect flow router places the scene routers in its order
+    # Lookup and the `scenes` argument: the flow router places the scene routers
     SceneRegistry(dp, register_on_add=False).add(*FLOW_SCENES)
 
     # The only observer firing once per update, ahead of every filter
@@ -44,9 +42,7 @@ def make_dispatcher(
     dp.startup.register(on_startup)
     dp.errors.register(error_handler)
 
-    # Disjoint by chat, so neither can shadow the other
-    private = get_private_router()
-    dp.include_routers(private, get_support_group_router())
+    dp.include_routers(*get_routers())
 
-    logger.info("Dispatcher created with %s private routers.", len(private.sub_routers))
+    logger.info("Dispatcher created.")
     return dp

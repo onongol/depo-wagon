@@ -30,7 +30,7 @@ ignore = [
   # mechanical fix: every import has to be classified as breaking a real
   # cycle or as having ended up there by accident. Counts measured, not
   # inherited.
-  "PLC0415",  # 53 in application code, 127 in tests — imports inside functions
+  "PLC0415",  # 52 in application code, 169 in tests — imports inside functions
 ]
 
 [tool.ruff.lint.pycodestyle]
