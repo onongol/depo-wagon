@@ -192,9 +192,7 @@ class TestBuildCardText:
             part_number="PN-7",
             defect_type="human_factor",
             responsible_employee_label="Dorj Bold",
-            measurements=[
-                MeasurementEntry(dimension_label="Depth", value=3.5, unit="mm")
-            ],
+            measurements=[MeasurementEntry(dimension="depth", value=3.5, unit="mm")],
             photos=[PhotoEntry(file_id=str(i), message_id=i) for i in range(3)],
             description="Worn flange",
             severity="high",

@@ -43,7 +43,6 @@ class MeasurementEntry(BaseModel):
     model_config = ConfigDict(extra="ignore", strict=True, validate_assignment=True)
 
     dimension: str = ""
-    dimension_label: str = ""
     value: float | None = None
     unit: str = ""
 

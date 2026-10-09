@@ -174,9 +174,7 @@ class TestPrecedenceDuringTheDefectFlow:
         department=Department.BOGIE.value,
         defect_type="crack",
         severity="high",
-        current_measurement=MeasurementEntry(
-            dimension="depth", dimension_label="Depth"
-        ),
+        current_measurement=MeasurementEntry(dimension="depth"),
     )
 
     @pytest.fixture
@@ -349,9 +347,7 @@ class TestNewDefectDuringARunningForm:
                 department=Department.BOGIE.value,
                 defect_type="crack",
                 severity="high",
-                current_measurement=MeasurementEntry(
-                    dimension="depth", dimension_label="Depth"
-                ),
+                current_measurement=MeasurementEntry(dimension="depth"),
             ),
         )
 

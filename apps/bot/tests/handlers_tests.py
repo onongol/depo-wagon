@@ -993,9 +993,7 @@ class TestEditingThePhotos:
         callback.bot.edit_message_text.assert_awaited_once()
 
 
-THICKNESS = MeasurementEntry(
-    dimension="thickness", dimension_label="Thickness", unit="mm"
-)
+THICKNESS = MeasurementEntry(dimension="thickness", unit="mm")
 
 
 class TestMeasurementChoiceScene:
@@ -1008,7 +1006,7 @@ class TestMeasurementChoiceScene:
     async def test_the_fields_list_what_is_saved_and_the_card_offers_done(self):
         form = DefectData(
             measurements=[
-                MeasurementEntry(dimension_label="Width", value=3.0),
+                MeasurementEntry(dimension="width", value=3.0),
                 THICKNESS.model_copy(update={"value": 12.5}),
             ]
         )
@@ -1281,7 +1279,7 @@ class TestScreenText:
         assert rendered.endswith(question)
 
     async def test_measurements_are_listed_under_their_count(self):
-        gap = MeasurementEntry(dimension_label="Gap", value=3.0, unit="mm")
+        gap = MeasurementEntry(dimension="gap", value=3.0, unit="mm")
 
         text, _ = await SummaryScene.draw(DefectData(measurements=[gap]), {})
 

@@ -24,6 +24,7 @@ from apps.bot.keyboards.measurement import (
 )
 from apps.bot.states import DefectSG
 from apps.bot.user_data import MeasurementEntry
+from apps.bot.utils.choices import choice_label
 from apps.bot.utils.screens import delete_input
 from apps.defects.constants import DIMENSION_UNITS, MeasurementDimension
 
@@ -34,8 +35,6 @@ if TYPE_CHECKING:
 
     from apps.bot.handlers.defect.scene import Screen
     from apps.bot.user_data import DefectData
-
-_DIM_LABELS = dict(MeasurementDimension.choices)
 
 
 class MeasurementChoiceScene(DefectScene, state=DefectSG.measurement_choice.state):
@@ -58,7 +57,8 @@ class MeasurementChoiceScene(DefectScene, state=DefectSG.measurement_choice.stat
     @classmethod
     async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:
         if current := form.current_measurement:
-            text = build_ask_value_text(current.dimension_label, current.unit)
+            label = choice_label(MeasurementDimension, current.dimension)
+            text = build_ask_value_text(label, current.unit)
             return text, measurement_value_keyboard()
 
         any_saved = bool(form.measurements)
@@ -85,9 +85,7 @@ class MeasurementChoiceScene(DefectScene, state=DefectSG.measurement_choice.stat
 
         dimension = callback_data.value
         current = MeasurementEntry(
-            dimension=dimension,
-            dimension_label=str(_DIM_LABELS.get(dimension, dimension)),
-            unit=DIMENSION_UNITS.get(dimension, ""),
+            dimension=dimension, unit=DIMENSION_UNITS.get(dimension, "")
         )
         await self._set_current(callback, state, current)
 

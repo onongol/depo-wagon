@@ -995,9 +995,7 @@ class TestTheVerdictStep:
 class TestTheMeasurementCard:
     """One state throughout: the picked dimension waits in the form for its number."""
 
-    THICKNESS = MeasurementEntry(
-        dimension="thickness", dimension_label="Thickness", unit="mm"
-    )
+    THICKNESS = MeasurementEntry(dimension="thickness", unit="mm")
 
     async def _at_the_card(self, state, **form):
         await save_defect(state, DefectData(wagon_id=1, **form))
@@ -1149,7 +1147,7 @@ class TestEditingThePhotos:
 
 
 class TestEditingTheMeasurements:
-    GAP = MeasurementEntry(dimension="gap", dimension_label="Gap", unit="mm")
+    GAP = MeasurementEntry(dimension="gap", unit="mm")
 
     async def test_clear_then_a_new_one_then_done_goes_back(
         self, dp, bot, session, state

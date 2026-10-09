@@ -27,7 +27,6 @@ class TestMeasurementEntry:
     def test_survives_a_json_round_trip_with_floats(self):
         entry = MeasurementEntry(
             dimension="thickness",
-            dimension_label="Thickness",
             value=12.5,
             unit="mm",
         )
