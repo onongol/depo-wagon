@@ -172,8 +172,7 @@ class TestPrecedenceDuringTheDefectFlow:
         wagon_id=3,
         wagon_number="80035668",
         department=Department.BOGIE.value,
-        department_label="Bogie",
-        defect_type_label="Crack",
+        defect_type="crack",
         severity="high",
         current_measurement=MeasurementEntry(
             dimension="depth", dimension_label="Depth"
@@ -348,8 +347,7 @@ class TestNewDefectDuringARunningForm:
                 wagon_id=3,
                 wagon_number=self.WAGON,
                 department=Department.BOGIE.value,
-                department_label="Bogie",
-                defect_type_label="Crack",
+                defect_type="crack",
                 severity="high",
                 current_measurement=MeasurementEntry(
                     dimension="depth", dimension_label="Depth"

@@ -38,9 +38,7 @@ def _make_defect_data(**kwargs):
         wagon_id=kwargs.get("wagon_id", 1),
         wagon_number=kwargs.get("wagon_number", "12345"),
         node=kwargs.get("node", "wheel"),
-        node_label=kwargs.get("node_label", "Wheel"),
         defect_type=kwargs.get("defect_type", "crack"),
-        defect_type_label=kwargs.get("defect_type_label", "Crack"),
         severity=kwargs.get("severity", "high"),
         description=kwargs.get("description", "Defect description"),
         department=kwargs.get("department", "bogie"),
@@ -537,7 +535,6 @@ class TestBuildResultText:
 
     def test_the_form_then_the_analysis(self):
         form = _make_defect_data(part_number="PN-42", photo_file_ids=["AgAC"])
-        form.department_label = "Bogie"
         form.verdict = "repair_now"
 
         text = build_result_text(_fields(form), self.AI)

@@ -230,7 +230,7 @@ class TestReceiveWagonNumber:
 
 
 class TestReceiveDepartment:
-    async def test_saves_department_and_its_label(self, state):
+    async def test_saves_the_department(self, state):
         await save_defect(state, DefectData())
 
         await DepartmentScene(wizard=AsyncMock()).receive(
@@ -239,7 +239,6 @@ class TestReceiveDepartment:
 
         defect = await load_defect(state)
         assert defect.department == "bogie"
-        assert defect.department_label
 
     async def test_goes_on_to_the_node_scene(self, state):
         """Its screen is the node scene's to draw; see the flow tests."""
@@ -252,7 +251,7 @@ class TestReceiveDepartment:
 
 
 class TestReceiveNode:
-    async def test_saves_node_and_its_label(self, state):
+    async def test_saves_the_node(self, state):
         await save_defect(state, DefectData())
 
         await NodeScene(wizard=AsyncMock()).receive(
@@ -261,7 +260,6 @@ class TestReceiveNode:
 
         defect = await load_defect(state)
         assert defect.node == "wheel"
-        assert defect.node_label
 
     async def test_goes_on_to_the_part_number_scene(self, state):
         await save_defect(state, DefectData())

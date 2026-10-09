@@ -7,13 +7,13 @@ if TYPE_CHECKING:
 
 
 def choice_label(
-    choices: type[TextChoices], value: str, default: str | None = None
+    choices: type[TextChoices], value: str | None, default: str | None = None
 ) -> str:
     """The value's label in the active language; an unknown value gives default."""
     try:
         return str(choices(value).label)
     except ValueError:
-        return value if default is None else default
+        return (value or "") if default is None else default
 
 
 def emoji_label(

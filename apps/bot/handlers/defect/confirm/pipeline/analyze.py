@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING
 from apps.ai_service.analysis import analyze_defect
 from apps.bot import services
 from apps.bot.constants import SEVERITY_EMOJI
-from apps.bot.utils.choices import emoji_label
-from apps.defects.constants import DefectSeverity
+from apps.bot.utils.choices import choice_label, emoji_label
+from apps.defects.constants import DefectNode, DefectSeverity, DefectType
 
 if TYPE_CHECKING:
     import uuid
@@ -28,8 +28,8 @@ async def run_ai_analysis(
     try:
         ai_result = await asyncio.wait_for(
             analyze_defect(
-                node=defect_data.node_label or "",
-                defect_type=defect_data.defect_type_label or "",
+                node=choice_label(DefectNode, defect_data.node),
+                defect_type=choice_label(DefectType, defect_data.defect_type),
                 severity=emoji_label(
                     SEVERITY_EMOJI, DefectSeverity, defect_data.severity
                 ),

@@ -799,7 +799,7 @@ class TestEditingTheNode:
 class TestThePartNumberStep:
     """Skip is an empty part number and a goto(); the next screen shows it as a dash."""
 
-    FORM = DefectData(wagon_id=1, department=Department.BOGIE, node_label="Wheel")
+    FORM = DefectData(wagon_id=1, department=Department.BOGIE, node=DefectNode.WHEEL)
 
     async def test_the_node_leads_to_it_in_place(self, dp, bot, session, state):
         await save_defect(state, self.FORM)
@@ -1514,7 +1514,6 @@ class TestHumanFactorBranch:
                 wagon_number=WAGON_NUMBER,
                 department=Department.BOGIE.value,
                 defect_type=DefectType.WEAR,
-                defect_type_label="Wear",
             ),
         )
         await state.set_state(DefectSG.confirm)
@@ -1544,7 +1543,6 @@ class TestHumanFactorBranch:
                 wagon_number=WAGON_NUMBER,
                 department=Department.BOGIE.value,
                 defect_type=DefectType.HUMAN_FACTOR,
-                defect_type_label="Human Factor",
                 responsible_employee_id=1,
                 responsible_employee_label="U1 L",
             ),
@@ -1570,7 +1568,6 @@ class TestHumanFactorBranch:
                 wagon_number=WAGON_NUMBER,
                 department=Department.BOGIE.value,
                 defect_type=DefectType.HUMAN_FACTOR,
-                defect_type_label="Human Factor",
                 responsible_employee_id=2,
                 responsible_employee_label="U2 L",
             ),

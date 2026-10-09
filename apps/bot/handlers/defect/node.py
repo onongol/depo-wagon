@@ -7,7 +7,6 @@ from apps.bot.constants import FSMKey
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.keyboards.defect import node_keyboard_for_department
 from apps.bot.states import DefectSG
-from apps.defects.constants import DefectNode
 
 from .scene import DefectScene
 from .text import build_ask_node_text, build_edit_node_text
@@ -20,8 +19,6 @@ if TYPE_CHECKING:
     from apps.bot.user_data import DefectData
 
     from .scene import Screen
-
-_NODE_LABELS = dict(DefectNode.choices)
 
 
 class NodeScene(DefectScene, state=DefectSG.node.state):
@@ -44,12 +41,8 @@ class NodeScene(DefectScene, state=DefectSG.node.state):
     ) -> None:
         await callback.answer()
 
-        node_value = callback_data.value
-        node_label = str(_NODE_LABELS.get(node_value, node_value))
-
         defect = await load_defect(state)
-        defect.node = node_value
-        defect.node_label = node_label
+        defect.node = callback_data.value
         await save_defect(state, defect)
 
         await self.go_on(state, DefectSG.part_number)

@@ -27,6 +27,9 @@ class TestChoiceLabel:
     def test_an_unknown_value_gives_the_default(self):
         assert choice_label(DefectVerdict, "bogus", "-") == "-"
 
+    def test_no_value_yet_gives_an_empty_label(self):
+        assert choice_label(DefectVerdict, None) == ""
+
 
 class TestEmojiLabel:
     def test_a_known_value_gets_its_emoji(self):

@@ -4,9 +4,10 @@ from aiogram.utils.formatting import Bold, Text, as_list
 from django.utils.translation import gettext_lazy as _
 
 from apps.bot.constants import SEVERITY_EMOJI, VERDICT_EMOJI
-from apps.bot.utils.choices import emoji_label
+from apps.bot.utils.choices import choice_label, emoji_label
 from apps.bot.utils.defect_fields import DefectFields, build_defect_fields
-from apps.defects.constants import DefectSeverity, DefectVerdict
+from apps.core.constants import Department
+from apps.defects.constants import DefectNode, DefectSeverity, DefectType, DefectVerdict
 
 from .text_measurement import build_measurement_line
 
@@ -47,10 +48,10 @@ def build_fields(form: DefectData, behind: Collection[str]) -> list[Text]:
     return build_defect_fields(
         DefectFields(
             wagon=form.wagon_number,
-            department=form.department_label,
-            node=form.node_label,
+            department=choice_label(Department, form.department),
+            node=choice_label(DefectNode, form.node),
             part_number=form.part_number,
-            defect_type=form.defect_type_label,
+            defect_type=choice_label(DefectType, form.defect_type),
             responsible=form.responsible_employee_label,
             measurements=tuple(build_measurement_line(m) for m in form.measurements),
             photos=len(form.photos),

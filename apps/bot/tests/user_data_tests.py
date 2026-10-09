@@ -62,12 +62,9 @@ class TestDefectData:
             wagon_id=12,
             wagon_number="60123456",
             department="coupler_brake",
-            department_label="Coupler and brake",
             node="uncoupling_lever",
-            node_label="Uncoupling lever",
             part_number="PN-99",
             defect_type="human_factor",
-            defect_type_label="Human factor",
             severity="critical",
             description="Cracked weld",
             measurements=[

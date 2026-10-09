@@ -21,8 +21,6 @@ if TYPE_CHECKING:
 
     from .scene import Screen
 
-_DEFECT_TYPE_LABELS = dict(DefectType.choices)
-
 
 class DefectTypeScene(DefectScene, state=DefectSG.defect_type.state):
     """The defect type, from buttons; a human factor asks for the employee next."""
@@ -49,12 +47,10 @@ class DefectTypeScene(DefectScene, state=DefectSG.defect_type.state):
         await callback.answer()
 
         dtype_value = callback_data.value
-        dtype_label = str(_DEFECT_TYPE_LABELS.get(dtype_value, dtype_value))
         human_factor = dtype_value == DefectType.HUMAN_FACTOR
 
         defect = await load_defect(state)
         defect.defect_type = dtype_value
-        defect.defect_type_label = dtype_label
 
         if not human_factor:
             defect.responsible_employee_id = None

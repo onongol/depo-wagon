@@ -187,10 +187,10 @@ class TestBuildCardText:
         card.defect.get_defect_type_display.return_value = "Human Factor"
         form = DefectData(
             wagon_number="60123456",
-            department_label="Repair-1",
-            node_label="Wheelset",
+            department="repair_1",
+            node="wheelset",
             part_number="PN-7",
-            defect_type_label="Human Factor",
+            defect_type="human_factor",
             responsible_employee_label="Dorj Bold",
             measurements=[
                 MeasurementEntry(dimension_label="Depth", value=3.5, unit="mm")
