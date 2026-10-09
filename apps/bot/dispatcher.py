@@ -2,6 +2,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from aiogram import Dispatcher
+from aiogram.dispatcher.event.handler import HandlerObject
 from aiogram.fsm.scene import SceneRegistry
 
 from apps.bot.errors import error_handler
@@ -11,6 +12,7 @@ from apps.bot.middlewares import (
     AiChatTimeoutMiddleware,
     CloseOldConnectionsMiddleware,
     EmployeeMiddleware,
+    InFlightMiddleware,
 )
 from apps.bot.startup import on_startup
 
@@ -34,12 +36,17 @@ def make_dispatcher(
     # Global, so an update claimed before ai_chat still expires its session
     dp.update.outer_middleware(AiChatTimeoutMiddleware())
 
+    in_flight = InFlightMiddleware()
+    dp.update.outer_middleware(in_flight)
+
     # Inner: it reads the matched handler's flags and parameters
     employee = EmployeeMiddleware()
     dp.message.middleware(employee)
     dp.callback_query.middleware(employee)
 
     dp.startup.register(on_startup)
+    # Ahead of the fsm.close Dispatcher registers, which closes Redis under them
+    dp.shutdown.handlers.insert(0, HandlerObject(callback=in_flight.drain))
     dp.errors.register(error_handler)
 
     dp.include_routers(*get_routers())

@@ -1,5 +1,7 @@
 """Tests for the aiogram middlewares."""
 
+import asyncio
+import logging
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -10,7 +12,7 @@ from aiogram.types import CallbackQuery, Message
 
 from apps.bot.constants import UD_AI_CHAT_HISTORY
 from apps.bot.keyboards.menu import main_menu_keyboard
-from apps.bot.middlewares import CloseOldConnectionsMiddleware
+from apps.bot.middlewares import CloseOldConnectionsMiddleware, InFlightMiddleware
 from apps.bot.middlewares.defect_form import (
     build_form_lost_text,
     build_form_outdated_text,
@@ -82,6 +84,68 @@ class TestCloseOldConnectionsMiddleware:
             await middleware(AsyncMock(), MagicMock(), {})
 
         close.assert_called_once()
+
+
+class TestInFlightMiddleware:
+    async def test_tracks_the_task_only_while_the_handler_runs(self):
+        middleware = InFlightMiddleware()
+        seen = []
+
+        async def handler(event, data):
+            seen.append(asyncio.current_task() in middleware.tasks)
+            return "result"
+
+        result = await middleware(handler, MagicMock(), {})
+
+        assert result == "result"
+        assert seen == [True]
+        assert not middleware.tasks
+
+    async def test_forgets_the_task_when_the_handler_raises(self):
+        middleware = InFlightMiddleware()
+
+        with pytest.raises(RuntimeError):
+            await middleware(AsyncMock(side_effect=RuntimeError), MagicMock(), {})
+
+        assert not middleware.tasks
+
+    async def test_drain_returns_at_once_when_nothing_runs(self):
+        await asyncio.wait_for(InFlightMiddleware(drain_timeout=60).drain(), 0.1)
+
+    async def test_drain_waits_for_a_running_handler(self):
+        middleware = InFlightMiddleware()
+        release = asyncio.Event()
+        done = []
+
+        async def handler(event, data):
+            await release.wait()
+            done.append(True)
+
+        task = asyncio.create_task(middleware(handler, MagicMock(), {}))
+        await asyncio.sleep(0)
+        asyncio.get_running_loop().call_later(0.01, release.set)
+
+        await middleware.drain()
+
+        assert done == [True]
+        assert task.done()
+
+    async def test_drain_gives_up_after_the_timeout(self, caplog):
+        middleware = InFlightMiddleware(drain_timeout=0.01)
+        never = asyncio.Event()
+
+        async def handler(event, data):
+            await never.wait()
+
+        task = asyncio.create_task(middleware(handler, MagicMock(), {}))
+        await asyncio.sleep(0)
+
+        with caplog.at_level(logging.WARNING):
+            await middleware.drain()
+
+        assert not task.done()
+        assert "1 update(s) still running" in caplog.text
+        task.cancel()
 
 
 class TestAiChatTimeoutMiddleware:

@@ -21,6 +21,7 @@ from aiogram.types import BotCommandScopeAllPrivateChats, Chat, Message, Update,
 
 from apps.bot.dispatcher import make_dispatcher
 from apps.bot.errors import build_session_error_text, error_handler
+from apps.bot.middlewares import InFlightMiddleware
 from apps.bot.startup import (
     _BOT_COMMANDS,
     build_bot_description_text,
@@ -48,6 +49,15 @@ class TestEventsIsolation:
         dispatcher = make_dispatcher(MemoryStorage(), isolation)
 
         assert dispatcher.fsm.events_isolation is isolation
+
+
+class TestShutdown:
+    def test_drains_updates_before_the_fsm_closes(self, dispatcher):
+        """fsm.close shuts Redis, so a handler still running would lose its state."""
+        callbacks = [h.callback for h in dispatcher.shutdown.handlers]
+
+        assert callbacks[0].__func__ is InFlightMiddleware.drain
+        assert callbacks.index(dispatcher.fsm.close) > 0
 
 
 class TestTopLevelRouters:
