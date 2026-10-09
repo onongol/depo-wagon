@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any
 from aiogram.fsm.scene import on
 
 from apps.bot.callback_data import DefectTypeCB
-from apps.bot.constants import UD_EDITING
+from apps.bot.constants import FSMKey
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.keyboards.defect import defect_type_keyboard
 from apps.bot.states import DefectSG
@@ -34,7 +34,7 @@ class DefectTypeScene(DefectScene, state=DefectSG.defect_type.state):
     @classmethod
     async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:
         keyboard = defect_type_keyboard()
-        if data.get(UD_EDITING):
+        if data.get(FSMKey.EDITING):
             return build_edit_defect_type_text(), keyboard
         return build_ask_defect_type_text(), keyboard
 

@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any
 from aiogram.fsm.scene import on
 
 from apps.bot.callback_data import SeverityCB
-from apps.bot.constants import SEVERITY_EMOJI, UD_EDITING
+from apps.bot.constants import SEVERITY_EMOJI, FSMKey
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.keyboards.defect import severity_keyboard
 from apps.bot.states import DefectSG
@@ -32,7 +32,7 @@ class SeverityScene(DefectScene, state=DefectSG.severity.state):
 
     @classmethod
     async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:
-        if data.get(UD_EDITING):
+        if data.get(FSMKey.EDITING):
             return build_edit_severity_text(), severity_keyboard()
         return build_ask_severity_text(), severity_keyboard()
 

@@ -4,7 +4,7 @@ from aiogram import F
 from aiogram.fsm.scene import on
 
 from apps.bot.callback_data import ConfirmCB, EditCB
-from apps.bot.constants import EDIT_MEASUREMENTS, EDIT_RESPONSIBLE, UD_EDITING
+from apps.bot.constants import EDIT_MEASUREMENTS, EDIT_RESPONSIBLE, FSMKey
 from apps.bot.fsm import drop_keys, load_defect
 from apps.bot.keyboards.confirm import confirm_keyboard
 from apps.bot.states import DefectSG
@@ -73,12 +73,12 @@ class SummaryScene(DefectScene, state=DefectSG.confirm.state):
         notice: Text | None = None,
         below: bool = False,
     ) -> None:
-        await drop_keys(state, UD_EDITING)
+        await drop_keys(state, FSMKey.EDITING)
         await super().show_as_message(message, state, notice=notice, below=below)
 
     @on.callback_query.enter()
     async def show_as_edit(self, callback: CallbackQuery, state: FSMContext) -> None:
-        await drop_keys(state, UD_EDITING)
+        await drop_keys(state, FSMKey.EDITING)
         await super().show_as_edit(callback, state)
 
     @on.callback_query(EditCB.filter())
@@ -100,7 +100,7 @@ class SummaryScene(DefectScene, state=DefectSG.confirm.state):
         if field_step is None:
             return
 
-        await state.update_data({UD_EDITING: True})
+        await state.update_data({FSMKey.EDITING: True})
         await self.wizard.goto(field_step)
 
     # Split from save so that cancelling never loads the employee

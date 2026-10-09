@@ -14,12 +14,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from redis.asyncio.connection import Connection
 from redis.exceptions import ConnectionError as RedisConnectionError
 
-from apps.bot.constants import (
-    UD_AI_CHAT_HISTORY,
-    UD_DEFECT,
-    UD_EDITING,
-    UD_RESP_SEARCH,
-)
+from apps.bot.constants import FSMKey
 from apps.bot.fsm import clear_defect_keys, drop_keys, load_defect, save_defect
 from apps.bot.fsm.storage import (
     FSM_LOCK_TIMEOUT,
@@ -86,35 +81,39 @@ class TestLoadAndSaveDefect:
         assert (await load_defect(state)).wagon_number == "1"
 
     async def test_saving_leaves_unrelated_keys_alone(self, state):
-        await state.update_data({UD_AI_CHAT_HISTORY: [{"q": "a"}]})
+        await state.update_data({FSMKey.AI_CHAT_HISTORY: [{"q": "a"}]})
 
         await save_defect(state, DefectData())
 
-        assert (await state.get_data())[UD_AI_CHAT_HISTORY] == [{"q": "a"}]
+        assert (await state.get_data())[FSMKey.AI_CHAT_HISTORY] == [{"q": "a"}]
 
 
 class TestDropKeys:
     async def test_drops_only_the_keys_named(self, state):
         await state.update_data(
-            {UD_RESP_SEARCH: "query", UD_EDITING: True, UD_AI_CHAT_HISTORY: []}
+            {
+                FSMKey.RESP_SEARCH: "query",
+                FSMKey.EDITING: True,
+                FSMKey.AI_CHAT_HISTORY: [],
+            }
         )
 
-        await drop_keys(state, UD_RESP_SEARCH, UD_EDITING)
+        await drop_keys(state, FSMKey.RESP_SEARCH, FSMKey.EDITING)
 
-        assert await state.get_data() == {UD_AI_CHAT_HISTORY: []}
+        assert await state.get_data() == {FSMKey.AI_CHAT_HISTORY: []}
 
     async def test_a_key_that_is_not_there_is_no_error(self, state):
-        await state.update_data({UD_EDITING: True})
+        await state.update_data({FSMKey.EDITING: True})
 
-        await drop_keys(state, UD_RESP_SEARCH)
+        await drop_keys(state, FSMKey.RESP_SEARCH)
 
-        assert await state.get_data() == {UD_EDITING: True}
+        assert await state.get_data() == {FSMKey.EDITING: True}
 
     async def test_leaves_the_state_itself_untouched(self, state):
         await state.set_state("DefectSG:responsible_employee")
-        await state.update_data({UD_RESP_SEARCH: "query"})
+        await state.update_data({FSMKey.RESP_SEARCH: "query"})
 
-        await drop_keys(state, UD_RESP_SEARCH)
+        await drop_keys(state, FSMKey.RESP_SEARCH)
 
         assert await state.get_state() == "DefectSG:responsible_employee"
 
@@ -123,9 +122,9 @@ class TestClearDefectKeys:
     async def test_drops_every_key_the_defect_flow_owns(self, state):
         await state.update_data(
             {
-                UD_DEFECT: DefectData().to_dict(),
-                UD_RESP_SEARCH: "query",
-                UD_EDITING: True,
+                FSMKey.DEFECT: DefectData().to_dict(),
+                FSMKey.RESP_SEARCH: "query",
+                FSMKey.EDITING: True,
             }
         )
 
@@ -135,12 +134,15 @@ class TestClearDefectKeys:
 
     async def test_keeps_the_ai_chat_history(self, state):
         await state.update_data(
-            {UD_DEFECT: DefectData().to_dict(), UD_AI_CHAT_HISTORY: [{"q": "a"}]}
+            {
+                FSMKey.DEFECT: DefectData().to_dict(),
+                FSMKey.AI_CHAT_HISTORY: [{"q": "a"}],
+            }
         )
 
         await clear_defect_keys(state)
 
-        assert await state.get_data() == {UD_AI_CHAT_HISTORY: [{"q": "a"}]}
+        assert await state.get_data() == {FSMKey.AI_CHAT_HISTORY: [{"q": "a"}]}
 
     async def test_is_a_no_op_when_nothing_is_stored(self, state):
         await clear_defect_keys(state)
@@ -149,7 +151,7 @@ class TestClearDefectKeys:
 
     async def test_leaves_the_state_itself_untouched(self, state):
         await state.set_state("DefectSG:photo")
-        await state.update_data({UD_DEFECT: DefectData().to_dict()})
+        await state.update_data({FSMKey.DEFECT: DefectData().to_dict()})
 
         await clear_defect_keys(state)
 

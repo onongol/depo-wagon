@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 from aiogram import flags
 
-from apps.bot.constants import DEFECT_USER_DATA_KEYS, UD_SCREEN
+from apps.bot.constants import DEFECT_FSM_KEYS, FSMKey
 from apps.bot.fsm import drop_keys, save_defect
 from apps.bot.states import DefectSG
 from apps.bot.user_data import DefectData
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 async def open_blank_form(state: FSMContext) -> None:
     """Drops an abandoned form's keys but the screen, which Start over reuses."""
-    await drop_keys(state, *(key for key in DEFECT_USER_DATA_KEYS if key != UD_SCREEN))
+    await drop_keys(state, *(key for key in DEFECT_FSM_KEYS if key != FSMKey.SCREEN))
     await save_defect(state, DefectData())
 
 

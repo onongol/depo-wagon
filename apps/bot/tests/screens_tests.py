@@ -10,7 +10,7 @@ from aiogram.types import (
     ReplyKeyboardMarkup,
 )
 
-from apps.bot.constants import UD_SCREEN
+from apps.bot.constants import FSMKey
 from apps.bot.tests.builders import (
     SENT_ID,
     make_bad_request,
@@ -205,7 +205,7 @@ class TestShowScreen:
     SCREEN = [CHAT, 7]
 
     async def _stored(self, state):
-        await state.update_data({UD_SCREEN: self.SCREEN})
+        await state.update_data({FSMKey.SCREEN: self.SCREEN})
 
     async def test_the_stored_screen_is_edited_in_place(self, state):
         await self._stored(state)
@@ -228,7 +228,7 @@ class TestShowScreen:
         await show_screen(bot, state, self.CHAT, text="x")
 
         bot.send_message.assert_not_awaited()
-        assert (await state.get_data())[UD_SCREEN] == self.SCREEN
+        assert (await state.get_data())[FSMKey.SCREEN] == self.SCREEN
 
     @pytest.mark.parametrize(
         "refusal", ["message can't be edited", "message to edit not found"]
@@ -241,7 +241,7 @@ class TestShowScreen:
         await show_screen(bot, state, self.CHAT, text="x")
 
         bot.send_message.assert_awaited_once_with(self.CHAT, text="x")
-        assert (await state.get_data())[UD_SCREEN] == [self.CHAT, SENT_ID]
+        assert (await state.get_data())[FSMKey.SCREEN] == [self.CHAT, SENT_ID]
 
     async def test_a_screen_telegram_rejects_is_raised_not_resent(self, state):
         await self._stored(state)
@@ -261,7 +261,7 @@ class TestShowScreen:
         await show_screen(bot, state, self.CHAT, text="x")
 
         bot.send_message.assert_awaited_once_with(self.CHAT, text="x")
-        assert (await state.get_data())[UD_SCREEN] == [self.CHAT, SENT_ID]
+        assert (await state.get_data())[FSMKey.SCREEN] == [self.CHAT, SENT_ID]
 
     async def test_without_one_a_tap_adopts_its_message(self, state):
         """A form begun before the screen was stored."""
@@ -273,7 +273,7 @@ class TestShowScreen:
         bot.edit_message_text.assert_awaited_once_with(
             chat_id=tapped.chat.id, message_id=tapped.message_id, text="x"
         )
-        stored = (await state.get_data())[UD_SCREEN]
+        stored = (await state.get_data())[FSMKey.SCREEN]
         assert stored == [tapped.chat.id, tapped.message_id]
 
     async def test_a_stored_screen_wins_over_the_tapped_message(self, state):
@@ -293,7 +293,7 @@ class TestShowScreen:
         bot.edit_message_text.assert_not_awaited()
         bot.send_message.assert_awaited_once_with(self.CHAT, text="x")
         bot.delete_message.assert_awaited_once_with(chat_id=self.CHAT, message_id=7)
-        assert (await state.get_data())[UD_SCREEN] == [self.CHAT, SENT_ID]
+        assert (await state.get_data())[FSMKey.SCREEN] == [self.CHAT, SENT_ID]
 
     async def test_an_old_screen_that_cannot_go_loses_its_buttons(self, state):
         await self._stored(state)

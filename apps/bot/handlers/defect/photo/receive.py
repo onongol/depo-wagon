@@ -6,7 +6,7 @@ from aiogram import F
 from aiogram.fsm.scene import on
 
 from apps.bot.callback_data import CB_PHOTO_CLEAR, CB_PHOTO_SKIP
-from apps.bot.constants import UD_EDITING, UD_LAST_MEDIA_GROUP
+from apps.bot.constants import FSMKey
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.defect.scene import DefectScene
 from apps.bot.handlers.defect.text import (
@@ -49,7 +49,7 @@ class PhotoScene(DefectScene, state=DefectSG.photo.state):
 
     @classmethod
     async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:
-        if data.get(UD_EDITING):
+        if data.get(FSMKey.EDITING):
             if not form.photos:
                 text = build_edit_photos_text(any_attached=False)
                 return text, skip_keyboard(CB_PHOTO_SKIP)
@@ -78,9 +78,9 @@ class PhotoScene(DefectScene, state=DefectSG.photo.state):
         await save_defect(state, defect)
 
         group = message.media_group_id
-        if group and (await state.get_data()).get(UD_LAST_MEDIA_GROUP) == group:
+        if group and (await state.get_data()).get(FSMKey.LAST_MEDIA_GROUP) == group:
             return
-        await state.update_data({UD_LAST_MEDIA_GROUP: group})
+        await state.update_data({FSMKey.LAST_MEDIA_GROUP: group})
 
         notice = build_album_receiving_text() if group else None
         await self.show_as_message(message, state, notice=notice, below=True)

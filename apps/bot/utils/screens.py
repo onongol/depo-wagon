@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any
 
 from aiogram.exceptions import TelegramBadRequest
 
-from apps.bot.constants import UD_SCREEN
+from apps.bot.constants import FSMKey
 from apps.bot.fsm import drop_keys
 
 if TYPE_CHECKING:
@@ -112,25 +112,25 @@ async def show_screen(
     one is taken down. With no screen stored yet, a tap adopts its message.
     kwargs are the screen's text and its inline keyboard, as for send_message.
     """
-    screen = (await state.get_data()).get(UD_SCREEN)
+    screen = (await state.get_data()).get(FSMKey.SCREEN)
     if screen is None and tapped is not None:
         screen = [tapped.chat.id, tapped.message_id]
-        await state.update_data({UD_SCREEN: screen})
+        await state.update_data({FSMKey.SCREEN: screen})
 
     if screen and not below and await _edit(bot, screen, kwargs):
         return
 
     sent = await bot.send_message(chat_id, **kwargs)
-    await state.update_data({UD_SCREEN: [chat_id, sent.message_id]})
+    await state.update_data({FSMKey.SCREEN: [chat_id, sent.message_id]})
     if screen and below:
         await take_down(bot, screen)
 
 
 async def close_screen(bot: Bot, state: FSMContext) -> None:
     """Take the form's screen off the chat as the form ends."""
-    if screen := (await state.get_data()).get(UD_SCREEN):
+    if screen := (await state.get_data()).get(FSMKey.SCREEN):
         await take_down(bot, screen)
-    await drop_keys(state, UD_SCREEN)
+    await drop_keys(state, FSMKey.SCREEN)
 
 
 async def take_down(bot: Bot, screen: list[int]) -> None:

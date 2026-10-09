@@ -40,8 +40,7 @@ from apps.bot.constants import (
     BTN_OPEN_DEFECTS,
     EDIT_MEASUREMENTS,
     EDIT_RESPONSIBLE,
-    UD_EDITING,
-    UD_SCREEN,
+    FSMKey,
 )
 from apps.bot.errors import build_session_error_text
 from apps.bot.fsm import load_defect, save_defect
@@ -573,7 +572,7 @@ class TestOneScreen:
         assert await state.get_state() == DefectSG.confirm.state
 
         assert len(session.calls("sendMessage")) == 1
-        _, screen_id = (await state.get_data())[UD_SCREEN]
+        _, screen_id = (await state.get_data())[FSMKey.SCREEN]
         edited = {edit.message_id for edit in session.calls("editMessageText")}
         assert edited == {screen_id}
         deleted = [d.message_id for d in session.calls("deleteMessage")]
@@ -588,7 +587,7 @@ class TestOneScreen:
         """Not an answer, so it is not taken off the chat."""
         await save_defect(state, DefectData(wagon_id=1))
         await state.set_state(DefectSG.part_number)
-        await state.update_data({UD_SCREEN: [CHAT_ID, 500]})
+        await state.update_data({FSMKey.SCREEN: [CHAT_ID, 500]})
 
         await dp.feed_update(
             bot, make_message_update(command, command=command.startswith("/"))
@@ -612,7 +611,7 @@ class TestOneScreen:
         (asked,) = session.calls("sendMessage")
         assert f"🚃 Wagon: {WAGON_NUMBER}" in asked.text
         assert asked.text.endswith(build_defect_in_progress_text().render()[0])
-        _, screen = (await state.get_data())[UD_SCREEN]
+        _, screen = (await state.get_data())[FSMKey.SCREEN]
 
         await dp.feed_update(bot, make_callback_update(CB_DEFECT_CONTINUE))
 
@@ -625,7 +624,7 @@ class TestOneScreen:
         self, dp, bot, session, state, flow
     ):
         await dp.feed_update(bot, make_message_update("/new_defect", command=True))
-        _, first = (await state.get_data())[UD_SCREEN]
+        _, first = (await state.get_data())[FSMKey.SCREEN]
         session.refuse("editMessageText", "Bad Request: message to edit not found")
 
         await dp.feed_update(bot, make_message_update(WAGON_NUMBER))
@@ -633,7 +632,7 @@ class TestOneScreen:
         assert await state.get_state() == DefectSG.department.state
         sent = session.calls("sendMessage")[-1]
         assert sent.text.endswith(build_ask_department_text().render()[0])
-        _, second = (await state.get_data())[UD_SCREEN]
+        _, second = (await state.get_data())[FSMKey.SCREEN]
         assert second != first
 
     async def test_an_over_long_description_stays_and_the_screen_goes_under_it(
@@ -641,7 +640,7 @@ class TestOneScreen:
     ):
         await save_defect(state, DefectData(wagon_id=1))
         await state.set_state(DefectSG.desc)
-        await state.update_data({UD_SCREEN: [CHAT_ID, 500]})
+        await state.update_data({FSMKey.SCREEN: [CHAT_ID, 500]})
 
         await dp.feed_update(bot, make_message_update("x" * 1001))
 
@@ -657,7 +656,7 @@ class TestTheFormEndsCleanly:
 
     async def _open(self, dp, bot, state):
         await dp.feed_update(bot, make_message_update("/new_defect", command=True))
-        _, screen = (await state.get_data())[UD_SCREEN]
+        _, screen = (await state.get_data())[FSMKey.SCREEN]
         return screen
 
     @staticmethod
@@ -675,7 +674,7 @@ class TestTheFormEndsCleanly:
         assert self._deleted(session) == [screen]
         (sent,) = session.calls("sendMessage")
         assert sent.reply_markup == main_menu_keyboard()
-        assert UD_SCREEN not in await state.get_data()
+        assert FSMKey.SCREEN not in await state.get_data()
 
     async def test_slash_cancel_takes_it_down_too(self, dp, bot, session, state, flow):
         screen = await self._open(dp, bot, state)
@@ -706,7 +705,7 @@ class TestTheFormEndsCleanly:
         await dp.feed_update(bot, make_callback_update(CB_DEFECT_RESTART))
 
         assert await state.get_state() == DefectSG.wagon_num.state
-        assert (await state.get_data())[UD_SCREEN][1] == screen
+        assert (await state.get_data())[FSMKey.SCREEN][1] == screen
         assert session.calls("editMessageText")[-1].message_id == screen
         assert session.calls("deleteMessage") == []
 
@@ -716,14 +715,14 @@ class TestTheFormEndsCleanly:
         """Only the progress message goes; nothing after it takes the result down."""
         await save_defect(state, DefectData(wagon_id=3))
         await state.set_state(DefectSG.confirm)
-        await state.update_data({UD_SCREEN: [CHAT_ID, 500]})
+        await state.update_data({FSMKey.SCREEN: [CHAT_ID, 500]})
         update = make_callback_update(ConfirmCB(confirmed=True).pack())
 
         await dp.feed_update(bot, update)
         await dp.feed_update(bot, make_message_update("/cancel", command=True))
 
         assert self._deleted(session) == [update.callback_query.message.message_id]
-        assert UD_SCREEN not in await state.get_data()
+        assert FSMKey.SCREEN not in await state.get_data()
 
 
 class TestFromTheWagonStepToTheDepartment:
@@ -793,7 +792,7 @@ class TestEditingTheNode:
         )
 
         assert await state.get_state() == DefectSG.confirm.state
-        assert UD_EDITING not in await state.get_data()
+        assert FSMKey.EDITING not in await state.get_data()
         assert (await load_defect(state)).node == DefectNode.WHEEL
 
 
@@ -852,7 +851,7 @@ class TestThePartNumberStep:
         await dp.feed_update(bot, make_callback_update(CB_PART_NUMBER_SKIP))
 
         assert await state.get_state() == DefectSG.confirm.state
-        assert UD_EDITING not in await state.get_data()
+        assert FSMKey.EDITING not in await state.get_data()
         assert (await load_defect(state)).part_number == ""
 
 
@@ -1106,7 +1105,7 @@ class TestTheDescriptionStep:
 
         assert await state.get_state() == DefectSG.confirm.state
         assert (await load_defect(state)).description == "Cracked weld"
-        assert UD_EDITING not in await state.get_data()
+        assert FSMKey.EDITING not in await state.get_data()
 
 
 class TestEditingThePhotos:
@@ -1137,7 +1136,7 @@ class TestEditingThePhotos:
         assert await state.get_state() == DefectSG.confirm.state
         photos = (await load_defect(state)).photos
         assert [p.file_id for p in photos] == ["AgAC", "AgAD"]
-        assert UD_EDITING not in await state.get_data()
+        assert FSMKey.EDITING not in await state.get_data()
 
     async def test_clear_then_done_goes_back_with_none(self, dp, bot, state):
         await self._open(dp, bot, state)
@@ -1176,7 +1175,7 @@ class TestEditingTheMeasurements:
         assert await state.get_state() == DefectSG.confirm.state
         saved = (await load_defect(state)).measurements
         assert saved == [self.GAP.model_copy(update={"value": 3.0})]
-        assert UD_EDITING not in await state.get_data()
+        assert FSMKey.EDITING not in await state.get_data()
 
 
 class TestGoingBack:
@@ -1236,7 +1235,7 @@ class TestGoingBack:
         await dp.feed_update(bot, make_callback_update(CB_STEP_BACK))
 
         assert await state.get_state() == DefectSG.confirm.state
-        assert UD_EDITING not in await state.get_data()
+        assert FSMKey.EDITING not in await state.get_data()
         assert await load_defect(state) == self.FORM
 
 
@@ -1257,7 +1256,7 @@ class TestEditingTheWagon:
         (edit,) = edits
         assert edit.endswith(build_edit_wagon_text().render()[0])
         assert await state.get_state() == DefectSG.wagon_num.state
-        assert (await state.get_data())[UD_EDITING] is True
+        assert (await state.get_data())[FSMKey.EDITING] is True
 
     async def test_the_new_number_returns_to_the_summary(
         self, dp, bot, session, state, flow
@@ -1269,7 +1268,7 @@ class TestEditingTheWagon:
         await dp.feed_update(bot, make_message_update(WAGON_NUMBER))
 
         assert await state.get_state() == DefectSG.confirm.state
-        assert UD_EDITING not in await state.get_data()
+        assert FSMKey.EDITING not in await state.get_data()
         defect = await load_defect(state)
         assert (defect.wagon_number, defect.node) == (WAGON_NUMBER, "wheel")
 
@@ -1284,7 +1283,7 @@ class TestAFormLeftOverFromAnEarlierBuild:
     """
 
     async def _mid_flow_with_a_foreign_schema(self, dp, bot, state):
-        from apps.bot.constants import UD_DEFECT
+        from apps.bot.constants import FSMKey
         from apps.bot.user_data import STATE_SCHEMA_VERSION
 
         await dp.feed_update(bot, make_message_update("/new_defect", command=True))
@@ -1294,9 +1293,9 @@ class TestAFormLeftOverFromAnEarlierBuild:
         )
         assert await state.get_state() == DefectSG.node.state
 
-        stored = (await state.get_data())[UD_DEFECT]
+        stored = (await state.get_data())[FSMKey.DEFECT]
         stored["_schema"] = STATE_SCHEMA_VERSION + 1
-        await state.update_data({UD_DEFECT: stored})
+        await state.update_data({FSMKey.DEFECT: stored})
 
     async def test_the_next_tap_resets_the_flow_instead_of_raising(
         self, dp, bot, state, session, flow
@@ -1333,7 +1332,7 @@ class TestAFormLeftOverFromAnEarlierBuild:
         self, dp, bot, state, session, flow
     ):
         """A failed save leaves the form but not the state; /help still gets help."""
-        from apps.bot.constants import UD_DEFECT
+        from apps.bot.constants import FSMKey
 
         await self._mid_flow_with_a_foreign_schema(dp, bot, state)
         await state.set_state(None)
@@ -1344,7 +1343,7 @@ class TestAFormLeftOverFromAnEarlierBuild:
         assert [m.text for m in session.calls("sendMessage")] == [
             build_help_text().render()[0]
         ]
-        assert UD_DEFECT not in await state.get_data()
+        assert FSMKey.DEFECT not in await state.get_data()
 
 
 class TestAStepWithoutItsForm:
@@ -1531,7 +1530,7 @@ class TestHumanFactorBranch:
         )
 
         assert await state.get_state() == DefectSG.confirm.state
-        assert UD_EDITING not in await state.get_data()
+        assert FSMKey.EDITING not in await state.get_data()
         assert (await load_defect(state)).responsible_employee_label == "U1 L"
 
     @pytest.mark.usefixtures("flow", "roster")
@@ -1558,7 +1557,7 @@ class TestHumanFactorBranch:
         await dp.feed_update(bot, make_callback_update(HUMAN_FACTOR))
 
         assert await state.get_state() == DefectSG.confirm.state
-        assert UD_EDITING not in await state.get_data()
+        assert FSMKey.EDITING not in await state.get_data()
         assert (await load_defect(state)).responsible_employee_id == 1
         assert "U1 L" in session.calls("editMessageText")[-1].text
 
@@ -1651,7 +1650,7 @@ class TestAlbum:
         )
         assert await state.get_state() == DefectSG.photo.state
 
-        _, before = (await state.get_data())[UD_SCREEN]
+        _, before = (await state.get_data())[FSMKey.SCREEN]
         session.clear()
         # Concurrent handling can reach the album in any order.
         for i in (2, 0, 1):
@@ -1668,7 +1667,7 @@ class TestAlbum:
         assert build_album_receiving_text().render()[0] in screen.text
         assert "📸 Photos: 1" in screen.text
         assert [d.message_id for d in session.calls("deleteMessage")] == [before]
-        _, after = (await state.get_data())[UD_SCREEN]
+        _, after = (await state.get_data())[FSMKey.SCREEN]
 
         await dp.feed_update(bot, make_callback_update(CB_PHOTO_SKIP))
 

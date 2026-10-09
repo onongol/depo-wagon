@@ -9,7 +9,7 @@ from aiogram.utils.formatting import Text
 from google.genai.errors import APIError
 
 from apps.ai_service.rag.chat import ContentBlockedError, answer_question
-from apps.bot.constants import UD_AI_CHAT_HISTORY
+from apps.bot.constants import FSMKey
 from apps.bot.utils.formatting import split_message
 
 from .text import (
@@ -102,7 +102,7 @@ async def ai_chat_receive(message: Message, state: FSMContext) -> None:
         logger.warning("Could not send the AI chat thinking message")
         return
 
-    history: list[dict] = (await state.get_data()).get(UD_AI_CHAT_HISTORY, [])
+    history: list[dict] = (await state.get_data()).get(FSMKey.AI_CHAT_HISTORY, [])
 
     replies, answer = await _ask(question, history)
     if not await _show(thinking_msg, replies) or answer is None:
@@ -111,7 +111,7 @@ async def ai_chat_receive(message: Message, state: FSMContext) -> None:
     history = history[-_HISTORY_KEEP:]
     history.append({"role": "user", "content": question})
     history.append({"role": "model", "content": answer})
-    await state.update_data({UD_AI_CHAT_HISTORY: history})
+    await state.update_data({FSMKey.AI_CHAT_HISTORY: history})
 
 
 async def ai_chat_not_text(message: Message) -> None:

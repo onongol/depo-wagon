@@ -4,7 +4,7 @@ from aiogram import F
 from aiogram.fsm.scene import on
 
 from apps.bot.callback_data import CB_PART_NUMBER_SKIP
-from apps.bot.constants import UD_EDITING
+from apps.bot.constants import FSMKey
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.keyboards.common import skip_keyboard
 from apps.bot.states import DefectSG
@@ -45,7 +45,7 @@ class PartNumberScene(DefectScene, state=DefectSG.part_number.state):
     @classmethod
     async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:
         keyboard = skip_keyboard(CB_PART_NUMBER_SKIP)
-        if data.get(UD_EDITING):
+        if data.get(FSMKey.EDITING):
             return build_edit_part_number_text(), keyboard
         return build_ask_part_number_text(), keyboard
 

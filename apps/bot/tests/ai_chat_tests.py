@@ -7,7 +7,7 @@ from aiogram.exceptions import TelegramNetworkError
 from aiogram.utils.formatting import Text
 from google.genai.errors import APIError, ClientError, ServerError
 
-from apps.bot.constants import UD_AI_CHAT_HISTORY
+from apps.bot.constants import FSMKey
 from apps.bot.handlers.ai_chat.receive import ai_chat_not_text, ai_chat_receive
 from apps.bot.handlers.ai_chat.start import ai_chat_start
 from apps.bot.handlers.ai_chat.text import (
@@ -37,11 +37,11 @@ class TestAiChatStart:
 
     async def test_clears_history_on_start(self, message, state):
         await state.update_data(
-            {UD_AI_CHAT_HISTORY: [{"role": "user", "content": "old"}]}
+            {FSMKey.AI_CHAT_HISTORY: [{"role": "user", "content": "old"}]}
         )
         await ai_chat_start(message, state)
 
-        assert (await state.get_data())[UD_AI_CHAT_HISTORY] == []
+        assert (await state.get_data())[FSMKey.AI_CHAT_HISTORY] == []
 
     async def test_sends_greeting(self, message, state):
         await ai_chat_start(message, state)
@@ -129,14 +129,14 @@ class TestAiChatReceive:
     async def test_appends_question_and_answer_to_history(self, state):
         await self._enter(state)
         message, _ = self._make_message("question about axle")
-        await state.update_data({UD_AI_CHAT_HISTORY: []})
+        await state.update_data({FSMKey.AI_CHAT_HISTORY: []})
         with patch(
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(return_value="answer about axle"),
         ):
             await ai_chat_receive(message, state)
 
-        history = (await state.get_data())[UD_AI_CHAT_HISTORY]
+        history = (await state.get_data())[FSMKey.AI_CHAT_HISTORY]
         assert {"role": "user", "content": "question about axle"} in history
         assert {"role": "model", "content": "answer about axle"} in history
 
@@ -145,7 +145,7 @@ class TestAiChatReceive:
         message, _ = self._make_message()
         await state.update_data(
             {
-                UD_AI_CHAT_HISTORY: [
+                FSMKey.AI_CHAT_HISTORY: [
                     {"role": "user", "content": "q1"},
                     {"role": "model", "content": "a1"},
                 ]
@@ -157,7 +157,7 @@ class TestAiChatReceive:
         ):
             await ai_chat_receive(message, state)
 
-        assert len((await state.get_data())[UD_AI_CHAT_HISTORY]) == 4
+        assert len((await state.get_data())[FSMKey.AI_CHAT_HISTORY]) == 4
 
     async def test_history_capped_before_appending(self, state):
         from apps.bot.handlers.ai_chat.receive import _HISTORY_KEEP
@@ -165,7 +165,7 @@ class TestAiChatReceive:
         message, _ = self._make_message()
         await state.update_data(
             {
-                UD_AI_CHAT_HISTORY: [
+                FSMKey.AI_CHAT_HISTORY: [
                     {"role": "user" if i % 2 == 0 else "model", "content": f"old {i}"}
                     for i in range(_HISTORY_KEEP + 6)
                 ]
@@ -177,7 +177,7 @@ class TestAiChatReceive:
         ):
             await ai_chat_receive(message, state)
 
-        history = (await state.get_data())[UD_AI_CHAT_HISTORY]
+        history = (await state.get_data())[FSMKey.AI_CHAT_HISTORY]
         assert len(history) <= _HISTORY_KEEP + 2
 
     @pytest.mark.parametrize(
@@ -234,14 +234,14 @@ class TestAiChatReceive:
     async def test_error_does_not_update_history(self, state):
         await self._enter(state)
         message, _ = self._make_message()
-        await state.update_data({UD_AI_CHAT_HISTORY: []})
+        await state.update_data({FSMKey.AI_CHAT_HISTORY: []})
         with patch(
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(side_effect=RuntimeError("fail")),
         ):
             await ai_chat_receive(message, state)
 
-        assert (await state.get_data())[UD_AI_CHAT_HISTORY] == []
+        assert (await state.get_data())[FSMKey.AI_CHAT_HISTORY] == []
 
     async def test_content_blocked_shows_blocked_message(self, state):
         from apps.ai_service.rag.chat import ContentBlockedError
@@ -263,14 +263,14 @@ class TestAiChatReceive:
         from apps.ai_service.rag.chat import ContentBlockedError
 
         message, _ = self._make_message()
-        await state.update_data({UD_AI_CHAT_HISTORY: []})
+        await state.update_data({FSMKey.AI_CHAT_HISTORY: []})
         with patch(
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(side_effect=ContentBlockedError()),
         ):
             await ai_chat_receive(message, state)
 
-        assert (await state.get_data())[UD_AI_CHAT_HISTORY] == []
+        assert (await state.get_data())[FSMKey.AI_CHAT_HISTORY] == []
 
     async def test_passes_existing_history_to_answer_question(self, state):
         await self._enter(state)
@@ -279,7 +279,7 @@ class TestAiChatReceive:
             {"role": "user", "content": "previous question"},
             {"role": "model", "content": "previous answer"},
         ]
-        await state.update_data({UD_AI_CHAT_HISTORY: list(existing)})
+        await state.update_data({FSMKey.AI_CHAT_HISTORY: list(existing)})
         answer_mock = AsyncMock(return_value="ok")
 
         with patch("apps.bot.handlers.ai_chat.receive.answer_question", answer_mock):
@@ -306,14 +306,14 @@ class TestAiChatReceive:
     async def test_timeout_does_not_update_history(self, state):
         await self._enter(state)
         message, _ = self._make_message()
-        await state.update_data({UD_AI_CHAT_HISTORY: []})
+        await state.update_data({FSMKey.AI_CHAT_HISTORY: []})
         with patch(
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(side_effect=asyncio.TimeoutError()),
         ):
             await ai_chat_receive(message, state)
 
-        assert (await state.get_data())[UD_AI_CHAT_HISTORY] == []
+        assert (await state.get_data())[FSMKey.AI_CHAT_HISTORY] == []
 
     async def test_a_failed_placeholder_keeps_the_session(self, state):
         await self._enter(state)
@@ -345,7 +345,7 @@ class TestAiChatReceive:
 
     async def test_a_long_answer_goes_on_in_new_messages(self, state):
         await self._enter(state)
-        await state.update_data({UD_AI_CHAT_HISTORY: []})
+        await state.update_data({FSMKey.AI_CHAT_HISTORY: []})
         message, thinking_msg = self._make_message()
         first, second = "А" * 3000, "Б" * 3000
         with patch(
@@ -356,12 +356,12 @@ class TestAiChatReceive:
 
         thinking_msg.edit_text.assert_awaited_once_with(**Text(first).as_kwargs())
         thinking_msg.answer.assert_awaited_once_with(**Text(second).as_kwargs())
-        history = (await state.get_data())[UD_AI_CHAT_HISTORY]
+        history = (await state.get_data())[FSMKey.AI_CHAT_HISTORY]
         assert history[-1] == {"role": "model", "content": f"{first}\n{second}"}
 
     async def test_a_lost_piece_of_a_long_answer_is_not_remembered(self, state):
         await self._enter(state)
-        await state.update_data({UD_AI_CHAT_HISTORY: []})
+        await state.update_data({FSMKey.AI_CHAT_HISTORY: []})
         message, thinking_msg = self._make_message()
         thinking_msg.answer = AsyncMock(
             side_effect=TelegramNetworkError(method=None, message="network")
@@ -372,11 +372,11 @@ class TestAiChatReceive:
         ):
             await ai_chat_receive(message, state)
 
-        assert (await state.get_data())[UD_AI_CHAT_HISTORY] == []
+        assert (await state.get_data())[FSMKey.AI_CHAT_HISTORY] == []
 
     async def test_a_refused_edit_sends_the_answer_anew(self, state):
         await self._enter(state)
-        await state.update_data({UD_AI_CHAT_HISTORY: []})
+        await state.update_data({FSMKey.AI_CHAT_HISTORY: []})
         message, thinking_msg = self._make_message()
         thinking_msg.edit_text = AsyncMock(
             side_effect=make_bad_request("Bad Request: message to edit not found")
@@ -389,7 +389,7 @@ class TestAiChatReceive:
             await ai_chat_receive(message, state)
 
         thinking_msg.answer.assert_awaited_once_with(**Text("ok").as_kwargs())
-        assert len((await state.get_data())[UD_AI_CHAT_HISTORY]) == 2
+        assert len((await state.get_data())[FSMKey.AI_CHAT_HISTORY]) == 2
         assert await state.get_state() == AiChatSG.chatting.state
 
     async def test_an_edit_that_fails_otherwise_is_not_sent_anew(self, state):
@@ -410,7 +410,7 @@ class TestAiChatReceive:
 
     async def test_an_undelivered_answer_is_not_remembered(self, state, caplog):
         await self._enter(state)
-        await state.update_data({UD_AI_CHAT_HISTORY: []})
+        await state.update_data({FSMKey.AI_CHAT_HISTORY: []})
         message, thinking_msg = self._make_message()
         thinking_msg.edit_text = AsyncMock(
             side_effect=make_bad_request("Bad Request: message to edit not found")
@@ -425,14 +425,14 @@ class TestAiChatReceive:
         ):
             await ai_chat_receive(message, state)
 
-        assert (await state.get_data())[UD_AI_CHAT_HISTORY] == []
+        assert (await state.get_data())[FSMKey.AI_CHAT_HISTORY] == []
         assert "Could not show the AI chat reply" in caplog.text
         assert await state.get_state() == AiChatSG.chatting.state
 
     async def test_an_empty_answer_shows_the_error_and_is_not_remembered(self, state):
         """Telegram refuses an empty text, which left the placeholder up for good."""
         await self._enter(state)
-        await state.update_data({UD_AI_CHAT_HISTORY: []})
+        await state.update_data({FSMKey.AI_CHAT_HISTORY: []})
         message, thinking_msg = self._make_message()
 
         with patch(
@@ -444,7 +444,7 @@ class TestAiChatReceive:
         thinking_msg.edit_text.assert_called_once_with(
             **build_ai_chat_error_text().as_kwargs()
         )
-        assert (await state.get_data())[UD_AI_CHAT_HISTORY] == []
+        assert (await state.get_data())[FSMKey.AI_CHAT_HISTORY] == []
 
 
 class TestAiChatNotText:

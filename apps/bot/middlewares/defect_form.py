@@ -8,7 +8,7 @@ from aiogram.types import CallbackQuery, Message
 from aiogram.utils.formatting import Text, as_list
 from django.utils.translation import gettext_lazy as _
 
-from apps.bot.constants import UD_DEFECT
+from apps.bot.constants import FSMKey
 from apps.bot.fsm import clear_defect_keys
 from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.states import DefectSG
@@ -79,7 +79,7 @@ class DefectFormMiddleware(BaseMiddleware):
         data: dict[str, Any],
     ) -> Any:
         state: FSMContext = data["state"]
-        stored = (await state.get_data()).get(UD_DEFECT)
+        stored = (await state.get_data()).get(FSMKey.DEFECT)
 
         if stored and is_current_schema(stored):
             return await handler(event, data)

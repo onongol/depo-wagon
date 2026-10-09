@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any
 
 from aiogram import BaseMiddleware
 
-from apps.bot.constants import UD_AI_CHAT_LAST
+from apps.bot.constants import FSMKey
 from apps.bot.states import AiChatSG
 
 if TYPE_CHECKING:
@@ -34,7 +34,7 @@ class AiChatTimeoutMiddleware(BaseMiddleware):
             return await handler(event, data)
 
         if data.get("raw_state") == AiChatSG.chatting.state:
-            last = (await state.get_data()).get(UD_AI_CHAT_LAST)
+            last = (await state.get_data()).get(FSMKey.AI_CHAT_LAST)
 
             if last is not None and time.time() - last > AI_CHAT_TIMEOUT:
                 await state.clear()
@@ -43,6 +43,6 @@ class AiChatTimeoutMiddleware(BaseMiddleware):
         result = await handler(event, data)
 
         if await state.get_state() == AiChatSG.chatting.state:
-            await state.update_data({UD_AI_CHAT_LAST: time.time()})
+            await state.update_data({FSMKey.AI_CHAT_LAST: time.time()})
 
         return result

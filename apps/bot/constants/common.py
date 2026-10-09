@@ -1,24 +1,5 @@
 from django.utils.translation import gettext_lazy as _
 
-# User data keys
-UD_DEFECT = "defect"
-UD_RESP_SEARCH = "_resp_search"
-UD_LAST_MEDIA_GROUP = "_last_media_group"
-UD_EDITING = "_editing"
-# [chat_id, message_id] of the defect form's one screen
-UD_SCREEN = "_screen"
-UD_AI_CHAT_HISTORY = "_ai_chat_history"
-UD_AI_CHAT_LAST = "_ai_chat_last"
-
-# All user_data keys touched by the defect conversation, cleared on cancel
-DEFECT_USER_DATA_KEYS = (
-    UD_DEFECT,
-    UD_RESP_SEARCH,
-    UD_LAST_MEDIA_GROUP,
-    UD_EDITING,
-    UD_SCREEN,
-)
-
 # Human factor only
 EDIT_RESPONSIBLE = "responsible"
 # Every type but a human factor

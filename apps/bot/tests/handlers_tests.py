@@ -35,10 +35,7 @@ from apps.bot.constants import (
     BTN_SAVE,
     EDIT_MEASUREMENTS,
     EDIT_RESPONSIBLE,
-    UD_DEFECT,
-    UD_EDITING,
-    UD_RESP_SEARCH,
-    UD_SCREEN,
+    FSMKey,
 )
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.common.cancel import cancel
@@ -142,7 +139,7 @@ def picker():
 class TestCancelHandler:
     async def test_clears_everything_the_conversation_stored(self, state):
         await state.set_state(DefectSG.node)
-        await state.update_data({UD_DEFECT: {"node": "wheel"}})
+        await state.update_data({FSMKey.DEFECT: {"node": "wheel"}})
 
         await cancel(make_message(), state)
 
@@ -194,13 +191,13 @@ class TestNewDefectStart:
 
     async def test_drops_what_an_abandoned_form_left_behind(self, state):
         """Edit, then /ask, then New Defect: the entry runs outside DefectSG."""
-        await state.update_data({UD_EDITING: True, UD_RESP_SEARCH: "bat"})
+        await state.update_data({FSMKey.EDITING: True, FSMKey.RESP_SEARCH: "bat"})
 
         await new_defect_start(make_message(), state, AsyncMock())
 
         data = await state.get_data()
-        assert UD_EDITING not in data
-        assert UD_RESP_SEARCH not in data
+        assert FSMKey.EDITING not in data
+        assert FSMKey.RESP_SEARCH not in data
 
 
 class TestReceiveWagonNumber:
@@ -276,7 +273,7 @@ class TestReceiveNode:
 
     async def test_an_edit_goes_back_to_the_summary(self, state):
         await save_defect(state, DefectData(department="bogie"))
-        await state.update_data({UD_EDITING: True})
+        await state.update_data({FSMKey.EDITING: True})
         scene = NodeScene(wizard=AsyncMock())
 
         await scene.receive(make_callback(), NodeCB(value="wheel"), state)
@@ -345,7 +342,7 @@ class TestReceivePartNumber:
     async def test_skip_after_an_edit_goes_back_to_the_summary(self, state):
         """After=After.goto(...) could not: its destination would be fixed."""
         await save_defect(state, DefectData(part_number="old"))
-        await state.update_data({UD_EDITING: True})
+        await state.update_data({FSMKey.EDITING: True})
         scene = PartNumberScene(wizard=AsyncMock())
 
         await scene.skip(make_callback(), state)
@@ -387,7 +384,7 @@ class TestReceiveDefectType:
     async def test_a_human_factor_asks_for_the_employee_after_an_edit_too(self, state):
         """The employee scene goes back to the summary itself."""
         await save_defect(state, DefectData(defect_type=DefectType.WEAR))
-        await state.update_data({UD_EDITING: True})
+        await state.update_data({FSMKey.EDITING: True})
         scene = DefectTypeScene(wizard=AsyncMock())
 
         await scene.receive(
@@ -395,7 +392,7 @@ class TestReceiveDefectType:
         )
 
         scene.wizard.goto.assert_awaited_once_with(DefectSG.responsible_employee)
-        assert (await state.get_data())[UD_EDITING] is True
+        assert (await state.get_data())[FSMKey.EDITING] is True
 
     async def test_a_human_factor_again_keeps_the_employee_it_has(self, state):
         """Its list would offer only Skip or another pick: either loses this one."""
@@ -407,7 +404,7 @@ class TestReceiveDefectType:
                 responsible_employee_label="X Y",
             ),
         )
-        await state.update_data({UD_EDITING: True})
+        await state.update_data({FSMKey.EDITING: True})
         scene = DefectTypeScene(wizard=AsyncMock())
 
         await scene.receive(
@@ -499,7 +496,9 @@ class TestSeverityScene:
         assert "📝 Description: —" in text.render()[0]
 
     async def test_an_edit_asks_for_it_again(self):
-        text, keyboard = await SeverityScene.screen(DefectData(), {UD_EDITING: True})
+        text, keyboard = await SeverityScene.screen(
+            DefectData(), {FSMKey.EDITING: True}
+        )
 
         assert text.render() == build_edit_severity_text().render()
         assert keyboard == severity_keyboard()
@@ -515,7 +514,7 @@ class TestSeverityScene:
 
     async def test_an_edit_returns_to_the_summary(self, state):
         await save_defect(state, DefectData())
-        await state.update_data({UD_EDITING: True})
+        await state.update_data({FSMKey.EDITING: True})
         scene = SeverityScene(wizard=AsyncMock())
 
         await scene.receive(make_callback(), SeverityCB(value="high"), state)
@@ -538,7 +537,7 @@ class TestVerdictScene:
         assert "🌡️ Severity: 🟠 High" in text.render()[0]
 
     async def test_an_edit_asks_for_it_again(self):
-        text, keyboard = await VerdictScene.screen(DefectData(), {UD_EDITING: True})
+        text, keyboard = await VerdictScene.screen(DefectData(), {FSMKey.EDITING: True})
 
         assert text.render() == build_edit_verdict_text().render()
         assert keyboard == employee_verdict_keyboard()
@@ -561,14 +560,14 @@ class TestVerdictScene:
 class TestResponsibleEmployeeScene:
     async def _seed(self, state, search=""):
         await save_defect(state, DefectData(department="bogie"))
-        await state.update_data({UD_RESP_SEARCH: search})
+        await state.update_data({FSMKey.RESP_SEARCH: search})
 
     async def test_the_screen_lists_the_form_department_by_the_search(
         self, state, picker
     ):
         form = DefectData(department="coupler_brake")
 
-        await ResponsibleEmployeeScene.screen(form, {UD_RESP_SEARCH: "bo"})
+        await ResponsibleEmployeeScene.screen(form, {FSMKey.RESP_SEARCH: "bo"})
 
         picker.count.assert_awaited_once_with("coupler_brake", "bo")
         picker.page.assert_awaited_once_with(
@@ -588,7 +587,7 @@ class TestResponsibleEmployeeScene:
         picker.count.return_value = 2
 
         text, _ = await ResponsibleEmployeeScene.screen(
-            DefectData(), {UD_RESP_SEARCH: "Bold"}
+            DefectData(), {FSMKey.RESP_SEARCH: "Bold"}
         )
 
         expected = build_responsible_employee_search_text("Bold", 2)
@@ -619,7 +618,7 @@ class TestResponsibleEmployeeScene:
 
         await ResponsibleEmployeeScene(wizard=AsyncMock()).skip(make_callback(), state)
 
-        assert UD_RESP_SEARCH not in await state.get_data()
+        assert FSMKey.RESP_SEARCH not in await state.get_data()
 
     async def test_paging_asks_for_that_page_of_the_department(self, state, picker):
         picker.count.return_value = 3 * EMPLOYEE_PAGE_SIZE
@@ -684,7 +683,7 @@ class TestResponsibleEmployeeScene:
     async def test_select_after_an_edit_goes_back_to_the_summary(self, state, picker):
         picker.one.return_value = _make_employee(7, "Bold", "Bat")
         await self._seed(state)
-        await state.update_data({UD_EDITING: True})
+        await state.update_data({FSMKey.EDITING: True})
         scene = ResponsibleEmployeeScene(wizard=AsyncMock())
 
         await scene.select(make_callback(), ResponsibleEmployeeCB(employee_id=7), state)
@@ -712,7 +711,7 @@ class TestResponsibleEmployeeScene:
             make_callback(), ResponsibleEmployeeCB(employee_id=1), state
         )
 
-        assert UD_RESP_SEARCH not in await state.get_data()
+        assert FSMKey.RESP_SEARCH not in await state.get_data()
 
 
 class TestSearchResponsibleEmployee:
@@ -723,7 +722,7 @@ class TestSearchResponsibleEmployee:
             make_message("  Bold "), state
         )
 
-        assert (await state.get_data())[UD_RESP_SEARCH] == "Bold"
+        assert (await state.get_data())[FSMKey.RESP_SEARCH] == "Bold"
 
     async def test_draws_the_step_again(self, state):
         """retake() redraws it as a new message; see the flow tests."""
@@ -736,12 +735,12 @@ class TestSearchResponsibleEmployee:
 
     async def test_all_employees_drops_the_query_and_draws_the_step_again(self, state):
         await save_defect(state, DefectData(department="bogie"))
-        await state.update_data({UD_RESP_SEARCH: "Bt"})
+        await state.update_data({FSMKey.RESP_SEARCH: "Bt"})
         scene = ResponsibleEmployeeScene(wizard=AsyncMock())
 
         await scene.show_all(make_callback(), state)
 
-        assert UD_RESP_SEARCH not in await state.get_data()
+        assert FSMKey.RESP_SEARCH not in await state.get_data()
         scene.wizard.retake.assert_awaited_once()
 
 
@@ -772,7 +771,7 @@ class TestBack:
         assert scene.back_to(form, {}) == previous
 
     def test_from_an_edit_it_goes_back_to_the_summary(self):
-        assert WagonScene.back_to(self.WEAR, {UD_EDITING: True}) == DefectSG.confirm
+        assert WagonScene.back_to(self.WEAR, {FSMKey.EDITING: True}) == DefectSG.confirm
 
     def test_a_number_being_asked_for_has_its_own_back(self):
         form = DefectData(current_measurement=THICKNESS)
@@ -826,12 +825,12 @@ class TestSummaryScene:
 
     async def test_entering_it_ends_an_edit(self, state):
         await save_defect(state, DefectData())
-        await state.update_data({UD_EDITING: True})
+        await state.update_data({FSMKey.EDITING: True})
         callback = make_callback()
 
         await SummaryScene(wizard=AsyncMock()).show_as_edit(callback, state)
 
-        assert UD_EDITING not in await state.get_data()
+        assert FSMKey.EDITING not in await state.get_data()
         callback.bot.edit_message_text.assert_awaited_once()
 
     async def test_edit_enters_the_fields_scene_in_edit_mode(self, state):
@@ -842,7 +841,7 @@ class TestSummaryScene:
         await scene.edit(make_callback(), EditCB(field="node"), state)
 
         scene.wizard.goto.assert_awaited_once_with(DefectSG.node)
-        assert (await state.get_data())[UD_EDITING] is True
+        assert (await state.get_data())[FSMKey.EDITING] is True
 
     async def test_edit_responsible_opens_its_list(self, state):
         await save_defect(state, DefectData(defect_type=DefectType.HUMAN_FACTOR))
@@ -860,7 +859,7 @@ class TestSummaryScene:
         await scene.edit(make_callback(), EditCB(field=EDIT_RESPONSIBLE), state)
 
         scene.wizard.goto.assert_not_awaited()
-        assert UD_EDITING not in await state.get_data()
+        assert FSMKey.EDITING not in await state.get_data()
 
     async def test_edit_photos_and_measurements_open_their_steps(self, state):
         await save_defect(state, DefectData(defect_type=DefectType.WEAR))
@@ -891,7 +890,7 @@ class TestSummaryScene:
         await scene.edit(make_callback(), EditCB(field="nope"), state)
 
         scene.wizard.goto.assert_not_awaited()
-        assert UD_EDITING not in await state.get_data()
+        assert FSMKey.EDITING not in await state.get_data()
 
     async def test_declining_cancels_the_form(self):
         callback = make_callback()
@@ -961,7 +960,7 @@ class TestAfterPhotos:
 
         defect = DefectData(defect_type=DefectType.WEAR)
         await save_defect(state, defect)
-        await state.update_data({UD_EDITING: True})
+        await state.update_data({FSMKey.EDITING: True})
         scene = PhotoScene(wizard=AsyncMock())
 
         await after_photos(scene, defect, state)
@@ -975,20 +974,20 @@ class TestEditingThePhotos:
     async def test_the_screen_counts_them_and_offers_clear(self):
         form = DefectData(photos=[self.PHOTO])
 
-        text, keyboard = await PhotoScene.screen(form, {UD_EDITING: True})
+        text, keyboard = await PhotoScene.screen(form, {FSMKey.EDITING: True})
 
         assert text.render() == build_edit_photos_text(any_attached=True).render()
         assert keyboard == clear_or_done_keyboard(CB_PHOTO_CLEAR, CB_PHOTO_SKIP)
 
     async def test_with_none_it_offers_skip(self):
-        text, keyboard = await PhotoScene.screen(DefectData(), {UD_EDITING: True})
+        text, keyboard = await PhotoScene.screen(DefectData(), {FSMKey.EDITING: True})
 
         assert text.render() == build_edit_photos_text(any_attached=False).render()
         assert keyboard == skip_keyboard(CB_PHOTO_SKIP)
 
     async def test_clear_drops_them_and_asks_again_in_place(self, state):
         await save_defect(state, DefectData(photos=[self.PHOTO]))
-        await state.update_data({UD_EDITING: True})
+        await state.update_data({FSMKey.EDITING: True})
         callback = make_callback()
 
         await PhotoScene(wizard=AsyncMock()).clear(callback, state)
@@ -1124,10 +1123,10 @@ class TestMeasurementChoiceScene:
     async def test_an_edit_offers_clear_and_done_goes_back(self, state):
         form = DefectData(measurements=[THICKNESS.model_copy(update={"value": 1.0})])
         await save_defect(state, form)
-        await state.update_data({UD_EDITING: True})
+        await state.update_data({FSMKey.EDITING: True})
         scene = MeasurementChoiceScene(wizard=AsyncMock())
 
-        _, keyboard = await MeasurementChoiceScene.screen(form, {UD_EDITING: True})
+        _, keyboard = await MeasurementChoiceScene.screen(form, {FSMKey.EDITING: True})
         await scene.done(make_callback(), state)
 
         assert keyboard == measurement_keyboard(any_saved=True, clearable=True)
@@ -1157,7 +1156,9 @@ class TestDescriptionScene:
         assert keyboard == skip_keyboard(CB_DESC_SKIP)
 
     async def test_an_edit_asks_for_it_again(self):
-        text, keyboard = await DescriptionScene.screen(DefectData(), {UD_EDITING: True})
+        text, keyboard = await DescriptionScene.screen(
+            DefectData(), {FSMKey.EDITING: True}
+        )
 
         assert text.render() == build_edit_description_text().render()
         assert keyboard == skip_keyboard(CB_DESC_SKIP)
@@ -1175,7 +1176,7 @@ class TestDescriptionScene:
         """Left in the chat, to be copied and shortened."""
         await save_defect(state, DefectData())
         await state.set_state(DefectSG.desc)
-        await state.update_data({UD_SCREEN: [CHAT_ID, 7]})
+        await state.update_data({FSMKey.SCREEN: [CHAT_ID, 7]})
         message = make_message("x" * 1001)
 
         await DescriptionScene(wizard=AsyncMock()).receive(message, state)
@@ -1190,7 +1191,7 @@ class TestDescriptionScene:
         message.bot.delete_message.assert_awaited_once_with(
             chat_id=CHAT_ID, message_id=7
         )
-        assert (await state.get_data())[UD_SCREEN] == [CHAT_ID, SENT_ID]
+        assert (await state.get_data())[FSMKey.SCREEN] == [CHAT_ID, SENT_ID]
 
     async def test_skip_clears_it_and_asks_the_severity(self, state):
         await save_defect(state, DefectData(description="Old"))
@@ -1203,7 +1204,7 @@ class TestDescriptionScene:
 
     async def test_an_edit_returns_to_the_summary(self, state):
         await save_defect(state, DefectData())
-        await state.update_data({UD_EDITING: True})
+        await state.update_data({FSMKey.EDITING: True})
         scene = DescriptionScene(wizard=AsyncMock())
 
         await scene.receive(make_message("Cracked weld"), state)
@@ -1262,7 +1263,7 @@ class TestScreenText:
         assert "🌡️ Severity: 🟠 High" in text.render()[0]
 
     async def test_an_edit_lists_the_whole_form(self):
-        data = {UD_EDITING: True}
+        data = {FSMKey.EDITING: True}
 
         text, _ = await NodeScene.draw(DefectData(wagon_number="1"), data)
 
@@ -1297,7 +1298,9 @@ class TestUserTextIsEscaped:
         """An entity, not HTML: the query goes out as typed."""
         form = DefectData(department="bogie")
 
-        text, _ = await ResponsibleEmployeeScene.screen(form, {UD_RESP_SEARCH: "<b"})
+        text, _ = await ResponsibleEmployeeScene.screen(
+            form, {FSMKey.RESP_SEARCH: "<b"}
+        )
 
         assert "<b>&lt;b</b>" in html_decoration.unparse(*text.render())
 

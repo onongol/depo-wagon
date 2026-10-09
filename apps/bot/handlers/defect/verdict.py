@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any
 from aiogram.fsm.scene import on
 
 from apps.bot.callback_data import VerdictCB
-from apps.bot.constants import UD_EDITING, VERDICT_EMOJI
+from apps.bot.constants import VERDICT_EMOJI, FSMKey
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.keyboards.confirm import employee_verdict_keyboard
 from apps.bot.states import DefectSG
@@ -32,7 +32,7 @@ class VerdictScene(DefectScene, state=DefectSG.employee_verdict.state):
 
     @classmethod
     async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:
-        if data.get(UD_EDITING):
+        if data.get(FSMKey.EDITING):
             return build_edit_verdict_text(), employee_verdict_keyboard()
         return build_ask_verdict_text(), employee_verdict_keyboard()
 

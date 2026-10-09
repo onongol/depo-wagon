@@ -10,7 +10,7 @@ from apps.bot.callback_data import (
     ResponsibleEmployeeCB,
     ResponsibleEmployeePageCB,
 )
-from apps.bot.constants import UD_RESP_SEARCH
+from apps.bot.constants import FSMKey
 from apps.bot.fsm import drop_keys, load_defect, save_defect
 from apps.bot.handlers.defect.scene import STEP_TEXT, DefectScene
 from apps.bot.states import DefectSG
@@ -37,7 +37,7 @@ class ResponsibleEmployeeScene(DefectScene, state=DefectSG.responsible_employee.
         defect.responsible_employee_id = employee_id
         defect.responsible_employee_label = label
         await save_defect(state, defect)
-        await drop_keys(state, UD_RESP_SEARCH)
+        await drop_keys(state, FSMKey.RESP_SEARCH)
         await self.go_on(state, DefectSG.photo)
 
     @classmethod
@@ -48,7 +48,7 @@ class ResponsibleEmployeeScene(DefectScene, state=DefectSG.responsible_employee.
     async def screen(
         cls, form: DefectData, data: dict[str, Any], page: int = 0
     ) -> Screen:
-        search = data.get(UD_RESP_SEARCH, "")
+        search = data.get(FSMKey.RESP_SEARCH, "")
         return await employee_list_screen(form.department, search, page)
 
     @on.callback_query(ResponsibleEmployeeCB.filter())
@@ -103,12 +103,12 @@ class ResponsibleEmployeeScene(DefectScene, state=DefectSG.responsible_employee.
     async def search(self, message: Message, state: FSMContext) -> None:
         """A typed name narrows the list, drawn anew from its first page."""
         await delete_input(message)
-        await state.update_data({UD_RESP_SEARCH: message.text.strip()})
+        await state.update_data({FSMKey.RESP_SEARCH: message.text.strip()})
         await self.wizard.retake()
 
     @on.callback_query(F.data == CB_RESP_EMP_ALL)
     async def show_all(self, callback: CallbackQuery, state: FSMContext) -> None:
         """Drops the search: the whole department again, from its first page."""
         await callback.answer()
-        await drop_keys(state, UD_RESP_SEARCH)
+        await drop_keys(state, FSMKey.RESP_SEARCH)
         await self.wizard.retake()

@@ -6,7 +6,7 @@ from aiogram.filters import Command
 from aiogram.fsm.scene import Scene, on
 
 from apps.bot.callback_data import CB_DEFECT_CONTINUE, CB_DEFECT_RESTART
-from apps.bot.constants import BTN_NEW_DEFECT, UD_SCREEN
+from apps.bot.constants import BTN_NEW_DEFECT, FSMKey
 from apps.bot.fsm import clear_defect_keys, drop_keys, load_defect
 from apps.bot.handlers.defect.start import open_blank_form
 from apps.bot.handlers.defect.summary import SummaryScene
@@ -59,7 +59,7 @@ class SavingScene(Scene, state=DefectSG.saving.state):
             return
 
         await callback.answer()
-        await drop_keys(state, UD_SCREEN)
+        await drop_keys(state, FSMKey.SCREEN)
         progress = callback.message
 
         defect_data = await load_defect(state)

@@ -33,10 +33,7 @@ from apps.bot.constants import (
     BTN_HELP,
     BTN_NEW_DEFECT,
     BTN_OPEN_DEFECTS,
-    UD_AI_CHAT_HISTORY,
-    UD_AI_CHAT_LAST,
-    UD_EDITING,
-    UD_SCREEN,
+    FSMKey,
     LinkStatus,
 )
 from apps.bot.dispatcher import make_dispatcher
@@ -224,7 +221,7 @@ class TestPrecedenceDuringTheDefectFlow:
         assert bot.session.calls("deleteMessage") == []
         assert await state.get_state() == step.state
         # The screen drawn is the only thing stored
-        assert {k: v for k, v in after.items() if k != UD_SCREEN} == before
+        assert {k: v for k, v in after.items() if k != FSMKey.SCREEN} == before
 
     @pytest.mark.usefixtures("stored_form")
     async def test_at_the_wagon_step_it_asks_for_the_number_again(self, dp, bot, state):
@@ -275,7 +272,7 @@ class TestPrecedenceDuringTheDefectFlow:
     ):
         """cancel precedes the flow, so /cancel ends everything, not just the form."""
         await self._enter_photo_step(dp, bot, state, employee)
-        await state.update_data({UD_AI_CHAT_LAST: 1.0})
+        await state.update_data({FSMKey.AI_CHAT_LAST: 1.0})
         session.clear()
 
         await dp.feed_update(bot, make_message_update("/cancel", command=True))
@@ -294,7 +291,7 @@ class TestNewDefectDuringARunningForm:
     @pytest.fixture
     async def form(self, state):
         await save_defect(state, DefectData(wagon_id=3, wagon_number=self.WAGON))
-        await state.update_data({UD_EDITING: True})
+        await state.update_data({FSMKey.EDITING: True})
 
     @pytest.mark.usefixtures("form")
     @pytest.mark.parametrize(
@@ -441,7 +438,7 @@ class TestNewDefectDuringARunningForm:
         "step", [DefectSG.saving, DefectSG.wagon_num], ids=["saving", "step"]
     )
     async def test_start_over_opens_a_blank_form(self, dp, bot, session, state, step):
-        """UD_EDITING surviving would send the next wagon number to the summary."""
+        """FSMKey.EDITING surviving would send the next wagon number to the summary."""
         await state.set_state(step)
 
         await dp.feed_update(bot, make_callback_update(CB_DEFECT_RESTART))
@@ -451,7 +448,7 @@ class TestNewDefectDuringARunningForm:
         assert edit.text == blank.render()[0]
         assert await state.get_state() == DefectSG.wagon_num.state
         assert await load_defect(state) == DefectData()
-        assert UD_EDITING not in await state.get_data()
+        assert FSMKey.EDITING not in await state.get_data()
 
 
 class TestAiChatPrecedence:
@@ -488,7 +485,9 @@ class TestAiChatPrecedence:
         with as_employee(employee):
             await dp.feed_update(bot, make_message_update("/ask", command=True))
 
-        await state.update_data({UD_AI_CHAT_LAST: time.time() - AI_CHAT_TIMEOUT - 1})
+        await state.update_data(
+            {FSMKey.AI_CHAT_LAST: time.time() - AI_CHAT_TIMEOUT - 1}
+        )
         session.clear()
 
         await dp.feed_update(bot, make_message_update(str(BTN_HELP)))
@@ -503,7 +502,9 @@ class TestAiChatPrecedence:
         """start sits before ai_chat and keeps the state, so only a global check can."""
         with as_employee(employee):
             await dp.feed_update(bot, make_message_update("/ask", command=True))
-        await state.update_data({UD_AI_CHAT_LAST: time.time() - AI_CHAT_TIMEOUT - 1})
+        await state.update_data(
+            {FSMKey.AI_CHAT_LAST: time.time() - AI_CHAT_TIMEOUT - 1}
+        )
 
         with as_employee(employee):
             await dp.feed_update(bot, make_message_update("/start", command=True))
@@ -589,7 +590,7 @@ class TestAiChatPrecedence:
         with as_employee(employee):
             await dp.feed_update(bot, make_message_update("/ask", command=True))
 
-        assert (await state.get_data())[UD_AI_CHAT_LAST] > 0
+        assert (await state.get_data())[FSMKey.AI_CHAT_LAST] > 0
         session.clear()
 
         eleven_minutes_on = MagicMock(time=lambda: time.time() + 660)
@@ -624,14 +625,14 @@ class TestAiChatPrecedence:
         with as_employee(employee):
             await dp.feed_update(bot, make_message_update("/ask", command=True))
         await state.update_data(
-            {UD_AI_CHAT_HISTORY: [{"role": "user", "content": "q"}]}
+            {FSMKey.AI_CHAT_HISTORY: [{"role": "user", "content": "q"}]}
         )
 
         with as_employee(employee):
             await dp.feed_update(bot, update())
 
         assert await state.get_state() == AiChatSG.chatting.state
-        assert (await state.get_data())[UD_AI_CHAT_HISTORY] == []
+        assert (await state.get_data())[FSMKey.AI_CHAT_HISTORY] == []
 
 
 class TestSupportPrecedence:
@@ -776,7 +777,7 @@ class TestUnroutedUpdates:
         with as_employee(employee):
             await dp.feed_update(bot, make_message_update(str(BTN_NEW_DEFECT)))
         await state.set_state(DefectSG.photo)
-        _, old_screen = (await state.get_data())[UD_SCREEN]
+        _, old_screen = (await state.get_data())[FSMKey.SCREEN]
         session.clear()
 
         await dp.feed_update(bot, make_message_update("not a photo"))

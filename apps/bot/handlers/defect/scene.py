@@ -13,7 +13,7 @@ from apps.bot.callback_data import (
     CB_DEFECT_RESTART,
     CB_STEP_BACK,
 )
-from apps.bot.constants import BTN_NEW_DEFECT, UD_EDITING
+from apps.bot.constants import BTN_NEW_DEFECT, FSMKey
 from apps.bot.filters import NotACommand
 from apps.bot.fsm import clear_defect_keys, load_defect
 from apps.bot.keyboards.common import with_step_buttons
@@ -73,14 +73,14 @@ class DefectScene(Scene):
     @classmethod
     def back_to(cls, form: DefectData, data: dict[str, Any]) -> State | None:
         """Where Back leads: the previous step, or from an Edit the summary."""
-        if data.get(UD_EDITING):
+        if data.get(FSMKey.EDITING):
             return DefectSG.confirm
         return cls.previous(form)
 
     @classmethod
     def heading(cls, form: DefectData, data: dict[str, Any]) -> Text:
         """Which step of the walk this is; under an Edit, that the summary changes."""
-        if data.get(UD_EDITING):
+        if data.get(FSMKey.EDITING):
             return build_editing_heading()
         before, whole = walked(cls, form)
         return build_step_heading(len(before) + 1, len(whole))
@@ -89,7 +89,7 @@ class DefectScene(Scene):
     def behind(cls, form: DefectData, data: dict[str, Any]) -> list[str]:
         """Steps whose field shows even when empty, as skipped."""
         before, whole = walked(cls, form)
-        return whole if data.get(UD_EDITING) else before
+        return whole if data.get(FSMKey.EDITING) else before
 
     @classmethod
     def step_buttons(
@@ -140,7 +140,7 @@ class DefectScene(Scene):
         Not wizard.back() either: the snapshot it restores holds the form before
         the edit.
         """
-        editing = (await state.get_data()).get(UD_EDITING)
+        editing = (await state.get_data()).get(FSMKey.EDITING)
         await self.wizard.goto(DefectSG.confirm if editing else next_step)
 
     @on.message.enter()

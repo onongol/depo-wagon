@@ -10,7 +10,7 @@ from aiogram import flags
 from aiogram.exceptions import TelegramNetworkError
 from aiogram.types import CallbackQuery, Message
 
-from apps.bot.constants import UD_AI_CHAT_HISTORY
+from apps.bot.constants import FSMKey
 from apps.bot.keyboards.menu import main_menu_keyboard
 from apps.bot.middlewares import CloseOldConnectionsMiddleware, InFlightMiddleware
 from apps.bot.middlewares.defect_form import (
@@ -171,11 +171,11 @@ class TestAiChatTimeoutMiddleware:
         handler.assert_awaited_once()
 
     async def test_passes_through_while_the_session_is_fresh(self, state):
-        from apps.bot.constants import UD_AI_CHAT_LAST
+        from apps.bot.constants import FSMKey
         from apps.bot.states import AiChatSG
 
         await state.set_state(AiChatSG.chatting)
-        await state.update_data({UD_AI_CHAT_LAST: time.time()})
+        await state.update_data({FSMKey.AI_CHAT_LAST: time.time()})
 
         result, handler = await self._call(state)
 
@@ -183,12 +183,14 @@ class TestAiChatTimeoutMiddleware:
         handler.assert_awaited_once()
 
     async def test_expires_the_session_once_it_is_idle(self, state):
-        from apps.bot.constants import UD_AI_CHAT_LAST
+        from apps.bot.constants import FSMKey
         from apps.bot.middlewares import AI_CHAT_TIMEOUT
         from apps.bot.states import AiChatSG
 
         await state.set_state(AiChatSG.chatting)
-        await state.update_data({UD_AI_CHAT_LAST: time.time() - AI_CHAT_TIMEOUT - 1})
+        await state.update_data(
+            {FSMKey.AI_CHAT_LAST: time.time() - AI_CHAT_TIMEOUT - 1}
+        )
 
         result, handler = await self._call(state)
 
@@ -198,12 +200,14 @@ class TestAiChatTimeoutMiddleware:
 
     async def test_an_expired_session_lets_the_update_reach_later_routers(self, state):
         """The cleared state must reach the filters, which read raw_state from data."""
-        from apps.bot.constants import UD_AI_CHAT_LAST
+        from apps.bot.constants import FSMKey
         from apps.bot.middlewares import AI_CHAT_TIMEOUT
         from apps.bot.states import AiChatSG
 
         await state.set_state(AiChatSG.chatting)
-        await state.update_data({UD_AI_CHAT_LAST: time.time() - AI_CHAT_TIMEOUT - 1})
+        await state.update_data(
+            {FSMKey.AI_CHAT_LAST: time.time() - AI_CHAT_TIMEOUT - 1}
+        )
 
         data = {}
         await self._call(state, data=data)
@@ -233,20 +237,20 @@ class TestAiChatTimeoutMiddleware:
 
     async def test_stamps_the_session_after_the_handler_runs(self, state):
         """The middleware owns the stamp now — no handler has to remember it."""
-        from apps.bot.constants import UD_AI_CHAT_LAST
+        from apps.bot.constants import FSMKey
         from apps.bot.states import AiChatSG
 
         await state.set_state(AiChatSG.chatting)
-        await state.update_data({UD_AI_CHAT_LAST: time.time() - 5})
+        await state.update_data({FSMKey.AI_CHAT_LAST: time.time() - 5})
 
         before = time.time()
         await self._call(state)
 
-        assert (await state.get_data())[UD_AI_CHAT_LAST] >= before
+        assert (await state.get_data())[FSMKey.AI_CHAT_LAST] >= before
 
     async def test_stamps_a_session_the_handler_just_started(self, state):
         """Covers ai_chat_start: not chatting on entry, chatting once handler returns."""
-        from apps.bot.constants import UD_AI_CHAT_LAST
+        from apps.bot.constants import FSMKey
         from apps.bot.states import AiChatSG
 
         async def handler(event, data):
@@ -256,11 +260,11 @@ class TestAiChatTimeoutMiddleware:
         before = time.time()
         await self._call(state, handler=handler)
 
-        assert (await state.get_data())[UD_AI_CHAT_LAST] >= before
+        assert (await state.get_data())[FSMKey.AI_CHAT_LAST] >= before
 
     async def test_does_not_stamp_a_session_the_handler_ended(self, state):
         """Covers cancel: the handler clears the state, so there's nothing to stamp."""
-        from apps.bot.constants import UD_AI_CHAT_LAST
+        from apps.bot.constants import FSMKey
         from apps.bot.states import AiChatSG
 
         async def handler(event, data):
@@ -270,7 +274,7 @@ class TestAiChatTimeoutMiddleware:
         await state.set_state(AiChatSG.chatting)
         await self._call(state, handler=handler)
 
-        assert UD_AI_CHAT_LAST not in await state.get_data()
+        assert FSMKey.AI_CHAT_LAST not in await state.get_data()
 
 
 def _spec_message() -> MagicMock:
@@ -309,12 +313,12 @@ class TestDefectFormMiddleware:
         return result, handler
 
     async def _store_stale_defect(self, state, at=DefectSG.node):
-        from apps.bot.constants import UD_DEFECT
+        from apps.bot.constants import FSMKey
         from apps.bot.user_data import STATE_SCHEMA_VERSION, DefectData
 
         stored = DefectData(wagon_number="60123456").to_dict()
         stored["_schema"] = STATE_SCHEMA_VERSION + 1
-        await state.update_data({UD_DEFECT: stored})
+        await state.update_data({FSMKey.DEFECT: stored})
         await state.set_state(at)
 
     async def test_passes_through_outside_the_flow_when_no_form_is_stored(self, state):
@@ -381,13 +385,13 @@ class TestDefectFormMiddleware:
         message.answer.assert_not_awaited()
 
     async def test_another_flow_keeps_its_state_and_loses_only_the_form(self, state):
-        from apps.bot.constants import UD_DEFECT
+        from apps.bot.constants import FSMKey
 
         await self._store_stale_defect(state, at=SupportSG.message)
 
         await self._call(state)
 
-        assert UD_DEFECT not in await state.get_data()
+        assert FSMKey.DEFECT not in await state.get_data()
         assert await state.get_state() == SupportSG.message.state
 
     async def test_a_stale_form_is_dropped_and_the_state_reset(self, state):
@@ -438,14 +442,14 @@ class TestDefectFormMiddleware:
         callback.message.answer.assert_awaited_once()
 
     async def test_state_the_defect_flow_does_not_own_is_left_alone(self, state):
-        from apps.bot.constants import UD_AI_CHAT_HISTORY
+        from apps.bot.constants import FSMKey
 
         await self._store_stale_defect(state)
-        await state.update_data({UD_AI_CHAT_HISTORY: [{"q": "a"}]})
+        await state.update_data({FSMKey.AI_CHAT_HISTORY: [{"q": "a"}]})
 
         await self._call(state)
 
-        assert (await state.get_data())[UD_AI_CHAT_HISTORY] == [{"q": "a"}]
+        assert (await state.get_data())[FSMKey.AI_CHAT_HISTORY] == [{"q": "a"}]
 
 
 async def _takes_employee(message, employee):
@@ -602,7 +606,7 @@ class TestEmployeeMiddleware:
     async def test_a_refusal_ends_the_chats_flow(self, state):
         """Unlinked mid-session, the chat would be refused at every message."""
         await state.set_state(AiChatSG.chatting)
-        await state.update_data({UD_AI_CHAT_HISTORY: [{"role": "user"}]})
+        await state.update_data({FSMKey.AI_CHAT_HISTORY: [{"role": "user"}]})
 
         await self._call(_registered_only, extra={"state": state})
 

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from aiogram import flags
 from aiogram.exceptions import TelegramAPIError
 
-from apps.bot.constants import UD_AI_CHAT_HISTORY
+from apps.bot.constants import FSMKey
 from apps.bot.states import AiChatSG
 
 from .text import build_ai_chat_greeting_text
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 @flags.registered
 async def ai_chat_start(message: Message, state: FSMContext) -> None:
-    await state.update_data({UD_AI_CHAT_HISTORY: []})
+    await state.update_data({FSMKey.AI_CHAT_HISTORY: []})
 
     try:
         await message.answer(**build_ai_chat_greeting_text().as_kwargs())

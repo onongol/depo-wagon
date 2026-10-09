@@ -10,7 +10,7 @@ from apps.bot.callback_data import (
     CB_MEAS_SKIP,
     DimensionCB,
 )
-from apps.bot.constants import UD_EDITING
+from apps.bot.constants import FSMKey
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.defect.scene import STEP_TEXT, DefectScene
 from apps.bot.handlers.defect.text import (
@@ -62,7 +62,7 @@ class MeasurementChoiceScene(DefectScene, state=DefectSG.measurement_choice.stat
             return text, measurement_value_keyboard()
 
         any_saved = bool(form.measurements)
-        clearable = any_saved and bool(data.get(UD_EDITING))
+        clearable = any_saved and bool(data.get(FSMKey.EDITING))
         text = build_ask_measurement_text(any_saved=any_saved)
         return text, measurement_keyboard(any_saved=any_saved, clearable=clearable)
 

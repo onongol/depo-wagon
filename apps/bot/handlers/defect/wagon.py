@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any
 from aiogram.fsm.scene import on
 
 from apps.bot import services
-from apps.bot.constants import UD_EDITING
+from apps.bot.constants import FSMKey
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.states import DefectSG
 from apps.bot.utils.screens import delete_input
@@ -29,7 +29,7 @@ class WagonScene(DefectScene, state=DefectSG.wagon_num.state):
 
     @classmethod
     async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:
-        if data.get(UD_EDITING):
+        if data.get(FSMKey.EDITING):
             return build_edit_wagon_text(), None
         return build_ask_wagon_text(), None
 

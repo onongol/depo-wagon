@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any
 from aiogram.fsm.scene import on
 
 from apps.bot.callback_data import NodeCB
-from apps.bot.constants import UD_EDITING
+from apps.bot.constants import FSMKey
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.keyboards.defect import node_keyboard_for_department
 from apps.bot.states import DefectSG
@@ -34,7 +34,7 @@ class NodeScene(DefectScene, state=DefectSG.node.state):
     @classmethod
     async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:
         keyboard = node_keyboard_for_department(form.department or "")
-        if data.get(UD_EDITING):
+        if data.get(FSMKey.EDITING):
             return build_edit_node_text(), keyboard
         return build_ask_node_text(), keyboard
 

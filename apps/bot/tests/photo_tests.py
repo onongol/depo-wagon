@@ -7,7 +7,7 @@ the total is reported when the user presses Done.
 
 from unittest.mock import AsyncMock, MagicMock
 
-from apps.bot.constants import BTN_DONE, UD_LAST_MEDIA_GROUP, UD_SCREEN
+from apps.bot.constants import BTN_DONE, FSMKey
 from apps.bot.fsm import load_defect, save_defect
 from apps.bot.handlers.defect.photo.receive import PhotoScene
 from apps.bot.handlers.defect.text import (
@@ -68,7 +68,7 @@ class TestReceivePhoto:
 
     async def test_the_photo_stays_and_the_screen_goes_under_it(self, state):
         await save_defect(state, DefectData())
-        await state.update_data({UD_SCREEN: OLD_SCREEN})
+        await state.update_data({FSMKey.SCREEN: OLD_SCREEN})
         message = _make_photo_message()
 
         await receive_photo(message, state)
@@ -78,7 +78,7 @@ class TestReceivePhoto:
         message.bot.delete_message.assert_awaited_once_with(
             chat_id=CHAT_ID, message_id=OLD_SCREEN[1]
         )
-        assert (await state.get_data())[UD_SCREEN] == [CHAT_ID, SENT_ID]
+        assert (await state.get_data())[FSMKey.SCREEN] == [CHAT_ID, SENT_ID]
 
     async def test_rejects_an_oversize_photo_without_recording_it(self, state):
         await save_defect(state, DefectData())
@@ -164,8 +164,8 @@ class TestSkipPhoto:
 
     async def test_forgets_the_album_on_leaving_the_step(self, state, callback):
         await save_defect(state, DefectData(photos=_photos("a")))
-        await state.update_data({UD_LAST_MEDIA_GROUP: "mg-1"})
+        await state.update_data({FSMKey.LAST_MEDIA_GROUP: "mg-1"})
 
         await skip_photo(callback, state)
 
-        assert UD_LAST_MEDIA_GROUP not in await state.get_data()
+        assert FSMKey.LAST_MEDIA_GROUP not in await state.get_data()

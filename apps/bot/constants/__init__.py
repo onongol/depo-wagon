@@ -11,17 +11,9 @@ from .common import (
     BTN_OPEN_DEFECTS,
     BTN_SAVE,
     BTN_SKIP,
-    DEFECT_USER_DATA_KEYS,
     EDIT_FIELDS,
     EDIT_MEASUREMENTS,
     EDIT_RESPONSIBLE,
-    UD_AI_CHAT_HISTORY,
-    UD_AI_CHAT_LAST,
-    UD_DEFECT,
-    UD_EDITING,
-    UD_LAST_MEDIA_GROUP,
-    UD_RESP_SEARCH,
-    UD_SCREEN,
 )
 from .defect import (
     BTN_ALL_EMPLOYEES,
@@ -30,6 +22,7 @@ from .defect import (
     BTN_PAGE_PREV,
     BTN_START_OVER,
 )
+from .fsm import DEFECT_FSM_KEYS, FSMKey
 from .tasks import (
     BTN_CHANGE_STATUS,
     BTN_CONFIRM,
@@ -63,7 +56,7 @@ __all__ = [
     "BTN_SAVE",
     "BTN_SKIP",
     "BTN_START_OVER",
-    "DEFECT_USER_DATA_KEYS",
+    "DEFECT_FSM_KEYS",
     "EDIT_FIELDS",
     "EDIT_MEASUREMENTS",
     "EDIT_RESPONSIBLE",
@@ -72,13 +65,7 @@ __all__ = [
     "STATUS_EMOJI",
     "STATUS_TRANSITIONS",
     "TASKS_PAGE_SIZE",
-    "UD_AI_CHAT_HISTORY",
-    "UD_AI_CHAT_LAST",
-    "UD_DEFECT",
-    "UD_EDITING",
-    "UD_LAST_MEDIA_GROUP",
-    "UD_RESP_SEARCH",
-    "UD_SCREEN",
     "VERDICT_EMOJI",
+    "FSMKey",
     "LinkStatus",
 ]
