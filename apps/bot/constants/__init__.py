@@ -2,6 +2,7 @@ from .auth import BTN_CONNECT, LinkStatus
 from .choices import SEVERITY_EMOJI, STATUS_EMOJI, VERDICT_EMOJI
 from .common import (
     BTN_ASK,
+    BTN_BACK,
     BTN_CANCEL,
     BTN_CLEAR,
     BTN_DONE,
@@ -30,7 +31,6 @@ from .defect import (
     BTN_START_OVER,
 )
 from .tasks import (
-    BTN_BACK,
     BTN_CHANGE_STATUS,
     BTN_CONFIRM,
     BTN_NEXT,

@@ -15,6 +15,5 @@ STATUS_TRANSITIONS = {
 BTN_CHANGE_STATUS = _("⚙️ Change status")
 BTN_PREV = _("⬅️ Previous")
 BTN_NEXT = _("Next ➡️")
-BTN_BACK = _("↩️ Back")
 BTN_CONFIRM = _("✅ Confirm")
 BTN_OPEN_CARD = _("📄 Open card")
