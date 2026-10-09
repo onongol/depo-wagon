@@ -434,7 +434,7 @@ TELEGRAM_BOT_USERNAME = env("TELEGRAM_BOT_USERNAME", default="")
 TELEGRAM_WEBHOOK_URL = env("TELEGRAM_WEBHOOK_URL", default="")
 TELEGRAM_WEBHOOK_SECRET = env("TELEGRAM_WEBHOOK_SECRET", default="")
 
-# The support person must have pressed Start on the bot at least once.
+# The support group's id (negative); the bot must be a member
 TELEGRAM_SUPPORT_CHAT_ID = env.int("TELEGRAM_SUPPORT_CHAT_ID", default=None)
 # Who users are sent to when the relay is down, e.g. "@handle"
 TELEGRAM_SUPPORT_CONTACT = env("TELEGRAM_SUPPORT_CONTACT", default="")

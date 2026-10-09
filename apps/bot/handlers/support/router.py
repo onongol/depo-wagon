@@ -44,7 +44,12 @@ def get_support_group_router() -> Router:
     """
     router = Router(name="support_group")
     chat_id = settings.TELEGRAM_SUPPORT_CHAT_ID
-    if chat_id is not None:
-        router.message.filter(F.chat.id == chat_id)
-        router.message.register(support_reply, F.reply_to_message, NotACommand())
+    if chat_id is None:
+        return router
+    if chat_id >= 0:
+        msg = "TELEGRAM_SUPPORT_CHAT_ID must be a group id (negative)"
+        raise ValueError(msg)
+
+    router.message.filter(F.chat.id == chat_id)
+    router.message.register(support_reply, F.reply_to_message, NotACommand())
     return router

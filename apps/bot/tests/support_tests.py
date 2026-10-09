@@ -376,6 +376,16 @@ class TestSupportGroupRouter:
 
         assert router.message.handlers == []
 
+    def test_a_private_chat_id_is_refused(self):
+        """Behind the private tree, a person's replies would never reach it."""
+        from apps.bot.handlers.support.router import get_support_group_router
+
+        with (
+            override_settings(TELEGRAM_SUPPORT_CHAT_ID=12345),
+            pytest.raises(ValueError, match="TELEGRAM_SUPPORT_CHAT_ID"),
+        ):
+            get_support_group_router()
+
     def test_the_user_half_stands_without_a_chat(self):
         from apps.bot.handlers.support.router import get_support_router
 
