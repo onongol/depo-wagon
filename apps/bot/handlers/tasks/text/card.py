@@ -4,7 +4,8 @@ from aiogram.utils.formatting import Bold, Text, as_list
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from apps.bot.constants import SEVERITY_LABELS, VERDICT_LABELS
+from apps.bot.constants import SEVERITY_EMOJI, VERDICT_EMOJI
+from apps.bot.utils.choices import emoji_label
 from apps.bot.utils.defect_fields import (
     DefectFields,
     build_ai_section,
@@ -12,7 +13,7 @@ from apps.bot.utils.defect_fields import (
     field_row,
     measurement_line,
 )
-from apps.defects.constants import DefectType
+from apps.defects.constants import DefectSeverity, DefectType, DefectVerdict
 
 from .utils import status_text, truncate
 
@@ -48,8 +49,8 @@ def _card_fields(card: DefectCard) -> DefectFields:
         measurements_hidden=len(card.measurements) - len(shown),
         photos=card.photo_count,
         description=truncate(defect.description, CARD_MAX_DESCRIPTION),
-        severity=SEVERITY_LABELS.get(defect.severity, defect.severity),
-        verdict=str(VERDICT_LABELS.get(defect.verdict, defect.verdict)),
+        severity=emoji_label(SEVERITY_EMOJI, DefectSeverity, defect.severity),
+        verdict=emoji_label(VERDICT_EMOJI, DefectVerdict, defect.verdict),
     )
 
 

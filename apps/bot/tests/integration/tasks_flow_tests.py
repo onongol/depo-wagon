@@ -13,7 +13,6 @@ from apps.bot.callback_data import (
     StatusPickCB,
     StatusSetCB,
 )
-from apps.bot.constants import STATUS_LABEL
 from apps.bot.handlers.tasks.text import (
     build_status_changed_toast,
     build_status_refused_toast,
@@ -80,7 +79,7 @@ async def test_closing_a_defect_from_its_card(dp, bot, session, own_defect):
     assert await _status(own_defect.pk) == DefectStatus.CLOSED
     assert answer.text == build_status_changed_toast(DefectStatus.CLOSED)
     assert not answer.show_alert
-    assert str(STATUS_LABEL[DefectStatus.CLOSED]) in card.text
+    assert "🟢 Closed" in card.text
     assert payloads(card.reply_markup, StatusPickCB) == []
 
 

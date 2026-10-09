@@ -4,12 +4,7 @@ from unittest.mock import MagicMock
 
 from aiogram.utils.formatting import as_list, sizeof
 
-from apps.bot.constants import (
-    LIST_NUMBER_EMOJI,
-    SEVERITY_LABELS,
-    TASKS_PAGE_SIZE,
-    VERDICT_LABELS,
-)
+from apps.bot.constants import LIST_NUMBER_EMOJI, TASKS_PAGE_SIZE
 from apps.bot.handlers.defect.text import build_fields, build_result_text
 from apps.bot.handlers.tasks.text import (
     CARD_MAX_DESCRIPTION,
@@ -202,8 +197,8 @@ class TestBuildCardText:
             ],
             photos=[PhotoEntry(file_id=str(i), message_id=i) for i in range(3)],
             description="Worn flange",
-            severity_label=SEVERITY_LABELS[DefectSeverity.HIGH],
-            verdict_label=str(VERDICT_LABELS[DefectVerdict.REPAIR_NOW]),
+            severity_label="🟠 High",
+            verdict_label="🟠 Repair Now",
         )
 
         fields = as_list(*build_fields(form, ())).as_html()

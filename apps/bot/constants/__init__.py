@@ -1,4 +1,5 @@
 from .auth import BTN_CONNECT, LinkStatus
+from .choices import SEVERITY_EMOJI, STATUS_EMOJI, VERDICT_EMOJI
 from .common import (
     BTN_ASK,
     BTN_CANCEL,
@@ -27,12 +28,6 @@ from .defect import (
     BTN_PAGE_NEXT,
     BTN_PAGE_PREV,
     BTN_START_OVER,
-    SEVERITY_CHOICES,
-    SEVERITY_LABELS,
-    VERDICT_CHOICES,
-    VERDICT_EMOJI,
-    VERDICT_LABELS,
-    VERDICT_TEXT,
 )
 from .tasks import (
     BTN_BACK,
@@ -42,8 +37,6 @@ from .tasks import (
     BTN_OPEN_CARD,
     BTN_PREV,
     LIST_NUMBER_EMOJI,
-    SEVERITY_EMOJI,
-    STATUS_LABEL,
     STATUS_TRANSITIONS,
     TASKS_PAGE_SIZE,
 )
@@ -75,10 +68,8 @@ __all__ = [
     "EDIT_MEASUREMENTS",
     "EDIT_RESPONSIBLE",
     "LIST_NUMBER_EMOJI",
-    "SEVERITY_CHOICES",
     "SEVERITY_EMOJI",
-    "SEVERITY_LABELS",
-    "STATUS_LABEL",
+    "STATUS_EMOJI",
     "STATUS_TRANSITIONS",
     "TASKS_PAGE_SIZE",
     "UD_AI_CHAT_HISTORY",
@@ -88,9 +79,6 @@ __all__ = [
     "UD_LAST_MEDIA_GROUP",
     "UD_RESP_SEARCH",
     "UD_SCREEN",
-    "VERDICT_CHOICES",
     "VERDICT_EMOJI",
-    "VERDICT_LABELS",
-    "VERDICT_TEXT",
     "LinkStatus",
 ]

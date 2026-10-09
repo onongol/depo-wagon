@@ -19,17 +19,17 @@ from apps.bot.constants import (
     BTN_OPEN_CARD,
     BTN_PREV,
     LIST_NUMBER_EMOJI,
-    STATUS_LABEL,
+    STATUS_EMOJI,
     TASKS_PAGE_SIZE,
 )
+from apps.bot.utils.choices import emoji_label
+from apps.defects.constants import DefectStatus
 
 if TYPE_CHECKING:
     import uuid
     from collections.abc import Iterable
 
     from aiogram.types import InlineKeyboardMarkup
-
-    from apps.defects.constants import DefectStatus
 
 
 def _pagination_row_tasks(page: int, pages: int) -> InlineKeyboardBuilder:
@@ -78,7 +78,7 @@ def status_picker_keyboard(
     builder = InlineKeyboardBuilder()
     for status in targets:
         builder.button(
-            text=str(STATUS_LABEL[status]),
+            text=emoji_label(STATUS_EMOJI, DefectStatus, status),
             callback_data=StatusAskCB(defect_id=defect_id, status=status, page=page),
         )
     builder.button(

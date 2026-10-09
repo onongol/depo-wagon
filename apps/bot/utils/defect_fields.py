@@ -4,8 +4,10 @@ from typing import TYPE_CHECKING
 from aiogram.utils.formatting import Bold, Code, ExpandableBlockQuote, Text, as_list
 from django.utils.translation import gettext_lazy as _
 
-from apps.bot.constants import VERDICT_TEXT
+from apps.bot.constants import VERDICT_EMOJI
 from apps.bot.states import DefectSG
+from apps.bot.utils.choices import choice_label
+from apps.defects.constants import DefectVerdict
 
 if TYPE_CHECKING:
     from collections.abc import Collection
@@ -101,7 +103,8 @@ def build_ai_section(
         return Text("ℹ️ ", _("AI analysis is not available."))
     percent = int((confidence or 0) * 100)
     # An unknown verdict still renders
-    emoji, label = VERDICT_TEXT.get(verdict, ("ℹ️", "-"))
+    emoji = VERDICT_EMOJI.get(verdict, "ℹ️")
+    label = choice_label(DefectVerdict, verdict, "-")
     return as_list(
         Text("🤖 ", Bold(_("AI Analysis:"))),
         Text(_("Defect class:")),

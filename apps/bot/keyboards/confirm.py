@@ -9,10 +9,11 @@ from apps.bot.constants import (
     EDIT_FIELDS,
     EDIT_MEASUREMENTS,
     EDIT_RESPONSIBLE,
-    VERDICT_CHOICES,
+    VERDICT_EMOJI,
 )
 from apps.bot.keyboards.utils import build_grid_keyboard
-from apps.defects.constants import DefectType
+from apps.bot.utils.choices import emoji_choices
+from apps.defects.constants import DefectType, DefectVerdict
 
 if TYPE_CHECKING:
     from aiogram.types import InlineKeyboardMarkup
@@ -43,6 +44,9 @@ def confirm_keyboard(defect: DefectData) -> InlineKeyboardMarkup:
 
 def employee_verdict_keyboard() -> InlineKeyboardMarkup:
     return build_grid_keyboard(
-        [(label, VerdictCB(value=value)) for value, label in VERDICT_CHOICES],
+        [
+            (label, VerdictCB(value=value))
+            for label, value in emoji_choices(VERDICT_EMOJI, DefectVerdict)
+        ],
         columns=2,
     )

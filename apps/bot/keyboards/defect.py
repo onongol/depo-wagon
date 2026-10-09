@@ -10,10 +10,16 @@ from apps.bot.callback_data import (
     NodeCB,
     SeverityCB,
 )
-from apps.bot.constants import BTN_CONTINUE, BTN_START_OVER, SEVERITY_CHOICES
+from apps.bot.constants import BTN_CONTINUE, BTN_START_OVER, SEVERITY_EMOJI
 from apps.bot.keyboards.utils import build_grid_keyboard
+from apps.bot.utils.choices import emoji_choices
 from apps.core.constants import Department
-from apps.defects.constants import DEPARTMENT_NODES, DefectNode, DefectType
+from apps.defects.constants import (
+    DEPARTMENT_NODES,
+    DefectNode,
+    DefectSeverity,
+    DefectType,
+)
 
 if TYPE_CHECKING:
     from aiogram.types import InlineKeyboardMarkup
@@ -50,6 +56,9 @@ def defect_type_keyboard() -> InlineKeyboardMarkup:
 
 def severity_keyboard() -> InlineKeyboardMarkup:
     return build_grid_keyboard(
-        [(label, SeverityCB(value=value)) for label, value in SEVERITY_CHOICES],
+        [
+            (label, SeverityCB(value=value))
+            for label, value in emoji_choices(SEVERITY_EMOJI, DefectSeverity)
+        ],
         columns=2,
     )

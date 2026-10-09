@@ -1,6 +1,8 @@
 from aiogram.utils.formatting import Bold
 
-from apps.bot.constants import SEVERITY_EMOJI, STATUS_LABEL
+from apps.bot.constants import SEVERITY_EMOJI, STATUS_EMOJI
+from apps.bot.utils.choices import emoji_label
+from apps.defects.constants import DefectStatus
 
 
 def truncate(text: str, limit: int) -> str:
@@ -8,7 +10,7 @@ def truncate(text: str, limit: int) -> str:
 
 
 def status_text(value: str) -> str:
-    return str(STATUS_LABEL.get(value, value))
+    return emoji_label(STATUS_EMOJI, DefectStatus, value)
 
 
 def severity_emoji(defect) -> str:
