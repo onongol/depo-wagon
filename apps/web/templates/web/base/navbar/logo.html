@@ -1,5 +1,4 @@
-{% load static i18n %}
-<a href="{% url 'web:dashboard' %}" class="flex items-center gap-2">
-  <img src="{% static 'images/logo_light.png' %}" alt="Logo" class="block h-8 w-auto dark:hidden" />
-  <img src="{% static 'images/logo_dark.png' %}" alt="Logo" class="hidden h-8 w-auto dark:block" />
+<a href="{% url 'web:dashboard' %}" class="flex items-center gap-2 text-blue-700 dark:text-blue-400">
+  <svg class="size-8" aria-hidden="true"><use href="#wagon"></use></svg>
+  <span class="text-lg font-bold text-gray-800 dark:text-gray-200">Depo Wagon</span>
 </a>
