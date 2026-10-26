@@ -2,9 +2,10 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 from apps.ai_service.constants import DocumentStatus
+from apps.core.mixins import UpdatedAtMixin
 
 
-class DepotDocument(models.Model):
+class DepotDocument(UpdatedAtMixin, models.Model):
     """A document uploaded to the AI service, with its processing status."""
 
     title = models.CharField(max_length=255, verbose_name=_("Title"))

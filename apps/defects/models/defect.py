@@ -3,10 +3,15 @@ from decimal import Decimal
 
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from simple_history.models import HistoricalRecords
 
-from apps.core.constants import Department
+from apps.core.constants import (
+    ROLES_WITH_ALL_DEFECTS,
+    Department,
+)
+from apps.core.mixins import UpdatedAtMixin
 from apps.defects.constants import (
     DefectNode,
     DefectSeverity,
@@ -16,7 +21,31 @@ from apps.defects.constants import (
 )
 
 
-class Defect(models.Model):
+class DefectQuerySet(models.QuerySet):
+    def visible_to(self, user):
+        """Every defect for superusers, engineers and managers; others get their own."""
+        if user.is_superuser:
+            return self
+
+        employee = getattr(user, "employee", None)
+        if employee is None:
+            return self.none()
+        return self.visible_to_employee(employee)
+
+    def visible_to_employee(self, employee):
+        """Every defect for engineers and managers; any other employee gets their own."""
+        if employee.role in ROLES_WITH_ALL_DEFECTS:
+            return self
+        return self.filter(inspector=employee)
+
+    def status_changeable_by(self, employee):
+        """The defects they see for roles that change statuses; none for the rest."""
+        if not employee.changes_defect_statuses:
+            return self.none()
+        return self.visible_to_employee(employee)
+
+
+class Defect(UpdatedAtMixin, models.Model):
     """Model representing a defect detected on a wagon."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -110,6 +139,8 @@ class Defect(models.Model):
 
     history = HistoricalRecords()
 
+    objects = DefectQuerySet.as_manager()
+
     class Meta:
         verbose_name = _("Defect")
         verbose_name_plural = _("Defects")
@@ -130,3 +161,14 @@ class Defect(models.Model):
     @property
     def is_repaired(self) -> bool:
         return self.status == DefectStatus.CLOSED
+
+    def set_status(self, status: str) -> None:
+        """Save a new status, stamping repaired_at when it closes."""
+        self.status = status
+        fields = ["status"]
+
+        if status == DefectStatus.CLOSED:
+            self.repaired_at = timezone.now()
+            fields.append("repaired_at")
+
+        self.save(update_fields=fields)

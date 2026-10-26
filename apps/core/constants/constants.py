@@ -38,6 +38,13 @@ class EmployeeRole(models.TextChoices):
     MANAGER = "manager", _("Manager")
 
 
+# See and edit every defect; every other role sees only the ones they inspected
+ROLES_WITH_ALL_DEFECTS = frozenset({EmployeeRole.ENGINEER, EmployeeRole.MANAGER})
+
+# Change the status of every defect they see
+ROLES_CHANGING_STATUS = ROLES_WITH_ALL_DEFECTS | {EmployeeRole.INSPECTOR}
+
+
 class Department(models.TextChoices):
     COUPLER_BRAKE = "coupler_brake", _("Coupler and Brake")  # Автомат холбоос, тоормос
     REPAIR_1 = "repair_1", _("Repair-1")  # Засвар-1

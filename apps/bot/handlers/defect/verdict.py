@@ -1,65 +1,47 @@
-import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from telegram.error import TelegramError
-from telegram.ext import ContextTypes, ConversationHandler
+from aiogram.fsm.scene import on
 
-from apps.bot import services
-from apps.bot.constants import UD_DEFECT, VERDICT_LABELS
-from apps.bot.handlers.employee import get_employee
-from apps.bot.keyboards.menu import main_menu_keyboard
-from apps.bot.messages import BotMessages as M
-from apps.defects.constants import DefectVerdict
+from apps.bot.callback_data import VerdictCB
+from apps.bot.constants import FSMKey
+from apps.bot.fsm import load_defect, save_defect
+from apps.bot.keyboards.confirm import employee_verdict_keyboard
+from apps.bot.states import DefectSG
 
-from .notifications import notify_decommission
+from .scene import DefectScene
+from .text import build_ask_verdict_text, build_edit_verdict_text
 
 if TYPE_CHECKING:
-    from telegram import Update
+    from aiogram.fsm.context import FSMContext
+    from aiogram.fsm.state import State
+    from aiogram.types import CallbackQuery
 
     from apps.bot.user_data import DefectData
 
-logger = logging.getLogger(__name__)
+    from .scene import Screen
 
 
-async def receive_employee_verdict(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> int:
-    """Handle incoming verdict selection from inline keyboard."""
-    query = update.callback_query
-    await query.answer()
+class VerdictScene(DefectScene, state=DefectSG.employee_verdict.state):
+    """Asked before the save, so the AI's verdict cannot sway it."""
 
-    verdict_value = query.data.value
+    @classmethod
+    def previous(cls, form: DefectData) -> State | None:
+        return DefectSG.severity
 
-    defect: DefectData = context.user_data.get(UD_DEFECT)
-    employee = await get_employee(update, context)
-    if not employee:
-        await query.edit_message_text(str(M.NOT_REGISTERED))
-        return ConversationHandler.END
+    @classmethod
+    async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:
+        if data.get(FSMKey.EDITING):
+            return build_edit_verdict_text(), employee_verdict_keyboard()
+        return build_ask_verdict_text(), employee_verdict_keyboard()
 
-    if defect and defect.defect_id:
-        try:
-            await services.save_employee_verdict(defect.defect_id, verdict_value)
-        except Exception:
-            logger.exception("Failed to save verdict for defect %s", defect.defect_id)
-            await query.edit_message_text(str(M.SESSION_ERROR))
-            return ConversationHandler.END
+    @on.callback_query(VerdictCB.filter())
+    async def receive(
+        self, callback: CallbackQuery, callback_data: VerdictCB, state: FSMContext
+    ) -> None:
+        await callback.answer()
 
-        if verdict_value == DefectVerdict.DECOMMISSION:
-            await notify_decommission(context, employee, defect)
+        defect = await load_defect(state)
+        defect.verdict = callback_data.value
+        await save_defect(state, defect)
 
-    verdict_label = str(VERDICT_LABELS.get(verdict_value, verdict_value))
-
-    # Prevent re-clicking verdict buttons after conversation ends (stale callback)
-    try:
-        await query.edit_message_reply_markup(reply_markup=None)
-    except TelegramError:
-        logger.debug("Could not clear verdict keyboard (message deleted or too old)")
-
-    await query.message.reply_text(
-        str(M.VERDICT_DONE).format(label=verdict_label),
-        parse_mode=M.PARSE_MODE,
-        reply_markup=main_menu_keyboard(employee.role),
-    )
-
-    context.user_data.pop(UD_DEFECT, None)
-    return ConversationHandler.END
+        await self.wizard.goto(DefectSG.confirm)

@@ -1,9 +1,3 @@
-from .cancel import cancel_defect
-from .conversation import get_defect_handler
-from .start import new_defect_start
+from .router import get_defect_entry_router, get_defect_flow_router
 
-__all__ = [
-    "cancel_defect",
-    "get_defect_handler",
-    "new_defect_start",
-]
+__all__ = ["get_defect_entry_router", "get_defect_flow_router"]

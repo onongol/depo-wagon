@@ -31,8 +31,12 @@ class IsManager(HasEmployeeRole):
     allowed_roles = [EmployeeRole.MANAGER]
 
 
-class IsInspectorOrEngineer(HasEmployeeRole):
-    allowed_roles = [EmployeeRole.INSPECTOR, EmployeeRole.ENGINEER]
+class IsInspectorEngineerOrManager(HasEmployeeRole):
+    allowed_roles = [
+        EmployeeRole.INSPECTOR,
+        EmployeeRole.ENGINEER,
+        EmployeeRole.MANAGER,
+    ]
 
 
 class IsEngineerOrManager(HasEmployeeRole):

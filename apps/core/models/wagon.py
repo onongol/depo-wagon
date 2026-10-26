@@ -9,13 +9,14 @@ from django.utils.translation import gettext_lazy as _
 from simple_history.models import HistoricalRecords
 
 from apps.core.constants import RepairType, WagonStatus, WagonType
+from apps.core.mixins import UpdatedAtMixin
 
 
 def current_year() -> int:
     return timezone.now().year
 
 
-class Wagon(models.Model):
+class Wagon(UpdatedAtMixin, models.Model):
     """Model representing a wagon in the depot."""
 
     number = models.CharField(

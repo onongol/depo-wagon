@@ -1,69 +1,52 @@
-import html
-import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
+from aiogram.fsm.scene import on
 
 from apps.bot import services
-from apps.bot.constants import (
-    BTN_HELP,
-    BTN_NEW_DEFECT,
-    BTN_OPEN_DEFECTS,
-    UD_DEFECT,
-    UD_EDITING,
-)
-from apps.bot.keyboards.defect import department_keyboard
-from apps.bot.messages import BotMessages as M
-from apps.bot.states import DEPARTMENT, WAGON_NUM
+from apps.bot.constants import FSMKey
+from apps.bot.fsm import load_defect, save_defect
+from apps.bot.states import DefectSG
+from apps.bot.utils.screens import delete_input
 
-from .summary import show_summary
+from .scene import STEP_TEXT, DefectScene
+from .text import (
+    build_ask_wagon_text,
+    build_edit_wagon_text,
+    build_wagon_not_found_text,
+)
 
 if TYPE_CHECKING:
-    from telegram import Update
-    from telegram.ext import ContextTypes
+    from aiogram.fsm.context import FSMContext
+    from aiogram.types import Message
 
     from apps.bot.user_data import DefectData
 
-logger = logging.getLogger(__name__)
-
-MENU_BUTTONS = {str(BTN_NEW_DEFECT), str(BTN_OPEN_DEFECTS), str(BTN_HELP)}
+    from .scene import Screen
 
 
-async def receive_wagon_number(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> int:
-    """Handle incoming wagon number text or menu buttons."""
-    number = update.message.text.strip()
+class WagonScene(DefectScene, state=DefectSG.wagon_num.state):
+    """The first step, and the one Edit ▸ Wagon reopens from the summary."""
 
-    if number in MENU_BUTTONS:
-        await update.message.reply_text(
-            str(M.WAGON_NUM_PROMPT),
-            parse_mode=M.PARSE_MODE,
-        )
-        return WAGON_NUM
+    @classmethod
+    async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:
+        if data.get(FSMKey.EDITING):
+            return build_edit_wagon_text(), None
+        return build_ask_wagon_text(), None
 
-    try:
+    @on.message(*STEP_TEXT)
+    async def receive(self, message: Message, state: FSMContext) -> None:
+        """Look up the typed wagon number."""
+        number = message.text.strip()
+        await delete_input(message)
         wagon = await services.get_wagon_by_number(number)
-    except Exception:
-        logger.exception("Failed to fetch wagon by number %r", number)
-        await update.message.reply_text(str(M.SESSION_ERROR))
-        return WAGON_NUM
+        if not wagon:
+            notice = build_wagon_not_found_text(number)
+            await self.show_as_message(message, state, notice=notice)
+            return
 
-    if not wagon:
-        await update.message.reply_text(
-            str(M.WAGON_NOT_FOUND).format(number=html.escape(number)),
-            parse_mode=M.PARSE_MODE,
-        )
-        return WAGON_NUM
+        defect = await load_defect(state)
+        defect.wagon_id = wagon.id
+        defect.wagon_number = wagon.number
+        await save_defect(state, defect)
 
-    defect: DefectData = context.user_data[UD_DEFECT]
-    defect.wagon_id = wagon.id
-    defect.wagon_number = wagon.number
-
-    if context.user_data.get(UD_EDITING):
-        return await show_summary(update, context, defect)
-
-    await update.message.reply_text(
-        str(M.WAGON_CONFIRMED).format(number=wagon.number),
-        parse_mode=M.PARSE_MODE,
-        reply_markup=department_keyboard(),
-    )
-    return DEPARTMENT
+        await self.go_on(state, DefectSG.department)

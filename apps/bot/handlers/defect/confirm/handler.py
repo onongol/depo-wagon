@@ -1,70 +1,131 @@
 import logging
 from typing import TYPE_CHECKING
 
-from telegram.ext import ContextTypes, ConversationHandler
+from aiogram import F
+from aiogram.filters import Command
+from aiogram.fsm.scene import Scene, on
 
-from apps.bot.constants import DEFECT_USER_DATA_KEYS, UD_DEFECT
-from apps.bot.handlers.employee import get_employee
-from apps.bot.keyboards.defect import employee_verdict_keyboard
-from apps.bot.messages import BotMessages as M
-from apps.bot.states import EMPLOYEE_VERDICT
+from apps.bot.callback_data import CB_DEFECT_CONTINUE, CB_DEFECT_RESTART
+from apps.bot.constants import BTN_NEW_DEFECT, FSMKey
+from apps.bot.fsm import clear_defect_keys, drop_keys, load_defect
+from apps.bot.handlers.defect.start import open_blank_form
+from apps.bot.handlers.defect.summary import SummaryScene
+from apps.bot.handlers.defect.text import (
+    build_ai_analyzing_text,
+    build_defect_continued_text,
+    build_defect_in_progress_text,
+    build_fields,
+    build_save_failed_text,
+    build_saving_text,
+)
+from apps.bot.keyboards.defect import defect_in_progress_keyboard
+from apps.bot.keyboards.menu import MENU_TEXTS, main_menu_keyboard
+from apps.bot.states import DefectSG
+from apps.bot.utils.screens import answer_anew, edit_or_send
+from apps.bot.utils.unregistered import refuse_unregistered
 
-from .formatters import build_recommendation_text, build_result_text
-from .pipeline import register_defect, run_ai_analysis
+from .pipeline import alert_decommission, persist_defect, run_ai_analysis
+from .result import send_result
 
 if TYPE_CHECKING:
-    from telegram import Update
+    from aiogram import Bot
+    from aiogram.fsm.context import FSMContext
+    from aiogram.types import CallbackQuery, Message
 
-    from apps.bot.user_data import DefectData
+    from apps.core.models import Employee
 
 logger = logging.getLogger(__name__)
 
 
-async def confirm_defect(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Drive the save pipeline, switch progress messages, and show the result."""
-    query = update.callback_query
-    await query.answer()
+class SavingScene(Scene, state=DefectSG.saving.state):
+    """The save, then the AI; being here is what stops a second Save.
 
-    if not query.data.confirmed:
-        for key in DEFECT_USER_DATA_KEYS:
-            context.user_data.pop(key, None)
-        await query.edit_message_text(str(M.DEFECT_CANCELLED))
-        return ConversationHandler.END
+    Not a DefectScene: nothing may cancel or redraw the form mid-save. Updates
+    wait on the per-user lock until the save ends, so the handlers after the
+    entry only ever meet a save that died half-way.
+    """
 
-    defect_data: DefectData = context.user_data.get(UD_DEFECT)
-    employee = await get_employee(update, context)
-    if not employee:
-        await query.edit_message_text(str(M.NOT_REGISTERED))
-        return ConversationHandler.END
+    @on.callback_query.enter()
+    async def save(
+        self,
+        callback: CallbackQuery,
+        state: FSMContext,
+        bot: Bot,
+        employee: Employee | None,
+    ) -> None:
+        if not employee:
+            await refuse_unregistered(callback)
+            await self.wizard.exit()
+            return
 
-    # Critical: a failure here means nothing was saved
-    await query.edit_message_text(str(M.SAVING))
-    try:
-        registered = await register_defect(defect_data, employee, context.bot)
-    except Exception:
-        logger.exception("Failed to save defect")
-        await query.edit_message_text(str(M.SAVE_FAILED), parse_mode=M.PARSE_MODE)
-        return ConversationHandler.END
+        await callback.answer()
+        await drop_keys(state, FSMKey.SCREEN)
+        progress = callback.message
 
-    defect_data.defect_id = str(registered.defect.id)
+        defect_data = await load_defect(state)
+        # The summary's fields, so the screen keeps the form to the end
+        fields = build_fields(defect_data, SummaryScene.behind(defect_data, {}))
 
-    # Non-critical: an AI failure must not undo the save above
-    await query.edit_message_text(str(M.AI_ANALYZING))
-    ai_result = await run_ai_analysis(
-        defect_data, registered.defect.id, registered.photo_bytes
-    )
+        await progress.edit_text(**build_saving_text(fields).as_kwargs())
 
-    await query.edit_message_text(
-        build_result_text(registered.defect.id, ai_result), parse_mode=M.PARSE_MODE
-    )
+        try:
+            saved = await persist_defect(state, defect_data, employee, bot)
+        except Exception:
+            logger.exception("Failed to save defect")
+            await answer_anew(
+                callback,
+                **build_save_failed_text().as_kwargs(),
+                reply_markup=main_menu_keyboard(),
+            )
+            await self.wizard.exit()
+            return
 
-    recommendation = build_recommendation_text(ai_result)
-    if recommendation:
-        await query.message.reply_text(recommendation, parse_mode=M.PARSE_MODE)
+        await alert_decommission(employee, defect_data, saved.defect.id)
 
-    await query.message.reply_text(
-        str(M.ASK_EMPLOYEE_VERDICT),
-        parse_mode=M.PARSE_MODE,
-        reply_markup=employee_verdict_keyboard(),
-    )
-    return EMPLOYEE_VERDICT
+        await progress.edit_text(**build_ai_analyzing_text(fields).as_kwargs())
+        ai_result = await run_ai_analysis(
+            defect_data, saved.defect.id, saved.photo_bytes
+        )
+
+        await send_result(bot, progress, fields, ai_result)
+        await self.wizard.exit()
+
+    @on.message(Command("new_defect"))
+    @on.message(F.text == str(BTN_NEW_DEFECT))
+    async def new_defect(self, message: Message) -> None:
+        """Ask rather than wipe the open form; there is no screen to put it on."""
+        await message.answer(
+            **build_defect_in_progress_text().as_kwargs(),
+            reply_markup=defect_in_progress_keyboard(),
+        )
+
+    @on.message(F.text.in_(MENU_TEXTS))
+    @on.message(Command("start", "my_tasks", "ask", "support", "help"))
+    async def menu_button(self, message: Message) -> None:
+        """No screen to show again; /cancel is the way out."""
+        await message.answer(**build_defect_continued_text().as_kwargs())
+
+    @on.callback_query(F.data == CB_DEFECT_CONTINUE)
+    async def carry_on(self, callback: CallbackQuery) -> None:
+        await callback.answer()
+        await edit_or_send(callback, **build_defect_continued_text().as_kwargs())
+
+    @on.callback_query(F.data == CB_DEFECT_RESTART)
+    async def start_over(self, callback: CallbackQuery, state: FSMContext) -> None:
+        await callback.answer()
+        await open_blank_form(state)
+        await self.wizard.goto(DefectSG.wagon_num)
+
+    # After every handler above: aiogram registers a class's own in the order written
+    @on.callback_query()
+    async def absorb(self, callback: CallbackQuery) -> None:
+        """An old button tapped here dies quietly rather than as expired."""
+        await callback.answer()
+
+    @on.message.exit()
+    @on.callback_query.exit()
+    async def drop_the_form(
+        self, event: Message | CallbackQuery, state: FSMContext
+    ) -> None:
+        """exit() only clears the state; the form is ours to drop."""
+        await clear_defect_keys(state)

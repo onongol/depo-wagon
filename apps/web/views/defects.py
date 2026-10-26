@@ -9,7 +9,11 @@ from apps.web.decorators import employee_required
 
 @employee_required
 def defect_list(request):
-    qs = Defect.objects.select_related("wagon", "inspector").order_by("-inspected_at")
+    qs = (
+        Defect.objects.visible_to(request.user)
+        .select_related("wagon", "inspector")
+        .order_by("-inspected_at")
+    )
 
     q = request.GET.get("q", "").strip()
     if q:

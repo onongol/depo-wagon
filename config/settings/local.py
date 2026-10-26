@@ -52,6 +52,9 @@ SESSION_COOKIE_SECURE = False
 EMAIL_BACKEND = env(
     "EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend"
 )
+EMAIL_DELIVERY_BACKEND = env(
+    "EMAIL_DELIVERY_BACKEND", default="django.core.mail.backends.console.EmailBackend"
+)
 
 # CELERY
 # ------------------------------------------------------------------------------

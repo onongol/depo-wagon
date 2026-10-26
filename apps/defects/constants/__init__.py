@@ -1,5 +1,6 @@
 from .constants import (
     DEPARTMENT_NODES,
+    DIMENSION_UNITS,
     DefectNode,
     DefectSeverity,
     DefectStatus,
@@ -10,6 +11,7 @@ from .constants import (
 
 __all__ = [
     "DEPARTMENT_NODES",
+    "DIMENSION_UNITS",
     "DefectNode",
     "DefectSeverity",
     "DefectStatus",

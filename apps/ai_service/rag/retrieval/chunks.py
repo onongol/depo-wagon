@@ -1,27 +1,19 @@
 from asgiref.sync import sync_to_async
-from flashrank import RerankRequest
 
-from apps.ai_service.rag.retrieval.config import (
-    MAX_DISTANCE,
-    TOP_K_CANDIDATES,
-    get_ranker,
-)
+from apps.ai_service.rag.retrieval.config import MAX_DISTANCE, TOP_K_CANDIDATES
+from apps.ai_service.rag.retrieval.rerank import rerank
 
 TOP_K = 8
 
 
 @sync_to_async
-def fetch_similar_chunks(
-    query_embedding: list[float],
-    query_text: str,
-    top_k: int = TOP_K,
-) -> list[dict]:
+def _candidates(query_embedding: list[float]) -> list[dict]:
     from pgvector.django import CosineDistance
 
     from apps.ai_service.constants import DocumentStatus
     from apps.ai_service.models import DocumentChunk
 
-    candidates = list(
+    return list(
         DocumentChunk.objects.filter(document__status=DocumentStatus.READY)
         .annotate(distance=CosineDistance("embedding", query_embedding))
         .filter(distance__lte=MAX_DISTANCE)
@@ -29,10 +21,11 @@ def fetch_similar_chunks(
         .values("content", "document__title", "page_number")[:TOP_K_CANDIDATES]
     )
 
-    if not candidates:
-        return []
 
-    passages = [{"id": i, "text": c["content"]} for i, c in enumerate(candidates)]
-    results = get_ranker().rerank(RerankRequest(query=query_text, passages=passages))
-
-    return [candidates[r["id"]] for r in results[:top_k]]
+async def fetch_similar_chunks(
+    query_embedding: list[float],
+    query_text: str,
+    top_k: int = TOP_K,
+) -> list[dict]:
+    candidates = await _candidates(query_embedding)
+    return await rerank(query_text, candidates, top_k)

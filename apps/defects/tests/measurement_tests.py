@@ -3,8 +3,12 @@ from decimal import Decimal
 import pytest
 from model_bakery import baker
 
-from apps.defects.constants import MeasurementDimension
+from apps.defects.constants import DIMENSION_UNITS, MeasurementDimension
 from apps.defects.models import DefectMeasurement
+
+
+def test_every_dimension_has_a_unit():
+    assert set(DIMENSION_UNITS) == set(MeasurementDimension)
 
 
 @pytest.mark.django_db

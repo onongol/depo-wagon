@@ -1,33 +1,13 @@
-"""One-time tokens that attach a Telegram account to a signed-in user.
-
-These travel inside a Telegram deep link — ``https://t.me/<bot>?start=<token>``
-— which the web app hands to someone who is *already authenticated*. Tapping it
-makes Telegram send ``/start <token>`` to the bot, and the bot attaches that
-chat to whoever the token was issued for.
-
-Issuing from an authenticated session is the whole point: identity is already
-settled by allauth before a token exists, so the bot never has to establish it
-again. That is what removed the emailed one-time codes this project used to
-have.
-
-Tokens are random and held in Redis rather than signed and self-contained, so
-redeeming one destroys it. Only the SHA-256 of a token is stored, so reading the
-cache yields nothing usable; a plain digest is enough because the token is 256
-random bits, not a password.
-"""
-
 import hashlib
 import secrets
 
 from django.core.cache import cache
 
+# 43 characters once urlsafe-encoded; Telegram caps a ?start= payload at 64.
 _TOKEN_BYTES = 32
+_TOKEN_TTL = 600  # 10 minutes
 _PREFIX = "tg_link_token:"
 _USER_PREFIX = "tg_link_user:"
-
-# Short: the link is meant to be tapped straight away, from the page that just
-# rendered it. A stale one lingering in a browser is not useful to anybody.
-TOKEN_TTL = 600  # 10 minutes
 
 
 def _digest(token: str) -> str:
@@ -47,15 +27,16 @@ def issue(user_id: int) -> str:
 
     Issuing revokes whatever token this user held before, so reloading the
     connect page leaves one working link rather than a growing pile of them.
+    Revocation is best-effort: two issues racing each other can leave both
+    tokens live until they expire. Both belong to the same user, so the cost is
+    a link that outlives its page, not a wider door.
     """
-    previous = cache.get(_user_key(user_id))
-    if previous:
-        cache.delete(_key(previous))
+    revoke(user_id)
 
     token = secrets.token_urlsafe(_TOKEN_BYTES)
     digest = _digest(token)
-    cache.set(_key(digest), user_id, timeout=TOKEN_TTL)
-    cache.set(_user_key(user_id), digest, timeout=TOKEN_TTL)
+    cache.set(_key(digest), user_id, timeout=_TOKEN_TTL)
+    cache.set(_user_key(user_id), digest, timeout=_TOKEN_TTL)
     return token
 
 
@@ -64,13 +45,33 @@ def redeem(token: str) -> int | None:
 
     ``None`` covers unknown, already used and expired alike — the difference is
     not something the person holding the link can act on.
+
+    Deletes the tg_link_token:<digest> key.
+    If two concurrent requests attempt to redeem the same token simultaneously,
+    cache.delete(key) will return True only for the first one.
     """
     if not token:
         return None
-    key = _key(_digest(token))
+
+    digest = _digest(token)
+    key = _key(digest)
     user_id = cache.get(key)
     if user_id is None:
         return None
-    cache.delete(key)
-    cache.delete(_user_key(user_id))
+
+    if not cache.delete(key):
+        return None
+
+    # The page may have issued a newer token meanwhile; its index must survive.
+    user_key = _user_key(user_id)
+    if cache.get(user_key) == digest:
+        cache.delete(user_key)
     return user_id
+
+
+def revoke(user_id: int) -> None:
+    """Kill this user's live token, if any, such as one left on a screen."""
+    user_key = _user_key(user_id)
+    digest = cache.get(user_key)
+    if digest:
+        cache.delete_many([_key(digest), user_key])

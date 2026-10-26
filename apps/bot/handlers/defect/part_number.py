@@ -1,64 +1,70 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from telegram.ext import ContextTypes, ConversationHandler
+from aiogram import F
+from aiogram.fsm.scene import on
 
-from apps.bot.constants import UD_DEFECT, UD_EDITING
-from apps.bot.keyboards.defect import defect_type_keyboard
-from apps.bot.messages import BotMessages as M
-from apps.bot.states import DEFECT_TYPE
+from apps.bot.callback_data import CB_PART_NUMBER_SKIP
+from apps.bot.constants import FSMKey
+from apps.bot.fsm import load_defect, save_defect
+from apps.bot.keyboards.common import skip_keyboard
+from apps.bot.states import DefectSG
+from apps.bot.utils.screens import delete_input
 
-from .summary import show_summary
+from .scene import STEP_TEXT, DefectScene
+from .text import (
+    build_ask_part_number_text,
+    build_edit_part_number_text,
+    build_part_number_too_long_text,
+)
 
 if TYPE_CHECKING:
-    from telegram import Update
+    from aiogram.fsm.context import FSMContext
+    from aiogram.fsm.state import State
+    from aiogram.types import CallbackQuery, Message
 
     from apps.bot.user_data import DefectData
 
+    from .scene import Screen
 
-def _get_defect(context: ContextTypes.DEFAULT_TYPE) -> DefectData | None:
-    return context.user_data.get(UD_DEFECT)
-
-
-async def receive_part_number(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> int:
-    """Handle part number text input."""
-    defect = _get_defect(context)
-    if defect is None:
-        await update.message.reply_text(str(M.DEFECT_CANCELLED))
-        return ConversationHandler.END
-
-    defect.part_number = update.message.text.strip()
-
-    if context.user_data.get(UD_EDITING):
-        return await show_summary(update, context, defect)
-
-    await update.message.reply_text(
-        str(M.PART_NUMBER_CONFIRMED).format(part_number=defect.part_number),
-        parse_mode=M.PARSE_MODE,
-        reply_markup=defect_type_keyboard(),
-    )
-    return DEFECT_TYPE
+PART_NUMBER_MAX_LENGTH = 100
 
 
-async def skip_part_number(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Handle part number skip."""
-    query = update.callback_query
-    await query.answer()
+class PartNumberScene(DefectScene, state=DefectSG.part_number.state):
+    """Typed or skipped; from the next step on, a skipped one shows as a dash."""
 
-    defect = _get_defect(context)
-    if defect is None:
-        await query.edit_message_text(str(M.DEFECT_CANCELLED))
-        return ConversationHandler.END
+    async def _record(self, state: FSMContext, part_number: str) -> None:
+        defect = await load_defect(state)
+        defect.part_number = part_number
+        await save_defect(state, defect)
+        await self.go_on(state, DefectSG.defect_type)
 
-    defect.part_number = ""
+    @classmethod
+    def previous(cls, form: DefectData) -> State | None:
+        return DefectSG.node
 
-    if context.user_data.get(UD_EDITING):
-        return await show_summary(update, context, defect)
+    @classmethod
+    async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:
+        keyboard = skip_keyboard(CB_PART_NUMBER_SKIP)
+        if data.get(FSMKey.EDITING):
+            return build_edit_part_number_text(), keyboard
+        return build_ask_part_number_text(), keyboard
 
-    await query.edit_message_text(
-        str(M.PART_NUMBER_SKIPPED),
-        parse_mode=M.PARSE_MODE,
-        reply_markup=defect_type_keyboard(),
-    )
-    return DEFECT_TYPE
+    @on.message(*STEP_TEXT)
+    async def receive(self, message: Message, state: FSMContext) -> None:
+        part_number = message.text.strip()
+        if len(part_number) > PART_NUMBER_MAX_LENGTH:
+            too_long = build_part_number_too_long_text(
+                len(part_number), PART_NUMBER_MAX_LENGTH
+            )
+            # Left in the chat to be copied and shortened
+            await self.show_as_message(message, state, notice=too_long, below=True)
+            return
+
+        await delete_input(message)
+        await self._record(state, part_number)
+
+    @on.callback_query(F.data == CB_PART_NUMBER_SKIP)
+    async def skip(self, callback: CallbackQuery, state: FSMContext) -> None:
+        """A skip is an empty part number, which also clears one an Edit reopened."""
+        await callback.answer()
+        await self._record(state, "")

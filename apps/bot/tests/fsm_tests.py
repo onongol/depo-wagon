@@ -1,0 +1,265 @@
+"""Tests for the aiogram FSM layer.
+
+These use a real FSMContext over MemoryStorage rather than a mock, so
+get_state and get_data behave exactly as they will against Redis.
+"""
+
+from datetime import timedelta
+from unittest.mock import AsyncMock, patch
+
+import pytest
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.storage.base import StorageKey
+from aiogram.fsm.storage.memory import MemoryStorage
+from redis.asyncio.connection import Connection
+from redis.exceptions import ConnectionError as RedisConnectionError
+
+from apps.bot.constants import FSMKey
+from apps.bot.fsm import clear_defect_keys, drop_keys, load_defect, save_defect
+from apps.bot.fsm.storage import (
+    FSM_LOCK_TIMEOUT,
+    FSM_RETRIES,
+    FSM_SOCKET_TIMEOUT,
+    FSM_TTL,
+)
+from apps.bot.handlers.ai_chat.receive import _ANSWER_TIMEOUT
+from apps.bot.handlers.defect.confirm.pipeline.analyze import _ANALYSIS_TIMEOUT
+from apps.bot.handlers.defect.confirm.pipeline.register import _PHOTO_FETCH_TIMEOUT
+from apps.bot.user_data import DefectData, MeasurementEntry, PhotoEntry
+
+
+@pytest.fixture
+def state() -> FSMContext:
+    return FSMContext(
+        storage=MemoryStorage(),
+        key=StorageKey(bot_id=42, chat_id=12345, user_id=12345),
+    )
+
+
+class TestLoadAndSaveDefect:
+    async def test_returns_none_when_the_flow_is_not_running(self, state):
+        assert await load_defect(state) is None
+
+    async def test_round_trips_a_populated_form(self, state):
+        defect = DefectData(
+            wagon_number="60123456",
+            department="coupler_brake",
+            measurements=[MeasurementEntry(dimension="thickness", value=12.5)],
+            photos=[
+                PhotoEntry(file_id="a", message_id=1),
+                PhotoEntry(file_id="b", message_id=2),
+            ],
+        )
+
+        await save_defect(state, defect)
+
+        assert await load_defect(state) == defect
+
+    async def test_rebuilds_nested_entries_as_models(self, state):
+        await save_defect(
+            state,
+            DefectData(current_measurement=MeasurementEntry(dimension="width")),
+        )
+
+        restored = await load_defect(state)
+
+        assert isinstance(restored.current_measurement, MeasurementEntry)
+
+    async def test_saving_replaces_rather_than_merges(self, state):
+        a, b, c = (PhotoEntry(file_id=f, message_id=i) for i, f in enumerate("abc"))
+        await save_defect(state, DefectData(photos=[a, b]))
+        await save_defect(state, DefectData(photos=[c]))
+
+        assert (await load_defect(state)).photos == [c]
+
+    async def test_a_loaded_copy_is_detached_until_saved(self, state):
+        await save_defect(state, DefectData(wagon_number="1"))
+
+        stale = await load_defect(state)
+        stale.wagon_number = "2"
+
+        assert (await load_defect(state)).wagon_number == "1"
+
+    async def test_saving_leaves_unrelated_keys_alone(self, state):
+        await state.update_data({FSMKey.AI_CHAT_HISTORY: [{"q": "a"}]})
+
+        await save_defect(state, DefectData())
+
+        assert (await state.get_data())[FSMKey.AI_CHAT_HISTORY] == [{"q": "a"}]
+
+
+class TestDropKeys:
+    async def test_drops_only_the_keys_named(self, state):
+        await state.update_data(
+            {
+                FSMKey.RESP_SEARCH: "query",
+                FSMKey.EDITING: True,
+                FSMKey.AI_CHAT_HISTORY: [],
+            }
+        )
+
+        await drop_keys(state, FSMKey.RESP_SEARCH, FSMKey.EDITING)
+
+        assert await state.get_data() == {FSMKey.AI_CHAT_HISTORY: []}
+
+    async def test_a_key_that_is_not_there_is_no_error(self, state):
+        await state.update_data({FSMKey.EDITING: True})
+
+        await drop_keys(state, FSMKey.RESP_SEARCH)
+
+        assert await state.get_data() == {FSMKey.EDITING: True}
+
+    async def test_leaves_the_state_itself_untouched(self, state):
+        await state.set_state("DefectSG:responsible_employee")
+        await state.update_data({FSMKey.RESP_SEARCH: "query"})
+
+        await drop_keys(state, FSMKey.RESP_SEARCH)
+
+        assert await state.get_state() == "DefectSG:responsible_employee"
+
+
+class TestClearDefectKeys:
+    async def test_drops_every_key_the_defect_flow_owns(self, state):
+        await state.update_data(
+            {
+                FSMKey.DEFECT: DefectData().to_dict(),
+                FSMKey.RESP_SEARCH: "query",
+                FSMKey.EDITING: True,
+            }
+        )
+
+        await clear_defect_keys(state)
+
+        assert await state.get_data() == {}
+
+    async def test_keeps_the_ai_chat_history(self, state):
+        await state.update_data(
+            {
+                FSMKey.DEFECT: DefectData().to_dict(),
+                FSMKey.AI_CHAT_HISTORY: [{"q": "a"}],
+            }
+        )
+
+        await clear_defect_keys(state)
+
+        assert await state.get_data() == {FSMKey.AI_CHAT_HISTORY: [{"q": "a"}]}
+
+    async def test_is_a_no_op_when_nothing_is_stored(self, state):
+        await clear_defect_keys(state)
+
+        assert await state.get_data() == {}
+
+    async def test_leaves_the_state_itself_untouched(self, state):
+        await state.set_state("DefectSG:photo")
+        await state.update_data({FSMKey.DEFECT: DefectData().to_dict()})
+
+        await clear_defect_keys(state)
+
+        assert await state.get_state() == "DefectSG:photo"
+
+
+class TestStorageTtl:
+    def test_expiry_is_set_so_abandoned_forms_do_not_accumulate(self):
+        assert timedelta(days=1) == FSM_TTL
+
+
+class TestMakeStorage:
+    """Configuration only — Redis.from_url does not connect until first use."""
+
+    def test_uses_the_dedicated_fsm_url_not_the_django_cache(self, settings):
+        from apps.bot.fsm.storage import make_storage
+
+        settings.TELEGRAM_FSM_REDIS_URL = "redis://localhost:6379/9"
+        settings.REDIS_URL = "redis://localhost:6379/0"
+
+        storage = make_storage()
+
+        assert storage.redis.connection_pool.connection_kwargs["db"] == 9
+
+    def test_applies_the_ttl_to_both_state_and_data(self, settings):
+        from apps.bot.fsm.storage import make_storage
+
+        settings.TELEGRAM_FSM_REDIS_URL = "redis://localhost:6379/9"
+
+        storage = make_storage()
+
+        assert storage.state_ttl == FSM_TTL
+        assert storage.data_ttl == FSM_TTL
+
+    def test_sets_the_socket_timeouts_explicitly(self, settings):
+        from apps.bot.fsm.storage import make_storage
+
+        settings.TELEGRAM_FSM_REDIS_URL = "redis://localhost:6379/9"
+
+        kwargs = make_storage().redis.connection_pool.connection_kwargs
+
+        assert kwargs["socket_timeout"] == FSM_SOCKET_TIMEOUT
+        assert kwargs["socket_connect_timeout"] == FSM_SOCKET_TIMEOUT
+
+    def test_the_retry_reaches_the_pool_connections(self, settings):
+        from apps.bot.fsm.storage import make_storage
+
+        settings.TELEGRAM_FSM_REDIS_URL = "redis://localhost:6379/9"
+
+        conn = make_storage().redis.connection_pool.make_connection()
+
+        assert conn.retry.get_retries() == FSM_RETRIES
+
+    def test_keys_include_the_bot_id_so_staging_cannot_collide(self, settings):
+        from apps.bot.fsm.storage import make_storage
+
+        settings.TELEGRAM_FSM_REDIS_URL = "redis://localhost:6379/9"
+
+        storage = make_storage()
+        key = StorageKey(bot_id=42, chat_id=1, user_id=1)
+
+        assert "42" in storage.key_builder.build(key, "state")
+
+    def test_keys_take_the_destiny_scenes_keep_their_history_under(self, settings):
+        """Without with_destiny the builder raises on it, and every retake() fails."""
+        from apps.bot.fsm.storage import make_storage
+
+        settings.TELEGRAM_FSM_REDIS_URL = "redis://localhost:6379/9"
+
+        storage = make_storage()
+        key = StorageKey(bot_id=42, chat_id=1, user_id=1, destiny="scenes_history")
+
+        assert "scenes_history" in storage.key_builder.build(key, "data")
+
+
+class TestMakeIsolation:
+    def test_locks_over_the_storage_connection_and_keys(self, settings):
+        from apps.bot.fsm.storage import make_isolation, make_storage
+
+        settings.TELEGRAM_FSM_REDIS_URL = "redis://localhost:6379/9"
+        storage = make_storage()
+
+        isolation = make_isolation(storage)
+
+        assert isolation.redis is storage.redis
+        assert isolation.key_builder is storage.key_builder
+        assert isolation.lock_kwargs == {"timeout": FSM_LOCK_TIMEOUT}
+
+    def test_a_lock_outlives_the_slowest_ai_call(self):
+        """Whole handlers run under it, AI calls included."""
+        assert max(_ANSWER_TIMEOUT, _ANALYSIS_TIMEOUT) < FSM_LOCK_TIMEOUT
+
+    def test_a_lock_outlives_the_photo_fetch_and_the_analysis_after_it(self):
+        assert _PHOTO_FETCH_TIMEOUT + _ANALYSIS_TIMEOUT < FSM_LOCK_TIMEOUT
+
+
+class TestRedisOutage:
+    async def test_a_refused_connection_is_retried_before_giving_up(self, settings):
+        from apps.bot.fsm.storage import make_storage
+
+        settings.TELEGRAM_FSM_REDIS_URL = "redis://localhost:6379/9"
+        storage = make_storage()
+        refused = AsyncMock(side_effect=ConnectionRefusedError(61, "refused"))
+
+        with (
+            patch.object(Connection, "_connect", refused),
+            pytest.raises(RedisConnectionError),
+        ):
+            await storage.get_state(StorageKey(bot_id=42, chat_id=1, user_id=1))
+
+        assert refused.await_count == FSM_RETRIES + 1

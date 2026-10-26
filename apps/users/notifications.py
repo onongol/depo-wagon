@@ -1,11 +1,3 @@
-"""Emails telling an account owner that their Telegram link changed.
-
-allauth's own mail plumbing is not available for these. ``send_notification_mail``
-reads the client IP off the request, and even the adapter's ``send_mail`` resolves
-the current site through one; a link is made in the bot process, where there is no
-request to read.
-"""
-
 import logging
 
 from allauth.account import app_settings as account_settings
@@ -14,6 +6,9 @@ from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.urls import reverse
+
+from apps.core.mail import serialize_message
+from apps.core.tasks import send_queued_email
 
 logger = logging.getLogger(__name__)
 
@@ -26,17 +21,14 @@ _TEMPLATES = {
 }
 
 
-def send_telegram_link_email(user, action: str) -> bool:
-    """Mail the owner about one link change. Returns whether anything was sent."""
-    if not account_settings.EMAIL_NOTIFICATIONS:
-        return False
-
+def build_telegram_link_email(user, action: str) -> EmailMultiAlternatives | None:
+    """The notice for one link change, or None when the owner has no address."""
     email = EmailAddress.objects.get_primary_email(user)
     if not email:
         logger.warning(
             "No primary email for user %s, skipping %s notice", user.pk, action
         )
-        return False
+        return None
 
     prefix = _TEMPLATES[action]
     context = {
@@ -50,20 +42,24 @@ def send_telegram_link_email(user, action: str) -> bool:
     subject = " ".join(subject.splitlines()).strip()
     body = render_to_string(f"{prefix}_message.txt", context).strip()
 
-    EmailMultiAlternatives(
+    return EmailMultiAlternatives(
         f"{settings.ACCOUNT_EMAIL_SUBJECT_PREFIX}{subject}",
         body,
         settings.DEFAULT_FROM_EMAIL,
         [email],
-    ).send()
-    return True
+    )
 
 
 def notify_telegram_link_change(user, action: str) -> None:
-    """Send the notice. Losing it must not fail the link change itself."""
+    """Queue the notice best-effort: one publish attempt, never fails the link change."""
+    if not account_settings.EMAIL_NOTIFICATIONS:
+        return
+
     try:
-        send_telegram_link_email(user, action)
+        message = build_telegram_link_email(user, action)
+        if message is not None:
+            send_queued_email.apply_async((serialize_message(message),), retry=False)
     except Exception:
         logger.exception(
-            "Could not send the telegram %s notice for user %s", action, user.pk
+            "Could not queue the telegram %s notice for user %s", action, user.pk
         )

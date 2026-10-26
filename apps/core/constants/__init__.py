@@ -1,4 +1,6 @@
 from .constants import (
+    ROLES_CHANGING_STATUS,
+    ROLES_WITH_ALL_DEFECTS,
     Department,
     EmployeeRole,
     RepairType,
@@ -7,6 +9,8 @@ from .constants import (
 )
 
 __all__ = [
+    "ROLES_CHANGING_STATUS",
+    "ROLES_WITH_ALL_DEFECTS",
     "Department",
     "EmployeeRole",
     "RepairType",

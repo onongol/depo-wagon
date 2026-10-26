@@ -65,21 +65,35 @@ class TestPhotoCreatePermissions:
         )
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
-    def test_manager_cannot_create(self, manager_client, defect):
+    def test_manager_can_create(self, manager_client, defect):
         response = manager_client.post(
             reverse("photo-list"),
             {"defect": str(defect.pk), "image": make_image_file()},
             format="multipart",
         )
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_201_CREATED
 
-    def test_inspector_can_create(self, inspector_client, defect):
+    def test_inspector_can_create_on_their_own_defect(self, inspector_client, wagon):
+        own = baker.make(
+            "defects.Defect", wagon=wagon, inspector=inspector_client.employee
+        )
+        response = inspector_client.post(
+            reverse("photo-list"),
+            {"defect": str(own.pk), "image": make_image_file()},
+            format="multipart",
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+
+    def test_inspector_cannot_create_on_another_inspectors_defect(
+        self, inspector_client, defect
+    ):
         response = inspector_client.post(
             reverse("photo-list"),
             {"defect": str(defect.pk), "image": make_image_file()},
             format="multipart",
         )
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "defect" in response.data
 
     def test_engineer_can_create(self, engineer_client, defect):
         response = engineer_client.post(
@@ -123,9 +137,9 @@ class TestPhotoDeletePermissions:
         response = master_client.delete(reverse("photo-detail", args=[photo.pk]))
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
-    def test_manager_cannot_delete(self, manager_client, photo):
+    def test_manager_can_delete(self, manager_client, photo):
         response = manager_client.delete(reverse("photo-detail", args=[photo.pk]))
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_204_NO_CONTENT
 
     def test_engineer_can_delete(self, engineer_client, photo):
         response = engineer_client.delete(reverse("photo-detail", args=[photo.pk]))

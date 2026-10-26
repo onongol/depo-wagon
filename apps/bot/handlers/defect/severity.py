@@ -1,38 +1,47 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from apps.bot.callbacks import PhotoSkipCB
-from apps.bot.constants import SEVERITY_LABELS, UD_DEFECT, UD_EDITING
-from apps.bot.keyboards.common import skip_keyboard
-from apps.bot.messages import BotMessages as M
-from apps.bot.states import PHOTO
+from aiogram.fsm.scene import on
 
-from .summary import show_summary
+from apps.bot.callback_data import SeverityCB
+from apps.bot.constants import FSMKey
+from apps.bot.fsm import load_defect, save_defect
+from apps.bot.keyboards.defect import severity_keyboard
+from apps.bot.states import DefectSG
+
+from .scene import DefectScene
+from .text import build_ask_severity_text, build_edit_severity_text
 
 if TYPE_CHECKING:
-    from telegram import Update
-    from telegram.ext import ContextTypes
+    from aiogram.fsm.context import FSMContext
+    from aiogram.fsm.state import State
+    from aiogram.types import CallbackQuery
 
     from apps.bot.user_data import DefectData
 
+    from .scene import Screen
 
-async def receive_severity(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Handle incoming severity selection from inline keyboard."""
-    query = update.callback_query
-    await query.answer()
 
-    sev_value = query.data.value
-    sev_label = SEVERITY_LABELS.get(sev_value, sev_value)
+class SeverityScene(DefectScene, state=DefectSG.severity.state):
+    """Judged once the evidence is in; the verdict is asked next."""
 
-    defect: DefectData = context.user_data[UD_DEFECT]
-    defect.severity = sev_value
-    defect.severity_label = sev_label
+    @classmethod
+    def previous(cls, form: DefectData) -> State | None:
+        return DefectSG.desc
 
-    if context.user_data.get(UD_EDITING):
-        return await show_summary(update, context, defect)
+    @classmethod
+    async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:
+        if data.get(FSMKey.EDITING):
+            return build_edit_severity_text(), severity_keyboard()
+        return build_ask_severity_text(), severity_keyboard()
 
-    await query.edit_message_text(
-        str(M.SEVERITY_CONFIRMED).format(label=sev_label),
-        parse_mode=M.PARSE_MODE,
-        reply_markup=skip_keyboard(PhotoSkipCB()),
-    )
-    return PHOTO
+    @on.callback_query(SeverityCB.filter())
+    async def receive(
+        self, callback: CallbackQuery, callback_data: SeverityCB, state: FSMContext
+    ) -> None:
+        await callback.answer()
+
+        defect = await load_defect(state)
+        defect.severity = callback_data.value
+        await save_defect(state, defect)
+
+        await self.go_on(state, DefectSG.employee_verdict)

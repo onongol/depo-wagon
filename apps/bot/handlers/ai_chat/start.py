@@ -1,44 +1,29 @@
-import contextlib
 import logging
 from typing import TYPE_CHECKING
 
-from telegram.error import TelegramError
-from telegram.ext import ContextTypes, ConversationHandler
+from aiogram import flags
+from aiogram.exceptions import TelegramAPIError
 
-from apps.bot.constants import UD_AI_CHAT_HISTORY
-from apps.bot.handlers.employee import get_employee
-from apps.bot.messages import BotMessages as M
-from apps.bot.states import AI_CHAT
+from apps.bot.constants import FSMKey
+from apps.bot.states import AiChatSG
+
+from .text import build_ai_chat_greeting_text
 
 if TYPE_CHECKING:
-    from telegram import Update
+    from aiogram.fsm.context import FSMContext
+    from aiogram.types import Message
 
 logger = logging.getLogger(__name__)
 
 
-async def ai_chat_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    try:
-        employee = await get_employee(update, context)
-    except Exception:
-        logger.exception(
-            "Failed to fetch employee for user %s", update.effective_user.id
-        )
-        return ConversationHandler.END
-
-    if not employee:
-        with contextlib.suppress(TelegramError):
-            await update.message.reply_text(str(M.AI_CHAT_NOT_AUTHENTICATED))
-        return ConversationHandler.END
-
-    context.user_data[UD_AI_CHAT_HISTORY] = []
+@flags.registered
+async def ai_chat_start(message: Message, state: FSMContext) -> None:
+    await state.update_data({FSMKey.AI_CHAT_HISTORY: []})
 
     try:
-        await update.message.reply_text(
-            str(M.AI_CHAT_GREETING),
-            parse_mode=M.PARSE_MODE,
-        )
-    except TelegramError:
-        logger.warning("Could not send greeting for user %s", update.effective_user.id)
-        return ConversationHandler.END
+        await message.answer(**build_ai_chat_greeting_text().as_kwargs())
+    except TelegramAPIError:
+        logger.warning("Could not send the AI chat greeting")
+        return
 
-    return AI_CHAT
+    await state.set_state(AiChatSG.chatting)

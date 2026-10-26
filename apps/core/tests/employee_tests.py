@@ -29,6 +29,19 @@ class TestEmployeeModel:
         emp = make_employee(first_name="Elbegdorj", last_name="Tsakhiagiin")
         assert emp.full_name == "Tsakhiagiin Elbegdorj"
 
+    @pytest.mark.parametrize(
+        ("role", "changes"),
+        [
+            (EmployeeRole.INSPECTOR, True),
+            (EmployeeRole.ENGINEER, True),
+            (EmployeeRole.MANAGER, True),
+            (EmployeeRole.MASTER, False),
+            (EmployeeRole.WORKER, False),
+        ],
+    )
+    def test_changes_defect_statuses_follows_the_role(self, role, changes):
+        assert make_employee(role=role).changes_defect_statuses is changes
+
     def test_short_name_with_both_names(self):
         emp = make_employee(first_name="Elbegdorj", last_name="Tsakhiagiin")
         assert emp.short_name == "T.Elbegdorj"

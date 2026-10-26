@@ -1,28 +1,49 @@
 import logging
+from contextlib import suppress
 from typing import TYPE_CHECKING
 
-from telegram.error import TelegramError
+from aiogram.exceptions import TelegramBadRequest
 
-from apps.bot.messages import BotMessages as M
+from apps.bot.handlers.common.text import (
+    build_button_expired_text,
+    build_unhandled_message_text,
+)
 
 if TYPE_CHECKING:
-    from telegram import Update
-    from telegram.ext import ContextTypes
+    from aiogram import Bot
+    from aiogram.fsm.context import FSMContext
+    from aiogram.types import CallbackQuery, Message
 
 logger = logging.getLogger(__name__)
 
 
-async def stale_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Answer a button whose callback data the bot no longer holds.
+async def noop_button(callback: CallbackQuery) -> None:
+    with suppress(TelegramBadRequest):
+        await callback.answer()
 
-    arbitrary_callback_data keeps the payload in this process, so every button
-    sent before a restart comes back as InvalidCallbackData. Without this the
-    tap would spin and then go quiet, leaving nothing to act on.
-    """
-    query = update.callback_query
-    await query.answer()
 
-    try:
-        await query.edit_message_text(str(M.BUTTON_EXPIRED))
-    except TelegramError:
-        logger.debug("Could not replace a stale keyboard (message deleted or too old)")
+async def stale_button(callback: CallbackQuery, bot: Bot) -> None:
+    """Say the button is dead. Edits by ids: callback.message may be inaccessible."""
+    with suppress(TelegramBadRequest):
+        await callback.answer()
+
+    if callback.message is None:
+        return
+
+    with suppress(TelegramBadRequest):
+        await bot.edit_message_text(
+            **build_button_expired_text().as_kwargs(),
+            chat_id=callback.message.chat.id,
+            message_id=callback.message.message_id,
+        )
+
+
+async def unhandled_message(message: Message, state: FSMContext) -> None:
+    """Answer a message outside every known state; drop a state from an older build."""
+    current = await state.get_state()
+
+    if current is not None:
+        logger.warning("Clearing an FSM state this build does not know: %s", current)
+        await state.clear()
+
+    await message.answer(**build_unhandled_message_text().as_kwargs())

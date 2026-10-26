@@ -10,6 +10,10 @@ x-app: &app
     REDIS_URL: redis://redis_cache:6379/0
     CELERY_BROKER_URL: redis://redis_broker:6379/0
     CELERY_RESULT_BACKEND: redis://redis_broker:6379/1
+    # Conversation state, on the durable instance rather than redis_cache:
+    # allkeys-lru would drop a half-filled defect form mid-flow. Keys carry a
+    # one-day TTL so abandoned forms cannot crowd out the queue.
+    TELEGRAM_FSM_REDIS_URL: redis://redis_broker:6379/2
   restart: unless-stopped
   logging:
     driver: json-file
@@ -90,7 +94,9 @@ services:
 
   bot:
     <<: *app
-    command: python manage.py run_bot --drop-pending
+    command: python manage.py run_bot
+    # Above the bot's 90s drain of in-flight updates
+    stop_grace_period: 100s
 
   worker:
     <<: *app

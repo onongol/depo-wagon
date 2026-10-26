@@ -1,60 +1,114 @@
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from typing import TYPE_CHECKING
 
-from apps.bot.callbacks import StatusPickCB, StatusSetCB, TasksPageCB
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+
+from apps.bot.callback_data import (
+    DefectCardCB,
+    DefectOpenCB,
+    StatusAskCB,
+    StatusPickCB,
+    StatusSetCB,
+    TasksPageCB,
+)
 from apps.bot.constants import (
     BTN_BACK,
+    BTN_CANCEL,
+    BTN_CHANGE_STATUS,
+    BTN_CONFIRM,
     BTN_NEXT,
+    BTN_OPEN_CARD,
     BTN_PREV,
-    PAGE_SIZE,
-    STATUS_OPTIONS,
+    LIST_NUMBER_EMOJI,
+    STATUS_EMOJI,
+    TASKS_PAGE_SIZE,
 )
+from apps.bot.utils.choices import emoji_label
+from apps.defects.constants import DefectStatus
+
+if TYPE_CHECKING:
+    import uuid
+    from collections.abc import Iterable
+
+    from aiogram.types import InlineKeyboardMarkup
 
 
-def tasks_keyboard(defects: list, page: int, total: int) -> InlineKeyboardMarkup:
-    """Pagination + one status-change button per defect."""
-    buttons = [
-        [
-            InlineKeyboardButton(
-                f"🔄 {defect.wagon.number} — {defect.get_node_display()}",
-                callback_data=StatusPickCB(defect_id=str(defect.id), page=page),
-            )
-        ]
-        for defect in defects
-    ]
-
-    nav = []
+def _pagination_row_tasks(page: int, pages: int) -> InlineKeyboardBuilder:
+    """Previous/Next row; each arrow appears only when there is a page to go to."""
+    nav = InlineKeyboardBuilder()
     if page > 0:
-        nav.append(
-            InlineKeyboardButton(
-                str(BTN_PREV), callback_data=TasksPageCB(page=page - 1)
-            )
+        nav.button(text=str(BTN_PREV), callback_data=TasksPageCB(page=page - 1))
+    if page + 1 < pages:
+        nav.button(text=str(BTN_NEXT), callback_data=TasksPageCB(page=page + 1))
+    return nav
+
+
+def tasks_keyboard(defects: list, page: int, pages: int) -> InlineKeyboardMarkup:
+    """A row of the list's numbers, each opening its card, then the page arrows."""
+    builder = InlineKeyboardBuilder()
+    for keycap, defect in zip(LIST_NUMBER_EMOJI, defects, strict=False):
+        builder.button(
+            text=keycap, callback_data=DefectCardCB(defect_id=defect.id, page=page)
         )
-    if (page + 1) * PAGE_SIZE < total:
-        nav.append(
-            InlineKeyboardButton(
-                str(BTN_NEXT), callback_data=TasksPageCB(page=page + 1)
-            )
+    builder.adjust(TASKS_PAGE_SIZE)
+
+    builder.attach(_pagination_row_tasks(page, pages))
+
+    return builder.as_markup()
+
+
+def defect_card_keyboard(
+    defect_id: uuid.UUID, page: int, *, can_change: bool
+) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    if can_change:
+        builder.button(
+            text=str(BTN_CHANGE_STATUS),
+            callback_data=StatusPickCB(defect_id=defect_id, page=page),
         )
-    if nav:
-        buttons.append(nav)
+    builder.button(text=str(BTN_BACK), callback_data=TasksPageCB(page=page))
+    builder.adjust(1)
 
-    return InlineKeyboardMarkup(buttons)
+    return builder.as_markup()
 
 
-def status_picker_keyboard(defect_id: str, page: int) -> InlineKeyboardMarkup:
-    """Status options keyboard for a specific defect."""
-    buttons = [
-        [
-            InlineKeyboardButton(
-                str(label),
-                callback_data=StatusSetCB(defect_id=defect_id, status=value, page=page),
-            )
-        ]
-        for label, value in STATUS_OPTIONS
-    ]
+def status_picker_keyboard(
+    defect_id: uuid.UUID, targets: Iterable[DefectStatus], page: int
+) -> InlineKeyboardMarkup:
+    """The statuses this defect may move to, and a way back to its card."""
+    builder = InlineKeyboardBuilder()
+    for status in targets:
+        builder.button(
+            text=emoji_label(STATUS_EMOJI, DefectStatus, status),
+            callback_data=StatusAskCB(defect_id=defect_id, status=status, page=page),
+        )
+    builder.button(
+        text=str(BTN_BACK), callback_data=DefectCardCB(defect_id=defect_id, page=page)
+    )
+    builder.adjust(1)
 
-    buttons.append(
-        [InlineKeyboardButton(str(BTN_BACK), callback_data=TasksPageCB(page=page))]
+    return builder.as_markup()
+
+
+def status_confirm_keyboard(
+    defect_id: uuid.UUID, status: DefectStatus, page: int
+) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text=str(BTN_CONFIRM),
+        callback_data=StatusSetCB(defect_id=defect_id, status=status, page=page),
+    )
+    builder.button(
+        text=str(BTN_CANCEL),
+        callback_data=DefectCardCB(defect_id=defect_id, page=page),
     )
 
-    return InlineKeyboardMarkup(buttons)
+    return builder.as_markup()
+
+
+def open_card_keyboard(defect_id: uuid.UUID) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text=str(BTN_OPEN_CARD), callback_data=DefectOpenCB(defect_id=defect_id)
+    )
+
+    return builder.as_markup()

@@ -4,7 +4,11 @@ from rest_framework.filters import OrderingFilter, SearchFilter
 
 from apps.defects.models import Defect
 from apps.defects.serializers import DefectListSerializer, DefectSerializer
-from apps.users.permissions import IsAnyEmployee, IsEngineer, IsInspectorOrEngineer
+from apps.users.permissions import (
+    IsAnyEmployee,
+    IsEngineerOrManager,
+    IsInspectorEngineerOrManager,
+)
 
 
 class DefectViewSet(viewsets.ModelViewSet):
@@ -24,13 +28,13 @@ class DefectViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action == "create":
-            return [IsInspectorOrEngineer()]
+            return [IsInspectorEngineerOrManager()]
         if self.action in {"update", "partial_update", "destroy"}:
-            return [IsEngineer()]
+            return [IsEngineerOrManager()]
         return [IsAnyEmployee()]
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = super().get_queryset().visible_to(self.request.user)
         if self.action == "retrieve":
             qs = qs.prefetch_related("measurements", "photos")
         return qs

@@ -1,118 +1,114 @@
-import html
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from django.utils.text import format_lazy
-from django.utils.translation import gettext_lazy as _
+from aiogram import F
+from aiogram.fsm.scene import on
 
-from apps.bot.constants import UD_EDITING
-from apps.bot.messages import BotMessages as M
-from apps.bot.states import CONFIRM
+from apps.bot.callback_data import ConfirmCB, EditCB
+from apps.bot.constants import EDIT_MEASUREMENTS, EDIT_RESPONSIBLE, FSMKey
+from apps.bot.fsm import drop_keys, load_defect
+from apps.bot.keyboards.confirm import confirm_keyboard
+from apps.bot.states import DefectSG
+from apps.defects.constants import DefectType
+
+from .scene import DefectScene, walked
+from .text import build_review_heading, build_save_question_text
 
 if TYPE_CHECKING:
-    from telegram import Update
-    from telegram.ext import ContextTypes
+    from aiogram.fsm.context import FSMContext
+    from aiogram.types import CallbackQuery, InlineKeyboardMarkup, Message
+    from aiogram.utils.formatting import Text
 
     from apps.bot.user_data import DefectData
+    from apps.core.models import Employee
+
+    from .scene import Screen
+
+_EDIT_SCENES = {
+    "wagon": DefectSG.wagon_num,
+    "node": DefectSG.node,
+    "part_number": DefectSG.part_number,
+    "defect_type": DefectSG.defect_type,
+    EDIT_RESPONSIBLE: DefectSG.responsible_employee,
+    "photos": DefectSG.photo,
+    EDIT_MEASUREMENTS: DefectSG.measurement_choice,
+    "description": DefectSG.desc,
+    "severity": DefectSG.severity,
+    "verdict": DefectSG.employee_verdict,
+}
 
 
-async def show_summary(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, defect: DefectData
-) -> int:
-    """
-    Works for both callback updates (edit in place) and text updates (new message).
-    Returns the CONFIRM state.
-    """
-    from apps.bot.keyboards.defect import confirm_keyboard
+class SummaryScene(DefectScene, state=DefectSG.confirm.state):
+    """The review: Edit a field, Cancel, or Save; entering it ends any Edit."""
 
-    context.user_data.pop(UD_EDITING, None)
-    text = build_summary(defect)
-    keyboard = confirm_keyboard()
+    @classmethod
+    async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:
+        return build_save_question_text(), confirm_keyboard(form)
 
-    if update.callback_query:
-        await update.callback_query.edit_message_text(
-            text, parse_mode=M.PARSE_MODE, reply_markup=keyboard
-        )
-    else:
-        await update.message.reply_text(
-            text, parse_mode=M.PARSE_MODE, reply_markup=keyboard
-        )
-    return CONFIRM
+    @classmethod
+    def heading(cls, form: DefectData, data: dict[str, Any]) -> Text:
+        return build_review_heading()
 
+    @classmethod
+    def behind(cls, form: DefectData, data: dict[str, Any]) -> list[str]:
+        """The whole walk: a field left empty on the way shows as skipped."""
+        _, whole = walked(cls, form)
+        return whole
 
-def build_summary(defect: DefectData) -> str:
-    """Build a human-readable defect summary for the confirmation step."""
-    lines = [
-        str(_("📋 <b>Defect Summary — please review:</b>\n")),
-        format_lazy(_("🚃 Wagon: <b>{wagon}</b>"), wagon=defect.wagon_number or "?"),
-        format_lazy(
-            _("🏭 Department: <b>{dept}</b>"), dept=defect.department_label or "?"
-        ),
-        format_lazy(_("🔧 Node: <b>{node}</b>"), node=defect.node_label or "?"),
-    ]
+    @classmethod
+    def step_buttons(
+        cls,
+        form: DefectData,
+        data: dict[str, Any],
+        keyboard: InlineKeyboardMarkup | None,
+    ) -> InlineKeyboardMarkup | None:
+        """Its Cancel is its own, under Save, and no step comes before it."""
+        return keyboard
 
-    if defect.part_number:
-        lines.append(
-            format_lazy(
-                _("🔢 Part number: <b>{part}</b>"),
-                part=html.escape(defect.part_number),
-            )
-        )
+    @on.message.enter()
+    async def show_as_message(
+        self,
+        message: Message,
+        state: FSMContext,
+        *,
+        notice: Text | None = None,
+        below: bool = False,
+    ) -> None:
+        await drop_keys(state, FSMKey.EDITING)
+        await super().show_as_message(message, state, notice=notice, below=below)
 
-    lines.append(
-        format_lazy(
-            _("⚠️ Defect type: <b>{dtype}</b>"), dtype=defect.defect_type_label or "?"
-        )
-    )
+    @on.callback_query.enter()
+    async def show_as_edit(self, callback: CallbackQuery, state: FSMContext) -> None:
+        await drop_keys(state, FSMKey.EDITING)
+        await super().show_as_edit(callback, state)
 
-    lines.append(
-        format_lazy(
-            _("🔴 Severity: <b>{severity}</b>"), severity=defect.severity_label or "?"
-        )
-    )
+    @on.callback_query(EditCB.filter())
+    async def edit(
+        self, callback: CallbackQuery, callback_data: EditCB, state: FSMContext
+    ) -> None:
+        """The field's scene draws its own edit prompt and comes back here."""
+        await callback.answer()
 
-    if defect.responsible_employee_label:
-        lines.append(
-            format_lazy(
-                _("👤 Responsible: <b>{emp}</b>"),
-                emp=html.escape(defect.responsible_employee_label),
-            )
-        )
+        # An older summary's button, from before the type moved on or off a human factor
+        defect = await load_defect(state)
+        human_factor = defect.defect_type == DefectType.HUMAN_FACTOR
+        if callback_data.field == EDIT_RESPONSIBLE and not human_factor:
+            return
+        if callback_data.field == EDIT_MEASUREMENTS and human_factor:
+            return
 
-    if defect.measurements:
-        lines.append(
-            format_lazy(_("📐 Measurements: {count}"), count=len(defect.measurements))
-        )
-        for measurement in defect.measurements:
-            dim = html.escape(str(measurement.dimension_label))
-            val = html.escape(str(measurement.value))
+        field_step = _EDIT_SCENES.get(callback_data.field)
+        if field_step is None:
+            return
 
-            entry = f"🔹 {dim}: <b>{val}</b>"
+        await state.update_data({FSMKey.EDITING: True})
+        await self.wizard.goto(field_step)
 
-            if measurement.unit:
-                entry += f" {html.escape(measurement.unit)}"
+    # Split from save so that cancelling never loads the employee
+    @on.callback_query(ConfirmCB.filter(~F.confirmed))
+    async def decline(self, callback: CallbackQuery) -> None:
+        await self.cancel(callback)
 
-            if measurement.norm_value is not None:
-                norm_str = str(
-                    format_lazy(
-                        _("<i>(norm: {norm})</i>"),
-                        norm=html.escape(str(measurement.norm_value)),
-                    )
-                )
-                entry += " " + norm_str
-
-            lines.append(entry)
-
-    if defect.photo_file_ids:
-        lines.append(
-            format_lazy(_("📸 Photos: {count}"), count=len(defect.photo_file_ids))
-        )
-
-    if defect.description:
-        lines.append(
-            format_lazy(
-                _("📝 Description: {desc}"), desc=html.escape(defect.description)
-            )
-        )
-
-    lines.append("\n" + str(_("Save?")))
-    return "\n".join(str(line) for line in lines)
+    @on.callback_query(ConfirmCB.filter(F.confirmed))
+    async def save(self, callback: CallbackQuery, employee: Employee | None) -> None:
+        """Passed on by hand: the scenes' own data is gathered before the lookup."""
+        await self.wizard.goto(DefectSG.saving, employee=employee)

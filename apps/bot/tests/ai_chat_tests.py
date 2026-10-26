@@ -1,379 +1,458 @@
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from google.genai.errors import ServerError
-from telegram.error import NetworkError
-from telegram.ext import ConversationHandler
+import pytest
+from aiogram.dispatcher.event.handler import HandlerObject
+from aiogram.exceptions import TelegramNetworkError
+from aiogram.utils.formatting import Text
+from google.genai.errors import APIError, ClientError, ServerError
 
-from apps.bot.constants import UD_AI_CHAT_HISTORY
-from apps.bot.handlers.ai_chat.receive import ai_chat_receive
+from apps.bot.constants import FSMKey
+from apps.bot.handlers.ai_chat.receive import ai_chat_not_text, ai_chat_receive
 from apps.bot.handlers.ai_chat.start import ai_chat_start
-from apps.bot.messages import BotMessages as M
-from apps.bot.states import AI_CHAT
+from apps.bot.handlers.ai_chat.text import (
+    build_ai_chat_blocked_text,
+    build_ai_chat_error_text,
+    build_ai_chat_greeting_text,
+    build_ai_chat_overloaded_text,
+    build_ai_chat_text_only_text,
+    build_ai_chat_thinking_text,
+)
+from apps.bot.states import AiChatSG
+from apps.bot.tests.builders import make_bad_request, make_message
 
 
-def _make_employee():
-    emp = MagicMock()
-    emp.full_name = "Bat Erdene"
-    emp.get_role_display.return_value = "Inspector"
-    emp.role = "inspector"
-    return emp
-
-
-def _make_server_error(code: int) -> ServerError:
-    return ServerError(
-        code, {"error": {"code": code, "message": "err", "status": "ERR"}}, None
-    )
+def _make_api_error(cls: type[APIError], code: int) -> APIError:
+    return cls(code, {"error": {"code": code, "message": "err", "status": "ERR"}}, None)
 
 
 class TestAiChatStart:
-    async def test_unauthenticated_returns_end(self, mock_update, mock_context):
-        with patch(
-            "apps.bot.handlers.ai_chat.start.get_employee", AsyncMock(return_value=None)
-        ):
-            result = await ai_chat_start(mock_update, mock_context)
+    def test_is_for_a_registered_chat_only(self):
+        assert HandlerObject(callback=ai_chat_start).flags.get("registered")
 
-        assert result == ConversationHandler.END
+    async def test_opens_the_session(self, message, state):
+        await ai_chat_start(message, state)
 
-    async def test_unauthenticated_sends_not_authenticated_message(
-        self, mock_update, mock_context
-    ):
-        with patch(
-            "apps.bot.handlers.ai_chat.start.get_employee", AsyncMock(return_value=None)
-        ):
-            await ai_chat_start(mock_update, mock_context)
+        assert await state.get_state() == AiChatSG.chatting.state
 
-        mock_update.message.reply_text.assert_called_once_with(
-            str(M.AI_CHAT_NOT_AUTHENTICATED)
+    async def test_clears_history_on_start(self, message, state):
+        await state.update_data(
+            {FSMKey.AI_CHAT_HISTORY: [{"role": "user", "content": "old"}]}
+        )
+        await ai_chat_start(message, state)
+
+        assert (await state.get_data())[FSMKey.AI_CHAT_HISTORY] == []
+
+    async def test_sends_greeting(self, message, state):
+        await ai_chat_start(message, state)
+
+        message.answer.assert_called_once_with(
+            **build_ai_chat_greeting_text().as_kwargs()
         )
 
-    async def test_authenticated_returns_ai_chat_state(self, mock_update, mock_context):
-        with patch(
-            "apps.bot.handlers.ai_chat.start.get_employee",
-            AsyncMock(return_value=_make_employee()),
-        ):
-            result = await ai_chat_start(mock_update, mock_context)
-
-        assert result == AI_CHAT
-
-    async def test_clears_history_on_start(self, mock_update, mock_context):
-        mock_context.user_data[UD_AI_CHAT_HISTORY] = [
-            {"role": "user", "content": "old"}
-        ]
-        with patch(
-            "apps.bot.handlers.ai_chat.start.get_employee",
-            AsyncMock(return_value=_make_employee()),
-        ):
-            await ai_chat_start(mock_update, mock_context)
-
-        assert mock_context.user_data[UD_AI_CHAT_HISTORY] == []
-
-    async def test_sends_greeting_with_html_parse_mode(self, mock_update, mock_context):
-        with patch(
-            "apps.bot.handlers.ai_chat.start.get_employee",
-            AsyncMock(return_value=_make_employee()),
-        ):
-            await ai_chat_start(mock_update, mock_context)
-
-        mock_update.message.reply_text.assert_called_once_with(
-            str(M.AI_CHAT_GREETING), parse_mode=M.PARSE_MODE
+    async def test_a_failed_greeting_does_not_open_the_session(self, message, state):
+        message.answer = AsyncMock(
+            side_effect=TelegramNetworkError(method=None, message="network")
         )
+        await ai_chat_start(message, state)
 
-    async def test_caches_employee_in_user_data(self, mock_update, mock_context):
-        employee = _make_employee()
-        with patch(
-            "apps.bot.handlers.ai_chat.start.get_employee",
-            AsyncMock(return_value=employee),
-        ):
-            await ai_chat_start(mock_update, mock_context)
-
-        # get_employee already writes to user_data internally; history key must exist
-        assert UD_AI_CHAT_HISTORY in mock_context.user_data
-
-    async def test_get_employee_exception_returns_end(self, mock_update, mock_context):
-        with patch(
-            "apps.bot.handlers.ai_chat.start.get_employee",
-            AsyncMock(side_effect=RuntimeError("db down")),
-        ):
-            result = await ai_chat_start(mock_update, mock_context)
-
-        assert result == ConversationHandler.END
-
-    async def test_get_employee_exception_sends_no_message(
-        self, mock_update, mock_context
-    ):
-        with patch(
-            "apps.bot.handlers.ai_chat.start.get_employee",
-            AsyncMock(side_effect=RuntimeError("db down")),
-        ):
-            await ai_chat_start(mock_update, mock_context)
-
-        mock_update.message.reply_text.assert_not_called()
-
-    async def test_greeting_send_failure_returns_end(self, mock_update, mock_context):
-        mock_update.message.reply_text = AsyncMock(side_effect=NetworkError("network"))
-        with patch(
-            "apps.bot.handlers.ai_chat.start.get_employee",
-            AsyncMock(return_value=_make_employee()),
-        ):
-            result = await ai_chat_start(mock_update, mock_context)
-
-        assert result == ConversationHandler.END
-
-    async def test_unauthenticated_reply_failure_still_returns_end(
-        self, mock_update, mock_context
-    ):
-        mock_update.message.reply_text = AsyncMock(side_effect=NetworkError("network"))
-        with patch(
-            "apps.bot.handlers.ai_chat.start.get_employee",
-            AsyncMock(return_value=None),
-        ):
-            result = await ai_chat_start(mock_update, mock_context)
-
-        assert result == ConversationHandler.END
+        assert await state.get_state() is None
 
 
 class TestAiChatReceive:
-    def _make_update(self, text="How to inspect a wheelset?"):
-        update = MagicMock()
-        update.message.text = text
-        update.effective_user.id = 12345
+    def test_is_for_a_registered_chat_only(self):
+        """A chat unlinked mid-session is refused, and its session ended, upstream."""
+        assert HandlerObject(callback=ai_chat_receive).flags.get("registered")
+
+    async def _enter(self, state):
+        """The router's StateFilter is what puts a real session here."""
+        await state.set_state(AiChatSG.chatting)
+
+    def _make_message(self, text="How to inspect a wheelset?"):
+        message = make_message(text)
         thinking_msg = MagicMock()
         thinking_msg.edit_text = AsyncMock()
-        update.message.reply_text = AsyncMock(return_value=thinking_msg)
-        return update, thinking_msg
+        thinking_msg.answer = AsyncMock()
+        message.answer = AsyncMock(return_value=thinking_msg)
+        return message, thinking_msg
 
-    async def test_sends_thinking_message_first(self, mock_context):
-        update, thinking_msg = self._make_update()
+    async def test_a_blank_question_is_asked_again_without_the_model(self, state):
+        """Spaces that strip() removes but Telegram keeps as a message."""
+        await self._enter(state)
+        message, _ = self._make_message("\u00a0\u3000")
+        answer = AsyncMock()
+
+        with patch("apps.bot.handlers.ai_chat.receive.answer_question", answer):
+            await ai_chat_receive(message, state)
+
+        answer.assert_not_awaited()
+        message.answer.assert_awaited_once_with(
+            **build_ai_chat_text_only_text().as_kwargs()
+        )
+        assert await state.get_state() == AiChatSG.chatting.state
+
+    async def test_sends_thinking_message_first(self, state):
+        await self._enter(state)
+        message, thinking_msg = self._make_message()
         with patch(
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(return_value="ответ"),
         ):
-            await ai_chat_receive(update, mock_context)
+            await ai_chat_receive(message, state)
 
-        update.message.reply_text.assert_called_once_with(str(M.AI_CHAT_THINKING))
+        message.answer.assert_called_once_with(
+            **build_ai_chat_thinking_text().as_kwargs()
+        )
 
-    async def test_edits_thinking_with_answer(self, mock_context):
-        update, thinking_msg = self._make_update()
+    async def test_edits_thinking_with_answer(self, state):
+        await self._enter(state)
+        message, thinking_msg = self._make_message()
         with patch(
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(return_value="Ответ депо"),
         ):
-            await ai_chat_receive(update, mock_context)
+            await ai_chat_receive(message, state)
 
-        thinking_msg.edit_text.assert_called_once_with("Ответ депо")
+        thinking_msg.edit_text.assert_called_once_with(**Text("Ответ депо").as_kwargs())
 
-    async def test_stays_in_ai_chat_on_success(self, mock_context):
-        update, _ = self._make_update()
+    async def test_stays_in_ai_chat_on_success(self, state):
+        await self._enter(state)
+        message, _ = self._make_message()
         with patch(
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(return_value="ok"),
         ):
-            result = await ai_chat_receive(update, mock_context)
+            await ai_chat_receive(message, state)
 
-        assert result == AI_CHAT
+        assert await state.get_state() == AiChatSG.chatting.state
 
-    async def test_appends_question_and_answer_to_history(self, mock_context):
-        update, _ = self._make_update("question about axle")
-        mock_context.user_data[UD_AI_CHAT_HISTORY] = []
+    async def test_appends_question_and_answer_to_history(self, state):
+        await self._enter(state)
+        message, _ = self._make_message("question about axle")
+        await state.update_data({FSMKey.AI_CHAT_HISTORY: []})
         with patch(
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(return_value="answer about axle"),
         ):
-            await ai_chat_receive(update, mock_context)
+            await ai_chat_receive(message, state)
 
-        history = mock_context.user_data[UD_AI_CHAT_HISTORY]
+        history = (await state.get_data())[FSMKey.AI_CHAT_HISTORY]
         assert {"role": "user", "content": "question about axle"} in history
         assert {"role": "model", "content": "answer about axle"} in history
 
-    async def test_history_grows_by_two_per_turn(self, mock_context):
-        update, _ = self._make_update()
-        mock_context.user_data[UD_AI_CHAT_HISTORY] = [
-            {"role": "user", "content": "q1"},
-            {"role": "model", "content": "a1"},
-        ]
+    async def test_history_grows_by_two_per_turn(self, state):
+        await self._enter(state)
+        message, _ = self._make_message()
+        await state.update_data(
+            {
+                FSMKey.AI_CHAT_HISTORY: [
+                    {"role": "user", "content": "q1"},
+                    {"role": "model", "content": "a1"},
+                ]
+            }
+        )
         with patch(
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(return_value="a2"),
         ):
-            await ai_chat_receive(update, mock_context)
+            await ai_chat_receive(message, state)
 
-        assert len(mock_context.user_data[UD_AI_CHAT_HISTORY]) == 4
+        assert len((await state.get_data())[FSMKey.AI_CHAT_HISTORY]) == 4
 
-    async def test_history_capped_before_appending(self, mock_context):
+    async def test_history_capped_before_appending(self, state):
         from apps.bot.handlers.ai_chat.receive import _HISTORY_KEEP
 
-        update, _ = self._make_update()
-        mock_context.user_data[UD_AI_CHAT_HISTORY] = [
-            {"role": "user" if i % 2 == 0 else "model", "content": f"old {i}"}
-            for i in range(_HISTORY_KEEP + 6)
-        ]
+        message, _ = self._make_message()
+        await state.update_data(
+            {
+                FSMKey.AI_CHAT_HISTORY: [
+                    {"role": "user" if i % 2 == 0 else "model", "content": f"old {i}"}
+                    for i in range(_HISTORY_KEEP + 6)
+                ]
+            }
+        )
         with patch(
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(return_value="new"),
         ):
-            await ai_chat_receive(update, mock_context)
+            await ai_chat_receive(message, state)
 
-        history = mock_context.user_data[UD_AI_CHAT_HISTORY]
+        history = (await state.get_data())[FSMKey.AI_CHAT_HISTORY]
         assert len(history) <= _HISTORY_KEEP + 2
 
-    async def test_503_error_shows_overloaded_message(self, mock_context):
-        update, thinking_msg = self._make_update()
+    @pytest.mark.parametrize(
+        ("error", "build_text", "traceback"),
+        [
+            (_make_api_error(ClientError, 429), build_ai_chat_overloaded_text, False),
+            (_make_api_error(ServerError, 503), build_ai_chat_overloaded_text, False),
+            (_make_api_error(ClientError, 400), build_ai_chat_error_text, True),
+            (_make_api_error(ServerError, 500), build_ai_chat_error_text, True),
+        ],
+    )
+    async def test_an_api_error_is_shown_by_whether_waiting_helps(
+        self, state, caplog, error, build_text, traceback
+    ):
+        """A rate limit is not the question's fault: it is told to wait, not rephrase."""
+        await self._enter(state)
+        message, thinking_msg = self._make_message()
         with patch(
             "apps.bot.handlers.ai_chat.receive.answer_question",
-            AsyncMock(side_effect=_make_server_error(503)),
+            AsyncMock(side_effect=error),
         ):
-            result = await ai_chat_receive(update, mock_context)
+            await ai_chat_receive(message, state)
 
-        thinking_msg.edit_text.assert_called_once_with(str(M.AI_CHAT_OVERLOADED))
-        assert result == AI_CHAT
+        thinking_msg.edit_text.assert_called_once_with(**build_text().as_kwargs())
+        (record,) = caplog.records
+        assert (record.exc_info is not None) is traceback
+        assert await state.get_state() == AiChatSG.chatting.state
 
-    async def test_other_server_error_shows_generic_error(self, mock_context):
-        update, thinking_msg = self._make_update()
-        with patch(
-            "apps.bot.handlers.ai_chat.receive.answer_question",
-            AsyncMock(side_effect=_make_server_error(500)),
-        ):
-            result = await ai_chat_receive(update, mock_context)
-
-        thinking_msg.edit_text.assert_called_once_with(str(M.AI_CHAT_ERROR))
-        assert result == AI_CHAT
-
-    async def test_generic_exception_shows_error(self, mock_context):
-        update, thinking_msg = self._make_update()
+    async def test_generic_exception_shows_error(self, state):
+        await self._enter(state)
+        message, thinking_msg = self._make_message()
         with patch(
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(side_effect=RuntimeError("unexpected")),
         ):
-            result = await ai_chat_receive(update, mock_context)
+            await ai_chat_receive(message, state)
 
-        thinking_msg.edit_text.assert_called_once_with(str(M.AI_CHAT_ERROR))
-        assert result == AI_CHAT
+        thinking_msg.edit_text.assert_called_once_with(
+            **build_ai_chat_error_text().as_kwargs()
+        )
+        assert await state.get_state() == AiChatSG.chatting.state
 
-    async def test_error_does_not_update_history(self, mock_context):
-        update, _ = self._make_update()
-        mock_context.user_data[UD_AI_CHAT_HISTORY] = []
+    async def test_a_failure_logs_without_naming_the_user(self, state, caplog):
+        await self._enter(state)
+        message, _ = self._make_message()
+        with patch(
+            "apps.bot.handlers.ai_chat.receive.answer_question",
+            AsyncMock(side_effect=RuntimeError("unexpected")),
+        ):
+            await ai_chat_receive(message, state)
+
+        assert caplog.messages == ["AI chat failed"]
+
+    async def test_error_does_not_update_history(self, state):
+        await self._enter(state)
+        message, _ = self._make_message()
+        await state.update_data({FSMKey.AI_CHAT_HISTORY: []})
         with patch(
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(side_effect=RuntimeError("fail")),
         ):
-            await ai_chat_receive(update, mock_context)
+            await ai_chat_receive(message, state)
 
-        assert mock_context.user_data[UD_AI_CHAT_HISTORY] == []
+        assert (await state.get_data())[FSMKey.AI_CHAT_HISTORY] == []
 
-    async def test_content_blocked_shows_blocked_message(self, mock_context):
+    async def test_content_blocked_shows_blocked_message(self, state):
         from apps.ai_service.rag.chat import ContentBlockedError
 
-        update, thinking_msg = self._make_update()
+        await self._enter(state)
+        message, thinking_msg = self._make_message()
         with patch(
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(side_effect=ContentBlockedError()),
         ):
-            result = await ai_chat_receive(update, mock_context)
+            await ai_chat_receive(message, state)
 
-        thinking_msg.edit_text.assert_called_once_with(str(M.AI_CHAT_BLOCKED))
-        assert result == AI_CHAT
+        thinking_msg.edit_text.assert_called_once_with(
+            **build_ai_chat_blocked_text().as_kwargs()
+        )
+        assert await state.get_state() == AiChatSG.chatting.state
 
-    async def test_content_blocked_does_not_update_history(self, mock_context):
+    async def test_content_blocked_does_not_update_history(self, state):
         from apps.ai_service.rag.chat import ContentBlockedError
 
-        update, _ = self._make_update()
-        mock_context.user_data[UD_AI_CHAT_HISTORY] = []
+        message, _ = self._make_message()
+        await state.update_data({FSMKey.AI_CHAT_HISTORY: []})
         with patch(
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(side_effect=ContentBlockedError()),
         ):
-            await ai_chat_receive(update, mock_context)
+            await ai_chat_receive(message, state)
 
-        assert mock_context.user_data[UD_AI_CHAT_HISTORY] == []
+        assert (await state.get_data())[FSMKey.AI_CHAT_HISTORY] == []
 
-    async def test_passes_existing_history_to_answer_question(self, mock_context):
-        update, _ = self._make_update("new question")
+    async def test_passes_existing_history_to_answer_question(self, state):
+        await self._enter(state)
+        message, _ = self._make_message("new question")
         existing = [
             {"role": "user", "content": "previous question"},
             {"role": "model", "content": "previous answer"},
         ]
-        mock_context.user_data[UD_AI_CHAT_HISTORY] = list(existing)
+        await state.update_data({FSMKey.AI_CHAT_HISTORY: list(existing)})
         answer_mock = AsyncMock(return_value="ok")
 
         with patch("apps.bot.handlers.ai_chat.receive.answer_question", answer_mock):
-            await ai_chat_receive(update, mock_context)
+            await ai_chat_receive(message, state)
 
         answer_mock.assert_awaited_once()
         _, call_history = answer_mock.call_args.args
         assert call_history == existing
 
-    async def test_timeout_shows_overloaded_message(self, mock_context):
-        update, thinking_msg = self._make_update()
+    async def test_timeout_shows_overloaded_message(self, state):
+        await self._enter(state)
+        message, thinking_msg = self._make_message()
         with patch(
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(side_effect=asyncio.TimeoutError()),
         ):
-            result = await ai_chat_receive(update, mock_context)
+            await ai_chat_receive(message, state)
 
-        thinking_msg.edit_text.assert_called_once_with(str(M.AI_CHAT_OVERLOADED))
-        assert result == AI_CHAT
+        thinking_msg.edit_text.assert_called_once_with(
+            **build_ai_chat_overloaded_text().as_kwargs()
+        )
+        assert await state.get_state() == AiChatSG.chatting.state
 
-    async def test_timeout_does_not_update_history(self, mock_context):
-        update, _ = self._make_update()
-        mock_context.user_data[UD_AI_CHAT_HISTORY] = []
+    async def test_timeout_does_not_update_history(self, state):
+        await self._enter(state)
+        message, _ = self._make_message()
+        await state.update_data({FSMKey.AI_CHAT_HISTORY: []})
         with patch(
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(side_effect=asyncio.TimeoutError()),
         ):
-            await ai_chat_receive(update, mock_context)
+            await ai_chat_receive(message, state)
 
-        assert mock_context.user_data[UD_AI_CHAT_HISTORY] == []
+        assert (await state.get_data())[FSMKey.AI_CHAT_HISTORY] == []
 
-    async def test_thinking_send_failure_returns_ai_chat(self, mock_context):
-        update, _ = self._make_update()
-        update.message.reply_text = AsyncMock(side_effect=NetworkError("network"))
-
-        with patch(
-            "apps.bot.handlers.ai_chat.receive.answer_question",
-            AsyncMock(return_value="ok"),
-        ):
-            result = await ai_chat_receive(update, mock_context)
-
-        assert result == AI_CHAT
-
-    async def test_thinking_send_failure_skips_answer_question(self, mock_context):
-        update, _ = self._make_update()
-        update.message.reply_text = AsyncMock(side_effect=NetworkError("network"))
-        answer_mock = AsyncMock(return_value="ok")
-
-        with patch("apps.bot.handlers.ai_chat.receive.answer_question", answer_mock):
-            await ai_chat_receive(update, mock_context)
-
-        answer_mock.assert_not_awaited()
-
-    async def test_long_answer_is_truncated_to_max_len(self, mock_context):
-        from apps.bot.handlers.ai_chat.receive import _MAX_MESSAGE_LEN
-
-        update, thinking_msg = self._make_update()
-        long_answer = "А" * (_MAX_MESSAGE_LEN + 100)
-        with patch(
-            "apps.bot.handlers.ai_chat.receive.answer_question",
-            AsyncMock(return_value=long_answer),
-        ):
-            await ai_chat_receive(update, mock_context)
-
-        edited_text = thinking_msg.edit_text.call_args.args[0]
-        assert len(edited_text) <= _MAX_MESSAGE_LEN
-        assert edited_text.endswith("…")
-
-    async def test_deleted_thinking_message_does_not_raise(self, mock_context):
-        from telegram.error import BadRequest
-
-        update, thinking_msg = self._make_update()
-        thinking_msg.edit_text = AsyncMock(
-            side_effect=BadRequest("Message to edit not found")
+    async def test_a_failed_placeholder_keeps_the_session(self, state):
+        await self._enter(state)
+        message, _ = self._make_message()
+        message.answer = AsyncMock(
+            side_effect=TelegramNetworkError(method=None, message="network")
         )
 
         with patch(
             "apps.bot.handlers.ai_chat.receive.answer_question",
             AsyncMock(return_value="ok"),
         ):
-            result = await ai_chat_receive(update, mock_context)
+            await ai_chat_receive(message, state)
 
-        assert result == AI_CHAT
+        assert await state.get_state() == AiChatSG.chatting.state
+
+    async def test_thinking_send_failure_skips_answer_question(self, state):
+        await self._enter(state)
+        message, _ = self._make_message()
+        message.answer = AsyncMock(
+            side_effect=TelegramNetworkError(method=None, message="network")
+        )
+        answer_mock = AsyncMock(return_value="ok")
+
+        with patch("apps.bot.handlers.ai_chat.receive.answer_question", answer_mock):
+            await ai_chat_receive(message, state)
+
+        answer_mock.assert_not_awaited()
+
+    async def test_a_long_answer_goes_on_in_new_messages(self, state):
+        await self._enter(state)
+        await state.update_data({FSMKey.AI_CHAT_HISTORY: []})
+        message, thinking_msg = self._make_message()
+        first, second = "А" * 3000, "Б" * 3000
+        with patch(
+            "apps.bot.handlers.ai_chat.receive.answer_question",
+            AsyncMock(return_value=f"{first}\n{second}"),
+        ):
+            await ai_chat_receive(message, state)
+
+        thinking_msg.edit_text.assert_awaited_once_with(**Text(first).as_kwargs())
+        thinking_msg.answer.assert_awaited_once_with(**Text(second).as_kwargs())
+        history = (await state.get_data())[FSMKey.AI_CHAT_HISTORY]
+        assert history[-1] == {"role": "model", "content": f"{first}\n{second}"}
+
+    async def test_a_lost_piece_of_a_long_answer_is_not_remembered(self, state):
+        await self._enter(state)
+        await state.update_data({FSMKey.AI_CHAT_HISTORY: []})
+        message, thinking_msg = self._make_message()
+        thinking_msg.answer = AsyncMock(
+            side_effect=TelegramNetworkError(method=None, message="network")
+        )
+        with patch(
+            "apps.bot.handlers.ai_chat.receive.answer_question",
+            AsyncMock(return_value="А" * 3000 + "\n" + "Б" * 3000),
+        ):
+            await ai_chat_receive(message, state)
+
+        assert (await state.get_data())[FSMKey.AI_CHAT_HISTORY] == []
+
+    async def test_a_refused_edit_sends_the_answer_anew(self, state):
+        await self._enter(state)
+        await state.update_data({FSMKey.AI_CHAT_HISTORY: []})
+        message, thinking_msg = self._make_message()
+        thinking_msg.edit_text = AsyncMock(
+            side_effect=make_bad_request("Bad Request: message to edit not found")
+        )
+
+        with patch(
+            "apps.bot.handlers.ai_chat.receive.answer_question",
+            AsyncMock(return_value="ok"),
+        ):
+            await ai_chat_receive(message, state)
+
+        thinking_msg.answer.assert_awaited_once_with(**Text("ok").as_kwargs())
+        assert len((await state.get_data())[FSMKey.AI_CHAT_HISTORY]) == 2
+        assert await state.get_state() == AiChatSG.chatting.state
+
+    async def test_an_edit_that_fails_otherwise_is_not_sent_anew(self, state):
+        """A network error may hide an edit that went through."""
+        await self._enter(state)
+        message, thinking_msg = self._make_message()
+        thinking_msg.edit_text = AsyncMock(
+            side_effect=TelegramNetworkError(method=None, message="network")
+        )
+
+        with patch(
+            "apps.bot.handlers.ai_chat.receive.answer_question",
+            AsyncMock(return_value="ok"),
+        ):
+            await ai_chat_receive(message, state)
+
+        thinking_msg.answer.assert_not_awaited()
+
+    async def test_an_undelivered_answer_is_not_remembered(self, state, caplog):
+        await self._enter(state)
+        await state.update_data({FSMKey.AI_CHAT_HISTORY: []})
+        message, thinking_msg = self._make_message()
+        thinking_msg.edit_text = AsyncMock(
+            side_effect=make_bad_request("Bad Request: message to edit not found")
+        )
+        thinking_msg.answer = AsyncMock(
+            side_effect=TelegramNetworkError(method=None, message="network")
+        )
+
+        with patch(
+            "apps.bot.handlers.ai_chat.receive.answer_question",
+            AsyncMock(return_value="ok"),
+        ):
+            await ai_chat_receive(message, state)
+
+        assert (await state.get_data())[FSMKey.AI_CHAT_HISTORY] == []
+        assert "Could not show the AI chat reply" in caplog.text
+        assert await state.get_state() == AiChatSG.chatting.state
+
+    async def test_an_empty_answer_shows_the_error_and_is_not_remembered(self, state):
+        """Telegram refuses an empty text, which left the placeholder up for good."""
+        await self._enter(state)
+        await state.update_data({FSMKey.AI_CHAT_HISTORY: []})
+        message, thinking_msg = self._make_message()
+
+        with patch(
+            "apps.bot.handlers.ai_chat.receive.answer_question",
+            AsyncMock(return_value=" \n"),
+        ):
+            await ai_chat_receive(message, state)
+
+        thinking_msg.edit_text.assert_called_once_with(
+            **build_ai_chat_error_text().as_kwargs()
+        )
+        assert (await state.get_data())[FSMKey.AI_CHAT_HISTORY] == []
+
+
+class TestAiChatNotText:
+    async def test_asks_for_the_question_as_text(self):
+        message = make_message()
+
+        await ai_chat_not_text(message)
+
+        message.answer.assert_awaited_once_with(
+            **build_ai_chat_text_only_text().as_kwargs()
+        )

@@ -2,9 +2,13 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
 from rest_framework.parsers import FormParser, MultiPartParser
 
-from apps.defects.models import DefectPhoto
+from apps.defects.models import Defect, DefectPhoto
 from apps.defects.serializers import DefectPhotoSerializer
-from apps.users.permissions import IsAnyEmployee, IsEngineer, IsInspectorOrEngineer
+from apps.users.permissions import (
+    IsAnyEmployee,
+    IsEngineerOrManager,
+    IsInspectorEngineerOrManager,
+)
 
 
 class DefectPhotoViewSet(viewsets.ModelViewSet):
@@ -19,7 +23,11 @@ class DefectPhotoViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action == "create":
-            return [IsInspectorOrEngineer()]
+            return [IsInspectorEngineerOrManager()]
         if self.action == "destroy":
-            return [IsEngineer()]
+            return [IsEngineerOrManager()]
         return [IsAnyEmployee()]
+
+    def get_queryset(self):
+        visible = Defect.objects.visible_to(self.request.user)
+        return super().get_queryset().filter(defect__in=visible)

@@ -14,12 +14,14 @@ for _name in (
     "CELERY_BROKER_URL",
     "CELERY_RESULT_BACKEND",
     "DJANGO_ADMIN_URL",
+    "SITE_URL",
     "DEFAULT_FROM_EMAIL",
     "AWS_ACCESS_KEY_ID",
     "AWS_SECRET_ACCESS_KEY",
     "AWS_STORAGE_BUCKET_NAME",
     "AWS_S3_ENDPOINT_URL",
     "TELEGRAM_BOT_TOKEN",
+    "TELEGRAM_FSM_REDIS_URL",
     "GOOGLE_AI_KEY",
 ):
     if not env(_name, default=""):

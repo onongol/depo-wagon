@@ -62,17 +62,33 @@ class TestMeasurementCreatePermissions:
         )
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
-    def test_manager_cannot_create(self, manager_client, measurement_data):
+    def test_manager_can_create(self, manager_client, measurement_data):
         response = manager_client.post(
             reverse("measurement-list"), measurement_data, format="json"
         )
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_201_CREATED
 
-    def test_inspector_can_create(self, inspector_client, measurement_data):
+    def test_inspector_can_create_on_their_own_defect(
+        self, inspector_client, measurement_data, wagon
+    ):
+        own = baker.make(
+            "defects.Defect", wagon=wagon, inspector=inspector_client.employee
+        )
+        response = inspector_client.post(
+            reverse("measurement-list"),
+            measurement_data | {"defect": str(own.pk)},
+            format="json",
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+
+    def test_inspector_cannot_create_on_another_inspectors_defect(
+        self, inspector_client, measurement_data
+    ):
         response = inspector_client.post(
             reverse("measurement-list"), measurement_data, format="json"
         )
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "defect" in response.data
 
     def test_engineer_can_create(self, engineer_client, measurement_data):
         response = engineer_client.post(
@@ -113,13 +129,13 @@ class TestMeasurementUpdatePermissions:
         )
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
-    def test_manager_cannot_update(self, manager_client, measurement):
+    def test_manager_can_update(self, manager_client, measurement):
         response = manager_client.patch(
             reverse("measurement-detail", args=[measurement.pk]),
             {"value": 99.0},
             format="json",
         )
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_200_OK
 
     def test_engineer_can_update(self, engineer_client, measurement):
         response = engineer_client.patch(
@@ -158,11 +174,11 @@ class TestMeasurementDeletePermissions:
         )
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
-    def test_manager_cannot_delete(self, manager_client, measurement):
+    def test_manager_can_delete(self, manager_client, measurement):
         response = manager_client.delete(
             reverse("measurement-detail", args=[measurement.pk])
         )
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_204_NO_CONTENT
 
     def test_engineer_can_delete(self, engineer_client, measurement):
         response = engineer_client.delete(

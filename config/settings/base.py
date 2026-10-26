@@ -2,6 +2,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import environ
+from botocore.config import Config
 from django.utils.translation import gettext_lazy as _
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -186,7 +187,13 @@ AWS_ACCESS_KEY_ID = env("AWS_ACCESS_KEY_ID", default="")
 AWS_SECRET_ACCESS_KEY = env("AWS_SECRET_ACCESS_KEY", default="")
 AWS_STORAGE_BUCKET_NAME = env("AWS_STORAGE_BUCKET_NAME", default="")
 AWS_S3_ENDPOINT_URL = env("AWS_S3_ENDPOINT_URL", default="")
-AWS_S3_SIGNATURE_VERSION = "s3v4"
+# Replaces django-storages' own Config, which is where AWS_S3_SIGNATURE_VERSION went.
+AWS_S3_CLIENT_CONFIG = Config(
+    signature_version="s3v4",
+    connect_timeout=5,
+    read_timeout=10,
+    retries={"mode": "standard", "total_max_attempts": 2},
+)
 
 # TEMPLATES
 # ------------------------------------------------------------------------------
@@ -278,6 +285,14 @@ LOGGING = {
             "level": "INFO",
             "propagate": False,
         },
+        # "Run polling for bot @x" is the only positive confirmation the bot
+        # came up, and it is INFO — at the root WARNING level a healthy start
+        # is indistinguishable from a silent failure.
+        "aiogram": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
         "apps": {
             "handlers": ["console"],
             "level": "DEBUG",
@@ -300,6 +315,14 @@ CELERY_TASK_IGNORE_RESULT = True
 # The soft limit raises inside the task so it can retry; the hard one kills the worker.
 CELERY_TASK_SOFT_TIME_LIMIT = env.int("CELERY_TASK_SOFT_TIME_LIMIT", default=300)
 CELERY_TASK_TIME_LIMIT = env.int("CELERY_TASK_TIME_LIMIT", default=360)
+# A dead broker must fail a publish in seconds, not hang the bot's one sync thread.
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    "socket_connect_timeout": 2,
+    "socket_timeout": 5,
+    "max_retries": 0,
+}
+# Hijacking strips the handlers LOGGING gives "celery", and its INFO lines vanish.
+CELERY_WORKER_HIJACK_ROOT_LOGGER = False
 
 # django-allauth
 # ------------------------------------------------------------------------------
@@ -411,8 +434,16 @@ TELEGRAM_BOT_USERNAME = env("TELEGRAM_BOT_USERNAME", default="")
 TELEGRAM_WEBHOOK_URL = env("TELEGRAM_WEBHOOK_URL", default="")
 TELEGRAM_WEBHOOK_SECRET = env("TELEGRAM_WEBHOOK_SECRET", default="")
 
-# The support person must have pressed Start on the bot at least once.
-TELEGRAM_SUPPORT_CHAT_ID = env("TELEGRAM_SUPPORT_CHAT_ID", default="")
+# The support group's id (negative); the bot must be a member
+TELEGRAM_SUPPORT_CHAT_ID = env.int("TELEGRAM_SUPPORT_CHAT_ID", default=None)
+# Who users are sent to when the relay is down, e.g. "@handle"
+TELEGRAM_SUPPORT_CONTACT = env("TELEGRAM_SUPPORT_CONTACT", default="")
+
+# Conversation state. Deliberately not REDIS_URL: that instance is configured
+# allkeys-lru with no persistence, which would drop a half-filled defect form.
+TELEGRAM_FSM_REDIS_URL = env(
+    "TELEGRAM_FSM_REDIS_URL", default="redis://localhost:6379/3"
+)
 
 # Google AI
 GOOGLE_AI_KEY = env("GOOGLE_AI_KEY", default="")

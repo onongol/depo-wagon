@@ -2,19 +2,21 @@ import logging
 from typing import TYPE_CHECKING
 
 from asgiref.sync import sync_to_async
+from django.db import transaction
 from django.utils import timezone
 
+from apps.bot.constants import STATUS_TRANSITIONS
+
 if TYPE_CHECKING:
+    from apps.bot.services.defect_card import DefectCard
     from apps.bot.user_data import DefectData
+    from apps.core.models import Employee
 
 logger = logging.getLogger(__name__)
 
 
 def _load_defect(defect_id, op: str):
-    """Fetch a Defect by id; log a warning and return None if it's missing.
-
-    Sync helper — called from inside the @sync_to_async service functions.
-    """
+    """Return the defect with this id, or log a warning and return None."""
     from apps.defects.models import Defect
 
     defect = Defect.objects.filter(id=defect_id).first()
@@ -33,6 +35,7 @@ def create_defect(defect_data: DefectData, *, employee_id):
         node=defect_data.node,
         defect_type=defect_data.defect_type,
         severity=defect_data.severity,
+        verdict=defect_data.verdict or "",
         description=defect_data.description,
         inspector_id=employee_id,
         department=defect_data.department or "",
@@ -50,7 +53,7 @@ def update_defect_ai_result(
     ai_recommendation: str,
     ai_verdict: str,
 ) -> None:
-    """Write AI analysis results back to the Defect record."""
+    """Write the AI result with save() so the history and updated_at record it."""
     defect = _load_defect(defect_id, "update_defect_ai_result")
 
     if defect is None:
@@ -61,8 +64,6 @@ def update_defect_ai_result(
     defect.ai_recommendation = ai_recommendation
     defect.ai_verdict = ai_verdict
 
-    # save() — not filter().update() — so auto_now (updated_at) and
-    # simple_history fire. update() bypasses both and loses the audit trail.
     defect.save(
         update_fields=[
             "ai_defect_class",
@@ -74,65 +75,36 @@ def update_defect_ai_result(
 
 
 @sync_to_async
-def update_defect_status(defect_id, status: str) -> None:
-    """Update a Defect's status, setting repaired_at when it closes."""
-    from apps.defects.constants import DefectStatus
+def update_defect_status(
+    defect_id, status: str, *, employee: Employee
+) -> DefectCard | None:
+    """Save the status if this employee may move the defect to it.
 
-    defect = _load_defect(defect_id, "update_defect_status")
-
-    if defect is None:
-        return
-
-    defect.status = status
-    fields = ["status"]
-
-    if status == DefectStatus.CLOSED:
-        defect.repaired_at = timezone.now()
-        fields.append("repaired_at")
-
-    defect.save(update_fields=fields)
-
-
-@sync_to_async
-def save_employee_verdict(defect_id, verdict: str) -> None:
-    """Save the employee's own verdict to the Defect record."""
-    defect = _load_defect(defect_id, "save_employee_verdict")
-
-    if defect is None:
-        return
-
-    defect.verdict = verdict
-
-    defect.save(update_fields=["verdict"])
-
-
-@sync_to_async
-def get_open_defects(
-    limit: int = 5, offset: int = 0, employee_id: int | None = None
-) -> list:
-    """Return open/in-progress defects. Filtered by employee if provided."""
-    from apps.defects.constants import DefectStatus
+    Returns the card read inside the same transaction, or None when refused.
+    """
+    from apps.bot.services.defect_card import build_defect_card
     from apps.defects.models import Defect
 
-    qs = Defect.objects.select_related("wagon", "inspector").filter(
-        status__in=[DefectStatus.OPEN, DefectStatus.IN_PROGRESS]
-    )
+    if employee is None:
+        msg = "employee is required"
+        raise ValueError(msg)
 
-    if employee_id is not None:
-        qs = qs.filter(inspector_id=employee_id)
+    with transaction.atomic():
+        defect = (
+            Defect.objects.status_changeable_by(employee)
+            .select_for_update()
+            .filter(id=defect_id)
+            .first()
+        )
 
-    return list(qs.order_by("-inspected_at")[offset : offset + limit])
+        if defect is None or status not in STATUS_TRANSITIONS.get(defect.status, ()):
+            logger.warning(
+                "update_defect_status: defect %s cannot be moved to %s by employee %s",
+                defect_id,
+                status,
+                employee.pk,
+            )
+            return None
 
-
-@sync_to_async
-def get_open_defects_count(employee_id: int | None = None) -> int:
-    """Count open and in-progress defects, optionally for one employee."""
-    from apps.defects.constants import DefectStatus
-    from apps.defects.models import Defect
-
-    qs = Defect.objects.filter(status__in=[DefectStatus.OPEN, DefectStatus.IN_PROGRESS])
-
-    if employee_id is not None:
-        qs = qs.filter(inspector_id=employee_id)
-
-    return qs.count()
+        defect.set_status(status)
+        return build_defect_card(defect_id, employee=employee)

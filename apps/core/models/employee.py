@@ -3,10 +3,11 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from simple_history.models import HistoricalRecords
 
-from apps.core.constants import Department, EmployeeRole
+from apps.core.constants import ROLES_CHANGING_STATUS, Department, EmployeeRole
+from apps.core.mixins import UpdatedAtMixin
 
 
-class Employee(models.Model):
+class Employee(UpdatedAtMixin, models.Model):
     """Model representing an employee."""
 
     employee_id = models.CharField(
@@ -85,3 +86,8 @@ class Employee(models.Model):
         if self.first_name and self.last_name:
             return f"{self.last_name[0]}.{self.first_name}"
         return self.first_name or self.last_name or self.employee_id
+
+    @property
+    def changes_defect_statuses(self) -> bool:
+        """The role half of DefectQuerySet.status_changeable_by, without a query."""
+        return self.role in ROLES_CHANGING_STATUS

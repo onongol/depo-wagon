@@ -1,9 +1,10 @@
 from rest_framework import serializers
 
 from apps.defects.models import DefectMeasurement
+from apps.defects.serializers.visible_defect import VisibleDefectMixin
 
 
-class DefectMeasurementSerializer(serializers.ModelSerializer):
+class DefectMeasurementSerializer(VisibleDefectMixin, serializers.ModelSerializer):
     dimension_display = serializers.CharField(
         source="get_dimension_display", read_only=True
     )

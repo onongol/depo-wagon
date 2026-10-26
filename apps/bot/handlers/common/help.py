@@ -1,15 +1,10 @@
 from typing import TYPE_CHECKING
 
-from apps.bot.messages import BotMessages as M
+from apps.bot.handlers.common.text import build_help_text
 
 if TYPE_CHECKING:
-    from telegram import Update
-    from telegram.ext import ContextTypes
+    from aiogram.types import Message
 
 
-async def help_command(update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Show available bot commands."""
-    await update.message.reply_text(
-        str(M.HELP_TEXT),
-        parse_mode=M.PARSE_MODE,
-    )
+async def help_command(message: Message) -> None:
+    await message.answer(**build_help_text().as_kwargs())

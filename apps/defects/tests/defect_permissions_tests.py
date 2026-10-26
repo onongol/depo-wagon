@@ -83,11 +83,11 @@ class TestDefectCreatePermissions:
         )
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
-    def test_manager_cannot_create(self, manager_client, defect_data):
+    def test_manager_can_create(self, manager_client, defect_data):
         response = manager_client.post(
             reverse("defect-list"), defect_data, format="json"
         )
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_201_CREATED
 
     def test_inspector_can_create(self, inspector_client, defect_data):
         response = inspector_client.post(
@@ -134,13 +134,13 @@ class TestDefectUpdatePermissions:
         )
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
-    def test_manager_cannot_update(self, manager_client, defect):
+    def test_manager_can_update(self, manager_client, defect):
         response = manager_client.patch(
             reverse("defect-detail", args=[defect.pk]),
             {"status": DefectStatus.CLOSED},
             format="json",
         )
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_200_OK
 
     def test_engineer_can_update(self, engineer_client, defect):
         response = engineer_client.patch(
@@ -173,9 +173,9 @@ class TestDefectDeletePermissions:
         response = master_client.delete(reverse("defect-detail", args=[defect.pk]))
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
-    def test_manager_cannot_delete(self, manager_client, defect):
+    def test_manager_can_delete(self, manager_client, defect):
         response = manager_client.delete(reverse("defect-detail", args=[defect.pk]))
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_204_NO_CONTENT
 
     def test_engineer_can_delete(self, engineer_client, defect):
         response = engineer_client.delete(reverse("defect-detail", args=[defect.pk]))

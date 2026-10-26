@@ -1,35 +1,44 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from apps.bot.constants import UD_DEFECT
-from apps.bot.keyboards.defect import node_keyboard_for_department
-from apps.bot.messages import BotMessages as M
-from apps.bot.states import NODE
-from apps.core.constants import Department
+from aiogram.fsm.scene import on
+
+from apps.bot.callback_data import DepartmentCB
+from apps.bot.fsm import load_defect, save_defect
+from apps.bot.keyboards.defect import department_keyboard
+from apps.bot.states import DefectSG
+
+from .scene import DefectScene
+from .text import build_ask_department_text
 
 if TYPE_CHECKING:
-    from telegram import Update
-    from telegram.ext import ContextTypes
+    from aiogram.fsm.context import FSMContext
+    from aiogram.fsm.state import State
+    from aiogram.types import CallbackQuery
 
     from apps.bot.user_data import DefectData
 
-_DEPT_LABELS = dict(Department.choices)
+    from .scene import Screen
 
 
-async def receive_department(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Handle department selection from inline keyboard."""
-    query = update.callback_query
-    await query.answer()
+class DepartmentScene(DefectScene, state=DefectSG.department.state):
+    """The department, picked from buttons; the summary has no edit for it."""
 
-    dept_value = query.data.value
-    dept_label = _DEPT_LABELS.get(dept_value, dept_value)
+    @classmethod
+    def previous(cls, form: DefectData) -> State | None:
+        return DefectSG.wagon_num
 
-    defect: DefectData = context.user_data[UD_DEFECT]
-    defect.department = dept_value
-    defect.department_label = dept_label
+    @classmethod
+    async def screen(cls, form: DefectData, data: dict[str, Any]) -> Screen:
+        return build_ask_department_text(), department_keyboard()
 
-    await query.edit_message_text(
-        str(M.DEPARTMENT_CONFIRMED).format(label=dept_label),
-        parse_mode=M.PARSE_MODE,
-        reply_markup=node_keyboard_for_department(dept_value),
-    )
-    return NODE
+    @on.callback_query(DepartmentCB.filter())
+    async def receive(
+        self, callback: CallbackQuery, callback_data: DepartmentCB, state: FSMContext
+    ) -> None:
+        await callback.answer()
+
+        defect = await load_defect(state)
+        defect.department = callback_data.value
+        await save_defect(state, defect)
+
+        await self.wizard.goto(DefectSG.node)
